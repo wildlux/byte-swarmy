@@ -193,7 +193,7 @@ cpu_pause_threshold = 0.95       # CPU load > 95% per 60s = pausa
 orchestrator_tick = 30        # poll coda
 worker_tick = 60              # esecuzione worker
 health_check = 300            # 5 min
-git_snapshot = 900            # 15 min
+git_snapshot = 999999         # disabilitato di fatto
 memory_compaction = 3600      # 1 ora
 backup_complete = 86400       # 24 ore
 model_unload_idle = 120       # scarica modello se inattivo
