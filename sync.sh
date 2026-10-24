@@ -28,51 +28,51 @@ case "${1:-commit}" in
         git pull --rebase origin main 2>/dev/null || git pull origin main
         echo "✓ Pull completato"
         ;;
-    
+
     --status)
         git status
         ;;
-    
+
     --log)
         git log --oneline -20
         ;;
-    
+
     commit|"")
         # Mostra cosa è cambiato
         echo "📋 File modificati:"
         git status --short
-        
+
         # Se non c'è nulla da committare
         if [ -z "$(git status --short)" ]; then
             echo "✓ Nessuna modifica da sincronizzare"
             exit 0
         fi
-        
+
         echo
-        
+
         # Messaggio del commit
         if [ -n "$1" ] && [ "$1" != "commit" ]; then
             MSG="$1"
         else
             MSG="Auto-sync $(date '+%Y-%m-%d %H:%M:%S')"
         fi
-        
+
         echo "📝 Commit con messaggio: \"$MSG\""
         git add .
         git commit -m "$MSG"
-        
+
         echo
         echo "🚀 Push su GitHub..."
         BRANCH=$(git branch --show-current)
         git push -u origin "$BRANCH"
-        
+
         echo
         echo "✓ Sincronizzazione completata!"
         echo
         echo "📋 Ultimi 3 commit:"
         git log --oneline -3
         ;;
-    
+
     *)
         echo "Uso: $0 [commit|\"messaggio\"|--pull|--status|--log]"
         echo
