@@ -1,0 +1,11 @@
+"""
+Esempio di task iniziale.
+Copia questo file in tasks/first-task.json e poi:
+  python add_task.py --from-file tasks/first-task.json
+"""
+
+{
+  "title": "Implementa editor testuale CLI in Python",
+  "description": "Editor testuale minimale da terminale. Requisiti: (1) apre un file da path argomento, (2) mostra contenuto con numeri riga, (3) comandi: ':w' salva, ':q' esci, ':wq' salva ed esci, ':i' entra in modalita inserimento, 'ESC' torna in comando, (4) usa la libreria curses, (5) massimo 200 righe di codice, (6) salva in project/editor/editor.py. Test: esegui 'python project/editor/editor.py file.txt' e verifica che si apra.",
+  "context": "Progetto nuovo, cartella project/ vuota. Python 3 disponibile. Libreria curses inclusa in stdlib Linux."
+}

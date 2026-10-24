@@ -1,0 +1,454 @@
+#!/usr/bin/env bash
+#
+# byte-swarmy — CLI launcher for BYTE-SWARMY
+# Autonomous Programming Intelligence Swarm
+#
+# Usage:
+#   byte-swarmy <command> [args]
+#
+# Commands:
+#   start              Avvia l'orchestratore in background
+#   stop               Ferma l'orchestratore
+#   status             Mostra stato (running/stopped, PID, queue stats)
+#   gui                Avvia la GUI Qt (Control Center)
+#   queue list         Lista task nella coda
+#   queue add <title>  Aggiungi un Code task
+#   queue add-generic <title>  Aggiungi un Generic task (scomposto dal decision model)
+#   queue reset <id>   Resetta un task a pending
+#   queue cleanup      Elimina tutti i task done
+#   thermal            Mostra ultime letture Timestral (temperatura, CPU, RAM)
+#   thermal history    Mostra storico completo (24h)
+#   honey              Mostra il codice prodotto (ls project/)
+#   honey log          Git log del codice prodotto
+#   logs               Tail del file di log
+#   mcp start          Avvia il server MCP di esempio
+#   mcp list           Lista server MCP configurati
+#   config edit        Apri il config nell'editor $EDITOR
+#   version            Mostra versione
+#   help               Mostra questo help
+#
+# Alias breve: bswarm
+#
+# Install:
+#   sudo ln -s /path/to/byte-swarmy /usr/local/bin/byte-swarmy
+#   sudo ln -s /path/to/byte-swarmy /usr/local/bin/bswarm
+#
+
+set -e
+
+# Risolve la directory del progetto (dove si trova questo script)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Cerca Python nel venv locale, fallback a python3
+if [ -f ".venv/bin/python" ]; then
+    PYTHON=".venv/bin/python"
+elif command -v python3 &>/dev/null; then
+    PYTHON="python3"
+else
+    echo "ERROR: Python non trovato. Installa python3 o crea un venv."
+    exit 1
+fi
+
+# File di stato
+PID_FILE="state/orchestrator.pid"
+LOG_FILE="logs/byte-swarmy.log"
+QUEUE_FILE="tasks/queue.json"
+THERMAL_HISTORY="state/timestral_history.json"
+
+# Banner
+show_banner() {
+    cat <<'EOF'
+ ____  _____ _   _ _____ __  __   _   _    _    _   _
+| __ )| ____| \ | | ____|  \/  | | | | |  / \  | \ | |
+|  _ \|  _| |  \| |  _| | |\/| | | | | | / _ \ |  \| |
+| |_) | |___| |\  | |___| |  | | | |_| |/ ___ \| |\  |
+|____/|_____|_| \_|_____|_|  |_|  \___//_/   \_\_| \_|
+        Autonomous Programming Intelligence Swarm
+                 /'baIt 'swOrmi/  "BYTE SWOR-mee"
+EOF
+}
+
+# === COMMANDS ===
+
+cmd_start() {
+    mkdir -p logs state tasks project backups
+    if [ -f "$PID_FILE" ] && kill -0 "$(cat $PID_FILE)" 2>/dev/null; then
+        echo "Orchestratore già attivo (PID $(cat $PID_FILE))"
+        exit 1
+    fi
+    nohup $PYTHON orchestrator.py > logs/stdout.log 2>&1 &
+    echo $! > "$PID_FILE"
+    echo "Orchestratore avviato (PID $!)"
+    echo "Log: tail -f $LOG_FILE"
+}
+
+cmd_stop() {
+    if [ ! -f "$PID_FILE" ]; then
+        echo "Nessun orchestratore attivo"
+        exit 0
+    fi
+    PID=$(cat "$PID_FILE")
+    if kill -TERM "$PID" 2>/dev/null; then
+        echo "SIGTERM inviato a PID $PID"
+        sleep 2
+        if kill -0 "$PID" 2>/dev/null; then
+            echo "Processo ancora attivo, invio SIGKILL"
+            kill -9 "$PID" 2>/dev/null || true
+        fi
+    else
+        echo "Processo $PID non trovato"
+    fi
+    rm -f "$PID_FILE"
+}
+
+cmd_status() {
+    if [ -f "$PID_FILE" ] && kill -0 "$(cat $PID_FILE)" 2>/dev/null; then
+        echo "● Orchestratore ATTIVO (PID $(cat $PID_FILE))"
+    else
+        echo "○ Orchestratore fermato"
+    fi
+    echo
+    if [ -f "$QUEUE_FILE" ]; then
+        echo "Coda task:"
+        $PYTHON -c "
+import json
+from collections import Counter
+with open('$QUEUE_FILE') as f:
+    tasks = json.load(f)
+stats = Counter(t['status'] for t in tasks)
+print(f'  Totale: {len(tasks)}')
+for k, v in sorted(stats.items()):
+    print(f'    {k}: {v}')
+"
+    fi
+    echo
+    if [ -f "$THERMAL_HISTORY" ]; then
+        echo "Ultimo campione termico:"
+        $PYTHON -c "
+import json, time
+with open('$THERMAL_HISTORY') as f:
+    data = json.load(f)
+samples = data.get('samples', [])
+if samples:
+    s = samples[-1]
+    ts = time.strftime('%H:%M:%S', time.localtime(s['timestamp']))
+    print(f'  {ts} | temp={s[\"cpu_temp_max\"]:.1f}C | load={s[\"cpu_load\"]*100:.0f}% | mem={s[\"mem_used_ratio\"]*100:.0f}%')
+else:
+    print('  (nessun campione)')
+" 2>/dev/null || echo "  (errore lettura)"
+    fi
+}
+
+cmd_gui() {
+    exec $PYTHON gui.py
+}
+
+cmd_queue_list() {
+    if [ ! -f "$QUEUE_FILE" ]; then
+        echo "Nessuna coda trovata"
+        exit 0
+    fi
+    $PYTHON -c "
+import json
+with open('$QUEUE_FILE') as f:
+    tasks = json.load(f)
+if not tasks:
+    print('Coda vuota')
+else:
+    print(f'{\"ID\":<35} {\"Stato\":<12} {\"Tipo\":<8} {\"Titolo\":<50}')
+    print('-' * 110)
+    for t in tasks:
+        print(f'{t[\"id\"]:<35} {t[\"status\"]:<12} {t.get(\"type\", \"code\"):<8} {t.get(\"title\", \"\")[:50]:<50}')
+"
+}
+
+cmd_queue_add() {
+    if [ -z "$1" ]; then
+        echo "Uso: byte-swarmy queue add <title> [description]"
+        exit 1
+    fi
+    TITLE="$1"
+    DESC="${2:-$(cat)}"
+    $PYTHON add_task.py "$TITLE" "$DESC"
+}
+
+cmd_queue_add_generic() {
+    if [ -z "$1" ]; then
+        echo "Uso: byte-swarmy queue add-generic <title> [description]"
+        exit 1
+    fi
+    TITLE="$1"
+    DESC="${2:-Task generico da scomporre}"
+    $PYTHON -c "
+import sys
+sys.path.insert(0, '.')
+from add_task import *
+" 2>/dev/null || true
+    # Inline: aggiungi come generic
+    $PYTHON -c "
+import json, time
+from pathlib import Path
+queue_file = Path('tasks/queue.json')
+queue_file.parent.mkdir(parents=True, exist_ok=True)
+queue = json.loads(queue_file.read_text()) if queue_file.exists() else []
+task = {
+    'id': f'task-generic-{int(time.time()*1000)}-{len(queue)}',
+    'title': '$TITLE',
+    'description': '''$DESC''',
+    'context': '',
+    'status': 'pending',
+    'attempts': 0,
+    'subtasks': [],
+    'parent': None,
+    'created_at': time.time(),
+    'source': 'cli',
+    'type': 'generic',
+}
+queue.append(task)
+queue_file.write_text(json.dumps(queue, ensure_ascii=False, indent=2))
+print(f'Aggiunto Generic task: {task[\"id\"]}')
+print(f'  Titolo: {task[\"title\"]}')
+print(f'  Il decision model lo scompone in Code task.')
+"
+}
+
+cmd_queue_reset() {
+    if [ -z "$1" ]; then
+        echo "Uso: byte-swarmy queue reset <task_id>"
+        exit 1
+    fi
+    $PYTHON -c "
+import json
+with open('$QUEUE_FILE') as f:
+    tasks = json.load(f)
+for t in tasks:
+    if t['id'] == '$1':
+        t['status'] = 'pending'
+        t['attempts'] = 0
+        for k in ('last_error', 'failure_reason', 'result'):
+            t.pop(k, None)
+        print(f'Reset: {t[\"id\"]}')
+        break
+else:
+    print(f'Task non trovato: $1')
+with open('$QUEUE_FILE', 'w') as f:
+    json.dump(tasks, f, indent=2, ensure_ascii=False)
+"
+}
+
+cmd_queue_cleanup() {
+    $PYTHON -c "
+import json
+with open('$QUEUE_FILE') as f:
+    tasks = json.load(f)
+before = len(tasks)
+tasks = [t for t in tasks if t['status'] != 'done']
+after = len(tasks)
+with open('$QUEUE_FILE', 'w') as f:
+    json.dump(tasks, f, indent=2, ensure_ascii=False)
+print(f'Eliminati {before - after} task completati')
+"
+}
+
+cmd_thermal() {
+    if [ ! -f "$THERMAL_HISTORY" ]; then
+        echo "Nessuno storico termico. Avvia l'orchestratore prima."
+        exit 0
+    fi
+    $PYTHON -c "
+import json, time
+with open('$THERMAL_HISTORY') as f:
+    data = json.load(f)
+samples = data.get('samples', [])
+if not samples:
+    print('Nessun campione ancora')
+    exit()
+s = samples[-1]
+ts = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(s['timestamp']))
+print(f'Ultimo campione: {ts}')
+print(f'  Temperatura CPU: {s[\"cpu_temp_max\"]:.1f} °C')
+print(f'  CPU load:        {s[\"cpu_load\"]*100:.0f} %')
+print(f'  CPU freq:        {s[\"cpu_freq_avg\"]//1000} MHz')
+print(f'  RAM usata:       {s[\"mem_used_ratio\"]*100:.0f} %')
+print(f'  Swap usato:      {s[\"swap_used_ratio\"]*100:.0f} %')
+print(f'  Processi:        {s[\"n_processes\"]}')
+"
+}
+
+cmd_thermal_history() {
+    if [ ! -f "$THERMAL_HISTORY" ]; then
+        echo "Nessuno storico termico."
+        exit 0
+    fi
+    $PYTHON -c "
+import json, time
+with open('$THERMAL_HISTORY') as f:
+    data = json.load(f)
+samples = data.get('samples', [])
+print(f'Storico: {len(samples)} campioni')
+print(f'{\"Timestamp\":<22} {\"Temp\":<8} {\"Load\":<8} {\"Freq\":<10} {\"Mem\":<8} {\"Swap\":<8}')
+print('-' * 70)
+for s in samples[-30:]:  # ultimi 30
+    ts = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(s['timestamp']))
+    print(f'{ts:<22} {s[\"cpu_temp_max\"]:5.1f}C  {s[\"cpu_load\"]*100:3.0f}%    {s[\"cpu_freq_avg\"]//1000:5d}MHz  {s[\"mem_used_ratio\"]*100:3.0f}%    {s[\"swap_used_ratio\"]*100:3.0f}%')
+"
+}
+
+cmd_honey() {
+    if [ ! -d "project" ]; then
+        echo "Nessun progetto ancora"
+        exit 0
+    fi
+    echo "Codice prodotto (honey):"
+    ls -la project/ | grep -v "^total" | grep -v "^d.*\.git"
+}
+
+cmd_honey_log() {
+    cd project
+    if [ -d ".git" ]; then
+        git log --oneline -20
+    else
+        echo "Nessun repo git nel project/"
+    fi
+}
+
+cmd_logs() {
+    if [ ! -f "$LOG_FILE" ]; then
+        echo "Nessun log. Avvia l'orchestratore prima."
+        exit 0
+    fi
+    tail -f "$LOG_FILE"
+}
+
+cmd_mcp_start() {
+    exec $PYTHON example_mcp_server.py
+}
+
+cmd_mcp_list() {
+    if [ -f "mcp_servers.json" ]; then
+        $PYTHON -c "
+import json
+with open('mcp_servers.json') as f:
+    servers = json.load(f)
+if not servers:
+    print('Nessun server MCP configurato')
+else:
+    print(f'{\"Nome\":<20} {\"URL\":<50} {\"Poll\":<8} {\"Abilitato\":<10}')
+    print('-' * 90)
+    for s in servers:
+        print(f'{s[\"name\"]:<20} {s[\"url\"]:<50} {s.get(\"poll_interval\", 30):<8} {str(s.get(\"enabled\", True)):<10}')
+"
+    else
+        echo "Nessun server MCP configurato"
+    fi
+}
+
+cmd_config_edit() {
+    EDITOR="${EDITOR:-nano}"
+    exec $EDITOR config.toml
+}
+
+cmd_version() {
+    echo "BYTE-SWARMY v0.1.0"
+    echo "Autonomous Programming Intelligence Swarm"
+    echo "/ˈbaɪt ˈswɔːrmi/  ·  \"BYTE SWOR-mee\""
+}
+
+cmd_help() {
+    cat <<EOF
+$(show_banner)
+
+Usage: byte-swarmy <command> [args]
+
+Comandi:
+  start                    Avvia l'orchestratore in background
+  stop                     Ferma l'orchestratore
+  status                   Mostra stato (PID, coda, ultimo campione termico)
+  gui                      Avvia la GUI Qt (Control Center)
+
+  queue list               Lista task nella coda
+  queue add <title> [desc] Aggiungi un Code task
+  queue add-generic <t> [d] Aggiungi un Generic task (scomposto dal decision model)
+  queue reset <id>         Resetta un task a pending
+  queue cleanup            Elimina tutti i task done
+
+  thermal                  Mostra ultimo campione Timestral
+  thermal history          Mostra storico completo (ultimi 30 campioni)
+
+  honey                    Mostra il codice prodotto (ls project/)
+  honey log                Git log del codice prodotto
+
+  logs                     Tail del file di log (Ctrl+C per uscire)
+
+  mcp start                Avvia il server MCP di esempio
+  mcp list                 Lista server MCP configurati
+
+  config edit              Apri config.toml nell'editor (\$EDITOR, default nano)
+
+  version                  Mostra versione
+  help                     Mostra questo help
+
+Alias: bswarm (symlink a byte-swarmy)
+
+Esempi:
+  byte-swarmy start
+  byte-swarmy queue add "Hello world in C" "Crea project/hello.c, stampa Hello BYTE-SWARMY"
+  byte-swarmy queue add-generic "Sistema di note CLI" "Voglio un sistema per prendere appunti"
+  byte-swarmy status
+  byte-swarmy thermal
+  byte-swarmy honey
+
+EOF
+}
+
+# === MAIN ===
+
+case "$1" in
+    start)      cmd_start ;;
+    stop)       cmd_stop ;;
+    status)     cmd_status ;;
+    gui)        cmd_gui ;;
+    queue)
+        case "$2" in
+            list)         cmd_queue_list ;;
+            add)          shift 2; cmd_queue_add "$@" ;;
+            add-generic)  shift 2; cmd_queue_add_generic "$@" ;;
+            reset)        cmd_queue_reset "$3" ;;
+            cleanup)      cmd_queue_cleanup ;;
+            *)            echo "Uso: byte-swarmy queue {list|add|add-generic|reset|cleanup}"; exit 1 ;;
+        esac
+        ;;
+    thermal)
+        case "${2:-show}" in
+            show)    cmd_thermal ;;
+            history) cmd_thermal_history ;;
+            *)       echo "Uso: byte-swarmy thermal {show|history}"; exit 1 ;;
+        esac
+        ;;
+    honey)
+        case "${2:-show}" in
+            show) cmd_honey ;;
+            log)  cmd_honey_log ;;
+            *)    echo "Uso: byte-swarmy honey {show|log}"; exit 1 ;;
+        esac
+        ;;
+    logs)       cmd_logs ;;
+    mcp)
+        case "$2" in
+            start) cmd_mcp_start ;;
+            list)  cmd_mcp_list ;;
+            *)     echo "Uso: byte-swarmy mcp {start|list}"; exit 1 ;;
+        esac
+        ;;
+    config)
+        case "$2" in
+            edit) cmd_config_edit ;;
+            *)    echo "Uso: byte-swarmy config edit"; exit 1 ;;
+        esac
+        ;;
+    version|--version|-v)  cmd_version ;;
+    help|--help|-h)        cmd_help ;;
+    "")                    cmd_help ;;
+    *)                     echo "Comando sconosciuto: $1"; echo; cmd_help; exit 1 ;;
+esac

@@ -1,0 +1,22 @@
+# Dipendenze BYTE-SWARMY GUI (oltre a quelle base del sistema)
+
+# GUI Qt6 — usa PyQt6 (ha wheel per Python 3.14, PySide6 no)
+PyQt6>=6.6
+
+# TOML writer (per il sync form↔testo nel Config tab)
+tomli-w>=1.0
+
+# MCP (Model Context Protocol) - client per ricevere task da server esterni
+mcp>=1.0.0
+httpx>=0.27
+httpx-sse>=0.4
+
+# Per il server MCP di esempio (example_mcp_server.py)
+uvicorn>=0.30
+starlette>=0.37
+
+# Timestral (thermal_manager.py) non richiede pacchetti aggiuntivi:
+# usa solo /proc e /sys (Linux stdlib). Su Windows/Mac disattivarlo nel config.
+
+# (tomli/tomllib già nella stdlib su Python 3.11+, non serve)
+

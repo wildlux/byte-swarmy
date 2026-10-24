@@ -1,0 +1,43 @@
+# Virtualenv
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Stato runtime (NON versionare)
+state/
+logs/
+backups/
+
+# File temporanei
+*.tmp
+*.bak
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Config locale con credenziali MCP
+mcp_servers.json
+
+# File di stato locale
+state/orchestrator.pid
+logs/stdout.log
+logs/byte-swarmy.log
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# OS
+.directory
+.Trash-*
