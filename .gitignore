@@ -94,3 +94,7 @@ build/
 dist/
 *.so
 *.dylib
+
+# Impedisce ai worker di rendere project/ un submodule
+project/.git/
+project/.git/
