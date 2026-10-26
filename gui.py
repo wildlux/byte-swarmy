@@ -2054,20 +2054,46 @@ class MainWindow(QMainWindow):
             self.act_stop.setEnabled(False)
 
     def _on_mcp_task(self, server_name: str, task: dict) -> None:
-        """Callback chiamata quando un server MCP invia un task."""
-        # Aggiungi alla coda locale
+        """Callback chiamata quando un server MCP invia un task.
+
+        I task MCP sono dati NON fidati: si tengono solo i campi utili,
+        con limiti di lunghezza. `id`, `status`, `parent` e `subtasks`
+        non possono essere imposti dall'esterno.
+        """
+        if not isinstance(task, dict):
+            return
+
+        def _clean(value, limit: int) -> str:
+            if not isinstance(value, str):
+                return ""
+            return value.replace("\x00", "").strip()[:limit]
+
+        title = _clean(task.get("title"), 160) or "task-from-mcp"
+        description = _clean(task.get("description"), 4000)
+        context = _clean(task.get("context"), 2000)
+        task_type = task.get("type", "code")
+        if task_type not in ("generic", "code", "implement", "test", "fix", "document"):
+            task_type = "code"
+
+        # Aggiungi alla coda locale con campi controllati da noi.
         tasks = load_tasks()
-        task.setdefault("id", f"task-mcp-{int(time.time()*1000)}-{len(tasks)}")
-        task.setdefault("status", "pending")
-        task.setdefault("attempts", 0)
-        task.setdefault("subtasks", [])
-        task.setdefault("parent", None)
-        task.setdefault("created_at", time.time())
-        task["source"] = f"mcp:{server_name}"
-        tasks.append(task)
+        new_task = {
+            "id": f"task-mcp-{int(time.time()*1000)}-{len(tasks)}",
+            "title": title,
+            "description": description,
+            "context": context,
+            "type": task_type,
+            "status": "pending",
+            "attempts": 0,
+            "subtasks": [],
+            "parent": None,
+            "created_at": time.time(),
+            "source": f"mcp:{server_name}",
+        }
+        tasks.append(new_task)
         save_tasks(tasks)
         self.status_bar.showMessage(
-            f"Task ricevuto da MCP '{server_name}': {task.get('title', '')[:50]}",
+            f"Task ricevuto da MCP '{server_name}': {title[:50]}",
             5000
         )
 
@@ -2235,7 +2261,14 @@ def check_dependencies() -> bool:
 
 def _try_install(package: str) -> bool:
     """Tenta di installare un pacchetto pip. Ritorna True se OK.
-    Usa sys.executable per rispettare il venv attivo."""
+    Usa sys.executable per rispettare il venv attivo.
+
+    Solo i pacchetti previsti dalla GUI: un nome arbitrario non deve mai
+    arrivare a pip (difesa contro input non fidato).
+    """
+    allowed = {"PyQt6", "tomli-w", "mcp", "httpx", "httpx-sse"}
+    if package not in allowed:
+        return False
     try:
         result = subprocess.run(
             [sys.executable, "-m", "pip", "install", package],

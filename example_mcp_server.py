@@ -110,10 +110,11 @@ async def call_tool(name: str, arguments: dict):
 
     elif name == "add_task":
         tasks = _load_outbox()
+        # Limiti espliciti: il server di esempio è raggiungibile da altri processi.
         new_task = {
-            "title": arguments["title"],
-            "description": arguments["description"],
-            "context": arguments.get("context", ""),
+            "title": str(arguments.get("title", ""))[:200],
+            "description": str(arguments.get("description", ""))[:8000],
+            "context": str(arguments.get("context", ""))[:2000],
             "added_at": time.time(),
         }
         tasks.append(new_task)
@@ -145,14 +146,24 @@ app = Starlette(
 
 
 if __name__ == "__main__":
+    import os
+
+    # Default: solo loopback. Non esporre il server sulla LAN senza auth:
+    # chiunque raggiunga la porta può iniettare task eseguiti dai worker.
+    host = os.environ.get("MCP_HOST", "127.0.0.1")
+    port = int(os.environ.get("MCP_PORT", "8080"))
+    if host not in ("127.0.0.1", "localhost", "::1"):
+        print(f"⚠️  ATTENZIONE: server in ascolto su {host} (raggiungibile dalla rete).")
+        print("   Nessuna autenticazione: usalo solo su rete fidata.")
+
     print("=== Example MCP Server ===")
-    print(f"Endpoint SSE: http://localhost:8080/sse")
+    print(f"Endpoint SSE: http://{host}:{port}/sse")
     print(f"Outbox file: {TASKS_OUTBOX.absolute()}")
     print("Tool esposti: get_pending_tasks, add_task, clear_outbox")
     print()
     print("Nella GUI BYTE-SWARMY:")
     print("  Tab MCP Servers → Aggiungi Server")
     print("  Nome: example")
-    print("  URL:  http://localhost:8080/sse")
+    print(f"  URL:  http://{host}:{port}/sse")
     print()
-    uvicorn.run(app, host="0.0.0.0", port=8080, log_level="info")
+    uvicorn.run(app, host=host, port=port, log_level="info")

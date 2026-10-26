@@ -214,6 +214,29 @@ max_tasks_per_agent_per_hour = 20
 memory_compaction_threshold = 50
 
 # --------------------------------------------------------------------
+# Sicurezza (vedi security.py e SECURITY.md).
+# I worker eseguono codice generato da LLM piccoli: questi limiti sono
+# la difesa minima. Non disabilitarli in produzione.
+# --------------------------------------------------------------------
+
+[security]
+# REGOLA 0 — la difesa è sempre attiva.
+# Questo flag è ignorato: impostarlo a false non disabilita nulla e produce
+# un evento CRITICAL in logs/security.log. Resta solo per retrocompatibilità.
+enabled = true
+# Output massimo restituito ai worker (caratteri): non satura il contesto.
+max_output_chars = 10000
+# Dimensione massima di un file scritto con write_file (byte).
+max_file_size_write = 2_000_000
+# Dimensione massima di un file creato da un processo figlio (RLIMIT_FSIZE).
+max_file_size_bytes = 50_000_000
+# Memoria massima per singolo processo figlio (MB, RLIMIT_AS).
+max_memory_mb = 1536
+# I comandi bash sono validati in security.py: allowlist + blacklist.
+# I worker NON hanno una shell (niente pipe/redirect/&&).
+# git push/pull/remote add|remove sono disabilitati per i worker.
+
+# --------------------------------------------------------------------
 # Decision model: routing e regole deterministiche.
 # --------------------------------------------------------------------
 

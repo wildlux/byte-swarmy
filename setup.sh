@@ -192,11 +192,15 @@ if [ "$RECREATE_VENV" = true ]; then
     fi
     # Assicurati che pip sia presente nel venv
     if [ ! -f ".venv/bin/pip" ]; then
-        warn "pip non nel venv, installazione con ensurepip..."
-        .venv/bin/python -m ensurepip --upgrade 2>/dev/null || {
-            warn "ensurepip fallito, uso get-pip.py..."
-            curl -sS https://bootstrap.pypa.io/get-pip.py | .venv/bin/python
-        }
+        warn "pip non nel venv, provo ensurepip..."
+        if ! .venv/bin/python -m ensurepip --upgrade 2>/dev/null; then
+            err "ensurepip fallito."
+            echo "Installa pip dal repository della distro (consigliato), ad esempio:"
+            echo "  sudo apt install python3-pip python3-venv"
+            echo "oppure scarica https://bootstrap.pypa.io/get-pip.py, controllalo e poi eseguilo."
+            echo "Non eseguiamo automaticamente script scaricati da internet."
+            exit 1
+        fi
     fi
     ok "Virtualenv creato"
 fi
