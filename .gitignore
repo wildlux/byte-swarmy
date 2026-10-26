@@ -1,9 +1,16 @@
-# Virtualenv
+# =========================================================
+# BYTE-SWARMY .gitignore
+# Regola: solo codice sorgente e documentazione nel repo.
+# Tutto ciò che è runtime, temporaneo o generato va escluso.
+# =========================================================
+
+# --- Virtualenv ---
 .venv/
 venv/
 env/
+ENV/
 
-# Python cache
+# --- Python cache ---
 __pycache__/
 *.pyc
 *.pyo
@@ -11,33 +18,79 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
 
-# Stato runtime (NON versionare)
+# --- Stato runtime (NON versionare: può contenere task e audit sensibili) ---
 state/
 logs/
 backups/
 
-# File temporanei
+# --- Codice generato dai worker ---
+# il contenuto di project/ è "miele" prodotto dallo swarm:
+# rigenerabile, potenzialmente grande, non va su GitHub.
+# Tieni solo un .gitkeep per preservare la directory.
+project/*
+!project/.gitkeep
+
+# --- File temporanei e di backup ---
 *.tmp
 *.bak
 *.swp
+*.swo
 *~
 .DS_Store
 Thumbs.db
 
-# Config locale con credenziali MCP
-mcp_servers.json
+# --- Backup di script locali (es. VECCHIA_sync.sh) ---
+VECCHIA_*
+*_old
+*.orig
+*.rej
 
-# File di stato locale
+# --- Config locale con credenziali MCP ---
+mcp_servers.json
+mcp_servers.local.json
+
+# --- File di stato locale (ridondante ma esplicito) ---
 state/orchestrator.pid
 logs/stdout.log
 logs/byte-swarmy.log
+logs/security.log
 
-# IDE
+# --- Environment / secrets ---
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets.json
+
+# --- IDE ---
 .vscode/
 .idea/
 *.code-workspace
+*.iml
+.project
+.classpath
+.settings/
 
-# OS
+# --- AI agenti locali ---
+.claude/
+.cursor/
+.aider*
+.continue/
+
+# --- OS ---
 .directory
 .Trash-*
+ehthumbs.db
+Desktop.ini
+
+# --- Build artifacts locali ---
+build/
+dist/
+*.so
+*.dylib
