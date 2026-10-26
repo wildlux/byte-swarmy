@@ -38,29 +38,25 @@ case "${1:-commit}" in
         ;;
 
     commit|"")
-        # Mostra cosa è cambiato
         echo "📋 File modificati:"
         git status --short
 
-        # Se non c'è nulla da committare
-        if [ -z "$(git status --short)" ]; then
-            echo "✓ Nessuna modifica da sincronizzare"
-            exit 0
-        fi
-
-        echo
-
-        # Messaggio del commit
-        if [ -n "$1" ] && [ "$1" != "commit" ]; then
-            MSG="$1"
+        # Committa SOLO se ci sono modifiche pendenti
+        if [ -n "$(git status --short)" ]; then
+            if [ -n "$1" ] && [ "$1" != "commit" ]; then
+                MSG="$1"
+            else
+                MSG="Auto-sync $(date '+%Y-%m-%d %H:%M:%S')"
+            fi
+            echo "📝 Commit con messaggio: \"$MSG\""
+            git add .
+            git commit -m "$MSG"
         else
-            MSG="Auto-sync $(date '+%Y-%m-%d %H:%M:%S')"
+            echo "✓ Nessuna modifica da committare"
         fi
 
-        echo "📝 Commit con messaggio: \"$MSG\""
-        git add .
-        git commit -m "$MSG"
-
+        # PUSH SEMPRE — anche se non c'è un nuovo commit,
+        # potrebbero esserci commit locali non ancora su GitHub
         echo
         echo "🚀 Push su GitHub..."
         BRANCH=$(git branch --show-current)
