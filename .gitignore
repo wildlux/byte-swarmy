@@ -98,3 +98,8 @@ dist/
 # Impedisce ai worker di rendere project/ un submodule
 project/.git/
 project/.git/
+
+# File temporanei di Kate (editor KDE)
+.README.md.kate-swp
+*.kate-swp
+README_IT_*.md
