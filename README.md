@@ -9,237 +9,297 @@
 ╚═════╝    ╚═╝      ╚═╝   ╚══════╝    ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝   ╚═╝
 ```
 
-**Sistema di agenti autonomi locali per macchine con 4 GB di RAM.**
-Nessun cloud, nessuna GPU, nessuna dipendenza da servizi esterni. Solo Ollama, Python e file JSON.
+**Sistema multi-agente autonomo, interamente locale, per macchine con 4 GB di RAM.**
+
+Nessun cloud, nessuna GPU, nessuna dipendenza da servizi esterni: solo Ollama,
+Python e file JSON. I worker eseguono task di programmazione, test e
+documentazione sotto il controllo di un orchestratore deterministico.
 
 > *"The swarm works. You think elsewhere."*
 
+**Versione:** 0.1.0 · **Licenza:** MIT · **Piattaforma:** Linux
+
 ---
 
-## Cos'è BYTE-SWARMY
+## Indice
 
-BYTE-SWARMY è un sistema multi-agente autonomo che gira interamente in locale su hardware modesto (4 GB di RAM, CPU only). È progettato per lavorare senza supervisione: riceve un task, lo scompone, lo esegue con worker specializzati, gestisce errori, salva stato su disco e ti permette di riprendere da dove aveva lasciato.
+- [Sicurezza](#sicurezza)
+- [Panoramica](#panoramica)
+- [Architettura](#architettura)
+- [Requisiti](#requisiti)
+- [Installazione](#installazione)
+- [Avvio rapido](#avvio-rapido)
+- [Utilizzo](#utilizzo)
+- [Come funziona](#come-funziona)
+- [Sicurezza in profondità](#sicurezza-in-profondità)
+- [Struttura del progetto](#struttura-del-progetto)
+- [Sviluppo e test](#sviluppo-e-test)
+- [Limiti noti](#limiti-noti)
+- [Troubleshooting](#troubleshooting)
+- [Compatibilità](#compatibilità)
+- [Contribuire](#contribuire)
+- [Licenza](#licenza)
+
+---
+
+## Sicurezza
+
+> **Regola 0 — la difesa è sempre attiva.**
+> Ogni task è trattato come potenzialmente ostile (prompt injection). La policy
+> di sicurezza è applicata nel codice a ogni chiamata di tool e **non può essere
+> disattivata** da configurazione, prompt, task MCP o output del modello.
+
+BYTE-SWARMY esegue codice generato da LLM piccoli con i permessi dell'utente che
+avvia l'orchestratore. Le protezioni incluse bloccano i comandi più pericolosi,
+ma **non sostituiscono un isolamento di sistema**:
+
+- `run_bash` non usa una shell: allowlist, blacklist e path confinati in `project/`;
+- `git push` / `pull` / `remote add|remove` sono disabilitati per i worker;
+- ambiente sanificato (niente token, `SSH_AUTH_SOCK`, `HOME` reale);
+- limiti di CPU, memoria, dimensione file e timeout sul process group;
+- task MCP ricostruiti da zero e URL limitati a `http`/`https`;
+- audit log con rotazione in `logs/security.log`.
+
+Per dati reali è necessario aggiungere l'isolamento di sistema (utente dedicato,
+cgroup, firewall):
+
+```bash
+./setup-hardening.sh                  # diagnostica, nessuna modifica
+sudo ./setup-hardening.sh --all       # utente byteswarmy + cgroup + firewall
+```
+
+Dettagli, modello di minaccia, rischi residui e rollback:
+**[SECURITY.md](SECURITY.md)**.
+
+Verifica della policy:
+
+```bash
+python -m unittest discover -s tests -t . -v
+tail -f logs/security.log
+```
+
+---
+
+## Panoramica
+
+BYTE-SWARMY è un sistema multi-agente che gira interamente in locale su hardware
+modesto (4 GB di RAM, solo CPU). Riceve un task, lo classifica, lo scompone se
+necessario e lo esegue con worker specializzati. Lo stato è persistito su disco,
+quindi il lavoro può riprendere dopo un riavvio.
+
+### Principi di progettazione
+
+| Principio | Implementazione |
+|---|---|
+| **Routing deterministico prima dell'LLM** | Se una keyword identifica il worker, il planner viene bypassato: meno token e latenza minima. |
+| **Stato = file JSON** | Coda, memorie e heartbeat sono ispezionabili con `cat` e ripristinabili manualmente. |
+| **Scritture transazionali** | `write_file` scrive un file temporaneo nella stessa directory e poi esegue `rename()` atomico. |
+| **Memoria compattata** | Dopo 50 eventi il contesto viene riassunto in `long_term`, evitando prompt fuori controllo. |
+| **Loop sequenziale** | Nessun thread e nessun asyncio: un tick ogni 30 secondi, prevedibile e facile da monitorare. |
+| **Safety valve** | Pausa automatica per RAM, disco, temperatura o CPU oltre soglia; shutdown pulito su SIGTERM. |
 
 ### Identità del nome
 
-Il nome ha tre livelli di lettura simultanei:
+Il nome ha tre letture simultanee:
 
 | Lettura | Significato |
 |---|---|
-| **Byte** | Unità di memoria — il codice prodotto è fatto di byte |
-| **Bite** | Morso (in inglese si pronuncia come "byte") — le api "mordono" i task, li scompongono |
-| **Bee** | Ape (la lettera B in inglese) — lo sciame di agenti |
+| **Byte** | Unità di memoria: il codice prodotto è fatto di byte. |
+| **Bite** | Morso: le api "mordono" i task e li scompongono. |
+| **Bee** | Ape: lo sciame di agenti. |
 
-**Acronimo**: **B**yte-**S**warm **W**ith **A**utonomous **R**esource **M**anagement & **Y**ield
-
-### Filosofia del progetto
-
-- **Routing deterministico prima dell'LLM** — se una keyword matcha un worker, il planner viene bypassato. Risparmio token, latenza zero.
-- **Stato = file JSON** — coda, memorie, heartbeat. Tutto ispezionabile con `cat`, tutto ripristinabile.
-- **Write transazionale** — ogni scrittura passa per `tmp/` e poi `rename()` atomico. Nessuno stato inconsistente se l'agente crasha.
-- **Memory compaction** — dopo 50 eventi l'orchestratore riassume in 300 token verso `long_term`. Il contesto non esplode mai.
-- **Loop sequenziale** — niente thread, niente asyncio. Un tick ogni 30s: `safety → maintenance → dispatch → sleep`. Prevedibile.
-- **Safety valves** — RAM > 80% → pausa. Disco < 1 GB → pausa. 10 fallimenti consecutivi → stuck. SIGTERM → shutdown pulito con unload dei modelli.
+**Acronimo:** **B**yte-**S**warm **W**ith **A**utonomous **R**esource
+**M**anagement & **Y**ield.
 
 ---
 
-## Componenti del sistema
+## Architettura
 
 | Componente | Ruolo | Stack |
 |---|---|---|
-| Orchestratore | Loop principale, dispatch task, safety check, compaction | Python |
-| Planner | Scompone task complessi in sotto-task (solo se il routing deterministico non basta) | Ollama (LLM) |
-| Worker | Esegue il task atomico: code, file, shell, git | Ollama (LLM) |
-| Decision Models | d3, tev1, nimble, clef, clef-flash, nimble-v3, pplx-decider, kev, laya, strands-decider | Ollama (LLM) |
-| Generic Task Planner | Scompone task vaghi in Code task atomici usando il decision model attivo | Ollama (LLM) |
-| Timestral | Monitor termico + dynamic tuning dei parametri (tick multiplier, max tasks/hour) | Python |
-| MCP Client | Riceve task da server MCP esterni via SSE | Python |
-| GUI PyQt6 | Control Center con 5 tab (Coda, MCP, Logs, Timestral, Config) | PyQt6 |
-| CLI Launcher | `byte-swarmy` e alias `bswarm` | Bash |
-| Backup | Snapshot git ogni 15 min + sync GitHub on-demand | git |
+| **Orchestratore** | Loop principale, dispatch, safety check, compaction | Python |
+| **Planner** | Scompone i task complessi quando il routing deterministico non basta | Ollama |
+| **Worker** | Esegue il task atomico: file, shell controllata, git locale | Ollama |
+| **Decision Models** | Classificazione e scomposizione dei task generici | Ollama |
+| **Generic Task Planner** | Trasforma un task vago in task atomici | Ollama |
+| **Timestral** | Monitor termico e tuning dinamico dei parametri | Python |
+| **MCP Client** | Riceve task da server MCP esterni via SSE | Python |
+| **GUI PyQt6** | Control Center con 5 tab | PyQt6 |
+| **CLI Launcher** | `byte-swarmy` e alias `bswarm` | Bash |
+| **Backup** | Snapshot git periodici e sync GitHub on-demand | git |
+
+### Ciclo di un tick
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  ogni 30 secondi (modulato da Timestral)                     │
+│                                                              │
+│  1. SAFETY CHECK   → RAM > 80%? Disco < 1 GB? → pausa        │
+│  2. TIMESTRAL      → temperatura/CPU critiche? → pausa       │
+│  3. MAINTENANCE    → backup git, memory compaction           │
+│  4. DISPATCH       → leggi coda → routing → worker/planner   │
+│  5. EXECUTE        → worker.run(task) → risultato            │
+│  6. PERSIST        → memoria, eventi, stato su disco         │
+│  7. SLEEP          → prossimo tick                           │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Requisiti
 
-- Linux (testato su Kubuntu/Ubuntu; dovrebbe girare su qualsiasi distro con Python 3.11+)
-- Python 3.11+ (per `tomllib` in stdlib)
+- Linux (testato su Kubuntu/Ubuntu; qualsiasi distro con Python 3.11+)
+- Python 3.11+ (per `tomllib` nella standard library)
 - Ollama installato e funzionante
-- 4 GB RAM minimo (2 GB occupati dal modello, il resto per il sistema)
+- 4 GB di RAM minimo (8 GB consigliati)
 - PyQt6 (opzionale, solo per la GUI)
-- git (per backup e sync)
+- git (backup e sincronizzazione)
 
-### Modelli Ollama richiesti
+### Modelli Ollama
 
 ```bash
-# Orchestratore (700 MB)
+# Orchestratore (circa 700 MB)
 ollama pull qwen2.5:0.5b
 
-# Planner (2.2 GB)
+# Planner (circa 2.2 GB)
 ollama pull phi3:mini
 
-# Worker coding (1 GB)
+# Worker coding (circa 1 GB)
 ollama pull qwen2.5-coder:1.5b
 
-# Worker general (1 GB)
+# Worker general (circa 1 GB)
 ollama pull qwen2.5:1.5b
 
-# Embedding (274 MB)
+# Embedding (circa 274 MB)
 ollama pull nomic-embed-text
 
-# Decision model attivo (2.5 GB) — opzionale ma raccomandato
+# Decision model attivo (circa 2.5 GB) — opzionale ma consigliato
 ollama pull tev1:4b
 ```
 
-Altri decision models opzionali (vedi sezione `[decision_models]` in `config.toml`): `d3:2b`, `nimble:9b`, `clef-flash:9b`, `nimble-v3:9b`, `pplx-decider:27b`, `kev`, `laya`, `strands-decider:2b`.
+Altri decision model opzionali sono elencati nella sezione `[decision_models]`
+di `config.toml`: `d3:2b`, `nimble:9b`, `clef-flash:9b`, `nimble-v3:9b`,
+`pplx-decider:27b`, `kev`, `laya`, `strands-decider:2b`.
+
+> Con 4 GB di RAM tieni attivo un solo modello grande alla volta. Il client
+> gestisce caricamento e scaricamento espliciti con `keep_alive=0`.
 
 ---
 
 ## Installazione
 
 ```bash
-# Clona o copia la directory
-cd ~/Desktop/byte-swarmy
-
-# Setup completo: verifica dipendenze, installa pacchetti, scarica modelli
+git clone https://github.com/wildlux/byte-swarmy.git
+cd byte-swarmy
 ./setup.sh
 ```
 
-Lo script `setup.sh` verifica e installa in automatico:
+`setup.sh` verifica e, con conferma esplicita, installa:
 
-- Presenza di Python, pip, git, Ollama (con installazione guidata se mancante)
-- Pacchetti sistema (`python3-venv`, `python3-full`, `git`) — chiede conferma sudo
-- Virtualenv `.venv/` con pip interno funzionante
-- Pacchetti Python (`PyQt6`, `tomli-w`, `mcp`, `httpx`, `httpx-sse`, `uvicorn`, `starlette`)
-- Modelli Ollama necessari (chiede prima di scaricare)
-- Directory di lavoro: `state/`, `logs/`, `tasks/`, `project/`, `backups/`
+- Python, pip, git e Ollama;
+- pacchetti di sistema (`python3-venv`, `python3-full`, `git`) tramite `sudo`;
+- virtualenv `.venv/` con pip funzionante;
+- dipendenze Python: `PyQt6`, `tomli-w`, `mcp`, `httpx`, `httpx-sse`,
+  `uvicorn`, `starlette`;
+- modelli Ollama necessari (chiede prima di scaricarli);
+- directory di lavoro: `state/`, `logs/`, `tasks/`, `project/`, `backups/`.
+
+Per installare solo le dipendenze della GUI:
+
+```bash
+./.venv/bin/pip install -r requirements_gui.txt
+```
 
 ---
 
 ## Avvio rapido
 
-### 1. Avvia tutto il sistema
+### Avvio completo
 
 ```bash
 ./avvia.sh
 ```
 
-Attiva il virtualenv, avvia l'orchestratore in background e apre la GUI. Quando chiudi la GUI, l'orchestratore continua a girare in background.
+Lo script attiva il virtualenv, avvia l'orchestratore in background e apre la
+GUI. Chiudendo la GUI l'orchestratore continua a girare.
 
 Modalità alternative:
 
 ```bash
-./avvia.sh --gui      # Solo GUI (orchestratore già attivo o manuale)
+./avvia.sh --gui      # Solo GUI
 ./avvia.sh --orch     # Solo orchestratore in background
-./avvia.sh --status   # Solo stato, non avvia nulla
+./avvia.sh --status   # Mostra lo stato ed esce
 ./avvia.sh --setup    # Forza setup.sh (check + install)
 ```
 
-### 2. Verifica lo stato
+### Stato e arresto
 
 ```bash
 ./byte-swarmy status
-# oppure
-bswarm status
-```
-
-### 3. Ferma tutto (shutdown pulito)
-
-```bash
 ./ferma.sh
 ```
 
-Il segnale SIGTERM fa sì che l'orchestratore scarichi i modelli Ollama dalla RAM prima di uscire.
+`ferma.sh` invia SIGTERM, attende lo shutdown pulito e usa SIGKILL solo come
+fallback. Prima di inviare segnali valida il PID file e verifica che il processo
+sia realmente `orchestrator.py`.
 
-### 4. Sync su GitHub
+### Primo task di verifica
 
 ```bash
-./sync.sh "messaggio di commit"
+./byte-swarmy queue add "Hello world in C" \
+  "Crea project/hello.c con un programma che stampa 'Hello from BYTE-SWARMY!' e va a capo. Compila con gcc project/hello.c -o project/hello e verifica l'output. Massimo 30 righe."
+
+./avvia.sh
 ```
 
-Fa commit degli snapshot correnti e push (se il remote è configurato). Il backup locale automatico è già attivo ogni 15 minuti via timer interno.
+Se `project/hello.c` contiene il sorgente e `logs/byte-swarmy.log` mostra i tick
+di esecuzione, il loop funziona.
 
 ---
 
-## Struttura del progetto
+## Utilizzo
 
-```
-byte-swarmy/
-├── orchestrator.py          # Orchestratore + Planner + Worker + TaskQueue + GenericTaskPlanner
-├── tools.py                 # ToolSet con 13 tool (6 base + 7 Git avanzati)
-├── memory.py                # AgentMemory: 3 buffer (short/working/long_term) + compaction
-├── ollama_client.py         # ModelClient con rotation automatica modelli
-├── mcp_client.py            # MCPClient — connessione SSE a server MCP esterni
-├── thermal_manager.py       # TimestralManager — monitor termico + dynamic tuning
-├── example_mcp_server.py    # Server MCP di esempio (per test)
-├── add_task.py              # Helper CLI per aggiungere task
-├── gui.py                   # GUI PyQt6 con 5 tab (Control Center)
-├── config.toml              # Tutti i parametri (modelli, timing, safety, routing, decision_models, thermal)
-├── byte-swarmy              # CLI launcher (bash) — alias bswarm
-├── avvia.sh                 # Launcher unico: venv + orchestratore + GUI
-├── ferma.sh                 # Ferma orchestratore (SIGTERM, fallback SIGKILL)
-├── setup.sh                 # Check + installazione automatica dipendenze
-├── sync.sh                  # Helper commit + push GitHub
-├── BYTE-SWARMY.desktop      # Voce di menu per Kubuntu/KDE
-├── requirements_gui.txt     # Dipendenze Python
-├── README.md
-├── LICENSE                  # MIT
-├── state/                   # Stato persistente (JSON)
-│   ├── agents/              # Memorie agenti per worker
-│   ├── timestral_history.json  # Storico termico 24h
-│   └── orchestrator.pid
-├── tasks/                   # Coda task (queue.json)
-├── logs/                    # Log rotativo + stdout
-├── project/                 # Codice prodotto dagli agenti (honey)
-└── backups/                 # Backup giornalieri tar.gz (ultimi 7)
-```
+### CLI
 
----
+```bash
+# Avvio e arresto
+byte-swarmy start              # Orchestratore in background
+byte-swarmy stop               # Arresto con SIGTERM
+byte-swarmy gui                # Avvia la GUI
+byte-swarmy status             # PID, coda, ultimo campione termico
 
-## Come funziona un tick
+# Coda task
+byte-swarmy queue list
+byte-swarmy queue add <title> [desc]
+byte-swarmy queue add-generic <title> [desc]   # Scomposto dal decision model
+byte-swarmy queue reset <id>                   # Riporta il task a pending
+byte-swarmy queue cleanup                      # Elimina i task completati
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  ogni 30 secondi                                            │
-│                                                             │
-│  1. SAFETY CHECK    → RAM > 80%? Disco < 1 GB? → pausa      │
-│  2. TIMESTRAL       → temperatura critica? → pausa termica  │
-│  3. MAINTENANCE     → backup git ogni 15 min, compaction 1h │
-│  4. DISPATCH        → leggi coda → routing → worker/planner │
-│  5. EXECUTE         → worker.run(task) → risultato          │
-│  6. PERSIST         → scrivi memory, eventi, stato          │
-│  7. SLEEP 30s                                               │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+# Timestral
+byte-swarmy thermal            # Ultimo campione
+byte-swarmy thermal history    # Storico recente
+
+# Codice prodotto
+byte-swarmy honey              # Elenca project/
+byte-swarmy honey log          # git log di project/
+
+# Log e configurazione
+byte-swarmy logs               # Tail del log (Ctrl+C per uscire)
+byte-swarmy config edit        # Apre config.toml in $EDITOR
+
+# MCP
+byte-swarmy mcp start          # Avvia il server MCP di esempio
+byte-swarmy mcp list           # Elenca i server MCP configurati
+
+# Varie
+byte-swarmy version
+byte-swarmy help
 ```
 
-### Routing deterministico (prima dell'LLM)
+Alias disponibile: `bswarm`.
 
-| Keyword nel task | Worker di destinazione |
-|---|---|
-| `scrivi`, `crea`, `implementa`, `fix`, `bug`, `hello world`, `semplice` | `worker_coder` (qwen2.5-coder) |
-| `documenta`, `commenta`, `readme`, `spiega` | `worker_general` (qwen2.5:1.5b) |
-| `type=generic` o `source=generic:*` | `GenericTaskPlanner` (decision model) |
-| nessuna corrispondenza | `Planner` (phi3:mini) → scomposizione LLM |
-
-Questo è il cuore dell'efficienza: l'LLM non viene chiamato per task che possono essere smistati con una regex.
-
-### Timestral — Dynamic tuning
-
-Il thermal manager campiona ogni 30 secondi temperatura, CPU load, frequenza, RAM e swap. In base alle soglie (configurabili in `config.toml`):
-
-| Stato | Condizione | Effetto |
-|---|---|---|
-| `FAST` | temp < 50°C e load < 60% | `tick × 0.6`, raddoppia max_tasks/hour |
-| `NORMAL` | temp tra 50-65°C | `tick × 1.0`, default |
-| `SLOW` | temp 65-80°C | `tick × 1.7-2.5`, dimezza max_tasks/hour |
-| `PAUSE` | temp > 90°C o CPU > 95% per 60s | Nessun dispatch, attesa raffreddamento |
-
-Storico salvato in `state/timestral_history.json` (24h di campioni).
-
----
-
-## GUI Control Center (PyQt6)
+### GUI Control Center
 
 ```bash
 python gui.py
@@ -249,263 +309,324 @@ python gui.py
 
 Cinque tab:
 
-1. **Coda Task** — task in coda, in esecuzione, completati. 7 azioni: add, refresh, delete, reset, force re-run, delete subtasks, cleanup done. Code task in nero, Generic task in viola.
-2. **MCP Servers** — configura server MCP esterni (URL SSE), polling automatico, discover tools
-3. **Logs** — tail del log in tempo reale, auto-scroll, export
-4. **Timestral** — 4 metric card live (temp/load/freq/mem), advice con icona, statistiche 24h, storico testuale
-5. **Config** — editor bidirezionale form↔testo con validazione TOML live, pulsante "Copia errore", revert automatico su parametri invalidi
+1. **Coda Task** — task pending, in esecuzione e completati. Azioni: aggiungi,
+   aggiorna, elimina, reset, riesegui, elimina sotto-task, pulisci i completati.
+2. **MCP Servers** — configura server MCP esterni, polling automatico e
+   discovery dei tool.
+3. **Logs** — tail in tempo reale, auto-scroll ed export.
+4. **Timestral** — metriche live (temperatura, carico, frequenza, memoria),
+   consigli operativi e storico.
+5. **Config** — editor bidirezionale form↔TOML con validazione live, copia
+   errore e revert automatico in caso di parametri non validi.
 
----
-
-## MCP Client
-
-BYTE-SWARMY può ricevere task da server esterni compatibili MCP. Il client è in `mcp_client.py`, configurabile dal tab MCP Servers della GUI.
-
-### Server MCP di esempio
+### Task generici
 
 ```bash
-# In un altro terminale
+byte-swarmy queue add-generic "Sistema di note CLI" \
+  "Voglio un sistema per prendere appunti da terminale. Comandi: add <text>, list, search <text>, delete <id>. Storage su file JSON. Massimo 250 righe totali."
+```
+
+Il decision model analizza la descrizione e genera da 2 a 8 task atomici, che
+vengono accodati automaticamente.
+
+### MCP Client
+
+BYTE-SWARMY può ricevere task da server compatibili MCP. Il client è in
+`mcp_client.py` ed è configurabile dal tab **MCP Servers**.
+
+Server di esempio:
+
+```bash
 ./byte-swarmy mcp start
 ```
 
-Espone `http://localhost:8080/sse` con 3 tool: `get_pending_tasks`, `add_task`, `clear_outbox`.
+Espone `http://127.0.0.1:8080/sse` con i tool `get_pending_tasks`, `add_task` e
+`clear_outbox`. I task ricevuti vengono accodati con `source=mcp:<server>`.
 
-I task ricevuti vengono accodati come qualsiasi altro task, con `source=mcp:<server_name>`. Utile per integrare con IDE, editor o altri agenti.
+> Il server di esempio ascolta solo su loopback e non ha autenticazione. Non
+> esporlo sulla LAN senza un proxy autenticato.
 
----
+### Sincronizzazione GitHub
 
-## Decision Models
+Il push è **solo manuale**. I worker non possono modificare remote né fare push.
 
-Sezione `[decision_models]` in `config.toml` configura i modelli decisionali disponibili (referenziati da https://ollama.com/search?c=decision):
-
-| Modello | Tag | Dimensione | Note |
-|---|---|---|---|
-| **tev1** | `tev1:4b` | 2.5 GB | Together AI, fast classification (default attivo) |
-| **d3** | `d3:2b` | 1.3 GB | Scored choices, yes/no, ratings |
-| **nimble** | `nimble:9b` | 5.5 GB | Bespoke Labs, typed classification |
-| **clef** | `clef:27b` | 16 GB | Cloudflare, multimodal (cloud o locale) |
-| **clef-flash** | `clef-flash:9b` | 5.5 GB | Versione flash di clef |
-| **nimble-v3** | `nimble-v3:9b` | 5.5 GB | Bespoke Labs v3: classification, routing, scoring |
-| **pplx-decider** | `pplx-decider:27b` | 16 GB | Perplexity, fine-tuned da Qwen3.8-27B |
-| **kev** | `kev` | — | Scores answers in one forward pass |
-| **laya** | `laya` | 421 MB | Convai, ultra light (ModernBERT-large) |
-| **strands-decider** | `strands-decider:2b` | 1.3 GB | Strands Agents, classification/routing/scoring |
-
-Il modello attivo si sceglie con `active = "tev1"` (o un altro). Il `GenericTaskPlanner` lo usa per scomporre i Generic Task in Code task atomici.
-
----
-
-## Safety valves in dettaglio
-
-| Condizione | Azione |
-|---|---|
-| RAM > 80% | Pausa dispatch, log warning, riprende quando scende |
-| Disco libero < 1 GB | Pausa, blocca nuove scritture |
-| Temperatura CPU > 90°C | Pausa termica, attesa raffreddamento |
-| CPU load > 95% per 60s | Pausa, evita thrashing |
-| 10 fallimenti consecutivi | Stato → stuck, richiede intervento manuale (`bswarm queue reset <id>`) |
-| SIGTERM | Shutdown pulito: salva stato, scarica modelli, esce con codice 0 |
-| Task > 8 step senza `done` | Marcato fallito, va in retry (max 10 volte) |
-
----
-
-## Comandi CLI
+Setup iniziale:
 
 ```bash
-# Avvio / arresto
-byte-swarmy start              # Avvia orchestratore in background
-byte-swarmy stop               # Ferma orchestratore (SIGTERM)
-byte-swarmy gui                # Avvia GUI
-byte-swarmy status             # Stato: PID, coda, ultimo campione termico
-
-# Coda task
-byte-swarmy queue list
-byte-swarmy queue add <title> [desc]
-byte-swarmy queue add-generic <title> [desc]   # Scomposto dal decision model
-byte-swarmy queue reset <id>                   # Reset a pending
-byte-swarmy queue cleanup                      # Elimina tutti i task done
-
-# Timestral
-byte-swarmy thermal            # Ultimo campione
-byte-swarmy thermal history    # Ultimi 30 campioni
-
-# Codice prodotto (honey)
-byte-swarmy honey              # ls project/
-byte-swarmy honey log          # git log del project/
-
-# Log
-byte-swarmy logs               # Tail del file di log (Ctrl+C per uscire)
-
-# MCP
-byte-swarmy mcp start          # Avvia server MCP di esempio
-byte-swarmy mcp list           # Lista server MCP configurati
-
-# Config
-byte-swarmy config edit        # Apri config.toml in $EDITOR
-
-# Varie
-byte-swarmy version
-byte-swarmy help
-```
-
-Alias: `bswarm` (symlink a `byte-swarmy`)
-
----
-
-## Sincronizzazione con GitHub
-
-### Setup iniziale (una volta sola)
-
-```bash
-# 1. Crea repo su https://github.com/new (nome: byte-swarmy)
-# 2. Crea PAT su https://github.com/settings/tokens (scope: repo)
-# 3. Configura git locale
 git config --global user.name "Il Tuo Nome"
 git config --global user.email "tua.email@example.com"
-git config --global init.defaultBranch main
-git config --global credential.helper store
-
-# 4. Collega il remote (SOSTITUISCI ghp_xxx con il tuo PAT)
-cd ~/Desktop/byte-swarmy
-git remote add origin https://USERNAME:ghp_TUO_TOKEN@github.com/USERNAME/byte-swarmy.git
-git push -u origin main --force
+git remote add origin https://github.com/USERNAME/byte-swarmy.git
+git push -u origin main
 ```
 
-### Workflow quotidiano
+Workflow:
 
 ```bash
-# Sync con un comando
 ./sync.sh "descrizione delle modifiche"
-
-# Solo pull (se hai lavorato da altro PC)
 ./sync.sh --pull
-
-# Vedi stato
 ./sync.sh --status
-
-# Vedi ultimi 20 commit
 ./sync.sh --log
 ```
 
 ---
 
-## Primo task: validare il loop end-to-end
+## Come funziona
 
-Prima di lanciare task seri, usa un task minuscolo per verificare che tutto funzioni:
+### Routing deterministico
 
-```bash
-./byte-swarmy queue add "Hello world in C" \
-  "Crea il file project/hello.c con un programma C che stampa 'Hello from BYTE-SWARMY!' seguito da newline. Compila con gcc project/hello.c -o project/hello e verifica che project/hello produca l'output atteso. Massimo 30 righe di codice."
+| Keyword nel task | Destinazione |
+|---|---|
+| `scrivi`, `crea`, `implementa`, `fix`, `bug`, `hello world`, `semplice` | `worker_coder` (`qwen2.5-coder`) |
+| `documenta`, `commenta`, `readme`, `spiega` | `worker_general` (`qwen2.5:1.5b`) |
+| `type=generic` o `source=generic:*` | `GenericTaskPlanner` (decision model) |
+| Nessuna corrispondenza | `Planner` (`phi3:mini`) → scomposizione LLM |
 
-./avvia.sh
-```
+Il routing deterministico evita di chiamare un LLM per task che una regex può
+smistare correttamente.
 
-Se in `project/hello.c` trovi il sorgente e in `logs/byte-swarmy.log` vedi i tick di esecuzione → il loop funziona.
+### Timestral — tuning dinamico
 
-### Esempio di Generic Task
+Timestral campiona ogni 30 secondi temperatura, carico CPU, frequenza, RAM e
+swap. Le soglie sono configurabili in `config.toml`.
 
-```bash
-./byte-swarmy queue add-generic "Sistema di note CLI" \
-  "Voglio un sistema per prendere appunti da terminale. Comandi: add <text>, list, search <text>, delete <id>. Storage su file JSON. Massimo 250 righe totali."
-```
+| Stato | Condizione | Effetto |
+|---|---|---|
+| `FAST` | temperatura < 50 °C e carico < 60% | tick × 0.6, raddoppia i task/ora |
+| `NORMAL` | temperatura 50–65 °C | tick × 1.0 |
+| `SLOW` | temperatura 65–80 °C | tick × 1.7–2.5, dimezza i task/ora |
+| `PAUSE` | temperatura > 90 °C o CPU > 95% per 60 s | Nessun dispatch fino al raffreddamento |
 
-Il decision model analizzerà la descrizione e genererà 2-8 Code task atomici, che verranno accodati automaticamente.
+Lo storico è salvato in `state/timestral_history.json` (24 ore di campioni).
+
+### Safety valve
+
+| Condizione | Azione |
+|---|---|
+| RAM > 80% | Pausa del dispatch, ripresa automatica |
+| Disco libero < 1 GB | Pausa e blocco delle nuove scritture |
+| Temperatura CPU > 90 °C | Pausa termica |
+| CPU load > 95% per 60 s | Pausa per evitare thrashing |
+| 10 fallimenti consecutivi | Task in stato `stuck`, richiede intervento manuale |
+| SIGTERM | Salvataggio stato, unload dei modelli, uscita pulita |
+| Task oltre il limite di step | Fallimento e retry (fino a 10 tentativi) |
+
+### Memoria
+
+Ogni worker ha tre buffer:
+
+- **short_term** — eventi del task corrente;
+- **working** — contesto compatto usato nel prompt;
+- **long_term** — riassunto persistente dopo la compaction.
+
+La compaction scatta dopo 50 eventi e produce un riassunto breve, così il
+contesto non cresce oltre il limite dei modelli piccoli.
 
 ---
 
-## Punti chiave del design
+## Sicurezza in profondità
 
-1. **Loop sequenziale**: niente thread, niente asyncio. `tick → safety → maintenance → dispatch → sleep 30s`.
-2. **Routing deterministico prima dell'LLM**: keyword match → worker diretto, bypassa il planner e risparmia token.
-3. **Stato = file JSON**: coda, memorie, heartbeat. Tutto ispezionabile, tutto ripristinabile.
-4. **Write transazionale**: `write_file` passa per `tmp/` poi `rename()` atomico — nessuno stato inconsistente se l'agente crasha a metà.
-5. **Memory compaction**: dopo 50 eventi, l'orchestratore stesso riassume in 300 token → `long_term`. Evita contesti che esplodono.
-6. **Safety valves**: RAM > 80% → pausa; disco < 1 GB → pausa; temp > 90°C → pausa; 10 fallimenti → stuck; SIGTERM → shutdown pulito con unload modelli.
-7. **Rotation modelli**: un solo LLM caricato in RAM alla volta. Caricamento/scaricamento esplicito via `keep_alive=0`.
-8. **Backup automatici**: snapshot git ogni 15 min, tar.gz ogni 24h (ultimi 7 conservati).
+### Sempre attiva, per progetto
+
+| Livello | Comportamento |
+|---|---|
+| **Comandi** | `run_bash` tokenizza con `shlex`, rifiuta metacaratteri di shell e valida allowlist + blacklist. Esecuzione con `shell=False`. |
+| **Path** | Solo path relativi a `project/`; blocco di path assoluti, `..`, `~`, symlink che escono dalla root e file sensibili. |
+| **Git** | `status`, `log`, `diff`, `branch`, `merge` e `commit` locali ammessi; push, pull e modifica remote disabilitati. |
+| **Ambiente** | `HOME` è una directory sandbox; token, socket SSH e variabili cloud vengono rimossi. |
+| **Risorse** | Limiti di CPU, memoria, file aperti, dimensione file e core dump; timeout sull'intero process group. |
+| **Input esterni** | Task MCP ricostruiti da zero, campi con lunghezza massima, URL solo `http`/`https`. |
+| **Audit** | Ogni comando permesso, bloccato o andato in timeout viene registrato in `logs/security.log`. |
+
+La difesa **non dipende dal prompt**: il system prompt dei worker è solo un
+aiuto per i modelli piccoli. Anche se un task contiene *"ignora le regole"*, il
+tool layer applica comunque la policy.
+
+### Isolamento di sistema (opzionale, richiede root)
+
+```bash
+./setup-hardening.sh                  # Diagnostica
+sudo ./setup-hardening.sh --apply     # Utente byteswarmy + cgroup
+sudo ./setup-hardening.sh --firewall  # Blocca la rete in uscita (tranne Ollama)
+sudo ./setup-hardening.sh --all       # Tutto
+sudo ./setup-hardening.sh --undo      # Rimuove slice e regole firewall
+```
+
+Avvio isolato:
+
+```bash
+sudo systemd-run --slice=byteswarmy.slice --uid=byteswarmy --gid=byteswarmy \
+     --working-directory=/home/byteswarmy/byte-swarmy \
+     /home/byteswarmy/byte-swarmy/avvia.sh --orch
+```
+
+La GUI resta dell'utente reale. Lo script è idempotente e non viene eseguito
+automaticamente.
+
+### Rischi residui
+
+1. Il codice del progetto (`python`, `make`, `pytest`, binari) viene eseguito
+   con i permessi dell'utente. La policy non è un sandbox di kernel.
+2. Un `Makefile`, `CMakeLists.txt` o test può eseguire comandi shell propri.
+3. `write_file` e `git_commit` possono includere segreti già presenti in
+   `project/`; controlla il diff prima di `./sync.sh`.
+4. Non sono inclusi seccomp, AppArmor o container.
+
+Per dati sensibili usa **utente dedicato + firewall** e non avviare
+l'orchestratore come utente principale.
 
 ---
 
-## Limiti noti (con 4 GB RAM)
+## Struttura del progetto
 
-- **Un solo modello caricato alla volta**: rotation esplicita (carica/scarica)
-- **Worker sequenziali**: niente parallelismo. Un task alla volta
-- **Contesto 4096 token max**: se il task è più grande, il planner lo spezza
-- **Output LLM max 2048 token**: il worker non può generare file enormi in un colpo
-- **Modelli 1B-4B**: bravi su task discreti, falliscono su architetture complesse
+```
+byte-swarmy/
+├── orchestrator.py          # Orchestratore, Planner, Worker, TaskQueue
+├── security.py              # Policy centrale: comandi, path, audit log
+├── tools.py                 # ToolSet: 13 tool, esecuzione senza shell
+├── memory.py                # AgentMemory: short/working/long_term + compaction
+├── ollama_client.py         # ModelClient con rotation dei modelli
+├── mcp_client.py            # Client MCP su SSE
+├── thermal_manager.py       # TimestralManager: monitor e tuning
+├── example_mcp_server.py    # Server MCP di esempio (loopback)
+├── add_task.py              # Helper CLI per aggiungere task
+├── gui.py                   # GUI PyQt6 (Control Center)
+├── config.toml              # Parametri: modelli, timing, safety, security
+├── byte-swarmy              # CLI launcher (alias: bswarm)
+├── avvia.sh                 # Launcher: venv + orchestratore + GUI
+├── ferma.sh                 # Arresto con validazione del PID
+├── setup.sh                 # Check e installazione dipendenze
+├── setup-hardening.sh       # Hardening di sistema opzionale (root)
+├── sync.sh                  # Commit + push GitHub manuale
+├── tests/
+│   └── test_security.py     # Suite stdlib (unittest), senza root
+├── SECURITY.md              # Threat model, mitigazioni, rischi residui
+├── BYTE-SWARMY.desktop      # Voce di menu per KDE/Kubuntu
+├── requirements_gui.txt     # Dipendenze Python della GUI
+├── state/                   # Stato persistente (JSON)
+├── tasks/                   # Coda task (queue.json)
+├── logs/                    # Log applicativo e audit di sicurezza
+├── project/                 # Codice prodotto dai worker
+└── backups/                 # Snapshot e archivi (ultimi 7)
+```
+
+---
+
+## Sviluppo e test
+
+### Suite di sicurezza
+
+I test usano solo la standard library e non richiedono root:
+
+```bash
+python -m unittest discover -s tests -t . -v
+```
+
+Coprono, tra gli altri:
+
+- comandi distruttivi, pipe, redirect, command substitution e fork bomb;
+- path traversal, symlink escape e file sensibili;
+- git push/pull/remote e injection nelle revisioni;
+- ambiente sanificato e limiti di output;
+- task MCP e configurazione ostile;
+- prompt injection con modello che tenta di cancellare un file esterno.
+
+### Controlli statici
+
+```bash
+python -m py_compile security.py tools.py orchestrator.py gui.py mcp_client.py
+bash -n avvia.sh ferma.sh sync.sh setup.sh setup-hardening.sh
+git diff --check
+```
+
+### Aggiungere un comando alla allowlist
+
+1. Apri `security.py`.
+2. Aggiungi il comando alla allowlist e, se serve, un validatore dedicato.
+3. Aggiungi almeno un test positivo e uno negativo in
+   `tests/test_security.py`.
+4. Esegui la suite completa.
+
+Ogni comando aggiunto è una nuova superficie d'attacco: non allargare la
+allowlist per comodità.
+
+---
+
+## Limiti noti
+
+- **Un solo modello caricato alla volta**: la rotation è esplicita.
+- **Worker sequenziali**: nessun parallelismo, un task alla volta.
+- **Contesto limitato** (circa 4096 token): i task grandi vengono scomposti.
+- **Output LLM limitato** (circa 2048 token): file molto grandi richiedono più passi.
+- **Modelli 1B–4B**: efficaci su task discreti, poco affidabili su architetture complesse.
+- **Nessun sandbox di kernel**: l'isolamento completo richiede l'hardening di sistema.
 
 ---
 
 ## Troubleshooting
 
-| Sintomo | Causa | Fix |
+| Sintomo | Causa probabile | Soluzione |
 |---|---|---|
-| `ModuleNotFoundError: PyQt6` | Dipendenze non installate | `./setup.sh` o `pip install -r requirements_gui.txt` |
-| `ModuleNotFoundError: mcp` | Solo task locali disponibili | `pip install mcp httpx httpx-sse` (la GUI offre auto-install) |
-| GUI parte ma tab MCP vuoto | Modulo mcp non caricato | Guarda il banner giallo nel tab MCP |
-| MCP server "connection refused" | Server non avviato | `./byte-swarmy mcp start` in altro terminale |
-| Orchestratore non parte | Venv non attivo | `source .venv/bin/activate` prima di avviare |
-| Status "fermato" anche dopo Avvia | Subprocess crashato | Guarda `logs/byte-swarmy.log` per errori |
-| RAM saturata | Modelli non si scaricano | Verifica `keep_alive=0` nel log |
-| Task sempre `stuck` | Prompt troppo difficile | Spezza in sottotask più piccoli o usa Generic task |
-| `tomli_w non installato` | Dipendenza writer mancante | `pip install tomli-w` (la GUI offre auto-install) |
-| Push GitHub fallisce con `Authentication failed` | Token errato/scaduto | Crea nuovo PAT su https://github.com/settings/tokens |
-| Push fallisce con `repository not found` | URL remoto sbagliato | `git remote set-url origin https://USERNAME:ghp_TOKEN@github.com/USERNAME/byte-swarmy.git` |
-| Push fallisce con `Updates were rejected` | Remote ha commit non locali | `./sync.sh --pull` poi `./sync.sh` |
+| `ModuleNotFoundError: PyQt6` | Dipendenze GUI assenti | `./setup.sh` oppure `pip install -r requirements_gui.txt` |
+| `ModuleNotFoundError: mcp` | Dipendenze MCP assenti | `pip install mcp httpx httpx-sse` (la GUI propone l'auto-install) |
+| Tab MCP vuoto | Modulo `mcp` non caricato | Controlla il banner nel tab MCP |
+| MCP: `connection refused` | Server non avviato | `./byte-swarmy mcp start` in un altro terminale |
+| Orchestratore non parte | Virtualenv non attivo | `source .venv/bin/activate` |
+| Status "fermato" dopo l'avvio | Subprocess terminato | Controlla `logs/byte-swarmy.log` |
+| RAM saturata | Modelli non scaricati | Verifica `keep_alive=0` nel log |
+| Task sempre `stuck` | Prompt troppo complesso | Spezza il task o usa un Generic task |
+| `tomli_w non installato` | Writer TOML mancante | `pip install tomli-w` |
+| Push: `Authentication failed` | Token errato o scaduto | Crea un nuovo PAT su GitHub |
+| Push: `repository not found` | URL remote errato | `git remote set-url origin ...` |
+| Push: `Updates were rejected` | Remote con commit non locali | `./sync.sh --pull` poi `./sync.sh` |
+| Comando bloccato da `run_bash` | Policy di sicurezza attiva | Leggi il messaggio: indica il motivo e l'alternativa |
 
 ---
 
 ## Compatibilità
 
-- **OS**: Linux (testato su Kubuntu/Ubuntu). Su Windows/Mac disabilitare Timestral nel config.
-- **Python**: 3.11+ (per `tomllib` in stdlib). Su 3.10 installa `tomli`.
-- **RAM**: 4 GB minimo, 8 GB consigliato.
-- **Ollama**: qualsiasi versione recente.
-
----
-
-## Roadmap
-
-- [ ] Worker paralleli via subprocess (solo se RAM > 8 GB)
-- [ ] Embedding per memoria semantica (cercare task simili già risolti)
-- [ ] Test runner automatico come hook post-commit
-- [ ] Modello grande on-demand per task `needs_human`
-- [ ] Dashboard grafici Timestral (matplotlib nella GUI)
-- [ ] Integrazione HuggingFace per download automatico nuovi modelli
-- [ ] TUI curses per monitorare la coda in tempo reale da terminale
+- **OS:** Linux (testato su Kubuntu/Ubuntu). Su Windows/macOS disattiva Timestral.
+- **Python:** 3.11+ per `tomllib`; su 3.10 installa `tomli`.
+- **RAM:** 4 GB minimo, 8 GB consigliati.
+- **Ollama:** qualsiasi versione recente.
+- **GUI:** PyQt6 con wheel disponibili per Python 3.14.
 
 ---
 
 ## Contribuire
 
-Il progetto è pensato per essere modificato. Le aree più aperte:
+Il progetto è pensato per essere esteso. Le aree più aperte:
 
-- Nuovi decision models (configurabili in `config.toml`)
-- Nuovi worker specializzati (test runner, database, refactoring)
-- Nuovi hook post-commit (lint, format, test)
-- Nuovi adapter MCP per integrazioni esterne
-- Dashboard Timestral con matplotlib
+- nuovi decision model configurabili;
+- nuovi worker specializzati (test runner, database, refactoring);
+- hook post-commit (lint, format, test);
+- adapter MCP per integrazioni esterne;
+- dashboard Timestral con grafici.
 
-Prima di aggiungere qualcosa, chiediti: *"Lo farebbe girare su 4 GB di RAM senza cloud?"* Se la risposta è sì, è benvenuto.
+Prima di proporre una modifica, verifica che rispetti il vincolo del progetto:
+*"gira su 4 GB di RAM senza cloud?"*
+
+Per modifiche che toccano la sicurezza, aggiorna anche `SECURITY.md` e la suite
+`tests/test_security.py`.
 
 ---
 
 ## Licenza
 
-MIT License — vedi file [LICENSE](LICENSE).
+Rilasciato sotto licenza MIT. Vedi [LICENSE](LICENSE).
 
 ---
 
 ## Ringraziamenti
 
-- [Ollama](https://ollama.com) per i modelli locali
+- [Ollama](https://ollama.com) per l'esecuzione locale dei modelli
 - [PyQt6](https://www.riverbankcomputing.com/software/pyqt/) per la GUI
-- [MCP](https://modelcontextprotocol.io) per il protocollo di task distribution
-- I modelli decisionali di [Together AI](https://www.together.ai/), [Bespoke Labs](https://www.bespoke.co/), [Cloudflare](https://www.cloudflare.com/), [Perplexity](https://www.perplexity.ai/), [Strands Agents](https://strandsagents.com/) e [Convai](https://convai.com/)
+- [MCP](https://modelcontextprotocol.io) per il protocollo di distribuzione task
+- I modelli decisionali di [Together AI](https://www.together.ai/),
+  [Bespoke Labs](https://www.bespoke.co/), [Cloudflare](https://www.cloudflare.com/),
+  [Perplexity](https://www.perplexity.ai/), [Strands Agents](https://strandsagents.com/)
+  e [Convai](https://convai.com/)
 
 ---
-
-## Versione
 
 **BYTE-SWARMY v0.1.0**
 

@@ -73,8 +73,8 @@ EOF
 
 cmd_start() {
     mkdir -p logs state tasks project backups
-    if [ -f "$PID_FILE" ] && kill -0 "$(cat $PID_FILE)" 2>/dev/null; then
-        echo "Orchestratore già attivo (PID $(cat $PID_FILE))"
+    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE" 2>/dev/null)" 2>/dev/null; then
+        echo "Orchestratore già attivo (PID $(cat "$PID_FILE" 2>/dev/null))"
         exit 1
     fi
     nohup $PYTHON orchestrator.py > logs/stdout.log 2>&1 &
@@ -88,7 +88,17 @@ cmd_stop() {
         echo "Nessun orchestratore attivo"
         exit 0
     fi
-    PID=$(cat "$PID_FILE")
+    PID=$(cat "$PID_FILE" 2>/dev/null || true)
+    # Non fidarsi del pid file: potrebbe essere vecchio o manomesso.
+    if ! [[ "$PID" =~ ^[0-9]+$ ]]; then
+        echo "PID non valido in $PID_FILE: non tocco nessun processo"
+        rm -f "$PID_FILE"
+        exit 1
+    fi
+    if [ -r "/proc/$PID/cmdline" ] && ! tr '\0' ' ' < "/proc/$PID/cmdline" | grep -q "orchestrator.py"; then
+        echo "Il PID $PID non è l'orchestratore: non lo termino"
+        exit 1
+    fi
     if kill -TERM "$PID" 2>/dev/null; then
         echo "SIGTERM inviato a PID $PID"
         sleep 2
@@ -103,8 +113,8 @@ cmd_stop() {
 }
 
 cmd_status() {
-    if [ -f "$PID_FILE" ] && kill -0 "$(cat $PID_FILE)" 2>/dev/null; then
-        echo "● Orchestratore ATTIVO (PID $(cat $PID_FILE))"
+    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE" 2>/dev/null)" 2>/dev/null; then
+        echo "● Orchestratore ATTIVO (PID $(cat "$PID_FILE" 2>/dev/null))"
     else
         echo "○ Orchestratore fermato"
     fi

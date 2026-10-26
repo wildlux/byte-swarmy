@@ -1,5 +1,11 @@
 Domanda seria, ti do una risposta seria e tecnica. BYTE-SWARMY ha **rischi reali** che devi conoscere.
 
+> **AGGIORNAMENTO 2026-10-26 — questo documento è storico.**
+> Le mitigazioni descritte come "mancanti" sono state implementate
+> (`security.py`, `tools.py`, `avvia.sh`, `setup-hardening.sh`).
+> La fonte aggiornata è **[SECURITY.md](SECURITY.md)**. Le sezioni sotto
+> restano utili come analisi del rischio originale.
+
 ## Analisi dei rischi — onesta
 
 ### 🔴 RISCHI ALTI (cosa può fare danno reale)

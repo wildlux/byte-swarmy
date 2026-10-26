@@ -25,6 +25,23 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# === HARDENING DI BASE ===
+# I worker LLM ereditano l'ambiente di questo processo: qui togliamo i
+# segreti più comuni e limitiamo i danni collaterali.
+umask 077
+unset GITHUB_TOKEN GH_TOKEN GIT_TOKEN GIT_ASKPASS OLLAMA_API_KEY 2>/dev/null || true
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN 2>/dev/null || true
+unset OPENAI_API_KEY ANTHROPIC_API_KEY GOOGLE_API_KEY 2>/dev/null || true
+unset DATABASE_URL DB_PASSWORD REDIS_URL HF_TOKEN 2>/dev/null || true
+# I tool git dei worker non devono poter chiedere credenziali.
+unset SSH_AUTH_SOCK SSH_AGENT_PID 2>/dev/null || true
+export GIT_TERMINAL_PROMPT=0
+export PYTHONDONTWRITEBYTECODE=1
+# Niente core dump; file singolo max 1 GB (i limiti per-comando sono in tools.py).
+ulimit -c 0 2>/dev/null || true
+ulimit -f 1048576 2>/dev/null || true
+ulimit -n 512 2>/dev/null || true
+
 # Banner
 show_banner() {
     cat <<'EOF'
@@ -97,16 +114,22 @@ mkdir -p state logs tasks project backups
 
 # Funzione: verifica se orchestratore è attivo
 is_orchestrator_running() {
-    if [ -f "$PID_FILE" ] && kill -0 "$(cat $PID_FILE)" 2>/dev/null; then
-        return 0
+    [ -f "$PID_FILE" ] || return 1
+    local pid
+    pid=$(cat "$PID_FILE" 2>/dev/null || true)
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+    kill -0 "$pid" 2>/dev/null || return 1
+    # Evita di considerare "orchestratore" un PID riutilizzato da altro.
+    if [ -r "/proc/$pid/cmdline" ] && ! tr '\0' ' ' < "/proc/$pid/cmdline" | grep -q "orchestrator.py"; then
+        return 1
     fi
-    return 1
+    return 0
 }
 
 # Funzione: avvia orchestratore in background
 start_orchestrator() {
     if is_orchestrator_running; then
-        echo "✓ Orchestratore già attivo (PID $(cat $PID_FILE))"
+        echo "✓ Orchestratore già attivo (PID $(cat "$PID_FILE" 2>/dev/null))"
         return 0
     fi
     echo "🐝 Avvio orchestratore in background..."
@@ -114,7 +137,7 @@ start_orchestrator() {
     echo $! > "$PID_FILE"
     sleep 3
     if is_orchestrator_running; then
-        echo "✓ Orchestratore avviato (PID $(cat $PID_FILE))"
+        echo "✓ Orchestratore avviato (PID $(cat "$PID_FILE" 2>/dev/null))"
         # Verifica che non sia crashato subito
         if ! tail -10 logs/byte-swarmy.log 2>/dev/null | grep -q "swarm started"; then
             echo "⚠️  Possibile problema — ultimi log:"
@@ -139,7 +162,7 @@ start_orchestrator() {
 show_status() {
     echo
     if is_orchestrator_running; then
-        echo "● Orchestratore ATTIVO (PID $(cat $PID_FILE))"
+        echo "● Orchestratore ATTIVO (PID $(cat "$PID_FILE" 2>/dev/null))"
     else
         echo "○ Orchestratore fermato"
     fi
@@ -179,7 +202,7 @@ case "${1:-all}" in
         start_orchestrator
         show_status
         echo
-        echo "Per fermare: ./ferma.sh oppure kill $(cat $PID_FILE 2>/dev/null)"
+        echo "Per fermare: ./ferma.sh oppure kill $(cat "$PID_FILE" 2>/dev/null)"
         exit 0
         ;;
     all|""|--all)

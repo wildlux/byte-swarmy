@@ -112,6 +112,9 @@ class MCPClient:
     # ------------------------------------------------------------------
 
     def add_server(self, config: McpServerConfig) -> None:
+        if not self._valid_url(config.url):
+            self._log("error", f"invalid MCP url for {config.name}: {config.url!r}")
+            return
         with self._lock:
             self.servers[config.name] = config
         self._notify_status(config.name, config.last_status)
@@ -200,6 +203,10 @@ class MCPClient:
 
     def _poll_one(self, srv: McpServerConfig) -> None:
         """Polla un singolo server MCP per nuovi task."""
+        if not self._valid_url(srv.url):
+            srv.last_error = "invalid url"
+            self._set_status(srv, "error")
+            return
         self._set_status(srv, "connecting")
 
         try:
@@ -294,6 +301,18 @@ class MCPClient:
     # ------------------------------------------------------------------
     # Utility
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _valid_url(url: str) -> bool:
+        """Solo http/https con host: niente file://, schemi esotici o URL vuoti."""
+        if not isinstance(url, str) or not url.strip():
+            return False
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(url.strip())
+            return parsed.scheme in ("http", "https") and bool(parsed.netloc)
+        except Exception:
+            return False
 
     def _set_status(self, srv: McpServerConfig, status: str) -> None:
         srv.last_status = status

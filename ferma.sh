@@ -18,7 +18,18 @@ if [ ! -f "$PID_FILE" ]; then
     exit 0
 fi
 
-PID=$(cat "$PID_FILE")
+PID=$(cat "$PID_FILE" 2>/dev/null || true)
+
+# Non fidarsi del pid file: potrebbe essere vecchio o manomesso.
+if ! [[ "$PID" =~ ^[0-9]+$ ]]; then
+    echo "❌ PID non valido in $PID_FILE: non tocco nessun processo."
+    rm -f "$PID_FILE"
+    exit 1
+fi
+if [ -r "/proc/$PID/cmdline" ] && ! tr '\0' ' ' < "/proc/$PID/cmdline" | grep -q "orchestrator.py"; then
+    echo "❌ Il PID $PID non è l'orchestratore: non lo termino."
+    exit 1
+fi
 
 if kill -0 "$PID" 2>/dev/null; then
     echo "🐝 Ferma orchestratore (PID $PID)..."
