@@ -5,9 +5,11 @@
 # Uso:
 #   ./sync.sh                       Commit automatico con timestamp, poi push
 #   ./sync.sh "messaggio"           Commit con messaggio personalizzato, poi push
+#   ./sync.sh commit                Equivalente a ./sync.sh (auto-sync timestamp)
 #   ./sync.sh --pull                Solo pull dal remote (sync da altri PC)
 #   ./sync.sh --status              Mostra stato git
 #   ./sync.sh --log                 Mostra ultimi commit
+#   ./sync.sh -h|--help             Mostra questo aiuto
 #
 
 set -e
@@ -22,7 +24,25 @@ if [ ! -d ".git" ]; then
     exit 1
 fi
 
+# Funzione di aiuto
+show_help() {
+    cat <<EOF
+Uso: $0 [commit|"messaggio"|--pull|--status|--log|-h]
+
+  commit (default)   Commit automatico con timestamp + push
+  "messaggio"        Commit con messaggio personalizzato + push
+  --pull             Scarica modifiche da GitHub (rebase)
+  --status           Mostra stato git
+  --log              Mostra ultimi 20 commit
+  -h, --help         Mostra questo aiuto
+EOF
+}
+
 case "${1:-commit}" in
+    -h|--help)
+        show_help
+        ;;
+
     --pull)
         echo "📥 Pull dal remote..."
         git pull --rebase origin main 2>/dev/null || git pull origin main
@@ -37,17 +57,22 @@ case "${1:-commit}" in
         git log --oneline -20
         ;;
 
-    commit|"")
+    *)
+        # Default: commit + push
+        # Accetta qualsiasi argomento come messaggio (incluso "commit" o stringa vuota)
+
         echo "📋 File modificati:"
         git status --short
 
+        # Determina il messaggio del commit
+        if [ -z "$1" ] || [ "$1" = "commit" ]; then
+            MSG="Auto-sync $(date '+%Y-%m-%d %H:%M:%S')"
+        else
+            MSG="$1"
+        fi
+
         # Committa SOLO se ci sono modifiche pendenti
         if [ -n "$(git status --short)" ]; then
-            if [ -n "$1" ] && [ "$1" != "commit" ]; then
-                MSG="$1"
-            else
-                MSG="Auto-sync $(date '+%Y-%m-%d %H:%M:%S')"
-            fi
             echo "📝 Commit con messaggio: \"$MSG\""
             git add .
             git commit -m "$MSG"
@@ -67,15 +92,5 @@ case "${1:-commit}" in
         echo
         echo "📋 Ultimi 3 commit:"
         git log --oneline -3
-        ;;
-
-    *)
-        echo "Uso: $0 [commit|\"messaggio\"|--pull|--status|--log]"
-        echo
-        echo "  commit (default)   Commit automatico + push"
-        echo "  \"messaggio\"        Commit con messaggio personalizzato + push"
-        echo "  --pull             Scarica modifiche da GitHub"
-        echo "  --status           Mostra stato git"
-        echo "  --log              Mostra ultimi 20 commit"
         ;;
 esac
