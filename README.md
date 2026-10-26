@@ -1,8 +1,3 @@
-# === 1. Crea uno script Python che rigenera il README ===
-cat > rigenera_readme.py << 'PYTHON_END'
-#!/usr/bin/env python3
-"""Rigenera README.md con contenuto integro, newline preservati."""
-
 CONTENT = '''# BYTE-SWARMY
 
 <p align="center">
