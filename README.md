@@ -1,5 +1,3 @@
-CONTENT = '''# BYTE-SWARMY
-
 <p align="center">
   <img src="IMG/documentazione.jpeg" alt="BYTE-SWARMY — Swarm autonomo locale" width="720">
 </p>
