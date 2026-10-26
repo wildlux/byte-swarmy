@@ -103,3 +103,11 @@ project/.git/
 .README.md.kate-swp
 *.kate-swp
 README_IT_*.md
+
+# File temporanei di Kate (editor KDE)
+*.kate-swp
+.README.md.kate-swp
+README_IT_*.md
+
+# Icone derivate temporanee (tieni solo la .ico originale)
+IMG/icona-256-*.png
