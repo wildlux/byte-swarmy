@@ -1,3 +1,4 @@
+📄 Contenuto completo del nuovo README.md
 BYTE-SWARMY
 BYTE-SWARMY — Swarm autonomo locale
 
