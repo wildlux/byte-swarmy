@@ -353,7 +353,9 @@ class TestToolSetSecurity(unittest.TestCase):
         self.assertIn("exit_code=0", out)
         self.assertIn("TOKEN=MISSING", out)
         self.assertIn("SSH=MISSING", out)
-        self.assertIn("sandbox-home", out)
+        # Il sandbox ha una HOME volatile, non quella reale dell'utente.
+        self.assertIn("HOME=/home/sandbox", out)
+        self.assertNotIn(str(Path.home()), out)
         self.assertNotIn("super-secret", out)
 
     def test_output_is_truncated(self):

@@ -39,7 +39,7 @@ except ImportError:
     TOML_WRITER_AVAILABLE = False
 
 from PyQt6.QtCore import (
-    Qt, QThread, pyqtSignal, QTimer, QFileSystemWatcher, QObject
+    Qt, QThread, pyqtSignal, QTimer, QFileSystemWatcher, QObject, QProcess
 )
 from PyQt6.QtGui import (
     QAction, QFont, QColor, QTextCursor
@@ -1922,6 +1922,414 @@ class ThermalTab(QWidget):
 
 
 # ====================================================================
+# TEST & SANDBOX TAB
+# ====================================================================
+
+TEST_RUNNER = BASE_DIR / "tests" / "run_tests.py"
+TEST_TIMEOUT_MS = 5 * 60 * 1000
+
+
+class TestsTab(QWidget):
+    """Esegue la suite di test e il self-test del sandbox, con esito visibile.
+
+    I test girano in un processo separato (`tests/run_tests.py --json`) così la
+    GUI resta reattiva e un test bloccato non congela il Control Center.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.proc: Optional[QProcess] = None
+        self._stderr = ""
+        self._autorun_done = False
+        self._build_ui()
+        self._show_backend_info()
+        self._set_idle_state()
+
+    # ------------------------------------------------------------------
+    # UI
+    # ------------------------------------------------------------------
+
+    def _build_ui(self) -> None:
+        layout = QVBoxLayout(self)
+
+        title = QLabel("<h3>🧪 Test &amp; Sandbox</h3>")
+        layout.addWidget(title)
+
+        intro = QLabel(
+            "Verifica automatica della sicurezza: suite unitaria e controlli "
+            "eseguiti <b>dentro</b> bubblewrap (filesystem, rete, PID, "
+            "capability, ambiente)."
+        )
+        intro.setWordWrap(True)
+        intro.setStyleSheet("color: #444; padding: 2px 0 6px 0;")
+        layout.addWidget(intro)
+
+        # Banner stato sandbox
+        self.sandbox_banner = QLabel("Sandbox: verifica in corso…")
+        self.sandbox_banner.setWordWrap(True)
+        self.sandbox_banner.setStyleSheet(
+            "padding: 10px; background: #e2e3e5; border-radius: 4px;"
+        )
+        layout.addWidget(self.sandbox_banner)
+
+        # Riga comandi
+        controls = QHBoxLayout()
+        self.run_button = QPushButton("▶  Esegui test")
+        self.run_button.setToolTip(
+            "Esegue tests/run_tests.py: unit test + self-test del sandbox."
+        )
+        self.run_button.clicked.connect(self.run_tests)
+        controls.addWidget(self.run_button)
+
+        self.stop_button = QPushButton("■  Annulla")
+        self.stop_button.clicked.connect(self._stop_tests)
+        controls.addWidget(self.stop_button)
+
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 0)  # indeterminata durante l'esecuzione
+        self.progress.setVisible(False)
+        self.progress.setMaximumWidth(180)
+        controls.addWidget(self.progress)
+
+        controls.addStretch()
+        self.last_run_label = QLabel("Mai eseguito")
+        self.last_run_label.setStyleSheet("color: #666;")
+        controls.addWidget(self.last_run_label)
+        layout.addLayout(controls)
+
+        # Riepilogo grande
+        self.summary_label = QLabel("In attesa di esecuzione")
+        self.summary_label.setWordWrap(True)
+        self.summary_label.setStyleSheet(
+            "padding: 8px; background: #f0f0f0; font-weight: bold; "
+            "border-radius: 4px;"
+        )
+        layout.addWidget(self.summary_label)
+
+        # Tabella dei singoli test
+        self.table = QTableWidget(0, 4)
+        self.table.setHorizontalHeaderLabels(
+            ["Test", "Esito", "Durata", "Dettaglio"]
+        )
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table.setSelectionBehavior(
+            QTableWidget.SelectionBehavior.SelectRows
+        )
+        self.table.setAlternatingRowColors(True)
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        self.table.verticalHeader().setVisible(False)
+        layout.addWidget(self.table, 1)
+
+        # Dettagli (solo errori, copiabili)
+        details_label = QLabel("<b>Dettagli errori</b>")
+        layout.addWidget(details_label)
+        self.details = QPlainTextEdit()
+        self.details.setReadOnly(True)
+        self.details.setMaximumHeight(140)
+        font = QFont("Monospace")
+        font.setStyleHint(QFont.StyleHint.Monospace)
+        font.setPointSize(9)
+        self.details.setFont(font)
+        self.details.setPlaceholderText(
+            "Nessun errore: qui compaiono i traceback dei test falliti."
+        )
+        layout.addWidget(self.details)
+
+    def _set_idle_state(self) -> None:
+        self.run_button.setEnabled(True)
+        self.stop_button.setEnabled(False)
+        self.progress.setVisible(False)
+
+    def _show_backend_info(self) -> None:
+        """Mostra subito lo stato di bubblewrap, senza eseguire i test."""
+        try:
+            import sandbox
+            info = sandbox.backend_info()
+        except Exception as exc:  # pragma: no cover - difensivo
+            info = {"available": False, "error": str(exc), "version": None,
+                    "bwrap": ""}
+
+        if info.get("available") and info.get("hardened"):
+            self.sandbox_banner.setText(
+                "🟢 <b>Sandbox attivo</b> — "
+                f"{info.get('version') or 'bubblewrap'} "
+                f"({info.get('bwrap', 'bwrap')}). "
+                "Ogni comando dei worker gira isolato; senza sandbox i comandi "
+                "vengono rifiutati (fail closed)."
+            )
+            self.sandbox_banner.setStyleSheet(
+                "padding: 10px; background: #d4edda; color: #155724; "
+                "border-radius: 4px;"
+            )
+        elif info.get("available"):
+            self.sandbox_banner.setText(
+                "🟡 <b>Sandbox in modalità ridotta</b> — "
+                f"{info.get('version') or 'bubblewrap'} non supporta "
+                "<code>--disable-userns</code> (serve bubblewrap ≥ 0.11): "
+                "i namespace utente annidati non sono bloccati."
+            )
+            self.sandbox_banner.setStyleSheet(
+                "padding: 10px; background: #fff3cd; color: #856404; "
+                "border-radius: 4px;"
+            )
+        else:
+            self.sandbox_banner.setText(
+                "🔴 <b>Sandbox NON disponibile</b> — "
+                f"{info.get('error') or 'bubblewrap assente'}. "
+                "I worker non possono eseguire comandi. "
+                "Installa con: <code>sudo apt install bubblewrap</code>"
+            )
+            self.sandbox_banner.setStyleSheet(
+                "padding: 10px; background: #f8d7da; color: #721c24; "
+                "border-radius: 4px;"
+            )
+
+    # ------------------------------------------------------------------
+    # Esecuzione
+    # ------------------------------------------------------------------
+
+    def maybe_autorun(self) -> None:
+        """Avvia i test la prima volta che l'utente apre il tab."""
+        if self._autorun_done:
+            return
+        self._autorun_done = True
+        self.run_tests()
+
+    def run_tests(self) -> None:
+        if self.proc is not None and self.proc.state() != QProcess.ProcessState.NotRunning:
+            return
+        if not TEST_RUNNER.is_file():
+            QMessageBox.critical(
+                self, "Test mancanti",
+                f"Runner non trovato:\n{TEST_RUNNER}",
+            )
+            return
+
+        self.table.setRowCount(0)
+        self.details.clear()
+        self._stderr = ""
+        self.run_button.setEnabled(False)
+        self.stop_button.setEnabled(True)
+        self.progress.setVisible(True)
+        self.summary_label.setText("⏳ Test in esecuzione…")
+        self.summary_label.setStyleSheet(
+            "padding: 8px; background: #fff3cd; color: #856404; "
+            "font-weight: bold; border-radius: 4px;"
+        )
+        self._show_backend_info()
+
+        proc = QProcess(self)
+        proc.setWorkingDirectory(str(BASE_DIR))
+        proc.setProcessChannelMode(QProcess.ProcessChannelMode.SeparateChannels)
+        proc.finished.connect(self._on_finished)
+        proc.errorOccurred.connect(self._on_error)
+        proc.readyReadStandardError.connect(self._drain_stderr)
+        self.proc = proc
+
+        self._timeout = QTimer(self)
+        self._timeout.setSingleShot(True)
+        self._timeout.timeout.connect(self._on_timeout)
+        self._timeout.start(TEST_TIMEOUT_MS)
+
+        proc.start(sys.executable, [str(TEST_RUNNER), "--json"])
+
+    def _drain_stderr(self) -> None:
+        if self.proc is None:
+            return
+        data = self.proc.readAllStandardError().data()
+        self._stderr += data.decode("utf-8", "replace")
+
+    def _stop_tests(self) -> None:
+        if self.proc is not None and self.proc.state() != QProcess.ProcessState.NotRunning:
+            self.proc.kill()
+            self.summary_label.setText("⏹ Test annullati dall'utente")
+            self.summary_label.setStyleSheet(
+                "padding: 8px; background: #e2e3e5; font-weight: bold; "
+                "border-radius: 4px;"
+            )
+        self._finish_ui()
+
+    def _on_timeout(self) -> None:
+        if self.proc is not None and self.proc.state() != QProcess.ProcessState.NotRunning:
+            self.proc.kill()
+            self.details.setPlainText(
+                f"Timeout: i test non sono terminati entro "
+                f"{TEST_TIMEOUT_MS // 1000}s."
+            )
+            self.summary_label.setText("❌ Test NON completati (timeout)")
+            self._finish_ui()
+
+    def _finish_ui(self) -> None:
+        self.run_button.setEnabled(True)
+        self.stop_button.setEnabled(False)
+        self.progress.setVisible(False)
+        if getattr(self, "_timeout", None) is not None:
+            self._timeout.stop()
+
+    def _on_error(self, error) -> None:
+        if error == QProcess.ProcessError.FailedToStart:
+            self.details.setPlainText(
+                "Impossibile avviare il runner:\n"
+                f"{sys.executable} {TEST_RUNNER}"
+            )
+            self.summary_label.setText("❌ Runner non avviato")
+            self._finish_ui()
+
+    def _on_finished(self, exit_code: int, exit_status) -> None:
+        self._drain_stderr()
+        if self.proc is None:
+            return
+        raw = self.proc.readAllStandardOutput().data().decode("utf-8", "replace")
+        self._finish_ui()
+        report = self._parse_report(raw)
+        if report is None:
+            self.summary_label.setText("❌ Output del runner non valido")
+            self.summary_label.setStyleSheet(
+                "padding: 8px; background: #f8d7da; color: #721c24; "
+                "font-weight: bold; border-radius: 4px;"
+            )
+            self.details.setPlainText(
+                (raw[-1500:] + "\n" + self._stderr[-1500:]).strip()
+            )
+            self.last_run_label.setText(
+                time.strftime("Ultimo tentativo: %H:%M:%S")
+            )
+            return
+        self._render_report(report, exit_code)
+
+    @staticmethod
+    def _parse_report(raw: str) -> Optional[dict]:
+        raw = (raw or "").strip()
+        if not raw:
+            return None
+        start, end = raw.find("{"), raw.rfind("}")
+        if start < 0 or end <= start:
+            return None
+        try:
+            data = json.loads(raw[start:end + 1])
+        except json.JSONDecodeError:
+            return None
+        return data if isinstance(data, dict) else None
+
+    def _render_report(self, report: dict, exit_code: int) -> None:
+        sandbox_info = report.get("sandbox", {})
+        summary = report.get("summary", {})
+        ok = bool(report.get("ok")) and exit_code == 0
+
+        if sandbox_info.get("available") and sandbox_info.get("hardened"):
+            self.sandbox_banner.setText(
+                "🟢 <b>Sandbox attivo</b> — "
+                f"{sandbox_info.get('version') or 'bubblewrap'} "
+                f"({sandbox_info.get('bwrap', 'bwrap')}) · "
+                "self-test eseguito dentro il sandbox."
+            )
+            self.sandbox_banner.setStyleSheet(
+                "padding: 10px; background: #d4edda; color: #155724; "
+                "border-radius: 4px;"
+            )
+        elif sandbox_info.get("available"):
+            self.sandbox_banner.setText(
+                "🟡 <b>Sandbox in modalità ridotta</b> — "
+                f"{sandbox_info.get('version') or 'bubblewrap'} non supporta "
+                "<code>--disable-userns</code> (serve ≥ 0.11)."
+            )
+            self.sandbox_banner.setStyleSheet(
+                "padding: 10px; background: #fff3cd; color: #856404; "
+                "border-radius: 4px;"
+            )
+        else:
+            self.sandbox_banner.setText(
+                "🔴 <b>Sandbox NON disponibile</b> — "
+                f"{sandbox_info.get('error') or 'bubblewrap assente'}. "
+                "I comandi dei worker vengono rifiutati (fail closed)."
+            )
+            self.sandbox_banner.setStyleSheet(
+                "padding: 10px; background: #f8d7da; color: #721c24; "
+                "border-radius: 4px;"
+            )
+
+        tests = report.get("tests") or []
+        self.table.setRowCount(0)
+        errors: list[str] = []
+        for record in tests:
+            if not isinstance(record, dict):
+                continue
+            name = str(record.get("name", "?"))
+            status = str(record.get("status", "?")).upper()
+            duration = record.get("duration_s", 0)
+            detail = str(record.get("detail", "") or "")
+
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+            self.table.setItem(row, 0, QTableWidgetItem(name))
+            status_item = QTableWidgetItem(status)
+            status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            status_item.setForeground(QColor(_STATUS_COLORS.get(status, "#000000")))
+            self.table.setItem(row, 1, status_item)
+
+            duration_item = QTableWidgetItem(
+                "—" if not duration else f"{float(duration):.3f}s"
+            )
+            duration_item.setTextAlignment(Qt.AlignmentFlag.AlignRight
+                                           | Qt.AlignmentFlag.AlignVCenter)
+            self.table.setItem(row, 2, duration_item)
+
+            one_line = " ".join(detail.split())
+            self.table.setItem(row, 3, QTableWidgetItem(one_line[:300]))
+
+            if status in ("FAIL", "ERROR"):
+                errors.append(f"[{status}] {name}\n{detail}\n")
+
+        passed = int(summary.get("passed", 0))
+        failed = int(summary.get("failed", 0))
+        errs = int(summary.get("errors", 0))
+        skipped = int(summary.get("skipped", 0))
+        total = int(summary.get("total", len(tests)))
+        elapsed = summary.get("duration_s", 0)
+
+        counts = (
+            f"{passed}/{total} PASS · {failed} FAIL · {errs} ERROR · "
+            f"{skipped} SKIP · {elapsed}s"
+        )
+        if ok:
+            self.summary_label.setText(f"✅ TUTTI I TEST COMPLETATI — {counts}")
+            self.summary_label.setStyleSheet(
+                "padding: 8px; background: #d4edda; color: #155724; "
+                "font-weight: bold; border-radius: 4px;"
+            )
+        else:
+            self.summary_label.setText(f"❌ TEST NON COMPLETATI — {counts}")
+            self.summary_label.setStyleSheet(
+                "padding: 8px; background: #f8d7da; color: #721c24; "
+                "font-weight: bold; border-radius: 4px;"
+            )
+
+        if errors:
+            self.details.setPlainText("\n".join(errors)[-8000:])
+        elif self._stderr.strip():
+            self.details.setPlainText(self._stderr[-4000:])
+        else:
+            self.details.clear()
+
+        self.last_run_label.setText(
+            time.strftime("Ultima esecuzione: %H:%M:%S")
+        )
+        self._show_backend_info()
+
+
+_STATUS_COLORS = {
+    "PASS": "#155724",
+    "FAIL": "#721c24",
+    "ERROR": "#8a4b00",
+    "SKIP": "#666666",
+}
+
+
+# ====================================================================
 # MAIN WINDOW
 # ====================================================================
 
@@ -1986,11 +2394,14 @@ class MainWindow(QMainWindow):
         self.logs_tab = LogsTab(self.log_watcher)
         self.thermal_tab = ThermalTab()
         self.config_tab = ConfigTab()
+        self.tests_tab = TestsTab()
         self.tabs.addTab(self.task_tab, "Coda Task")
         self.tabs.addTab(self.mcp_tab, "MCP Servers")
         self.tabs.addTab(self.logs_tab, "Logs")
         self.tabs.addTab(self.thermal_tab, "Timestral (Termico)")
         self.tabs.addTab(self.config_tab, "Config")
+        self.tabs.addTab(self.tests_tab, "Test & Sandbox")
+        self.tabs.currentChanged.connect(self._on_tab_changed)
         self.setCentralWidget(self.tabs)
 
         # Collega il Timestral locale al tab Thermal
@@ -2009,6 +2420,11 @@ class MainWindow(QMainWindow):
         self.status_timer = QTimer(self)
         self.status_timer.timeout.connect(self._update_status_bar)
         self.status_timer.start(2000)
+
+    def _on_tab_changed(self, index: int) -> None:
+        """Avvia i test la prima volta che si apre il tab Test & Sandbox."""
+        if self.tabs.widget(index) is self.tests_tab:
+            self.tests_tab.maybe_autorun()
 
     def _build_toolbar(self) -> None:
         toolbar = QToolBar("Main")

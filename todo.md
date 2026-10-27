@@ -82,6 +82,50 @@ Quindi: **sì, tutte le falle correggibili nel codice sono state chiuse**;
 l'hardening di sistema. Per dati reali vale la regola: utente dedicato +
 firewall, mai l'utente principale.
 
+## Ciclo 3 — sandbox completo + test nella GUI (2026-10-27)
+
+Richiesta: sandbox completo per il codice generato e test automatici visibili
+dentro la GUI, con esito esplicito.
+
+Vincoli verificati:
+
+- `bubblewrap 0.11.1` disponibile; user namespace funzionanti senza root.
+- `sudo` non è passwordless: l'hardening di sistema con utente dedicato/cgroup/
+  firewall non può essere applicato automaticamente in questa sessione.
+- Quindi il sandbox "completo" viene realizzato con bubblewrap unprivileged
+  (filesystem, rete, PID, IPC, UTS, user namespace, capability dropped), mentre
+  l'hardening root resta opzionale.
+
+- [x] **1. `todo.md`** — scrivere il piano prima di modificare il codice.
+- [x] **2. `sandbox.py`** — builder bubblewrap: root filesystem minimo, solo `project/` scrivibile, `/home` e `/tmp` temporanei, niente rete, PID/user/IPC separati, capability droppate, `--disable-userns`, ambiente pulito.
+- [x] **3. `sandbox_selftest.py`** — test eseguito *dentro* il sandbox: home host invisibile, scrittura fuori bloccata, rete bloccata, scrittura progetto OK, PID host invisibile, variabili sensibili assenti, nesting user namespace bloccato.
+- [x] **4. `tools.py`** — instradare **tutti** i sottoprocessi (`run_bash`, git, search) attraverso il sandbox; fail-closed se bubblewrap non è disponibile.
+- [x] **5. `tests/test_sandbox.py` + test esistenti** — verificare il sandbox e aggiornare i test che assumevano l'esecuzione diretta.
+- [x] **6. `tests/run_tests.py`** — runner unico con output JSON: unit test + sandbox self-test, conteggi PASS/FAIL/SKIP.
+- [x] **7. `gui.py`** — nuovo tab "Test & Sandbox": stato bubblewrap, pulsante "Esegui test", tabella per singolo test, riepilogo, auto-run alla prima apertura.
+- [x] **8. Integrazione** — `setup.sh` installa `bubblewrap`; `avvia.sh`/`setup-hardening.sh` controllano il sandbox; CI installa bubblewrap.
+- [ ] **9. Documentazione** — aggiornare `README.md` e `SECURITY.md` con sandbox, limiti e uso della GUI.
+- [x] **10. Verifica** — unit test, sandbox self-test, `py_compile`, `bash -n`, `git diff --check`; aggiornare questo file.
+
+### Cosa copre il sandbox e cosa resta fuori
+
+**Coperto da bubblewrap (senza root):**
+
+- filesystem: solo `/usr`, `/etc`, venv e `project/`; niente home reale;
+- rete: network namespace separato, nessuna connessione in uscita;
+- processi: PID namespace separato, processi host invisibili;
+- utente/IPC/UTS: namespace separati;
+- privilegi: `--cap-drop ALL`, `--disable-userns`, `no_new_privs`;
+- ambiente: `--clearenv` + sole variabili sicure;
+- risorse: rlimit e timeout già presenti, process group terminato.
+
+**Fuori dal sandbox (richiede root o kernel):**
+
+- seccomp filter custom e mitigazione di exploit del kernel;
+- cgroup con `TasksMax`/`MemoryMax` e firewall per uid;
+- utente dedicato `byteswarmy`.
+  Restano disponibili con `sudo ./setup-hardening.sh --all`, ma non eseguiti qui.
+
 ## Piano di hardening — esecuzione 2026-10-25
 
 Contesto: il sistema esegue codice generato da LLM piccoli con i permessi
