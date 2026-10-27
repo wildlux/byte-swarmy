@@ -9,10 +9,10 @@ import ast
 from typing import Tuple, List, Set
 
 class ASTSecurityScanner:
-    \"\"\"
+    """
     Scanner di sicurezza deterministico. 
     Analizza il codice sorgente per identificare chiamate a funzioni vietate.
-    \"\"\"
+    """
 
     # Funzioni assolutamente vietate
     BANNED_FUNCTIONS = {
@@ -32,10 +32,10 @@ class ASTSecurityScanner:
         self.violations: List[str] = []
 
     def scan(self, code: str) -> Tuple[bool, str]:
-        \"\"\"
-        Analizza il codice e ritorna (True, \"\") se sicuro, 
-        oppure (False, \"motivo\") se viene rilevata una violazione.
-        \"\"\"
+        """
+        Analizza il codice e ritorna (True, "") se sicuro, 
+        oppure (False, "motivo") se viene rilevata una violazione.
+        """
         self.violations = []
         try:
             tree = ast.parse(code)
@@ -46,7 +46,7 @@ class ASTSecurityScanner:
             # 1. Controllo chiamate a funzioni (Call nodes)
             if isinstance(node, ast.Call):
                 func_name = self._get_func_name(node.func)
-                if func_//name in self.BANNED_FUNCTIONS:
+                if func_name in self.BANNED_FUNCTIONS:
                     self.violations.append(f"Chiamata vietata a {func_name}")
 
             # 2. Controllo import (Import & ImportFrom nodes)
@@ -65,7 +65,7 @@ class ASTSecurityScanner:
         return True, ""
 
     def _get_func_name(self, node) -> str:
-        \"\"\"Estrae il nome della funzione da un nodo AST (gestisce chiamate dirette e attribute).\"\"\"
+        """Estrae il nome della funzione da un nodo AST (gestisce chiamate dirette e attribute)."""
         if isinstance(node, ast.Name):
             return node.id
         elif isinstance(node, ast.Attribute):
