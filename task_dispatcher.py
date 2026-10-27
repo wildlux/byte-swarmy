@@ -46,7 +46,7 @@ class TaskDispatcher:
                     if t["id"] == task["id"]:
                         t["status"] = TaskStatus.PLANNED.value
                         t["subtask_ids"] = [s["id"] for s in subtasks]
-                self.//_save()
+                self.queue._save()
                 return "Planned"
 
         # 3. Worker Execution

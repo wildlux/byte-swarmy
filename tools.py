@@ -41,8 +41,8 @@ from security import (
 # Branch che i worker non possono cancellare.
 PROTECTED_BRANCHES = frozenset({"main", "master", "develop", "trunk"})
 
-# Nome branch/ref valido.
-_REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,79}$")
+# Nome branch/ref valido. Supporta ~, ^, @ per riferimenti git.
+_REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/~^@-]{0,79}$")
 _GLOB_RE = re.compile(r"^[A-Za-z0-9_./*?\[\]-]{1,120}$")
 
 # File che non devono mai finire nell'output di grep/search.
@@ -242,8 +242,17 @@ class ToolSet:
             return ("ERROR: revisione non valida. Usa HEAD, HEAD~1, un hash "
                     "o un nome di branch locale.")
         try:
+            # Per evitare che git diff restituisca un errore se non ci sono commit,
+            # o se il ref è valido ma non c'è diff, gestiamo l'output.
             r = self._run(["git", "diff", rev], timeout=20, cwd=self.project_root)
-            return r if r.strip() else "(no diff)"
+            
+            # Se l'output contiene 'exit_code=0' ma è vuoto, significa che non c'è diff.
+            # Se contiene un errore di git, lo restituiamo.
+            if "exit_code=0" in r:
+                stdout = r.split("--- stdout ---")[1].split("--- stderr ---")[0].strip()
+                return stdout if stdout else "(no diff)"
+            
+            return r
         except Exception as e:
             return f"ERROR git_diff: {e}"
 
@@ -1006,3 +1015,35 @@ class ToolSet:
             return text
         half = self.max_output // 2
         return text[:half] + TRUNCATED + text[-half:]
+
+    # ----- 23. inspect_usb_devices -----
+    def inspect_usb_devices(self) -> str:
+        """Returns detailed information about connected USB devices."""
+        try:
+            r = self._run(["lsusb", "-v"], timeout=20, cwd=self.project_root)
+            return r if r.strip() else "(no USB devices found)"
+        except Exception as e:
+            return f"ERROR inspecting USB: {e}"
+
+    # ----- 24. capture_usb_traffic(bus, duration) -----
+    def capture_usb_traffic(self, bus: str, duration: int = 5) -> str:
+        """Captures USB traffic on a specific bus for a duration using tshark."""
+        try:
+            cmd = [
+                "tshark", "-i", f"usbmon{bus}", 
+                "-a", f"duration:{duration}", 
+                "-c", "100", 
+                "-T", "text"
+            ]
+            r = self._run(cmd, timeout=duration + 10, cwd=self.project_root)
+            return r if r.strip() else "(no traffic captured on this bus)"
+        except Exception as e:
+            return f"ERROR capturing USB traffic: {e}"
+
+    def _safe_ref(self, ref: str) -> Optional[str]:
+        """Validates a git reference to prevent injection attacks."""
+        if not ref:
+            return None
+        if _REF_RE.match(ref):
+            return ref
+        return None

@@ -116,6 +116,9 @@ Il sistema implementa una pipeline di qualità professionale per garantire che i
 | **Refactor-Loop** | Protocollo di lavoro: Mappatura $\rightarrow$ Analisi $\rightarrow$ Intervento $\rightarrow$ Validazione. | Riduce le regressioni e mantiene il codice modulare. |
 | **JSONL Logging** | Log strutturati e immutabili per ogni azione del sistema. | Audit completo e tracciabilità enterprise delle decisioni dell'AI. |
 | **Prompt Governance** | Versionamento e metadati per ogni prompt utilizzato. | Riproducibilità e debug accurato del comportamento dell'agente. |
+| **Sandbox Bwrap** | Isolamento completo dei processi worker via bubblewrap (no rete, no home). | Previene l'esecuzione di codice malevolo sul sistema host. |
+| **USB Analysis** | Tool di ispezione passiva del traffico USB via `usbmon`. | Permette il reverse engineering hardware in modo sicuro e read-only. |
+| **Semantic Memory** | Supporto per backend di memoria Redis e VectorDB per recall di conoscenze passate. | Permette agli agenti di "imparare" dalle soluzioni di task precedenti. |
 
 ### Principi di progettazione
 
