@@ -63,9 +63,86 @@ except ImportError as e:
     MCP_AVAILABLE = False
 
 
-# ====================================================================
-# ERROR DIALOG (con testo copiabile)
-# ====================================================================
+    # ------------------------------------------------------------------
+    # Professional Style Sheet (Enterprise Dark Theme)
+    # ------------------------------------------------------------------
+    STYLESHEET = """
+    QMainWindow {
+        background-color: #1e1e1e;
+    }
+    QTabWidget::pane {
+        border: 1px solid #333;
+        background-color: #1e1e1e;
+    }
+    QTabBar::tab {
+        background: #2d2d2d;
+        color: #aaa;
+        padding: 8px 15px;
+        border: 1px solid #333;
+    }
+    QTabBar::tab:selected {
+        background: #3d3d3d;
+        color: #fff;
+        border-bottom-color: #007acc;
+    }
+    QWidget {
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        font-family: 'Segoe UI', 'Ubuntu', sans-serif;
+    }
+    QPushButton {
+        background-color: #333;
+        color: #fff;
+        border: 1px solid #444;
+        padding: 5px 10px;
+        border-radius: 3px;
+    }
+    QPushButton:hover {
+        background-color: #444;
+    }
+    QPushButton:pressed {
+        background-color: #555;
+    }
+    QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {
+        background-color: #252526;
+        color: #d4d4d4;
+        border: 1px solid #333;
+        padding: 4px;
+        border-radius: 2px;
+    }
+    QTableWidget {
+        background-color: #252526;
+        gridline-color: #333;
+        border: 1px solid #333;
+        selection-background-color: #264f78;
+    }
+    QHeaderView::section {
+        background-color: #333;
+        color: #aaa;
+        padding: 4px;
+        border: 1px solid #444;
+    }
+    QGroupBox {
+        font-weight: bold;
+        border: 1px solid #333;
+        margin-top: 1ex;
+        padding-top: 1ex;
+    }
+    QGroupBox::title {
+        subcontrol-origin: margin;
+        left: 10px;
+        padding: 0 3px 0 3px;
+    }
+    QScrollBar:vertical {
+        background: #1e1e1e;
+        width: 12px;
+    }
+    QScrollBar::handle:vertical {
+        background: #444;
+        min-height: 20px;
+        border-radius: 6px;
+    }
+    """
 
 class CopyableErrorDialog(QDialog):
     """Dialog di errore con testo selezionabile e copiabile.

@@ -105,7 +105,20 @@ modesto (4 GB di RAM, solo CPU). Riceve un task, lo classifica, lo scompone se
 necessario e lo esegue con worker specializzati. Lo stato è persistito su disco,
 quindi il lavoro può riprendere dopo un riavvio.
 
+### Enterprise Grade Quality Assurance
+
+Il sistema implementa una pipeline di qualità professionale per garantire che il codice prodotto sia sicuro, testato e manutenibile:
+
+| Feature | Descrizione | Vantaggio |
+|---|---|---|
+| **Audit Worker** | Un secondo agente (Reviewer) che controlla ogni modifica prima dell'approvazione. | Blocca bug e vulnerabilità prima che entrino nel progetto. |
+| **TDD Obbligatorio** | L'agente deve scrivere e far fallire un test prima di implementare la soluzione. | Garantisce che il codice risolva esattamente il requisito richiesto. |
+| **Refactor-Loop** | Protocollo di lavoro: Mappatura $\rightarrow$ Analisi $\rightarrow$ Intervento $\rightarrow$ Validazione. | Riduce le regressioni e mantiene il codice modulare. |
+| **JSONL Logging** | Log strutturati e immutabili per ogni azione del sistema. | Audit completo e tracciabilità enterprise delle decisioni dell'AI. |
+| **Prompt Governance** | Versionamento e metadati per ogni prompt utilizzato. | Riproducibilità e debug accurato del comportamento dell'agente. |
+
 ### Principi di progettazione
+
 
 | Principio | Implementazione |
 |---|---|
