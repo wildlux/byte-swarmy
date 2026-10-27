@@ -420,12 +420,12 @@ class Worker:
                     max_tokens=1024,
                 )
             except Exception as e:
-                self.log.error(f\"[{self.agent_id}] model call failed: {e}\")
-                return f\"ERROR: model unavailable: {e}\"
+                self.log.error(f"[{self.agent_id}] model call failed: {e}")
+                return f"ERROR: model unavailable: {e}"
 
             action = self._parse_action(raw)
             if not action:
-                self.memory.add_event({\"type\": \"parse_error\", \"content\": raw[:300]})
+                self.memory.add_event({"type": "parse_error", "content": raw[:300]})
                 prompt = (
                     \"ERRORE: la risposta non era JSON valido. \"
                     \"Rispondi con SOLO un oggetto JSON, niente testo prima o dopo.\\n\"
