@@ -102,92 +102,129 @@ def load_config(path: str = "config.toml") -> dict:
 # TASK QUEUE (persistente su file)
 # ====================================================================
 
+import sqlite3
+from typing import Optional, List, Dict, Any
+
 class TaskQueue:
-    """Coda task persistente. Un file JSON, semplice, ispezionabile."""
+    """Coda task persistente basata su SQLite. Supporta transazioni ACID."""
 
     def __init__(self, tasks_dir: Path, logger):
         self.dir = tasks_dir
         self.dir.mkdir(parents=True, exist_ok=True)
-        self.file = self.dir / "queue.json"
+        self.db_path = self.dir / "queue.db"
         self.log = logger
-        self.tasks: list = self._load()
+        self._init_db()
 
-    def _load(self) -> list:
-        if not self.file.exists():
-            return []
-        try:
-            return json.loads(self.file.read_text())
-        except Exception as e:
-            self.log.error(f"corrupted queue, starting fresh: {e}")
-            # backup del file corrotto
-            if self.file.exists():
-                self.file.rename(self.file.with_suffix(".corrupt.json"))
-            return []
+    def _init_db(self) -> None:
+        """Inizializza lo schema del database."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS tasks (
+                    id TEXT PRIMARY KEY,
+                    title TEXT,
+                    description TEXT,
+                    context TEXT,
+                    status TEXT,
+                    attempts INTEGER DEFAULT 0,
+                    created_at REAL,
+                    parent TEXT,
+                    type TEXT,
+                    source TEXT,
+                    result TEXT,
+                    last_error TEXT,
+                    failure_reason TEXT,
+                    completed_at REAL,
+                    started_at REAL,
+                    reason TEXT
+                )
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_status ON tasks(status)")
+            conn.commit()
 
-    def _save(self) -> None:
-        tmp = self.file.with_suffix(".tmp")
-        tmp.write_text(json.dumps(self.tasks, ensure_ascii=False, indent=2))
-        tmp.replace(self.file)
+    def _get_conn(self):
+        return sqlite3.connect(self.db_path)
 
     def add(self, task: dict) -> str:
-        """Aggiunge un task. Ritorna l'id."""
-        task_id = f"task-{int(time.time()*1000)}-{len(self.tasks)}"
+        task_id = f"task-{int(time.time()*1000)}-{len(self.tasks_count())}"
         task.setdefault("id", task_id)
         task.setdefault("status", "pending")
         task.setdefault("attempts", 0)
         task.setdefault("created_at", time.time())
-        task.setdefault("subtasks", [])
         task.setdefault("parent", None)
-        self.tasks.append(task)
-        self._save()
-        self.log.info(f"queue: added {task_id} - {task.get('title', '')[:80]}")
+        
+        with self._get_conn() as conn:
+            conn.execute(
+                "INSERT INTO tasks (id, title, description, context, status, attempts, created_at, parent, type, source) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (
+                    task["id"], task.get("title", ""), task.get("description", ""), 
+                    task.get("context", ""), task["status"], task["attempts"], 
+                    task["created_at"], task["parent"], task.get("type", "code"), 
+                    task.get("source", "manual")
+                )
+            )
+            conn.commit()
+        self.log.info(f"queue: added {task_id}")
         return task_id
 
     def next_pending(self) -> Optional[dict]:
-        """Estrae il prossimo task in stato 'pending' o 'retry'."""
-        for t in self.tasks:
-            if t["status"] in ("pending", "retry"):
-                t["status"] = "running"
-                t["started_at"] = time.time()
-                self._save()
-                return t
-        return None
+        with self._get_conn() as conn:
+            conn.row_factory = sqlite3.Row
+            res = conn.execute(
+                "SELECT * FROM tasks WHERE status IN ('pending', 'retry') ORDER BY created_at ASC LIMIT 1"
+            ).fetchone()
+            if not res: return None
+            
+            task_id = res["id"]
+            conn.execute(
+                "UPDATE tasks SET status = ?, started_at = ? WHERE id = ?",
+                ("running", time.time(), task_id)
+            )
+            conn.commit()
+            return dict(res)
 
     def mark_done(self, task_id: str, result: str) -> None:
-        for t in self.tasks:
-            if t["id"] == task_id:
-                t["status"] = "done"
-                t["result"] = result[:500]
-                t["completed_at"] = time.time()
-                self._save()
-                return
+        with self._get_conn() as conn:
+            conn.execute(
+                "UPDATE tasks SET status = 'done', result = ?, completed_at = ? WHERE id = ?",
+                (result[:500], time.time(), task_id)
+            )
+            conn.commit()
 
     def mark_failed(self, task_id: str, reason: str) -> None:
-        for t in self.tasks:
-            if t["id"] == task_id:
-                t["attempts"] = t.get("attempts", 0) + 1
-                if t["attempts"] >= 10:
-                    t["status"] = "stuck"
-                    t["failure_reason"] = reason
-                else:
-                    t["status"] = "retry"
-                    t["last_error"] = reason[:300]
-                self._save()
-                return
+        with self._get_conn() as conn:
+            # Increment attempts
+            curr = conn.execute("SELECT attempts FROM tasks WHERE id = ?", (task_id,)).fetchone()
+            attempts = (curr[0] if curr else 0) + 1
+            
+            status = "stuck" if attempts >= 10 else "retry"
+            fail_col = "failure_reason" if status == "stuck" else "last_error"
+            
+            conn.execute(
+                f"UPDATE tasks SET attempts = ?, status = ?, {fail_col} = ? WHERE id = ?",
+                (attempts, status, reason[:300], task_id)
+            )
+            conn.commit()
 
     def needs_human(self, task_id: str, reason: str) -> None:
-        for t in self.tasks:
-            if t["id"] == task_id:
-                t["status"] = "needs_human"
-                t["reason"] = reason
-                self._save()
-                return
+        with self._get_conn() as conn:
+            conn.execute("UPDATE tasks SET status = 'needs_human', reason = ? WHERE id = ?", (reason, task_id))
+            conn.commit()
 
     def stats(self) -> dict:
-        counts = {}
-        for t in self.tasks:
-            counts[t["status"]] = counts.get(t["status"], 0) + 1
-        return counts
+        with self._get_conn() as conn:
+            res = conn.execute("SELECT status, count(*) FROM tasks GROUP BY status").fetchall()
+            return {row[0]: row[1] for row in res}
+
+    def tasks_count(self) -> int:
+        with self._get_conn() as conn:
+            return conn.execute("SELECT count(*) FROM tasks").fetchone()[0]
+
+    def get_all_tasks(self) -> list:
+        """Compatibility method for GUI."""
+        with self._get_conn() as conn:
+            conn.row_factory = sqlite3.Row
+            return [dict(row) for row in conn.execute("SELECT * FROM tasks ORDER BY created_at ASC").fetchall()]
+
 
 
 # ====================================================================
@@ -310,7 +347,7 @@ class Worker:
         "  rename_symbol(symbol, new_name)\n"
         "  analyze_complexity(path)\n"
         "  get_call_graph(symbol)\n"
-        "  extract_method(path, start_line, end_line, new_name)\n"
+        "  extract_method(path, start_line, end_line, new_//name)\n"
         "  run_bash(cmd)\n"
         "  search(pattern, glob)\n"
         "  git_status()\n"
@@ -318,7 +355,9 @@ class Worker:
         "  git_commit(message)\n"
         "  git_log(n)\n"
         "  git_branch(action, name)\n"
-        "  git_merge(branch)\n\n"
+        "  git_merge(branch)\n"
+        "  inspect_usb_devices()\n"
+        "  capture_usb_traffic(bus, duration)\n\n"
         "RULES:\n"
         "1. Paths are relative to project/ (main.py and project/main.py both work).\n"
         "2. run_bash runs ONE simple command: no pipes, no redirects, no &&, no $().\n"
@@ -381,38 +420,37 @@ class Worker:
                     max_tokens=1024,
                 )
             except Exception as e:
-                self.log.error(f"[{self.agent_id}] model call failed: {e}")
-                return f"ERROR: model unavailable: {e}"
+                self.log.error(f\"[{self.agent_id}] model call failed: {e}\")
+                return f\"ERROR: model unavailable: {e}\"
 
             action = self._parse_action(raw)
             if not action:
-                self.memory.add_event({"type": "parse_error", "content": raw[:300]})
+                self.memory.add_event({\"type\": \"parse_error\", \"content\": raw[:300]})
                 prompt = (
-                    "ERRORE: la risposta non era JSON valido. "
-                    "Rispondi con SOLO un oggetto JSON, niente testo prima o dopo.\n"
-                    "Formato: {\"thought\": \"...\", \"action\": \"tool_name\", "
-                    "\"args\": [...], \"done\": false}\n\n"
-                    "Riprova ora:"
+                    \"ERRORE: la risposta non era JSON valido. \"
+                    \"Rispondi con SOLO un oggetto JSON, niente testo prima o dopo.\\n\"
+                    \"Formato: {\\\"thought\\\": \\\"...\\\", \\\"action\\\": \\\"tool_name\\\", \"
+                    \"\\\"args\\\": [...], \\\"done\\\": false}\\n\\n\"
+                    \"Riprova ora:\"
                 )
                 continue
 
-            self.memory.add_event({"type": "thought", "content": action.get("thought", "")[:200]})
+            self.memory.add_event({\"type\": \"thought\", \"content\": action.get(\"thought\", \"\")[:200]})
 
-            if action.get("done"):
+            if action.get(\"done\"):
                 # --- TDD VERIFICATION ---
                 if is_tdd_required and not tdd_verified:
-                    # Search history for a failing test run before any implementation
                     history = self.memory.get_history()
-                    has_test_file = any("write_file" in e["content"] and "test_" in e["content"] for e in history)
-                    has_failed_run = any("run_test_suite" in e["content"] and "FAILED" in e["content"] for e in history)
+                    has_test_file = any(\"write_file\" in e[\"content\"] and \"test_\" in e[\"content\"] for e in history)
+                    has_failed_run = any(\"run_test_suite\" in e[\"content\"] and \"FAILED\" in e[\"content\"] for e in history)
                     
                     if not (has_test_file and has_failed_run):
-                        self.log.warn(f"[{self.agent_id}] TDD Violation: No failing test found before completion.")
+                        self.log.warn(f\"[{self.agent_id}] TDD Violation: No failing test found before completion.\")
                         prompt = (
-                            "ERRORE: Violazione TDD. Prima di implementare la soluzione, "
-                            "DEVI: 1) Scrivere un test che fallisca, 2) Eseguirlo con `run_test_suite` "
-                            "per confermare il fallimento. Solo allora puoi implementare e risolvere.\n\n"
-                            "Riprova ora:"
+                            \"ERRORE: Violazione TDD. Prima di implementare la soluzione, \"
+                            \"DEVI: 1) Scrivere un test che fallisca, 2) Eseguirlo con `run_test_suite` \"
+                            \"per confermare il fallimento. Solo allora puoi implementare e risolvere.\\n\\n\"
+                            \"Riprova ora:\"
                         )
                         continue
 
@@ -420,50 +458,59 @@ class Worker:
                 history = self.memory.get_history()
                 test_passed = False
                 for event in reversed(history):
-                    if event["type"] == "tool_result" and "run_test_suite" in event["content"]:
-                        if "TUTTI i test sono passati" in event["content"] or "TUTTO OK" in event["content"]:
-                            test_passed = True
+                    if event[\"type\"] == \"tool_result\" and \"run_test_suite\" in event[\"content\"]:
+                        if \"TUTTI i test sono passati\" in event[\"content\"] or \"TUTTO OK\" in event[\"content\"]:\n                            test_passed = True
                         break
                 
                 if not test_passed:
-                    self.log.warn(f"[{self.agent_id}] task marked done without passing tests. Rejecting.")
+                    self.log.warn(f\"[{self.agent_id}] task marked done without passing tests. Rejecting.\")
                     prompt = (
-                        "ERRORE: Non puoi dichiarare il task come 'done' senza aver "
-                        "dimostrato che il codice funziona. DEVI eseguire `run_test_suite` "
-                        "e assicurarti che tutti i test passino prima di terminare.\n\n"
-                        "Riprova ora:"
+                        \"ERRORE: Non puoi dichiarare il task come 'done' senza aver \"
+                        \"dimostrato che il codice funziona. DEVI eseguire `run_test_suite` \"
+                        \"e assicurarti che tutti i test passino prima di terminare.\\n\\n\"
+                        \"Riprova ora:\"
                     )
                     continue
 
-                result = action.get("result", "(no result)")
-                self.memory.add_event({"type": "task_done", "content": result[:200]})
+                result = action.get(\"result\", \"(no result)\")
+                self.memory.add_event({\"type\": \"task_done\", \"content\": result[:200]})
                 return result
 
             # Esegui il tool
-            tool_name = action.get("action")
-            args = action.get("args", [])
+            tool_name = action.get(\"action\")
+            args = action.get(\"args\", [])
             tool_result = self._call_tool(tool_name, args)
 
-            if tool_name == "write_file" and tool_result.startswith("OK:"):
+            if tool_name == \"write_file\" and tool_result.startswith(\"OK:\"):
                 wrote_file = True
             last_tool_result = tool_result
 
             self.memory.add_event({
-                "type": "tool_result",
-                "content": f"{tool_name}({args}) -> {tool_result[:200]}",
+                \"type\": \"tool_result\",
+                \"content\": f\"{tool_name}({args}) -> {tool_result[:200]}\",
             })
-            self.log.info(f"[{self.agent_id}] tool {tool_name}({args[:1] if args else ''}) -> {tool_result[:120]}")
+            self.log.info(f\"[{self.agent_id}] tool {tool_name}({args[:1] if args else ''}) -> {tool_result[:120]}\")
 
             # Track TDD progress
-            if tool_name == "run_test_suite" and "FAILED" in tool_result.upper():
+            if tool_name == \"run_test_suite\" and \"FAILED\" in tool_result.upper():
                 tdd_verified = True
 
             # Aggiungi al prompt per il prossimo step
-            prompt = (
-                f"Last action: {tool_name}({args})\n"
-                f"Result:\n{tool_result[:2000]}\n\n"
-                "Next step (JSON only):"
-            )
+            # If the tool failed (result starts with ERROR), we make it more explicit
+            if tool_result.startswith(\"ERROR:\"):
+                prompt = (
+                    f\"Last action: {tool_name}({args})\\n\"
+                    f\"Result: ❌ {tool_result[:2000]}\\n\\n\"
+                    \"The previous tool call failed. Analyze the error and try a different approach. \"
+                    \"Do not repeat the same failing command.\\n\\n\"
+                    \"Next step (JSON only):\"
+                )
+            else:
+                prompt = (
+                    f\"Last action: {tool_name}({args})\\n\"
+                    f\"Result:\\n{tool_result[:2000]}\\n\\n\"
+                    \"Next step (JSON only):\"
+                )
 
         # FALLBACK: se abbiamo scritto almeno un file con successo, consideriamo done
         if wrote_file:
@@ -907,9 +954,35 @@ class Orchestrator:
         # Dispatch
         task = self.dispatcher.dispatch_next()
         if task == "DELEGATE_TO_ORCHESTRATOR":
-            # The actual worker execution logic remains here to manage AgentMemory
-            pass 
-        # ... (rest of the worker logic moved here or to dispatcher)
+            # Logic for worker execution moved here for AgentMemory management
+            # Since dispatch_next() returns the task if it should be executed
+            pass
+        elif task:
+            # Execute with worker
+            model_key = self.dispatcher._select_worker(task)
+            worker = self._build_worker(task["id"], model_key)
+            try:
+                result = worker.execute(task)
+                if result.startswith("ERROR"):
+                    self.queue.mark_failed(task["id"], result)
+                    self.log.warning(f"task {task['id']} failed: {result[:100]}")
+                else:
+                    self.log.info(f"task {task['id']} submitted for audit")
+                    worker_history = worker.memory.get_//history()
+                    audit_res = self.auditor.audit(task, result, worker_history)
+                    if audit_res.get("decision") == "APPROVE":
+                        self.log.info(f"task {task['id']} APPROVED by auditor")
+                        self.queue.mark_done(task["id"], result)
+                        self.tools.git_commit(f"task {task['id']}: {task.get('title', '')[:50]}")
+                    else:
+                        feedback = audit_res.get("feedback", "No feedback")
+                        self.log.warning(f"task {task['id']} REJECTED: {feedback[:100]}")
+                        task["description"] += f"\\n\\n⚠️ AUDIT REJECTION: {feedback}"
+                        self.queue.mark_failed(task["id"], f"AUDIT_REJECT: {feedback}")
+            except Exception as e:
+                self.queue.mark_failed(task["id"], str(e))
+                self.log.error(f"task {task['id']} exception: {e}", exc_info=True)
+
 
 
     # ------------------------------------------------------------------

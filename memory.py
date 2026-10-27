@@ -1,7 +1,6 @@
 """
 memory.py — AgentMemory class
-Tre buffer su disco: short_term, working, long_term.
-Niente stato in RAM oltre al necessario. Compattazione automatica.
+Stato persistente delegato a un MemoryProvider.
 """
 
 from __future__ import annotations
@@ -10,16 +9,18 @@ import json
 import time
 from collections import deque
 from pathlib import Path
-from typing import Any
+from typing import Any, List, Dict, Optional
+
+from memory_provider import JSONMemoryProvider, MemoryProvider
 
 
 class AgentMemory:
     """
-    Memoria di un agente. Stato persistente su disco.
+    Memoria di un agente. Stato persistente delegato a un MemoryProvider.
 
     - short_term: deque in RAM di eventi recenti (task corrente). Max 4096 token stimati.
-    - working:    file JSON, eventi sessione. Compattato dopo N eventi.
-    - long_term:  file JSON con riassunti storici.
+    - working:    estratto dal provider, eventi sessione. Compattato dopo N eventi.
+    - long_term:  estratto dal provider, riassunti storici.
     """
 
     SHORT_TERM_MAX_EVENTS = 20
@@ -32,15 +33,27 @@ class AgentMemory:
         self.models = model_client
         self.log = logger
 
+        # Inizializza il provider (per ora JSON, in futuro Redis)
+        self.provider: MemoryProvider = JSONMemoryProvider(state_dir)
+
         self.dir = state_dir / "agents" / agent_id
         self.dir.mkdir(parents=True, exist_ok=True)
-        self.working_file = self.dir / "working.json"
-        self.long_term_file = self.dir / "long_term.json"
         self.heartbeat_file = self.dir / "heartbeat.json"
 
         self.short_term: deque = deque(maxlen=self.SHORT_TERM_MAX_EVENTS)
-        self.working: list = self._load(self.working_file, default=[])
-        self.long_term: list = self._load(self.long_term_file, default=[])
+        # Carichiamo lo stato iniziale dal provider
+        self.working: list = self.provider.get_events(agent_id)
+        self.long_term: list = self._load_long_term()
+
+    def _load_long_term(self) -> list:
+        # Compatibility method for current long_term.json structure
+        path = self.dir / "long_term.json"
+        if not path.exists():
+            return []
+        try:
+            return json.loads(path.read_text())
+        except Exception:
+            return []
 
     # ------------------------------------------------------------------
     # API pubblica
@@ -51,7 +64,9 @@ class AgentMemory:
         event = {**event, "ts": time.time(), "agent": self.agent_id}
         self.short_term.append(event)
         self.working.append(event)
-        self._save(self.working_file, self.working)
+        
+        # Persistenza tramite provider
+        self.provider.save_event(self.agent_id, event)
         self.heartbeat()
 
         # Compatta working se troppo lungo
@@ -138,36 +153,26 @@ class AgentMemory:
             self.log.error(f"compaction failed: {e}")
             summary = f"(compaction failed at {time.time()})"
 
+        # Persistenza tramite provider
+        self.provider.compact_memory(self.agent_id, summary)
+        
+        # Aggiorna stato locale per riflessione immediata
         self.long_term.append({
             "ts": time.time(),
             "summary": summary,
             "events_compacted": len(events_to_summarize),
         })
-        self._save(self.long_term_file, self.long_term)
-
+        
         # Tieni solo gli ultimi 10 eventi working
         self.working = self.working[-10:]
-        self._save(self.working_file, self.working)
 
         self.log.info(f"[{self.agent_id}] memory compacted, summary saved")
 
     def reset_short_term(self) -> None:
         """Pulisce short_term (all'inizio di un nuovo task)."""
         self.short_term.clear()
+        self.provider.clear_short_term(self.agent_id)
 
-    # ------------------------------------------------------------------
-    # Utility interne
-    # ------------------------------------------------------------------
-
-    def _load(self, path: Path, default: Any) -> Any:
-        if not path.exists():
-            return default
-        try:
-            return json.loads(path.read_text())
-        except Exception:
-            return default
-
-    def _save(self, path: Path, data: Any) -> None:
-        tmp = path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2))
-        tmp.replace(path)
+    def get_history(self) -> list:
+        """Ritorna l'intera storia degli eventi (working + short_term)."""
+        return list(self.working) + list(self.short_term)
