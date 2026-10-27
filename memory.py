@@ -10,8 +10,9 @@ import time
 from collections import deque
 from pathlib import Path
 from typing import Any, List, Dict, Optional
+import sqlite3
 
-from memory_provider import JSONMemoryProvider, MemoryProvider
+from memory_provider import SQLiteMemoryProvider, JSONMemoryProvider, MemoryProvider
 
 
 class AgentMemory:
@@ -33,8 +34,8 @@ class AgentMemory:
         self.models = model_client
         self.log = logger
 
-        # Inizializza il provider (per ora JSON, in futuro Redis)
-        self.provider: MemoryProvider = JSONMemoryProvider(state_dir)
+        # Inizializza il provider (Passaggio a SQLite per Event Sourcing)
+        self.provider: MemoryProvider = SQLiteMemoryProvider(state_dir)
 
         self.dir = state_dir / "agents" / agent_id
         self.dir.mkdir(parents=True, exist_ok=True)
@@ -46,14 +47,14 @@ class AgentMemory:
         self.long_term: list = self._load_long_term()
 
     def _load_long_term(self) -> list:
-        # Compatibility method for current long_term.json structure
-        path = self.dir / "long_term.json"
-        if not path.exists():
-            return []
-        try:
-            return json.loads(path.read_text())
-        except Exception:
-            return []
+        \"\"\"Recupera i riassunti storici dal provider (Event Sourcing).\"\"\"
+        with sqlite3.connect(self.provider.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                \"SELECT content FROM events WHERE agent_id = ? AND is_summary = 1 ORDER BY ts ASC\",
+                (self.agent_id,)
+            ).fetchall()
+            return [{\"summary\": row[\"content\"]} for row in rows]
 
     # ------------------------------------------------------------------
     # API pubblica
