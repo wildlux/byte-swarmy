@@ -378,6 +378,15 @@ class ToolSet:
         return {
             "read_file": "read_file(path) -> str: legge un file dentro project/",
             "write_file": "write_file(path, content) -> str: scrive atomicamente in project/",
+            "patch_code": "patch_code(path, old_text, new_text) -> str: sostituisce una porzione di testo in un file",
+            "analyze_project": "analyze_project() -> str: restituisce la mappa di classi e funzioni del progetto",
+            "find_references": "find_references(symbol) -> str: cerca tutte le occorrenze di una funzione/variabile",
+            "run_test_suite": "run_test_suite() -> str: esegue i test e restituisce il report degli errori",
+            "lint_code": "lint_code(path) -> str: verifica errori di sintassi e stile in un file",
+            "rename_symbol": "rename_symbol(old, new) -> str: rinomina un simbolo in tutto il progetto",
+            "analyze_complexity": "analyze_complexity(path) -> str: stima la complessità di un file",
+            "get_call_graph": "get_call_graph(symbol) -> str: mappa chi chiama la funzione/classe",
+            "extract_method": "extract_method(path, old_block, name, body) -> str: estrae un blocco in una nuova funzione",
             "run_bash": "run_bash(cmd) -> str: UN comando semplice, senza pipe/redirect",
             "git_commit": "git_commit(message) -> str: snapshot git locale",
             "git_diff": "git_diff(rev='HEAD~1') -> str: diff locale",
@@ -412,23 +421,473 @@ class ToolSet:
             "oppure ./sync.sh --pull."
         )
 
-    def _safe_ref(self, ref) -> Optional[str]:
-        """Valida un ref git locale (niente flag, niente spazi)."""
-        if not isinstance(ref, str):
-            return None
-        ref = ref.strip()
-        if not ref or len(ref) > 80 or ref.startswith("-") or " " in ref:
-            return None
-        if ".." in ref:
-            return None
-        # HEAD, HEAD~3, HEAD@{1}, hash, branch locale.
-        if re.match(r"^HEAD(~\d+|@\{[^}]{1,40}\})?$", ref):
-            return ref
-        if re.fullmatch(r"[0-9a-fA-F]{4,40}", ref):
-            return ref
-        if not _REF_RE.match(ref):
-            return None
-        return ref
+    # ----- 14. patch_code -----
+    def patch_code(self, path: str, old_text: str, new_text: str) -> str:
+        """Modifica una porzione specifica di un file.
+        
+        Cerca l'esatta occorrenza di `old_text` e la sostituisce con `new_text`.
+        Se `old_text` non è trovato esattamente, l'operazione fallisce.
+        """
+        try:
+            full = safe_project_path(path, self.project_root)
+            if not full.exists():
+                return f"ERROR: file non trovato: {path}"
+            
+            content = full.read_text(encoding="utf-8", errors="replace")
+            if old_text not in content:
+                return (f"ERROR: testo originale non trovato nel file. "
+                        "Assicurati di copiare esattamente il blocco di codice.")
+            
+            new_content = content.replace(old_text, new_text, 1)
+            
+            if len(new_content) > self.max_write_bytes:
+                return "ERROR: file risultante troppo grande."
+            
+            # Scrittura transazionale
+            full.parent.mkdir(parents=True, exist_ok=True)
+            tmp = full.parent / f".{full.name}.patch.{os.getpid()}.tmp"
+            tmp.write_text(new_content, encoding="utf-8")
+            os.replace(tmp, full)
+            
+            return f"OK: patch applicata a {path}"
+        except Exception as e:
+            return f"ERROR patching {path}: {e}"
+
+    # ----- 15. analyze_project -----
+    def analyze_project(self) -> str:
+        """Genera una mappa strutturale del progetto (classi e funzioni).
+        
+        Scansiona i file .py in project/ e usa regex per identificare le definizioni.
+        """
+        results = []
+        try:
+            files = sorted(self.project_root.glob("**/*.py"))
+            for f in files:
+                rel_path = f.relative_to(self.project_root)
+                content = f.read_text(encoding="utf-8", errors="replace")
+                
+                # Regex per classi e funzioni
+                classes = re.findall(r"^class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", content, re.MULTILINE)
+                funcs = re.findall(r"^def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", content, re.MULTILINE)
+                
+                if classes or funcs:
+                    entry = f"File: {rel_path}\n"
+                    if classes: entry += f"  Classes: {', '.join(classes)}\n"
+                    if funcs: entry += f"  Functions: {', '.join(funcs)}\n"
+                    results.append(entry)
+            
+            if not results:
+                return "Nessuna classe o funzione trovata nel progetto."
+            return "\n".join(results)
+        except Exception as e:
+            return f"ERROR analyzing project: {e}"
+
+    # ----- 16. find_references -----
+    def find_references(self, symbol: str) -> str:
+        """Cerca tutte le occorrenze di un simbolo (funzione/variabile) nel progetto.
+        
+        Ritorna i file e le righe in cui il simbolo compare.
+        """
+        try:
+            matches = []
+            # Cerchiamo il simbolo come parola intera
+            pattern = rf"\b{re.escape(symbol)}\b"
+            files = sorted(self.project_root.glob("**/*.py"))
+            for f in files:
+                rel_path = f.relative_to(self.project_root)
+                content = f.read_text(encoding="utf-8", errors="replace")
+                for i, line in enumerate(content.splitlines(), 1):
+                    if re.search(pattern, line):
+                        matches.append(f"{rel_path}:{i} -> {line.strip()}")
+            
+            if not matches:
+                return f"Nessuna occorrenza di '{symbol}' trovata."
+            return "\n".join(matches)
+        except Exception as e:
+            return f"ERROR finding references: {e}"
+
+    # ----- 17. run_test_suite -----
+    def run_test_suite(self) -> str:
+        """Esegue la suite di test in sandbox e restituisce un report semplificato.
+        
+        Cerca i test in tests/ e usa pytest o unittest.
+        """
+        try:
+            # Usiamo il runner JSON creato per la GUI per avere output strutturato
+            runner_path = BASE_DIR / "tests" / "run_tests.py"
+            if not runner_path.exists():
+                return "ERROR: runner di test non trovato in tests/run_tests.py"
+            
+            # Esecuzione in sandbox
+            cmd, env = sandbox.build_command(
+                [sys.executable, str(runner_path), "--json"],
+                self.project_root,
+            )
+            
+            proc = subprocess.Popen(
+                cmd,
+                cwd=str(self.project_root),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                env=env,
+                start_new_session=True,
+                preexec_fn=self._preexec(60),
+            )
+            stdout, stderr = proc.communicate()
+            
+            if proc.returncode != 0 and not stdout:
+                return f"ERROR executing tests: {stderr}"
+            
+            # Parsing del report JSON
+            raw = stdout.strip()
+            start, end = raw.find("{"), raw.rfind("}")
+            if start < 0 or end <= start:
+                return f"ERROR: report test non valido\n{stdout[:500]}"
+            
+            data = json.loads(raw[start:end+1])
+            summary = data.get("summary", {})
+            
+            report = (
+                f"TEST REPORT: {summary.get('passed', 0)}/{summary.get('total', 0)} PASS\n"
+                f"FAIL: {summary.get('failed', 0)} | ERR: {summary.get('errors', 0)}\n"
+                "---"
+            )
+            
+            # Aggiungi solo i test falliti per non saturare il contesto
+            for t in data.get("tests", []):
+                if t["status"] in ("FAIL", "ERROR"):
+                    report += f"\n[{t['status']}] {t['name']}: {t['detail']}"
+            
+            return report if len(report) > 15 else report + "\nTutti i test sono passati!"
+        except Exception as e:
+            return f"ERROR running test suite: {e}"
+
+    # ----- 18. lint_code -----
+    def lint_code(self, path: str) -> str:
+        """Esegue un controllo statico (linting) su un file.
+        
+        Usa pycompile per verificare la sintassi di base.
+        """
+        try:
+            full = safe_project_path(path, self.project_root)
+            if not full.exists():
+                return f"ERROR: file non trovato: {path}"
+            
+            # Usiamo il modulo py_compile di python per check sintattico rapido
+            import py_compile
+            try:
+                py_compile.compile(str(full), doraise=True)
+                return f"OK: {path} ha una sintassi valida."
+            except py_compile.CompileError as e:
+                return f"SINTASSI ERRATA in {path}:\n{str(e)}"
+        except Exception as e:
+            return f"ERROR linting {path}: {e}"
+
+    # ----- 19. rename_symbol -----
+    def rename_symbol(self, old_symbol: str, new_symbol: str) -> str:
+        """Rinomina un simbolo in tutto il progetto.
+        
+        Cerca l'occorrenza esatta del simbolo e la sostituisce in tutti i file .py.
+        Usa regex per evitare di sostituire parti di altre parole.
+        """
+        try:
+            files = sorted(self.project_root.glob("**/*.py"))
+            count = 0
+            pattern = rf"\b{re.escape(old_symbol)}\b"
+            
+            for f in files:
+                content = f.read_text(encoding="utf-8", errors="replace")
+                if re.search(pattern, content):
+                    new_content = re.sub(pattern, new_symbol, content)
+                    # Scrittura transazionale
+                    tmp = f.parent / f".{f.name}.rename.{os.getpid()}.tmp"
+                    tmp.write_text(new_content, encoding="utf-8")
+                    os.replace(tmp, f)
+                    count += 1
+            
+            return f"OK: simbolo '{old_symbol}' rinominato in '{new_symbol}' in {count} file."
+        except Exception as e:
+            return f"ERROR renaming symbol: {e}"
+
+    # ----- 20. analyze_complexity -----
+    def analyze_complexity(self, path: str) -> str:
+        """Calcola una stima della complessità ciclotomatica di un file.
+        
+        Conta i punti di decisione (if, for, while, except, with, and, or).
+        """
+        try:
+            full = safe_project_path(path, self.project_root)
+            if not full.exists():
+                return f"ERROR: file non trovato: {path}"
+            
+            content = full.read_text(encoding="utf-8", errors="replace")
+            # Punti di decisione tipici in Python
+            decision_points = [
+                r"\bif\b", r"\belif\b", r"\bfor\b", r"\bwhile\b", 
+                r"\bexcept\b", r"\bwith\b", r"\band\b", r"\bor\b"
+            ]
+            
+            total_complexity = 0
+            details = []
+            for line in content.splitlines():
+                line_complexity = 0
+                for p in decision_points:
+                    line_complexity += len(re.findall(p, line))
+                if line_complexity > 0:
+                    total_complexity += line_complexity
+                    details.append(f"L{content.splitlines().index(line)+1}: {line.strip()[:50]}...")
+            
+            return f"Complessità stimata: {total_complexity}\n" + \
+                   ("\n".join(details[:10]) if details else "Codice lineare, bassa complessità.")
+        except Exception as e:
+            return f"ERROR analyzing complexity: {e}"
+
+    # ----- 21. get_call_graph -----
+    def get_call_graph(self, symbol: str) -> str:
+        """Mappa chi chiama la funzione/classe specificata.
+        
+        Cerca nel progetto tutte le chiamate al simbolo fornito.
+        """
+        # In questo caso, find_references è già l'implementazione di base
+        # ma lo specializziamo per mostrare chiaramente la relazione "chi chiama"
+        return self.find_references(symbol)
+
+    # ----- 22. extract_method -----
+    def extract_method(self, path: str, old_block: str, new_method_name: str, new_method_body: str) -> str:
+        """Sposta un blocco di codice in una nuova funzione e aggiorna la chiamata.
+        
+        Sostituisce `old_block` con la chiamata `new_method_name()` e aggiunge 
+        la definizione di `new_method_body` alla fine del file o prima della funzione corrente.
+        """
+        try:
+            full = safe_project_path(path, self.project_root)
+            if not full.exists():
+                return f"ERROR: file non trovato: {path}"
+            
+            content = full.read_text(encoding="utf-8", errors="replace")
+            if old_block not in content:
+                return "ERROR: blocco di codice non trovato nel file."
+            
+            # 1. Sostituisci il blocco con la chiamata
+            new_content = content.replace(old_block, f"{new_method_name}()")
+            
+            # 2. Aggiungi la definizione della nuova funzione alla fine del file
+            # (In un'implementazione avanzata, cercheremmo il posto giusto per evitarne l'ombra)
+            new_content += f"\n\ndef {new_method_name}():\n    {new_method_body}\n"
+            
+            if len(new_content) > self.max_write_bytes:
+                return "ERROR: file risultante troppo grande."
+            
+            tmp = full.parent / f".{full.name}.extract.{os.getpid()}.tmp"
+            tmp.write_text(new_content, encoding="utf-8")
+            os.replace(tmp, full)
+            
+            return f"OK: estratto '{new_method_name}' in {path}"
+        except Exception as e:
+            return f"ERROR extracting method: {e}"
+
+
+    # ----- 14. patch_code -----
+    def patch_code(self, path: str, old_text: str, new_text: str) -> str:
+        """Modifica una porzione specifica di un file.
+        
+        Cerca l'esatta occorrenza di `old_text` e la sostituisce con `new_text`.
+        Se `old_text` non è trovato esattamente, l'operazione fallisce.
+        """
+        try:
+            full = safe_project_path(path, self.project_root)
+            if not full.exists():
+                return f"ERROR: file non trovato: {path}"
+            
+            content = full.read_text(encoding="utf-8", errors="replace")
+            if old_text not in content:
+                return (f"ERROR: testo originale non trovato nel file. "
+                        "Assicurati di copiare esattamente il blocco di codice.")
+            
+            new_content = content.replace(old_text, new_text, 1)
+            
+            if len(new_content) > self.max_write_bytes:
+                return "ERROR: file risultante troppo grande."
+            
+            # Scrittura transazionale
+            full.parent.mkdir(parents=True, exist_ok=True)
+            tmp = full.parent / f".{full.name}.patch.{os.getpid()}.tmp"
+            tmp.write_text(new_content, encoding="utf-8")
+            os.replace(tmp, full)
+            
+            return f"OK: patch applicata a {path}"
+        except Exception as e:
+            return f"ERROR patching {path}: {e}"
+
+    # ----- 15. analyze_project -----
+    def analyze_project(self) -> str:
+        """Genera una mappa strutturale del progetto (classi e funzioni).
+        
+        Scansiona i file .py in project/ e usa regex per identificare le definizioni.
+        """
+        results = []
+        try:
+            files = sorted(self.project_root.glob("**/*.py"))
+            for f in files:
+                rel_path = f.relative_to(self.project_root)
+                content = f.read_text(encoding="utf-8", errors="replace")
+                
+                # Regex per classi e funzioni
+                classes = re.findall(r"^class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", content, re.MULTILINE)
+                funcs = re.findall(r"^def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", content, re.MULTILINE)
+                
+                if classes or funcs:
+                    entry = f"File: {rel_path}\n"
+                    if classes: entry += f"  Classes: {', '.join(classes)}\n"
+                    if funcs: entry += f"  Functions: {', '.join(funcs)}\n"
+                    results.append(entry)
+            
+            if not results:
+                return "Nessuna classe o funzione trovata nel progetto."
+            return "\n".join(results)
+        except Exception as e:
+            return f"ERROR analyzing project: {e}"
+
+    # ----- 16. find_references -----
+    def find_references(self, symbol: str) -> str:
+        """Cerca tutte le occorrenze di un simbolo (funzione/variabile) nel progetto.
+        
+        Ritorna i file e le righe in cui il simbolo compare.
+        """
+        try:
+            matches = []
+            # Cerchiamo il simbolo come parola intera
+            pattern = rf"\b{re.escape(symbol)}\b"
+            files = sorted(self.project_root.glob("**/*.py"))
+            for f in files:
+                rel_path = f.relative_to(self.project_root)
+                content = f.read_text(encoding="utf-8", errors="replace")
+                for i, line in enumerate(content.splitlines(), 1):
+                    if re.search(pattern, line):
+                        matches.append(f"{rel_path}:{i} -> {line.strip()}")
+            
+            if not matches:
+                return f"Nessuna occorrenza di '{symbol}' trovata."
+            return "\n".join(matches)
+        except Exception as e:
+            return f"ERROR finding references: {e}"
+
+    # ----- 17. run_test_suite -----
+    def run_test_suite(self) -> str:
+        """Esegue la suite di test in sandbox e restituisce un report semplificato.
+        
+        Cerca i test in tests/ e usa pytest o unittest.
+        """
+        try:
+            # Usiamo il runner JSON creato per la GUI per avere output strutturato
+            runner_path = BASE_DIR / "tests" / "run_tests.py"
+            if not runner_path.exists():
+                return "ERROR: runner di test non trovato in tests/run_tests.py"
+            
+            # Esecuzione in sandbox
+            cmd, env = sandbox.build_command(
+                [sys.executable, str(runner_path), "--json"],
+                self.project_root,
+            )
+            
+            proc = subprocess.Popen(
+                cmd,
+                cwd=str(self.project_root),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                env=env,
+                start_new_session=True,
+                preexec_fn=self._preexec(60),
+            )
+            stdout, stderr = proc.communicate()
+            
+            if proc.returncode != 0 and not stdout:
+                return f"ERROR executing tests: {stderr}"
+            
+            # Parsing del report JSON
+            raw = stdout.strip()
+            start, end = raw.find("{"), raw.rfind("}")
+            if start < 0 or end <= start:
+                return f"ERROR: report test non valido\n{stdout[:500]}"
+            
+            data = json.loads(raw[start:end+1])
+            summary = data.get("summary", {})
+            
+            report = (
+                f"TEST REPORT: {summary.get('passed', 0)}/{summary.get('total', 0)} PASS\n"
+                f"FAIL: {summary.get('failed', 0)} | ERR: {summary.get('errors', 0)}\n"
+                "---"
+            )
+            
+            # Aggiungi solo i test falliti per non saturare il contesto
+            for t in data.get("tests", []):
+                if t["status"] in ("FAIL", "ERROR"):
+                    report += f"\n[{t['status']}] {t['name']}: {t['detail']}"
+            
+            return report if len(report) > 15 else report + "\nTutti i test sono passati!"
+        except Exception as e:
+            return f"ERROR running test suite: {e}"
+
+    # ----- 18. lint_code -----
+    def lint_code(self, path: str) -> str:
+        """Esegue un controllo statico (linting) su un file.
+        
+        Usa pycompile per verificare la sintassi di base.
+        """
+        try:
+            full = safe_project_path(path, self.project_root)
+            if not full.exists():
+                return f"ERROR: file non trovato: {path}"
+            
+            # Usiamo il modulo py_compile di python per check sintattico rapido
+            import py_compile
+            try:
+                py_compile.compile(str(full), doraise=True)
+                return f"OK: {path} ha una sintassi valida."
+            except py_compile.CompileError as e:
+                return f"SINTASSI ERRATA in {path}:\n{str(e)}"
+        except Exception as e:
+            return f"ERROR linting {path}: {e}"
+
+
+    # ----- 14. patch_code -----
+    def patch_code(self, path: str, old_text: str, new_text: str) -> str:
+        """Modifica una porzione specifica di un file.
+        
+        Cerca l'esatta occorrenza di `old_text` e la sostituisce con `new_text`.
+        Se `old_text` non è trovato esattamente, l'operazione fallisce.
+        """
+        try:
+            full = safe_project_path(path, self.project_root)
+            if not full.exists():
+                return f"ERROR: file non trovato: {path}"
+            
+            content = full.read_text(encoding="utf-8", errors="replace")
+            if old_text not in content:
+                return (f"ERROR: testo originale non trovato nel file. "
+                        "Assicurati di copiare esattamente il blocco di codice.")
+            
+            new_content = content.replace(old_text, new_text, 1)
+            
+            if len(new_content) > self.max_write_bytes:
+                return "ERROR: file risultante troppo grande."
+            
+            # Scrittura transazionale
+            full.parent.mkdir(parents=True, exist_ok=True)
+            tmp = full.parent / f".{full.name}.patch.{os.getpid()}.tmp"
+            tmp.write_text(new_content, encoding="utf-8")
+            os.replace(tmp, full)
+            
+            return f"OK: patch applicata a {path}"
+        except Exception as e:
+            return f"ERROR patching {path}: {e}"
+
 
     def _preexec(self, timeout: int):
         """Limiti per processo (Linux/Unix)."""
