@@ -3,11 +3,14 @@ tools.py — ToolSet class
 
 Tool minimi per agenti autonomi. Stato = file su disco.
 
-Sicurezza (vedi security.py):
+Sicurezza (vedi security.py e sandbox.py):
 - `run_bash` NON usa una shell: il comando viene tokenizzato e validato
   contro un'allowlist, poi eseguito con `shell=False` nella project root.
+- Ogni sottoprocesso (comandi, git, grep) gira dentro bubblewrap: filesystem
+  minimo, niente rete, niente home reale, PID/user/IPC namespace separati.
+- Se bubblewrap non è disponibile il comando NON viene eseguito (fail closed).
 - Ogni path dei tool è confinato in `project/` (niente path assoluti, `..`, `~`).
-- `HOME` dei sottoprocessi è una directory sandbox: `~/.ssh` è irraggiungibile.
+- `HOME` dei sottoprocessi è una directory volatile: `~/.ssh` è irraggiungibile.
 - `git push`/`git pull`/`git remote add|remove` sono disabilitati per i worker.
 - Limiti per processo: CPU, dimensione file, core dump, memoria.
 - Ogni blocco viene registrato in `logs/security.log`.
@@ -21,9 +24,10 @@ import resource
 import shlex
 import signal
 import subprocess
-import sys
 from pathlib import Path
 from typing import Optional, Sequence
+
+import sandbox
 
 from security import (
     SecurityError,
@@ -69,12 +73,6 @@ class ToolSet:
         self.cfg = config
         self.log = logger
         self.project_root = Path(config["paths"]["project_root"]).resolve()
-        state_dir = Path(config["paths"].get("state_dir", "./state"))
-        self.tmp_dir = state_dir / "tmp"
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        # HOME finta: impedisce di raggiungere ~/.ssh, ~/.git-credentials, ecc.
-        self.sandbox_home = state_dir / "sandbox-home"
-        self.sandbox_home.mkdir(parents=True, exist_ok=True)
         self.worker = "worker"
 
         sec = config.get("security", {})
@@ -432,28 +430,6 @@ class ToolSet:
             return None
         return ref
 
-    def _safe_env(self) -> dict:
-        """Ambiente minimo per i sottoprocessi: niente token/credenziali."""
-        bin_dir = str(Path(sys.executable).parent)
-        return {
-            "PATH": f"{bin_dir}:/usr/local/bin:/usr/bin:/bin",
-            "HOME": str(self.sandbox_home),
-            "TMPDIR": str(self.tmp_dir),
-            "LANG": "C.UTF-8",
-            "LC_ALL": "C.UTF-8",
-            "TERM": "dumb",
-            "PAGER": "cat",
-            "GIT_PAGER": "cat",
-            "GIT_TERMINAL_PROMPT": "0",
-            "GIT_ASKPASS": "/bin/true",
-            "SSH_ASKPASS": "/bin/true",
-            "GIT_CONFIG_GLOBAL": os.devnull,
-            "GIT_CONFIG_SYSTEM": os.devnull,
-            "GIT_CONFIG_NOSYSTEM": "1",
-            "PYTHONDONTWRITEBYTECODE": "1",
-            "PYTHONIOENCODING": "utf-8",
-        }
-
     def _preexec(self, timeout: int):
         """Limiti per processo (Linux/Unix)."""
         max_mem = self.max_memory_mb * 1024 * 1024
@@ -485,23 +461,46 @@ class ToolSet:
 
     def _run(self, argv: Sequence[str], timeout: int,
              cwd: Optional[Path] = None) -> str:
-        """Esegue argv senza shell, con process group e limiti di risorsa."""
+        """Esegue argv dentro il sandbox bubblewrap, senza shell.
+
+        Fail closed: se bubblewrap non è disponibile il comando non viene
+        eseguito sull'host e l'evento viene registrato come CRITICAL.
+        """
+        try:
+            workdir = sandbox.sandbox_workdir(cwd, self.project_root)
+            cmd, env = sandbox.build_command(
+                argv, self.project_root, workdir=workdir,
+            )
+        except sandbox.SandboxError as exc:
+            self._audit(
+                "sandbox_unavailable",
+                f'cmd="{self._q(" ".join(str(a) for a in argv))}" '
+                f'reason="{self._q(exc)}" action="fail-closed"',
+                "CRITICAL",
+            )
+            return (
+                "ERROR: sandbox non disponibile, comando NON eseguito "
+                "(fail closed).\n"
+                f"Dettaglio: {exc}\n"
+                "Installa bubblewrap con: sudo apt install bubblewrap"
+            )
+
         try:
             proc = subprocess.Popen(
-                list(argv),
-                cwd=str(cwd or self.project_root),
+                cmd,
+                cwd=str(self.project_root),
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                env=self._safe_env(),
+                env=env,
                 start_new_session=True,
                 preexec_fn=self._preexec(timeout),
             )
         except FileNotFoundError:
-            return f"ERROR: comando non trovato: {argv[0]}"
+            return f"ERROR: comando non trovato: {argv[0]} (o bwrap assente)"
         except Exception as e:
             return f"ERROR: impossibile eseguire {argv[0]}: {e}"
 
@@ -522,6 +521,21 @@ class ToolSet:
 
         stdout = self._truncate(stdout or "")
         stderr = self._truncate(stderr or "")
+
+        # bwrap riporta così un eseguibile assente nel sandbox: traduci in un
+        # errore istruttivo per i modelli piccoli.
+        if proc.returncode != 0 and "bwrap: execvp" in stderr:
+            missing = str(argv[0])
+            for line in stderr.splitlines():
+                if "bwrap: execvp" in line:
+                    missing = line.split("execvp", 1)[1].strip().rstrip(":")
+                    break
+            return (
+                f"ERROR: comando non disponibile nel sandbox: {missing}\n"
+                "Controlla il nome (es. 'python3', 'gcc') e riprova con un "
+                "singolo comando semplice."
+            )
+
         return (
             f"exit_code={proc.returncode}\n"
             f"--- stdout ---\n{stdout}\n"

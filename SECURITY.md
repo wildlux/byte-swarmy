@@ -41,7 +41,28 @@ umano esperto: è un generatore di comandi plausibili ma sbagliati.
 
 ## 2. Difese attive (nessun root richiesto)
 
-### 2.1 `run_bash`: niente shell
+### 2.1 Sandbox bubblewrap (Isolamento Processi)
+
+A partire dalla v0.1.0, ogni comando esterno eseguito dai worker (bash, git, grep)
+non gira più direttamente sull'host, ma all'interno di un sandbox **bubblewrap**
+unprivileged.
+
+**Cosa garantisce il sandbox:**
+- **Filesystem isolato**: Solo `/usr`, `/etc` e il venv sono montati in sola lettura.
+  L'unica directory scrivibile è `/workspace` (che mappa `project/`).
+- **Nessuna Home reale**: `/home` è un tmpfs volatile. I file dell'utente (come
+  `~/.ssh` o `~/.git-credentials`) sono fisicamente invisibili al processo.
+- **Rete bloccata**: Network namespace separato; nessuna connessione in uscita
+  (nemmeno verso Ollama, che viene gestito dall'orchestratore esterno).
+- **Processi isolati**: PID namespace separato; i processi dell'host sono invisibili.
+- **Privilegi azzerati**: Capability droppate (`--cap-drop ALL`), `no_new_privs`
+  attivo e blocco della creazione di nuovi user namespace (`--disable-userns`).
+- **Fail-Closed**: Se bubblewrap non è installato, i tool rifiutano l'esecuzione.
+
+**Verifica**: È possibile verificare l'integrità del sandbox tramite il tab
+**Test & Sandbox** nella GUI.
+
+### 2.2 `run_bash`: niente shell
 
 `tools.py` **non** esegue più `bash -c cmd`. Il comando viene:
 

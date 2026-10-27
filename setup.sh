@@ -85,6 +85,14 @@ else
     NEED_SUDO_PACKAGES+=("git")
 fi
 
+# bubblewrap (necessario per il sandbox)
+if command -v bwrap &>/dev/null; then
+    ok "bubblewrap: $(bwrap --version)"
+else
+    warn "bubblewrap non trovato — i worker non potranno eseguire comandi"
+    NEED_SUDO_PACKAGES+=("bubblewrap")
+fi
+
 # ollama
 if command -v ollama &>/dev/null; then
     ok "ollama: $(ollama --version 2>&1 | head -1)"
