@@ -26,7 +26,7 @@ logging.basicConfig(
 logger = logging.getLogger("watchdog")
 
 def run_orchestrator():
-    \"\"\"Avvia l'orchestratore e monitora il suo stato.\"\"\"
+    """Avvia l'orchestratore e monitora il suo stato."""
     while True:
         logger.info("Avvio dell'orchestratore...")
         try:
@@ -60,10 +60,10 @@ def run_orchestrator():
             
         time.sleep(1) # Evita loop infiniti a velocità massima in caso di errori fatali immediati
 
-if __name__ == \"__main__\":
-    logger.info(\"=== BYTE-SWARMY System Watchdog Attivo ===\")
+if __name__ == "__main__":
+    logger.info("=== BYTE-SWARMY System Watchdog Attivo ===")
     try:
         run_orchestrator()
     except KeyboardInterrupt:
-        logger.info(\"Watchdog fermato dall'utente.\")
+        logger.info("Watchdog fermato dall'utente.")
         sys.exit(0)

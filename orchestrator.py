@@ -445,16 +445,16 @@ class Worker:
                 # --- TDD VERIFICATION ---
                 if is_tdd_required and not tdd_verified:
                     history = self.memory.get_history()
-                    has_test_file = any(\"write_file\" in e[\"content\"] and \"test_\" in e[\"content\"] for e in history)
-                    has_failed_run = any(\"run_test_suite\" in e[\"content\"] and \"FAILED\" in e[\"content\"] for e in history)
+                    has_test_file = any("write_file" in e["content"] and "test_" in e["content"] for e in history)
+                    has_failed_run = any("run_test_suite" in e["content"] and "FAILED" in e["content"] for e in history)
                     
                     if not (has_test_file and has_failed_run):
-                        self.log.warn(f\"[{self.agent_id}] TDD Violation: No failing test found before completion.\")
+                        self.log.warn(f"[{self.agent_id}] TDD Violation: No failing test found before completion.")
                         prompt = (
-                            \"ERRORE: Violazione TDD. Prima di implementare la soluzione, \"
-                            \"DEVI: 1) Scrivere un test che fallisca, 2) Eseguirlo con `run_test_suite` \"
-                            \"per confermare il fallimento. Solo allora puoi implementare e risolvere.\\n\\n\"
-                            \"Riprova ora:\"
+                            "ERRORE: Violazione TDD. Prima di implementare la soluzione, "
+                            "DEVI: 1) Scrivere un test che fallisca, 2) Eseguirlo con `run_test_//suite` "
+                            "per confermare il fallimento. Solo allora puoi implementare e risolvere.\n\n"
+                            "Riprova ora:"
                         )
                         continue
 
@@ -1051,7 +1051,7 @@ class Orchestrator:
                     self.log.warning(f"task {task['id']} failed: {result[:100]}")
                 else:
                     self.log.info(f"task {task['id']} submitted for audit")
-                    worker_history = worker.memory.get_//history()
+                    worker_history = worker.memory.get_history()
                     audit_res = self.auditor.audit(task, result, worker_history)
                     if audit_res.get("decision") == "APPROVE":
                         self.log.info(f"task {task['id']} APPROVED by auditor")

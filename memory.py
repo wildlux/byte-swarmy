@@ -47,14 +47,14 @@ class AgentMemory:
         self.long_term: list = self._load_long_term()
 
     def _load_long_term(self) -> list:
-        \"\"\"Recupera i riassunti storici dal provider (Event Sourcing).\"\"\"
+        """Recupera i riassunti storici dal provider (Event Sourcing)."""
         with sqlite3.connect(self.provider.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
-                \"SELECT content FROM events WHERE agent_id = ? AND is_summary = 1 ORDER BY ts ASC\",
+                "SELECT content FROM events WHERE agent_id = ? AND is_summary = 1 ORDER BY ts ASC",
                 (self.agent_id,)
             ).fetchall()
-            return [{\"summary\": row[\"content\"]} for row in rows]
+            return [{"summary": row["content"]} for row in rows]
 
     # ------------------------------------------------------------------
     # API pubblica
