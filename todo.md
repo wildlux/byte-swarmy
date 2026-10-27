@@ -163,32 +163,27 @@ L'obiettivo è elevare il sistema a standard Enterprise, introducendo una catena
 - [x] **6. Verifica e Stress Test** — Test di "attacco" per verificare che l'Audit Worker blocchi codice insicuro o non testato.
 
 
-## Ciclo 7 — Enterprise Hardening & USB Analysis (2026-10-27)
+## Ciclo 7 — Fondamenta e Robustezza (Consolidamento)
 
-L'obiettivo è completare l'isolamento di sistema e trasformare le capacità USB da semplice cattura a analisi di reverse engineering professionale.
+L'obiettivo è trasformare BYTE-SWARMY da un prototipo avanzato a un sistema resiliente e stabile. Prima di aggiungere nuove feature, ci concentriamo sulla sopravvivenza del sistema e sulla eliminazione della fragilità strutturale.
 
-### 🛡️ Hardening di Sistema (Lvl 2)
-- [ ] **1. Utente Dedicato** — Configurazione automatizzata di utente `byteswarmy` (senza sudo) per l'esecuzione dei worker.
-- [ ] **2. Cgroups Limit** — Implementazione di `MemoryMax` e `TasksMax` per prevenire OOM e fork-bomb a livello kernel.
-- [ ] **3. Firewall Air-gap** — Regole `iptables` per bloccare tutto il traffico in uscita eccetto l'API locale di Ollama.
-- [ ] **4. Quota Disco** — Limitazione dello spazio scrivibile in `project/` per prevenire saturazione disco.
+### 🏗️ Resilienza dell'Orchestratore (Crash-Proofing)
+- [ ] **1. System Watchdog** — Implementazione di un processo supervisore che monitora l'orchestratore e lo riavvia istantaneamente in caso di crash, garantendo la continuità del servizio.
+- [ ] **2. Exception Hardening** — Revisione di ogni punto di chiamata LLM e Tool per gestire ogni possibile eccezione senza abbattere il loop principale.
+- [ ] **3. State Recovery** — Ottimizzazione del ripristino dello stato da SQLite al riavvio, per minimizzare la perdita di contesto tra un crash e un restart.
 
-### 🔌 USB Reverse Engineering Suite
-- [ ] **5. Protocol Parser** — Tool per l'analisi dei pacchetti USB (traduzione descrittori, endpoint, analisi payload).
-- [ ] **6. Differential Analysis** — Tool per confrontare due catture USB e isolare i pacchetti di un'azione specifica.
-- [ ] **7. USB Knowledge Base** — Integrazione di un database di pattern USB comuni per l'identificazione rapida dei dispositivi.
+### 🛡️ Validazione Deterministica (Zero-Trust)
+- [ ] **4. AST Security Scanner** — Implementazione di uno scanner basato su Abstract Syntax Trees (AST) per bloccare l'esecuzione di codice Python pericoloso prima che entri nel sandbox.
+- [ ] **5. Mandatory Static Checks** — Integrazione di `Bandit` e `Mypy` come gate obbligatori: se il codice non passa l'analisi statica, non viene nemmeno provato l'avvio.
 
-### 🧠 Intelligence & Memory Upgrade
-- [ ] **8. Memory Provider Interface** — Astrazione della memoria per supportare diversi backend (JSON $\rightarrow$ Redis/DB).
-- [ ] **9. Redis Integration** — Migrazione di `short_term` e `working` memory su Redis per latenza minima e persistenza atomica.
-- [ ] **10. Local Vector RAG** — Implementazione di memoria a lungo termine vettoriale (ChromaDB/FAISS) per recall semantico di soluzioni passate.
-- [ ] **11. Auto-Documentation** — Worker che aggiorna automaticamente un `KNOWLEDGE.md` con le decisioni architetturali.
+### 🧠 Memoria Immutabile (Event Sourcing)
+- [ ] **6. Event Sourcing Architecture** — Passaggio da "riassunti" a un log immutabile di eventi. Il riassunto diventa una vista, non la fonte della verità.
+- [ ] **7. Memory Integrity Check** — Sistema di validazione dei buffer di memoria per prevenire il "drift" (perdita di contesto) durante la compattazione.
 
-### 🎨 GUI Enterprise Upgrade
-- [ ] **12. Graph Visualizer** — Visualizzazione grafica del `get_call_graph` e della decomposizione dei task.
-- [ ] **13. Live Log Terminal** — Terminale integrato con filtri per agente e severità.
-- [ ] **14. USB Traffic Viewer** — Interfaccia per l'ispezione dei pacchetti catturati da `tshark`.
+### 🔒 Hardening di Sistema Obbligatorio
+- [ ] **8. Mandatory Isolation Check** — L'orchestratore deve verificare all'avvio se l'isolamento (utente dedicato/cgroups) è attivo; in caso contrario, attiva la "Safe Mode" con restrizioni estreme.
+- [ ] **9. Automated Hardening Flow** — Integrazione di `setup-hardening.sh` nel flusso di installazione guidata per ridurre l'attrito dell'utente.
 
-### 🧪 Reliability Engineering
-- [ ] **15. Chaos Testing** — Script di stress test che simula crash di tool per verificare la resilienza dell'orchestratore.
-- [ ] **16. Security Fuzzer** — Test automatico di iniezione di prompt e comandi bash per validare costantemente `security.py`.
+### 🔌 USB Analysis (Post-Consolidamento)
+- [ ] **10. Protocol Parser** — Tool per l'analisi dei pacchetti USB (traduzione descrittori, endpoint, analisi payload).
+- [ ] **11. Differential Analysis** — Tool per confrontare due catture USB e isolare i pacchetti di un'azione specifica.
