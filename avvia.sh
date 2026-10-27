@@ -133,7 +133,7 @@ start_orchestrator() {
         return 0
     fi
     echo "🐝 Avvio orchestratore via Watchdog..."
-    nohup python watchdog.py > logs/watchdog.//log 2>&1 &
+    nohup python watchdog.py > logs/watchdog.log 2>&1 &
     echo $! > "$PID_FILE"
     sleep 3
     if is_orchestrator_running; then
