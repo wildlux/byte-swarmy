@@ -37,6 +37,8 @@ from security import (
     safe_project_path,
     validate_bash_command,
 )
+from ast_scanner import scanner as ast_scanner
+
 
 # Branch che i worker non possono cancellare.
 PROTECTED_BRANCHES = frozenset({"main", "master", "develop", "trunk"})
@@ -133,9 +135,22 @@ class ToolSet:
 
     # ----- 2. write_file (transazionale: tmp nella stessa dir, poi rename) -----
     def write_file(self, path: str, content: str) -> str:
-        """Scrive in modo atomico dentro project/. Rifiuta path non sicuri."""
+        """Scrive in modo atomico dentro project/. Rifiuta path non sicuri.
+        Inoltre, l'AST Scanner blocca l'esecuzione di codice pericoloso.
+        """
         if not isinstance(content, str):
             content = str(content)
+        
+        # DETERMINISTIC SECURITY CHECK (AST)
+        # Prima di scrivere, analizziamo se il contenuto è codice Python
+        # e se contiene chiamate vietate.
+        if path.endswith(".py"):
+            safe, reason = ast_scanner.scan(content)
+            if not safe:
+                self._audit("blocked_ast", f'path="{self._q(path)}" reason="{self._q(reason)}"', 
+                            "CRITICAL")
+                return f"ERROR: Security Violation. Il codice contiene elementi vietati: {reason}."
+
         if len(content) > self.max_write_bytes:
             return (f"ERROR: contenuto troppo grande ({len(content)} byte, "
                     f"max {self.max_write_bytes}). Scrivi file più piccoli.")
@@ -146,10 +161,10 @@ class ToolSet:
                         "WARNING")
             return (f"ERROR: {exc}. Scrivi solo dentro project/ "
                     f"(es. 'project/main.py').")
-
+        
         if full.exists() and full.is_dir():
             return f"ERROR: '{path}' è una directory."
-
+        
         try:
             full.parent.mkdir(parents=True, exist_ok=True)
             tmp = full.parent / f".{full.name}.{os.getpid()}.tmp"

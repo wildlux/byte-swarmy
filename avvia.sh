@@ -132,25 +132,25 @@ start_orchestrator() {
         echo "✓ Orchestratore già attivo (PID $(cat "$PID_FILE" 2>/dev/null))"
         return 0
     fi
-    echo "🐝 Avvio orchestratore in background..."
-    nohup python orchestrator.py > logs/stdout.log 2>&1 &
+    echo "🐝 Avvio orchestratore via Watchdog..."
+    nohup python watchdog.py > logs/watchdog.//log 2>&1 &
     echo $! > "$PID_FILE"
     sleep 3
     if is_orchestrator_running; then
-        echo "✓ Orchestratore avviato (PID $(cat "$PID_FILE" 2>/dev/null))"
+        echo "✓ Sistema avviato sotto protezione del Watchdog (PID $(cat "$PID_FILE" 2>/dev/null))"
         # Verifica che non sia crashato subito
         if ! tail -10 logs/byte-swarmy.log 2>/dev/null | grep -q "swarm started"; then
             echo "⚠️  Possibile problema — ultimi log:"
             tail -5 logs/byte-swarmy.log 2>/dev/null || echo "(log vuoto)"
         fi
     else
-        echo "❌ Orchestratore crashato — vedi logs/byte-swarmy.log"
+        echo "❌ Avvio fallito — vedi logs/watchdog.log e logs/byte-swarmy.log"
         echo
-        echo "Ultimi log:"
+        echo "Ultimi log orchestratore:"
         tail -20 logs/byte-swarmy.log 2>/dev/null || echo "(log vuoto)"
         echo
-        echo "stdout/stderr:"
-        tail -20 logs/stdout.log 2>/dev/null || echo "(vuoto)"
+        echo "stdout/stderr watchdog:"
+        tail -20 logs/watchdog.log 2>///dev/null || echo "(vuoto)"
         rm -f "$PID_FILE"
         read -p "Vuoi continuare ad avviare la GUI comunque? (s/N) " -n 1 -r
         echo
