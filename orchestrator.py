@@ -42,6 +42,7 @@ from tools import ToolSet
 from memory import AgentMemory
 from ollama_client import ModelClient
 from security import log_security_event
+from security_checks import check_isolation, apply_safe_mode
 from thermal_manager import TimestralManager
 
 
@@ -407,6 +408,9 @@ class Worker:
 
         wrote_file = False
         last_tool_result = ""
+        
+        # --- CIRCUIT BREAKER STATE ---
+        repeated_actions = {}
 
         for step in range(self.MAX_STEPS):
             self.memory.heartbeat()
@@ -453,6 +457,77 @@ class Worker:
                             \"Riprova ora:\"
                         )
                         continue
+
+                # --- QUALITY CONTROL ---
+                history = self.memory.get_history()
+                test_passed = False
+                for event in reversed(history):
+                    if event[\"type\"] == \"tool_result\" and \"run_test_suite\" in event[\"content\"]:
+                        if \"TUTTI i test sono passati\" in event[\"content\"] or \"TUTTO OK\" in event[\"content\"]:\n                            test_passed = True
+                        break
+                
+                if not test_passed:
+                    self.log.warn(f\"[{self.agent_id}] task marked done without passing tests. Rejecting.\")
+                    prompt = (
+                        \"ERRORE: Non puoi dichiarare il task come 'done' senza aver \"
+                        \"dimostrato che il codice funziona. DEVI eseguire `run_test_suite` \"
+                        \"e assicurarti che tutti i test passino prima di terminare.\\n\\n\"
+                        \"Riprova ora:\"
+                    )
+                    continue
+
+                result = action.get(\"result\", \"(no result)\")
+                self.memory.add_event({\"type\": \"task_done\", \"content\": result[:200]})
+                return result
+
+            # Esegui il tool
+            tool_name = action.get(\"action\")
+            args = action.get(\"args\", [])
+            
+            # --- CIRCUIT BREAKER CHECK ---
+            action_key = f\"{tool_name}:{json.dumps(args)}\"
+            repeated_actions[action_key] = repeated_actions.get(action_key, 0) + 1
+            if repeated_actions[action_key] >= 3:
+                self.log.warning(f\"[{self.agent_id}] CIRCUIT BREAKER: Action {tool_name} repeated 3x with same args. Forcing pivot.\")
+                prompt = (
+                    f\"ERRORE: Hai provato a eseguire {tool_name}({args}) per 3 volte con lo stesso risultato. \"
+                    \"Il sistema ha bloccato questa azione. ANALIZZA perché non funziona e cambia completamente approccio. \"
+                    \"Non ripetere l'azione.\\n\\n\"
+                    \"Next step (JSON only):\"
+                )
+                continue
+
+            tool_result = self._call_tool(tool_name, args)
+
+            if tool_name == \"write_file\" and tool_result.startswith(\"OK:\"):
+                wrote_file = True
+            last_tool_result = tool_result
+
+            self.memory.add_event({
+                \"type\": \"tool_result\",
+                \"content\": f\"{tool_name}({args}) -> {tool_result[:200]}\",
+            })
+            self.log.info(f\"[{self.agent_id}] tool {tool_name}({args[:1] if args else ''}) -> {tool_result[:120]}\")
+
+            # Track TDD progress
+            if tool_name == \"run_test_suite\" and \"FAILED\" in tool_result.upper():
+                tdd_verified = True
+
+            # Aggiungi al prompt per il prossimo step
+            if tool_result.startswith(\"ERROR:\"):
+                prompt = (
+                    f\"Last action: {tool_name}({args})\\n\"
+                    f\"Result: ❌ {tool_result[:2000]}\\n\\n\"
+                    \"The previous tool call failed. Analyze the error and try a different approach. \"
+                    \"Do not repeat the same failing command.\\n\\n\"
+                    \"Next step (JSON only):\"
+                )
+            else:
+                prompt = (
+                    f\"Last action: {tool_name}({args})\\n\"
+                    f\"Result:\\n{tool_result[:2000]}\\n\\n\"
+                    \"Next step (JSON only):\"
+                )
 
                 # --- QUALITY CONTROL ---
                 history = self.memory.get_history()
@@ -901,6 +976,14 @@ class Orchestrator:
         self.config = load_config(config_path)
         self.log = setup_logger(self.config)
         
+        # --- SYSTEM ISOLATION CHECK (Safe Mode) ---
+        is_safe, reason = check_isolation()
+        if not is_safe:
+            self.log.error(f"SECURITY ALERT: {reason}")
+            apply_safe_mode(self.log)
+        else:
+            self.log.info("✓ System isolation verified. Running in Standard Mode.")
+
         # 1. Lifecycle & Setup
         self.lifecycle = LifecycleManager(self.config, self.log)
         self.lifecycle.prepare_directories()
