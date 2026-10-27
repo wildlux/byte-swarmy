@@ -25,6 +25,9 @@ import tarfile
 from pathlib import Path
 from typing import Optional
 
+# New import for structured logging
+import datetime
+
 # Python 3.11+ ha tomllib, fallback a tomli
 try:
     import tomllib
@@ -49,6 +52,7 @@ from thermal_manager import TimestralManager
 def setup_logger(config) -> logging.Logger:
     log_cfg = config.get("logging", {})
     log_file = log_cfg.get("file", "./logs/byte-swarmy.log")
+    log_jsonl_file = log_cfg.get("jsonl", "./logs/byte-swarmy.jsonl")
     Path(log_file).parent.mkdir(parents=True, exist_ok=True)
     level = getattr(logging, log_cfg.get("level", "INFO").upper(), logging.INFO)
 
@@ -64,6 +68,23 @@ def setup_logger(config) -> logging.Logger:
     sh = logging.StreamHandler(sys.stdout)
     sh.setFormatter(logging.Formatter(fmt))
     logger.addHandler(sh)
+
+    # Structured JSONL Logger
+    jsonl_handler = logging.FileHandler(log_jsonl_file)
+    class JSONLFormatter(logging.Formatter):
+        def format(self, record):
+            log_record = {
+                "timestamp": datetime.datetime.utcnow().isoformat(),
+                "level": record.levelname,
+                "name": record.name,
+                "message": record.getMessage(),
+            }
+            if hasattr(record, "extra_data"):
+                log_record.update(record.extra_data)
+            return json.dumps(log_record)
+    
+    jsonl_handler.setFormatter(JSONLFormatter())
+    logger.addHandler(jsonl_handler)
 
     return logger
 
@@ -183,6 +204,33 @@ class Planner:
         '{"subtasks": [{"title": "...", "description": "...", "type": "implement|test|fix"}]}\n'
         "Niente testo fuori dal JSON."
     )
+    
+    # Costituzione dell'Agente Worker: regole ferree di sicurezza e qualità.
+    WORKER_CONSTRAINTS = (
+        "### 🛡️ PROTOCOLLO DI SICUREZZA (OBBLIGATORIO)\n"
+        "1. PRIVILEGIO MINIMO: Non richiedere mai l'accesso a file o directory fuori da `project/`.\n"
+        "2. SANIFICAZIONE: Tratta ogni input esterno come dato non fidato. Non inserire variabili "
+        "non validate in comandi bash.\n"
+        "3. NO-SHELL: È vietato l'uso di pipe (|), redirect (>, >>), concatenazione (;, &&, ||) "
+        "o backtick/substituzioni. Se l'operazione richiede più step, usa i tool in sequenza.\n"
+        "4. FAIL-CLOSED: Se un tool di sicurezza restituisce un errore, NON provare a bypassarlo.\n\n"
+        "### 💻 STANDARD DI CODIFICA (BEST PRACTICES)\n"
+        "1. MODULARITÀ: Se una funzione supera le 20 righe o ha un'alta complessità, "
+        "DEVI usare `extract_method` per scomporla.\n"
+        "2. ATOMICITÀ: Usa `patch_code` per modifiche mirate. Riscrivi l'intero file con "
+        "`write_file` SOLO per la creazione iniziale.\n"
+        "3. DOCUMENTAZIONE: Ogni nuova funzione DEVE avere un docstring chiaro e type hints.\n"
+        "4. VERIFICA: Non dichiarare un task come `done` senza aver prima eseguito `lint_code` "
+        "e `run_test_suite`. Il risultato deve essere 'OK'.\n\n"
+        "### 🛠️ WORKFLOW PROFESSIONALE (REFACTOR-LOOP)\n"
+        "Per ogni modifica, segui rigorosamente questa sequenza:\n"
+        "1. MAPPATURA: Usa `analyze_project` per capire la struttura e `find_references` per l'impatto.\n"
+        "2. ANALISI: Usa `analyze_complexity` e `get_call_graph` per identificare i punti critici.\n"
+        "3. INTERVENTO: Applica modifiche mirate con `patch_code` o tool di refactoring (`rename_symbol`, `extract_method`).\n"
+        "4. VALIDAZIONE: Esegui `lint_code` per la sintassi e `run_test_suite` per la logica.\n"
+        "5. CHIUSURA: Solo dopo il superamento dei test, dichiara `done=true`.\n\n"
+        "RISPETTA QUESTE REGOLE O IL TASK VERRÀ RIFIUTATO."
+    )
 
     def __init__(self, model_client: ModelClient, logger):
         self.models = model_client
@@ -243,7 +291,10 @@ class Planner:
 
 class Worker:
     """Esegue un task usando i tool e il modello LLM. Loop ReAct base."""
-
+    
+    # Prompt Governance: versioned prompts
+    PROMPT_VERSION = "2.1-enterprise"
+    
     SYSTEM = (
         "You are a coding agent working inside a sandboxed project directory.\n"
         "Reply with ONE JSON object per turn and NOTHING else:\n"
@@ -251,6 +302,15 @@ class Worker:
         "TOOLS (only these):\n"
         "  read_file(path)\n"
         "  write_file(path, content)\n"
+        "  patch_code(path, old_string, new_string)\n"
+        "  analyze_project()\n"
+        "  find_references(symbol)\n"
+        "  run_test_suite()\n"
+        "  lint_code(path)\n"
+        "  rename_symbol(symbol, new_name)\n"
+        "  analyze_complexity(path)\n"
+        "  get_call_graph(symbol)\n"
+        "  extract_method(path, start_line, end_line, new_name)\n"
         "  run_bash(cmd)\n"
         "  search(pattern, glob)\n"
         "  git_status()\n"
@@ -298,6 +358,10 @@ class Worker:
             "content": f"{task.get('title', '')}: {task.get('description', '')[:200]}",
         })
 
+        # TDD Check: If task is implementation, check if tests exist and fail.
+        is_tdd_required = task.get("type") == "implement"
+        tdd_verified = False
+
         # Costruisci prompt iniziale
         context = self.memory.build_context(max_tokens=1500)
         prompt = self._build_initial_prompt(task, context)
@@ -320,14 +384,9 @@ class Worker:
                 self.log.error(f"[{self.agent_id}] model call failed: {e}")
                 return f"ERROR: model unavailable: {e}"
 
-            # Logga la risposta grezza per debug (primi 300 char)
-            self.log.debug(f"[{self.agent_id}] raw response: {raw[:300]!r}")
-            self.log.info(f"[{self.agent_id}] response: {raw[:200]}")
-
             action = self._parse_action(raw)
             if not action:
                 self.memory.add_event({"type": "parse_error", "content": raw[:300]})
-                # Riprova con un prompt più assertivo
                 prompt = (
                     "ERRORE: la risposta non era JSON valido. "
                     "Rispondi con SOLO un oggetto JSON, niente testo prima o dopo.\n"
@@ -340,6 +399,42 @@ class Worker:
             self.memory.add_event({"type": "thought", "content": action.get("thought", "")[:200]})
 
             if action.get("done"):
+                # --- TDD VERIFICATION ---
+                if is_tdd_required and not tdd_verified:
+                    # Search history for a failing test run before any implementation
+                    history = self.memory.get_history()
+                    has_test_file = any("write_file" in e["content"] and "test_" in e["content"] for e in history)
+                    has_failed_run = any("run_test_suite" in e["content"] and "FAILED" in e["content"] for e in history)
+                    
+                    if not (has_test_file and has_failed_run):
+                        self.log.warn(f"[{self.agent_id}] TDD Violation: No failing test found before completion.")
+                        prompt = (
+                            "ERRORE: Violazione TDD. Prima di implementare la soluzione, "
+                            "DEVI: 1) Scrivere un test che fallisca, 2) Eseguirlo con `run_test_suite` "
+                            "per confermare il fallimento. Solo allora puoi implementare e risolvere.\n\n"
+                            "Riprova ora:"
+                        )
+                        continue
+
+                # --- QUALITY CONTROL ---
+                history = self.memory.get_history()
+                test_passed = False
+                for event in reversed(history):
+                    if event["type"] == "tool_result" and "run_test_suite" in event["content"]:
+                        if "TUTTI i test sono passati" in event["content"] or "TUTTO OK" in event["content"]:
+                            test_passed = True
+                        break
+                
+                if not test_passed:
+                    self.log.warn(f"[{self.agent_id}] task marked done without passing tests. Rejecting.")
+                    prompt = (
+                        "ERRORE: Non puoi dichiarare il task come 'done' senza aver "
+                        "dimostrato che il codice funziona. DEVI eseguire `run_test_suite` "
+                        "e assicurarti che tutti i test passino prima di terminare.\n\n"
+                        "Riprova ora:"
+                    )
+                    continue
+
                 result = action.get("result", "(no result)")
                 self.memory.add_event({"type": "task_done", "content": result[:200]})
                 return result
@@ -358,6 +453,10 @@ class Worker:
                 "content": f"{tool_name}({args}) -> {tool_result[:200]}",
             })
             self.log.info(f"[{self.agent_id}] tool {tool_name}({args[:1] if args else ''}) -> {tool_result[:120]}")
+
+            # Track TDD progress
+            if tool_name == "run_test_suite" and "FAILED" in tool_result.upper():
+                tdd_verified = True
 
             # Aggiungi al prompt per il prossimo step
             prompt = (
@@ -381,8 +480,9 @@ class Worker:
             f"## DESCRIPTION\n{task.get('description', '')}\n\n"
             f"## CONTEXT\n{context}\n\n"
             f"## PROJECT STATE\n{self._project_state()}\n\n"
-            "Plan: 1) write_file to create the code, 2) run_bash to test/compile, "
-            "3) git_commit, 4) done=true with result.\n\n"
+            f"## SYSTEM CONSTRAINTS\n{Planner.WORKER_CONSTRAINTS}\n\n"
+            "Plan: 1) analyze_project to map the codebase, 2) patch_code for precise changes, "
+            "3) run_test_suite to verify, 4) git_commit, 5) done=true with result.\n\n"
             "First step (JSON only):"
         )
 
@@ -427,6 +527,24 @@ class Worker:
                 return self.tools.read_file(args[0])
             elif name == "write_file":
                 return self.tools.write_file(args[0], args[1])
+            elif name == "patch_code":
+                return self.tools.patch_code(args[0], args[1], args[2])
+            elif name == "analyze_project":
+                return self.tools.analyze_project()
+            elif name == "find_references":
+                return self.tools.find_references(args[0])
+            elif name == "run_test_suite":
+                return self.tools.run_test_suite()
+            elif name == "lint_code":
+                return self.tools.lint_code(args[0])
+            elif name == "rename_symbol":
+                return self.tools.rename_symbol(args[0], args[1])
+            elif name == "analyze_complexity":
+                return self.tools.analyze_complexity(args[0])
+            elif name == "get_call_graph":
+                return self.tools.get_call_graph(args[0])
+            elif name == "extract_method":
+                return self.tools.extract_method(args[0], args[1], args[2], args[3])
             elif name == "run_bash":
                 return self.tools.run_bash(args[0])
             elif name == "git_commit":
@@ -470,9 +588,62 @@ class Worker:
             return f"ERROR: {e}"
 
 
-# ====================================================================
-# GENERIC TASK PLANNER — usa un decision model per decomporre task generici
-# ====================================================================
+class AuditWorker:
+    """
+    The Reviewer: An agent specialized in cross-checking code for security, 
+    bugs, and architectural consistency.
+    """
+    
+    SYSTEM = (
+        "You are the Senior Audit Worker (The Reviewer). Your goal is to ensure "
+        "enterprise-grade quality and security before any task is marked as DONE.\n\n"
+        "### 🔍 REVIEW CRITERIA\n"
+        "1. SECURITY: Check for `eval()`, `exec()`, unsafe `pickle`, shell injections, "
+        "or hardcoded secrets. Any critical vulnerability = IMMEDIATE REJECT.\n"
+        "2. CORRECTNESS: Does the code actually solve the task? Are there obvious edge cases missed?\n"
+        "3. QUALITY: Is the code modular? Does it follow the defined style? Are there docstrings?\n"
+        "4. VERIFICATION: Did the worker run `run_test_suite` and `lint_code`? "
+        "Did all tests pass? If not = IMMEDIATE REJECT.\n\n"
+        "### 📩 RESPONSE FORMAT\n"
+        "You must respond with a JSON object:\n"
+        '{"decision": "APPROVE" | "REJECT", "feedback": "detailed explanation of why", "severity": "LOW" | "MEDIUM" | "HIGH"}\n\n'
+        "Be strict. It is better to reject a task and have it fixed than to let a bug into production."
+    )
+
+    def __init__(self, model_client: ModelClient, logger):
+        self.models = model_client
+        self.log = logger
+
+    def audit(self, task: dict, worker_result: str, worker_history: list) -> dict:
+        """
+        Audits the work done by the worker.
+        """
+        # We synthesize the worker's actions for the auditor
+        actions_summary = "\n".join([f"- {e['type']}: {e['content'][:200]}" for e in worker_history if e['type'] in ('tool_result', 'thought')])
+        
+        prompt = (
+            f"## TASK TO REVIEW\nTitle: {task.get('title')}\nDesc: {task.get('description')}\n\n"
+            f"## WORKER RESULT\n{worker_result}\n\n"
+            f"## WORKER EXECUTION HISTORY\n{actions_summary}\n\n"
+            "Review the work and decide if it should be approved or rejected."
+        )
+
+        try:
+            raw = self.models.call(
+                model_key="worker_general", # Using a capable general model for auditing
+                prompt=prompt,
+                system=self.SYSTEM,
+                max_tokens=1024,
+            )
+            # Parse JSON response
+            m = re.search(r"\{[\s\S]*\}", raw)
+            if m:
+                return json.loads(m.group(0))
+            return {"decision": "REJECT", "feedback": f"Auditor failed to provide valid JSON response: {raw[:100]}", "severity": "HIGH"}
+        except Exception as e:
+            self.log.error(f"audit failed: {e}")
+            return {"decision": "REJECT", "feedback": f"Audit system error: {str(e)}", "severity": "HIGH"}
+
 
 class GenericTaskPlanner:
     """Usa il decision model attivo (d3, tev1, nimble, clef, etc.) per
@@ -683,6 +854,7 @@ class Orchestrator:
         self.queue = TaskQueue(Path(self.config["paths"]["tasks_dir"]), self.log)
         self.planner = Planner(self.models, self.log)
         self.generic_planner = GenericTaskPlanner(self.config, self.models, self.log)
+        self.auditor = AuditWorker(self.models, self.log)
 
         # Timestral (thermal manager) — opzionale
         self.timestral = None
@@ -841,9 +1013,23 @@ class Orchestrator:
                 self.queue.mark_failed(task["id"], result)
                 self.log.warning(f"task {task['id']} failed: {result[:100]}")
             else:
-                self.queue.mark_done(task["id"], result)
-                self.tools.git_commit(f"task {task['id']}: {task.get('title', '')[:50]}")
-                self.log.info(f"task {task['id']} DONE")
+                # --- ENTERPRISE AUDIT STEP ---
+                self.log.info(f"task {task['id']} submitted for audit")
+                worker_history = worker.memory.get_history()
+                audit_res = self.auditor.audit(task, result, worker_history)
+                
+                if audit_res.get("decision") == "APPROVE":
+                    self.log.info(f"task {task['id']} APPROVED by auditor")
+                    self.queue.mark_done(task["id"], result)
+                    self.tools.git_commit(f"task {task['id']}: {task.get('title', '')[:50]}")
+                    self.log.info(f"task {task['id']} DONE")
+                else:
+                    feedback = audit_res.get("feedback", "No feedback provided")
+                    self.log.warning(f"task {task['id']} REJECTED by auditor: {feedback[:100]}")
+                    # We mark it as failed so it gets retried, but we inject the auditor's feedback
+                    # into the task description so the worker sees why it was rejected.
+                    task["description"] += f"\n\n⚠️ AUDIT REJECTION: {feedback}"
+                    self.queue.mark_failed(task["id"], f"AUDIT_REJECT: {feedback}")
         except Exception as e:
             self.queue.mark_failed(task["id"], str(e))
             self.log.error(f"task {task['id']} exception: {e}", exc_info=True)

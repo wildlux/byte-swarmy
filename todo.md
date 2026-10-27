@@ -126,7 +126,42 @@ Vincoli verificati:
 - utente dedicato `byteswarmy`.
   Restano disponibili con `sudo ./setup-hardening.sh --all`, ma non eseguiti qui.
 
-## Piano di hardening — esecuzione 2026-10-25
+## Ciclo 4 — Agent Power-Up: Tool Sofisticati (2026-10-27)
+
+L'obiettivo è trasformare i worker in sviluppatori autonomi, riducendo l'uso di token e aumentando la precisione delle modifiche tramite tool di alto livello.
+
+- [x] **1. `patch_code`** — Modifiche mirate (find-and-replace) invece di riscrivere l'intero file.
+- [x] **2. `analyze_project`** — Mappa strutturale del progetto (classi, funzioni, dipendenze).
+- [x] **3. `find_references`** — Ricerca di tutte le occorrenze di un simbolo per refactoring sicuro.
+- [x] **4. `run_test_suite`** — Esecuzione automatizzata dei test con report di errore per self-healing.
+- [x] **5. `lint_code`** — Analisi statica per correggere errori di sintassi prima dell'esecuzione.
+- [x] **6. Aggiornamento `ToolSet`** — Integrazione e documentazione di tutti i nuovi tool.
+- [ ] **7. Prompt Tuning** — Istruzioni per i worker su come combinare i nuovi tool per workflow efficienti.
+- [ ] **8. Verifica** — Test di regressione e test di efficienza (riduzione token).
+
+## Ciclo 5 — Professional Refactoring Suite (2026-10-27)
+
+L'obiettivo è dare agli agenti la capacità di ristrutturare il codice in modo sicuro, coerente e professionale, riducendo il rischio di regressioni.
+
+- [x] **1. `rename_symbol`** — Rinomina una variabile/classe/funzione in tutto il progetto (coerenza globale).
+- [x] **2. `analyze_complexity`** — Calcola la complessità di una funzione per identificare i punti critti da rifattorizzare.
+- [x] **3. `get_call_graph`** — Mappa le chiamate tra funzioni per l'analisi d'impatto.
+- [x] **4. `extract_method`** — Sposta un blocco di codice in una nuova funzione e aggiorna la chiamata originale.
+- [x] **5. Aggiornamento `ToolSet`** — Integrazione dei nuovi tool in `tools.py`.
+- [ ] **6. Refactor-Loop Prompting** — Istruzioni per l'agente su come usare questi tool in sequenza (Mappa $\rightarrow$ Modifica $\rightarrow$ Verifica).
+- [ ] **7. Verifica** — Test di regressione e test di refactoring su un progetto campione.
+
+## Ciclo 6 — Enterprise Grade & Quality Assurance (2026-10-27)
+
+L'obiettivo è elevare il sistema a standard Enterprise, introducendo una catena di comando con revisione incrociata, TDD obbligatorio e analisi statica avanzata.
+
+- [ ] **1. Audit Worker (The Reviewer)** — Implementazione di un secondo agente specializzato esclusivamente nella revisione del codice e della sicurezza.
+- [ ] **2. TDD Workflow (Test-First)** — Modifica dell'orchestratore per obbligare l'agente a scrivere e far fallire il test prima di implementare la soluzione.
+- [ ] **3. SAST Integration (Bandit)** — Integrazione di un analizzatore di sicurezza statico per rilevare vulnerabilità (es. `eval`, `pickle`) nel codice prodotto.
+- [ ] **4. Immutable Security Logs** — Passaggio a log strutturati (JSONL) per l'audit e la tracciabilità.
+- [ ] **5. Prompt Governance** — Versionamento dei prompt e salvataggio dei metadati della risposta (modello, temperatura, prompt) per ogni azione.
+- [ ] **6. Verifica e Stress Test** — Test di "attacco" per verificare che l'Audit Worker blocchi codice insicuro o non testato.
+
 
 Contesto: il sistema esegue codice generato da LLM piccoli con i permessi
 dell'utente. `run_bash` è il rischio principale. Obiettivo: difesa in profondità

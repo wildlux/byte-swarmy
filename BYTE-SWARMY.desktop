@@ -1,19 +1,22 @@
-#!/usr/bin/env xdg-open
 [Desktop Entry]
-Version=1.0
-Type=Application
-Name=BYTE-SWARMY
-Name[it]=BYTE-SWARMY
-GenericName=Autonomous Programming Intelligence Swarm
-GenericName[it]=Sciame autonomo di programmazione
-Comment=Avvia BYTE-SWARMY: orchestratore + GUI
-Comment[it]=Avvia BYTE-SWARMY: orchestratore + GUI
-# Sostituisci PATH con la tua directory effettiva (default: ~/Desktop/byte-swarmy)
-Exec=bash -c 'cd ~/Desktop/byte-swarmy && ./avvia.sh'
-# Icon: usa un'icona generica di sistema (sostituisci con la tua se ce l'hai)
-Icon=utilities-terminal
-Terminal=false
 Categories=Development;IDE;Utility;
+Comment[it_IT]=Avvia BYTE-SWARMY: orchestratore + GUI
+Comment=Avvia BYTE-SWARMY: orchestratore + GUI
+Exec=bash -c 'cd ~/Desktop/byte-swarmy && ./avvia.sh'
+GenericName[it_IT]=Sciame autonomo di programmazione
+GenericName=Sciame autonomo di programmazione
+Icon=/home/wildlux/Desktop/byte-swarmy/IMG/icona.ico
 Keywords=ai;swarm;agent;coding;autonomous;
+MimeType=
+Name[it_IT]=BYTE-SWARMY
+Name=BYTE-SWARMY
+Path=
+PrefersNonDefaultGPU=false
 StartupNotify=true
 StartupWMClass=BYTE-SWARMY
+Terminal=false
+TerminalOptions=
+Type=Application
+Version=1.0
+X-KDE-SubstituteUID=false
+X-KDE-Username=

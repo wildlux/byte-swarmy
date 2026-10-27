@@ -42,7 +42,7 @@ from PyQt6.QtCore import (
     Qt, QThread, pyqtSignal, QTimer, QFileSystemWatcher, QObject, QProcess
 )
 from PyQt6.QtGui import (
-    QAction, QFont, QColor, QTextCursor
+    QAction, QFont, QColor, QTextCursor, QPixmap, QIcon
 )
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QTabWidget, QWidget, QVBoxLayout, QHBoxLayout,
@@ -399,22 +399,22 @@ class TaskQueueTab(QWidget):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
-
+ 
         # Toolbar
         toolbar = QHBoxLayout()
-        btn_add = QPushButton("+ Aggiungi Task")
+        btn_add = QPushButton("➕ Aggiungi Task")
         btn_add.clicked.connect(self._on_add_task)
-        btn_refresh = QPushButton("Aggiorna")
+        btn_refresh = QPushButton("🔄 Aggiorna")
         btn_refresh.clicked.connect(self._refresh)
-        btn_delete = QPushButton("Elimina")
+        btn_delete = QPushButton("🗑️ Elimina")
         btn_delete.clicked.connect(self._on_delete_selected)
-        btn_reset = QPushButton("Reset -> pending")
+        btn_reset = QPushButton("⏮️ Reset -> pending")
         btn_reset.clicked.connect(self._on_reset_selected)
-        btn_rerun = QPushButton("Forza re-run")
+        btn_rerun = QPushButton("🔁 Forza re-run")
         btn_rerun.clicked.connect(self._on_rerun_selected)
-        btn_del_subs = QPushButton("Elimina sottotask")
+        btn_del_subs = QPushButton("📉 Elimina sottotask")
         btn_del_subs.clicked.connect(self._on_delete_subtasks)
-        btn_cleanup = QPushButton("Pulisci completati")
+        btn_cleanup = QPushButton("🧹 Pulisci completati")
         btn_cleanup.clicked.connect(self._on_cleanup_done)
         toolbar.addWidget(btn_add)
         toolbar.addWidget(btn_refresh)
@@ -425,16 +425,16 @@ class TaskQueueTab(QWidget):
         toolbar.addWidget(btn_cleanup)
         toolbar.addStretch()
         layout.addLayout(toolbar)
-
+ 
         # Statistiche
         self.stats_label = QLabel("Caricamento...")
-        self.stats_label.setStyleSheet("padding: 4px; background: #f0f0f0;")
+        self.stats_label.setStyleSheet("padding: 4px; background: #f0f0f0; font-weight: bold;")
         layout.addWidget(self.stats_label)
-
+ 
         # Tabella
         self.table = QTableWidget(0, 6)
         self.table.setHorizontalHeaderLabels(
-            ["ID", "Stato", "Titolo", "Tipo", "Tentativi", "Sorgente"])
+            ["🆔 ID", "🚦 Stato", "📝 Titolo", "🛠️ Tipo", "🔄 Tentativi", "🌐 Sorgente"])
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
@@ -731,28 +731,28 @@ class McpServersTab(QWidget):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
-
+ 
         # Banner se MCP non disponibile
         if not MCP_AVAILABLE:
             import mcp_client as _mc
             banner = QLabel(
-                f"Modulo `mcp` non installato. Solo task locali disponibili.\n"
+                f"🔌 Modulo `mcp` non installato. Solo task locali disponibili.\n"
                 f"Installa con: pip install mcp httpx httpx-sse\n"
                 f"Errore: {_mc.MCP_IMPORT_ERROR}"
             )
             banner.setStyleSheet("padding: 12px; background: #fff3cd; color: #856404;")
             banner.setWordWrap(True)
             layout.addWidget(banner)
-
+ 
         # Toolbar
         toolbar = QHBoxLayout()
-        btn_add = QPushButton("+ Aggiungi Server")
+        btn_add = QPushButton("➕ Aggiungi Server")
         btn_add.clicked.connect(self._on_add_server)
-        btn_edit = QPushButton("Modifica")
+        btn_edit = QPushButton("📝 Modifica")
         btn_edit.clicked.connect(self._on_edit_server)
-        btn_delete = QPushButton("Elimina")
+        btn_delete = QPushButton("🗑️ Elimina")
         btn_delete.clicked.connect(self._on_delete_server)
-        btn_discover = QPushButton("Discover Tools")
+        btn_discover = QPushButton("🔍 Discover Tools")
         btn_discover.clicked.connect(self._on_discover)
         toolbar.addWidget(btn_add)
         toolbar.addWidget(btn_edit)
@@ -760,11 +760,11 @@ class McpServersTab(QWidget):
         toolbar.addWidget(btn_discover)
         toolbar.addStretch()
         layout.addLayout(toolbar)
-
+ 
         # Tabella server
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(
-            ["Nome", "URL", "Poll (s)", "Stato", "Tool"])
+            ["🏷️ Nome", "🌐 URL", "⏱️ Poll (s)", "🚦 Stato", "🛠️ Tool"])
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
@@ -1750,10 +1750,10 @@ class ThermalTab(QWidget):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
-
+ 
         # Banner informativo
         info = QLabel(
-            "<b>Timestral — Monitoraggio termico + dynamic tuning</b><br>"
+            "🌡️ <b>Timestral — Monitoraggio termico + dynamic tuning</b><br>"
             "L'orchestratore consulta Timestral a ogni tick. Se la CPU è troppo calda, "
             "rallenta o mette in pausa il dispatch dei task per proteggere l'hardware.<br>"
             "Storico salvato in <code>state/timestral_history.json</code> (24h di campioni)."
@@ -1761,9 +1761,9 @@ class ThermalTab(QWidget):
         info.setWordWrap(True)
         info.setStyleSheet("padding: 8px; background: #e8f4fd;")
         layout.addWidget(info)
-
+ 
         # Status corrente
-        status_group = QGroupBox("Stato corrente")
+        status_group = QGroupBox("🌡️ Stato corrente")
         status_layout = QFormLayout(status_group)
         self.advice_label = QLabel("...")
         self.advice_label.setStyleSheet("font-weight: bold; font-size: 14pt;")
@@ -1771,44 +1771,45 @@ class ThermalTab(QWidget):
         self.reason_label.setWordWrap(True)
         self.sample_label = QLabel("...")
         self.sample_label.setStyleSheet("font-family: monospace;")
-        status_layout.addRow("Advice:", self.advice_label)
-        status_layout.addRow("Motivo:", self.reason_label)
-        status_layout.addRow("Ultimo campione:", self.sample_label)
+        status_layout.addRow("🎯 Advice:", self.advice_label)
+        status_layout.addRow("❓ Motivo:", self.reason_label)
+        status_layout.addRow("📊 Ultimo campione:", self.sample_label)
         layout.addWidget(status_group)
-
+ 
         # Metriche live (4 cards)
         metrics_row = QHBoxLayout()
-        self.metric_temp = self._make_metric_card("Temperatura", "°C", "#dc3545")
-        self.metric_load = self._make_metric_card("CPU Load", "%", "#fd7e14")
-        self.metric_freq = self._make_metric_card("CPU Freq", "MHz", "#007bff")
-        self.metric_mem = self._make_metric_card("RAM usata", "%", "#28a745")
+        self.metric_temp = self._make_metric_card("🌡️ Temperatura", "°C", "#dc3545")
+        self.metric_load = self._make_metric_card("⚡ CPU Load", "%", "#fd7e14")
+        self.metric_freq = self._make_metric_card("🚀 CPU Freq", "MHz", "#007bff")
+        self.metric_mem = self._make_metric_card("💾 RAM usata", "%", "#28a745")
         metrics_row.addWidget(self.metric_temp)
         metrics_row.addWidget(self.metric_load)
         metrics_row.addWidget(self.metric_freq)
         metrics_row.addWidget(self.metric_mem)
         layout.addLayout(metrics_row)
-
+ 
         # Soglie
-        thresholds_group = QGroupBox("Soglie (da config.toml)")
+        thresholds_group = QGroupBox("⚙️ Soglie (da config.toml)")
         thresholds_layout = QFormLayout(thresholds_group)
         self.thresholds_label = QLabel("...")
         self.thresholds_label.setStyleSheet("font-family: monospace;")
         thresholds_layout.addRow("", self.thresholds_label)
         layout.addWidget(thresholds_group)
-
+ 
         # Statistiche 24h
-        stats_group = QGroupBox("Statistiche ultime 24h")
+        stats_group = QGroupBox("📊 Statistiche ultime 24h")
         stats_layout = QFormLayout(stats_group)
         self.stats_label = QLabel("...")
         self.stats_label.setStyleSheet("font-family: monospace;")
         stats_layout.addRow("", self.stats_label)
         layout.addWidget(stats_group)
-
+ 
         # Storico testuale
-        history_group = QGroupBox("Storico recente (ultimi 20 campioni)")
+        history_group = QGroupBox("📜 Storico recente (ultimi 20 campioni)")
         history_layout = QVBoxLayout(history_group)
         self.history_text = QPlainTextEdit()
         self.history_text.setReadOnly(True)
+        self.history_text.setPlaceholderText("Caricamento storico...")
         font = QFont("Monospace")
         font.setStyleHint(QFont.StyleHint.Monospace)
         font.setPointSize(9)
@@ -1816,7 +1817,7 @@ class ThermalTab(QWidget):
         self.history_text.setMaximumHeight(150)
         history_layout.addWidget(self.history_text)
         layout.addWidget(history_group)
-
+ 
         layout.addStretch()
 
     def _make_metric_card(self, title: str, unit: str, color: str) -> QGroupBox:
@@ -1952,8 +1953,21 @@ class TestsTab(QWidget):
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
 
+        header_layout = QHBoxLayout()
         title = QLabel("<h3>🧪 Test &amp; Sandbox</h3>")
-        layout.addWidget(title)
+        header_layout.addWidget(title)
+        header_layout.addStretch()
+
+        icon_label = QLabel()
+        icon_path = str(BASE_DIR / "IMG" / "icona.ico")
+        icon_pixmap = QPixmap(icon_path)
+        if not icon_pixmap.isNull():
+            icon_label.setPixmap(icon_pixmap.scaled(
+                48, 48, Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            ))
+            header_layout.addWidget(icon_label)
+        layout.addLayout(header_layout)
 
         intro = QLabel(
             "Verifica automatica della sicurezza: suite unitaria e controlli "
@@ -2339,6 +2353,11 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("BYTE-SWARMY · Control Center")
+        
+        # Imposta l'icona della finestra principale
+        icon_path = str(BASE_DIR / "IMG" / "icona.ico")
+        self.setWindowIcon(QIcon(icon_path))
+        
         self.setMinimumSize(900, 650)
 
         # Componenti
