@@ -111,3 +111,10 @@ README_IT_*.md
 
 # Icone derivate temporanee (tieni solo la .ico originale)
 IMG/icona-256-*.png
+
+# File temporanei di fix/patch
+fix_*.py
+*.bak.*
+*.bak2
+*.bak3
+state/last_metrics.json
