@@ -205,9 +205,11 @@ def _mount_args(project_root: Path,
         cmd.append("--share-net")
 
     cmd += [
-        # Sistema minimo, read-only.
+        # Sistema minimo, read-only. `/etc` NON e piu montato per intero:
+        # bind selettivo solo dei file che glibc/python richiedono (M6),
+        # niente segreti (/etc/shadow, /etc/ssh, credentials non esistono
+        # per il processo sandboxato).
         "--ro-bind", "/usr", "/usr",
-        "--ro-bind", "/etc", "/etc",
         "--symlink", "usr/bin", "/bin",
         "--symlink", "usr/sbin", "/sbin",
         "--symlink", "usr/lib", "/lib",
@@ -224,6 +226,22 @@ def _mount_args(project_root: Path,
         # rimontato read-only subito dopo i bind.
         "--tmpfs", "/opt",
     ]
+
+    # Selettiva `/etc`: il minimo per loader dinamico, risoluzione nomi
+    # locale e account sintetici. Tutto il resto di /etc non esiste qui.
+    _etc_files = (
+        "ld.so.cache", "ld.so.conf", "nsswitch.conf",
+        "passwd", "group", "hosts", "localtime", "gai.conf",
+    )
+    _etc_dirs = ("ld.so.conf.d", "ssl")
+    for name in _etc_files:
+        p = Path("/etc") / name
+        if p.is_file():
+            cmd += ["--ro-bind", str(p), str(p)]
+    for name in _etc_dirs:
+        d = Path("/etc") / name
+        if d.is_dir():
+            cmd += ["--ro-bind", str(d), str(d)]
 
     venv = _venv_root()
     if venv is not None:

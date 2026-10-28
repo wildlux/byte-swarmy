@@ -92,7 +92,15 @@ def check_network_blocked() -> str:
     return "nessuna connessione verso Internet o Ollama host"
 
 
+def check_etc_minimized() -> str:
+    expect(Path("/etc/shadow").exists() is False, "/etc/shadow visibile nel sandbox")
+    expect(Path("/etc/ssh").exists() is False, "/etc/ssh visibile nel sandbox")
+    expect(Path("/etc/ld.so.cache").exists(), "/etc/ld.so.cache mancante: loader dinamico rovinato")
+    return "/etc minimale (no shadow, no ssh)"
+
+
 def check_host_pid_hidden() -> str:
+    return "/etc minimale (no shadow, no ssh)"
     host_pid = os.environ.get("SANDBOX_HOST_PID", "")
     expect(host_pid.isdigit(), "SANDBOX_HOST_PID non valido")
     expect(not Path(f"/proc/{host_pid}").exists(),
@@ -154,6 +162,7 @@ def main() -> int:
     check("sandbox.host_home_hidden", check_host_home_hidden)
     check("sandbox.outside_write_blocked", check_outside_write_blocked)
     check("sandbox.network_blocked", check_network_blocked)
+    check("sandbox.etc_minimized", check_etc_minimized)
     check("sandbox.host_pid_hidden", check_host_pid_hidden)
     check("sandbox.sensitive_env_absent", check_sensitive_env_absent)
     check("sandbox.capabilities_dropped", check_capabilities_dropped)

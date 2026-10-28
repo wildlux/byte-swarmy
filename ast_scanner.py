@@ -6,7 +6,20 @@ Blocca l'uso di funzioni pericolose indipendentemente dall'offuscamento del codi
 
 from __future__ import annotations
 import ast
+import re
 from typing import Tuple, List, Set
+
+# Firma degli artefatti di escape la causa i crash loops del 27/10/2026:
+# riga che INIZIA con un backslash-virgoetta (\\" o \\') fuori da qualunque
+# stringa. In Python valido questo non e mai possibile al inizio riga.
+_ARTIFACT_RE = re.compile(r"(?m)^[ \t]*\\[\"']")
+
+_ARTIFACT_HINT = (
+    "Il testo contiene artefatti di escape (es. \\\" o \\\\n scritti come "
+    "caratteri letterali all'inizio di riga). NON usare il backslash per "
+    "le virgolette nelle stringhe: usa `\"` semplice. NON usare patch_code "
+    "per correggere: riscrivi l'intero file pulito con write_file."
+)
 
 class ASTSecurityScanner:
     """
@@ -40,6 +53,10 @@ class ASTSecurityScanner:
         try:
             tree = ast.parse(code)
         except SyntaxError as e:
+            if _ARTIFACT_RE.search(code):
+                return False, (
+                    f"Errore di sintassi alla riga {e.lineno}. {_ARTIFACT_HINT}"
+                )
             return False, f"Errore di sintassi nel codice: {e}"
 
         for node in ast.walk(tree):
@@ -78,3 +95,7 @@ class ASTSecurityScanner:
 
 # Singleton per l'uso globale
 scanner = ASTSecurityScanner()
+
+def detect_artifacts(code: str) -> bool:
+    """True se il testo contiene artefatti di escape fuori da contesto valido."""
+    return bool(_ARTIFACT_RE.search(code))

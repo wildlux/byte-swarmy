@@ -38,6 +38,7 @@ EXPECTED_CHECKS = {
     "sandbox.host_home_hidden",
     "sandbox.outside_write_blocked",
     "sandbox.network_blocked",
+    "sandbox.etc_minimized",
     "sandbox.host_pid_hidden",
     "sandbox.sensitive_env_absent",
     "sandbox.capabilities_dropped",
