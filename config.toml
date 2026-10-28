@@ -24,7 +24,7 @@ num_predict = 256
 seed = 42
 
 [models.planner]
-name = "phi3:mini"
+name = "qwen2.5-coder:1.5b"
 temperature = 0.4
 top_p = 0.9
 top_k = 40
@@ -34,7 +34,7 @@ num_ctx = 3072
 num_predict = 512
 
 [models.worker_coder]
-name = "phi3:mini"
+name = "qwen2.5-coder:1.5b"
 temperature = 0.1
 top_p = 0.8
 top_k = 30
@@ -44,7 +44,7 @@ num_ctx = 3072
 num_predict = 512
 
 [models.worker_general]
-name = "phi3:mini"
+name = "qwen2.5-coder:1.5b"
 temperature = 0.1
 top_p = 0.8
 top_k = 30
@@ -182,7 +182,12 @@ history_max = 2880               # 24h di campioni a 30s
 temp_cold = 50.0                 # sotto: ottimizza (tick_multiplier 0.6)
 temp_warm = 65.0                 # sopra: rallenta (tick_multiplier 1.7)
 temp_hot = 80.0                  # sopra: rallenta molto (tick_multiplier 2.5)
-temp_critical = 90.0             # sopra: pausa (nessun dispatch)
+temp_critical = 90.0
+gpu_temp_warm = 80.0
+gpu_temp_hot = 85.0
+gpu_temp_critical = 95.0
+
+             # sopra: pausa (nessun dispatch)
 cpu_pause_threshold = 0.95       # CPU load > 95% per 60s = pausa
 
 # --------------------------------------------------------------------

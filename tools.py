@@ -683,7 +683,7 @@ class ToolSet:
             import py_compile
             try:
                 py_compile.compile(str(full), doraise=True)
-            except py_compile.CompileError as e:
+            except SyntaxError as e:
                 return f"SINTASSI ERRATA in {path}:\n{str(e)}"
             
             report = [f"SYNTAX OK: {path}"]
