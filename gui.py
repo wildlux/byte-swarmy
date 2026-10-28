@@ -14,6 +14,7 @@ Requisiti:
     pip install PyQt6 mcp httpx httpx-sse
 """
 
+
 from __future__ import annotations
 
 import json
@@ -39,7 +40,7 @@ except ImportError:
     TOML_WRITER_AVAILABLE = False
 
 from PyQt6.QtCore import (
-    Qt, QThread, pyqtSignal, QTimer, QFileSystemWatcher, QObject, QProcess
+    Qt, QThread, pyqtSignal, QTimer, QFileSystemWatcher, QObject, QProcess, QSize
 )
 from PyQt6.QtGui import (
     QAction, QFont, QColor, QTextCursor, QPixmap, QIcon
@@ -78,81 +79,137 @@ except ImportError as e:
     # Professional Style Sheet (Enterprise Dark Theme)
     # ------------------------------------------------------------------
     STYLESHEET = """
-    QMainWindow {
-        background-color: #1e1e1e;
+    QMainWindow, QWidget {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+        font-family: 'Segoe UI', 'Ubuntu', sans-serif;
+        font-size: 10pt;
     }
+    QMainWindow { background-color: #1a1a1a; }
     QTabWidget::pane {
         border: 1px solid #333;
-        background-color: #1e1e1e;
+        background-color: #1a1a1a;
+        border-top: 2px solid #007acc;
     }
     QTabBar::tab {
-        background: #2d2d2d;
-        color: #aaa;
-        padding: 8px 15px;
+        background: #252525;
+        color: #999;
+        padding: 8px 18px;
         border: 1px solid #333;
+        border-bottom: none;
+        border-top-left-radius: 4px;
+        border-top-right-radius: 4px;
+        margin-right: 2px;
     }
     QTabBar::tab:selected {
-        background: #3d3d3d;
+        background: #007acc;
         color: #fff;
-        border-bottom-color: #007acc;
+        border-color: #007acc;
     }
-    QWidget {
-        background-color: #1e1e1e;
-        color: #d4d4d4;
-        font-family: 'Segoe UI', 'Ubuntu', sans-serif;
+    QTabBar::tab:hover:!selected {
+        background: #2d2d2d;
+        color: #ccc;
     }
     QPushButton {
-        background-color: #333;
-        color: #fff;
+        background-color: #2d2d2d;
+        color: #e0e0e0;
         border: 1px solid #444;
-        padding: 5px 10px;
-        border-radius: 3px;
+        padding: 6px 14px;
+        border-radius: 4px;
+        min-height: 24px;
     }
-    QPushButton:hover {
-        background-color: #444;
+    QPushButton:hover { background-color: #383838; border-color: #555; }
+    QPushButton:pressed { background-color: #404040; }
+    QPushButton:disabled { color: #666; background-color: #252525; }
+    QPushButton#toggleOrchestrator {
+        background-color: #28a745;
+        color: white;
+        font-weight: bold;
+        border: none;
+        padding: 8px 16px;
+        min-width: 200px;
     }
-    QPushButton:pressed {
-        background-color: #555;
+    QPushButton#toggleOrchestrator:hover { background-color: #218838; }
+    QPushButton#toggleOrchestrator[data-running="true"] {
+        background-color: #dc3545;
+    }
+    QPushButton#toggleOrchestrator[data-running="true"]:hover {
+        background-color: #c82333;
     }
     QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {
-        background-color: #252526;
-        color: #d4d4d4;
+        background-color: #252525;
+        color: #e0e0e0;
         border: 1px solid #333;
-        padding: 4px;
-        border-radius: 2px;
+        padding: 5px;
+        border-radius: 3px;
+        selection-background-color: #007acc;
     }
+    QLineEdit:focus { border: 1px solid #007acc; }
     QTableWidget {
-        background-color: #252526;
+        background-color: #1f1f1f;
         gridline-color: #333;
         border: 1px solid #333;
         selection-background-color: #264f78;
+        alternate-background-color: #252525;
     }
+    QTableWidget::item { padding: 4px; }
     QHeaderView::section {
-        background-color: #333;
+        background-color: #2d2d2d;
         color: #aaa;
-        padding: 4px;
-        border: 1px solid #444;
+        padding: 6px;
+        border: none;
+        border-bottom: 2px solid #007acc;
+        font-weight: bold;
     }
     QGroupBox {
         font-weight: bold;
         border: 1px solid #333;
-        margin-top: 1ex;
-        padding-top: 1ex;
+        border-radius: 4px;
+        margin-top: 1.5ex;
+        padding-top: 1.2ex;
+        background-color: #1f1f1f;
     }
     QGroupBox::title {
         subcontrol-origin: margin;
-        left: 10px;
-        padding: 0 3px 0 3px;
+        left: 12px;
+        padding: 0 6px;
+        color: #007acc;
     }
     QScrollBar:vertical {
-        background: #1e1e1e;
-        width: 12px;
+        background: #1a1a1a; width: 10px; border: none;
     }
     QScrollBar::handle:vertical {
-        background: #444;
-        min-height: 20px;
-        border-radius: 6px;
+        background: #444; min-height: 25px; border-radius: 5px;
     }
+    QScrollBar::handle:vertical:hover { background: #555; }
+    QStatusBar {
+        background-color: #007acc;
+        color: white;
+        font-weight: bold;
+    }
+    QStatusBar QLabel { color: white; padding: 0 8px; }
+    QToolBar {
+        background-color: #252525;
+        border-bottom: 1px solid #333;
+        spacing: 4px;
+        padding: 4px;
+    }
+    QToolBar QToolButton {
+        background: transparent;
+        color: #e0e0e0;
+        padding: 6px 10px;
+        border-radius: 3px;
+    }
+    QToolBar QToolButton:hover { background: #383838; }
+    QLabel#tempIndicator {
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 11pt;
+        font-weight: bold;
+        padding: 4px 10px;
+        border-radius: 3px;
+    }
+    QSplitter::handle { background-color: #333; }
+    QSplitter::handle:hover { background-color: #007acc; }
     """
 
 class CopyableErrorDialog(QDialog):
@@ -815,11 +872,16 @@ class TaskQueueTab(QWidget):
         self.stats_label.setStyleSheet("padding: 4px; background: #f0f0f0; font-weight: bold;")
         layout.addWidget(self.stats_label)
 
-        # 🆕 Live Activity Panel
+        # 🆕 Live Activity Panel (creato qui, inserito nello splitter sotto)
         self.live_activity = LiveActivityPanel()
-        layout.addWidget(self.live_activity)
 
-        # Tabella
+        # 🆕 Layout 2 colonne: tabella task | live activity panel
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+
+        # Colonna sinistra: tabella task
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(0, 0, 0, 0)
         self.table = QTableWidget(0, 6)
         self.table.setHorizontalHeaderLabels(
             ["🆔 ID", "🚦 Stato", "📝 Titolo", "🛠️ Tipo", "🔄 Tentativi", "🌐 Sorgente"])
@@ -831,7 +893,18 @@ class TaskQueueTab(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        layout.addWidget(self.table)
+        self.table.setAlternatingRowColors(True)
+        left_layout.addWidget(self.table)
+        splitter.addWidget(left_widget)
+
+        # Colonna destra: live activity panel (già esistente)
+        splitter.addWidget(self.live_activity)
+
+        # Proporzioni: 65% tabella, 35% activity
+        splitter.setSizes([650, 350])
+        splitter.setCollapsible(0, False)
+        splitter.setCollapsible(1, False)
+        layout.addWidget(splitter, stretch=1)
 
         # Dettagli task selezionato
         details_group = QGroupBox("Dettagli task selezionato")
@@ -2876,22 +2949,67 @@ class MainWindow(QMainWindow):
     def _build_toolbar(self) -> None:
         toolbar = QToolBar("Main")
         toolbar.setMovable(False)
+        toolbar.setIconSize(QSize(16, 16))
         self.addToolBar(toolbar)
 
-        self.act_start = QAction("Avvia Orchestratore", self)
-        self.act_start.triggered.connect(self._on_start)
-        toolbar.addAction(self.act_start)
-
-        self.act_stop = QAction("Ferma", self)
-        self.act_stop.triggered.connect(self._on_stop)
-        toolbar.addAction(self.act_stop)
+        # 🆕 Toggle button unico (Avvia/Ferma)
+        self.btn_toggle_orch = QPushButton("▶  Avvia Orchestratore")
+        self.btn_toggle_orch.setObjectName("toggleOrchestrator")
+        self.btn_toggle_orch.setCheckable(True)
+        self.btn_toggle_orch.clicked.connect(self._on_toggle_orchestrator)
+        toolbar.addWidget(self.btn_toggle_orch)
 
         toolbar.addSeparator()
 
-        self.act_quit = QAction("Esci", self)
+        # 🆕 Indicatori temperatura CPU/GPU
+        self.temp_cpu_label = QLabel("CPU: --°C")
+        self.temp_cpu_label.setObjectName("tempIndicator")
+        toolbar.addWidget(self.temp_cpu_label)
+
+        self.temp_gpu_label = QLabel("GPU: --°C")
+        self.temp_gpu_label.setObjectName("tempIndicator")
+        toolbar.addWidget(self.temp_gpu_label)
+
+        toolbar.addSeparator()
+
+        # Pulsante esci
+        self.act_quit = QAction("✕  Esci", self)
         self.act_quit.setShortcut("Ctrl+Q")
         self.act_quit.triggered.connect(self.close)
         toolbar.addAction(self.act_quit)
+
+    def _on_toggle_orchestrator(self) -> None:
+        """Toggle: avvia o ferma l'orchestratore con un solo pulsante."""
+        if self.orchestrator.is_running():
+            self.orchestrator.stop()
+            self.btn_toggle_orch.setChecked(False)
+            self.btn_toggle_orch.setText("▶  Avvia Orchestratore")
+            self.status_bar.showMessage("○ Orchestratore fermato", 2000)
+        else:
+            ok = self.orchestrator.start()
+            if ok:
+                self.btn_toggle_orch.setChecked(True)
+                self.btn_toggle_orch.setText("■  Ferma Orchestratore")
+                self.status_bar.showMessage("● Orchestratore avviato", 2000)
+            else:
+                self.btn_toggle_orch.setChecked(False)
+                self.status_bar.showMessage("❌ Avvio fallito", 3000)
+        self._update_toolbar_state()
+
+    def _update_toolbar_state(self) -> None:
+        """Aggiorna lo stato del toggle button."""
+        running = self.orchestrator.is_running()
+        if running:
+            self.btn_toggle_orch.setChecked(True)
+            self.btn_toggle_orch.setText("■  Ferma Orchestratore")
+            self.btn_toggle_orch.setProperty("data-running", "true")
+        else:
+            self.btn_toggle_orch.setChecked(False)
+            self.btn_toggle_orch.setText("▶  Avvia Orchestratore")
+            self.btn_toggle_orch.setProperty("data-running", "false")
+        # Forza refresh stile
+        self.btn_toggle_orch.style().unpolish(self.btn_toggle_orch)
+        self.btn_toggle_orch.style().polish(self.btn_toggle_orch)
 
     def _on_start(self) -> None:
         if self.orchestrator.start():
@@ -2909,13 +3027,9 @@ class MainWindow(QMainWindow):
         if self.orchestrator.is_running():
             pid = self.orchestrator.pid()
             self.status_bar.showMessage(f"● Orchestratore ATTIVO (PID {pid})")
-            self.act_start.setEnabled(False)
-            self.act_stop.setEnabled(True)
         else:
             self.status_bar.showMessage("○ Orchestratore fermato")
-            self.act_start.setEnabled(True)
-            self.act_stop.setEnabled(False)
-
+        
     def _on_mcp_task(self, server_name: str, task: dict) -> None:
         """Callback chiamata quando un server MCP invia un task.
 
