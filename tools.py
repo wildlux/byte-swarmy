@@ -82,6 +82,9 @@ class ToolSet:
         self.max_write_bytes = int(sec.get("max_file_size_write", 2_000_000))
         self.max_file_limit = int(sec.get("max_file_size_bytes", 50_000_000))
         self.max_memory_mb = int(sec.get("max_memory_mb", 1536))
+        # M7: limita il disco consumato da project/ (saturazione in pochi
+        # secondi con dd/yes non e visibile dal check periodico ogni 30s).
+        self.max_project_mb = int(sec.get("project_disk_limit_mb", 2048))
 
         # REGOLA 0 — la difesa è sempre attiva.
         # `security.enabled` esiste solo per retrocompatibilità: qualunque
@@ -445,171 +448,6 @@ class ToolSet:
             "oppure ./sync.sh --pull."
         )
 
-    # ----- 14. patch_code -----
-    def patch_code(self, path: str, old_text: str, new_text: str) -> str:
-        """Modifica una porzione specifica di un file.
-        
-        Cerca l'esatta occorrenza di `old_text` e la sostituisce con `new_text`.
-        Se `old_text` non è trovato esattamente, l'operazione fallisce.
-        """
-        try:
-            full = safe_project_path(path, self.project_root)
-            if not full.exists():
-                return f"ERROR: file non trovato: {path}"
-            
-            content = full.read_text(encoding="utf-8", errors="replace")
-            if old_text not in content:
-                return (f"ERROR: testo originale non trovato nel file. "
-                        "Assicurati di copiare esattamente il blocco di codice.")
-            
-            new_content = content.replace(old_text, new_text, 1)
-            
-            if len(new_content) > self.max_write_bytes:
-                return "ERROR: file risultante troppo grande."
-            
-            # Scrittura transazionale
-            full.parent.mkdir(parents=True, exist_ok=True)
-            tmp = full.parent / f".{full.name}.patch.{os.getpid()}.tmp"
-            tmp.write_text(new_content, encoding="utf-8")
-            os.replace(tmp, full)
-            
-            return f"OK: patch applicata a {path}"
-        except Exception as e:
-            return f"ERROR patching {path}: {e}"
-
-    # ----- 15. analyze_project -----
-    def analyze_project(self) -> str:
-        """Genera una mappa strutturale del progetto (classi e funzioni).
-        
-        Scansiona i file .py in project/ e usa regex per identificare le definizioni.
-        """
-        results = []
-        try:
-            files = sorted(self.project_root.glob("**/*.py"))
-            for f in files:
-                rel_path = f.relative_to(self.project_root)
-                content = f.read_text(encoding="utf-8", errors="replace")
-                
-                # Regex per classi e funzioni
-                classes = re.findall(r"^class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", content, re.MULTILINE)
-                funcs = re.findall(r"^def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", content, re.MULTILINE)
-                
-                if classes or funcs:
-                    entry = f"File: {rel_path}\n"
-                    if classes: entry += f"  Classes: {', '.join(classes)}\n"
-                    if funcs: entry += f"  Functions: {', '.join(funcs)}\n"
-                    results.append(entry)
-            
-            if not results:
-                return "Nessuna classe o funzione trovata nel progetto."
-            return "\n".join(results)
-        except Exception as e:
-            return f"ERROR analyzing project: {e}"
-
-    # ----- 16. find_references -----
-    def find_references(self, symbol: str) -> str:
-        """Cerca tutte le occorrenze di un simbolo (funzione/variabile) nel progetto.
-        
-        Ritorna i file e le righe in cui il simbolo compare.
-        """
-        try:
-            matches = []
-            # Cerchiamo il simbolo come parola intera
-            pattern = rf"\b{re.escape(symbol)}\b"
-            files = sorted(self.project_root.glob("**/*.py"))
-            for f in files:
-                rel_path = f.relative_to(self.project_root)
-                content = f.read_text(encoding="utf-8", errors="replace")
-                for i, line in enumerate(content.splitlines(), 1):
-                    if re.search(pattern, line):
-                        matches.append(f"{rel_path}:{i} -> {line.strip()}")
-            
-            if not matches:
-                return f"Nessuna occorrenza di '{symbol}' trovata."
-            return "\n".join(matches)
-        except Exception as e:
-            return f"ERROR finding references: {e}"
-
-    # ----- 17. run_test_suite -----
-    def run_test_suite(self) -> str:
-        """Esegue la suite di test in sandbox e restituisce un report semplificato.
-        
-        Cerca i test in tests/ e usa pytest o unittest.
-        """
-        try:
-            # Usiamo il runner JSON creato per la GUI per avere output strutturato
-            runner_path = BASE_DIR / "tests" / "run_tests.py"
-            if not runner_path.exists():
-                return "ERROR: runner di test non trovato in tests/run_tests.py"
-            
-            # Esecuzione in sandbox
-            cmd, env = sandbox.build_command(
-                [sys.executable, str(runner_path), "--json"],
-                self.project_root,
-            )
-            
-            proc = subprocess.Popen(
-                cmd,
-                cwd=str(self.project_root),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                env=env,
-                start_new_session=True,
-                preexec_fn=self._preexec(60),
-            )
-            stdout, stderr = proc.communicate()
-            
-            if proc.returncode != 0 and not stdout:
-                return f"ERROR executing tests: {stderr}"
-            
-            # Parsing del report JSON
-            raw = stdout.strip()
-            start, end = raw.find("{"), raw.rfind("}")
-            if start < 0 or end <= start:
-                return f"ERROR: report test non valido\n{stdout[:500]}"
-            
-            data = json.loads(raw[start:end+1])
-            summary = data.get("summary", {})
-            
-            report = (
-                f"TEST REPORT: {summary.get('passed', 0)}/{summary.get('total', 0)} PASS\n"
-                f"FAIL: {summary.get('failed', 0)} | ERR: {summary.get('errors', 0)}\n"
-                "---"
-            )
-            
-            # Aggiungi solo i test falliti per non saturare il contesto
-            for t in data.get("tests", []):
-                if t["status"] in ("FAIL", "ERROR"):
-                    report += f"\n[{t['status']}] {t['name']}: {t['detail']}"
-            
-            return report if len(report) > 15 else report + "\nTutti i test sono passati!"
-        except Exception as e:
-            return f"ERROR running test suite: {e}"
-
-    # ----- 18. lint_code -----
-    def lint_code(self, path: str) -> str:
-        """Esegue un controllo statico (linting) su un file.
-        
-        Usa pycompile per verificare la sintassi di base.
-        """
-        try:
-            full = safe_project_path(path, self.project_root)
-            if not full.exists():
-                return f"ERROR: file non trovato: {path}"
-            
-            # Usiamo il modulo py_compile di python per check sintattico rapido
-            import py_compile
-            try:
-                py_compile.compile(str(full), doraise=True)
-                return f"OK: {path} ha una sintassi valida."
-            except py_compile.CompileError as e:
-                return f"SINTASSI ERRATA in {path}:\n{str(e)}"
-        except Exception as e:
-            return f"ERROR linting {path}: {e}"
-
     # ----- 19. rename_symbol -----
     def rename_symbol(self, old_symbol: str, new_symbol: str) -> str:
         """Rinomina un simbolo in tutto il progetto.
@@ -713,39 +551,6 @@ class ToolSet:
         except Exception as e:
             return f"ERROR extracting method: {e}"
 
-
-    # ----- 14. patch_code -----
-    def patch_code(self, path: str, old_text: str, new_text: str) -> str:
-        """Modifica una porzione specifica di un file.
-        
-        Cerca l'esatta occorrenza di `old_text` e la sostituisce con `new_text`.
-        Se `old_text` non è trovato esattamente, l'operazione fallisce.
-        """
-        try:
-            full = safe_project_path(path, self.project_root)
-            if not full.exists():
-                return f"ERROR: file non trovato: {path}"
-            
-            content = full.read_text(encoding="utf-8", errors="replace")
-            if old_text not in content:
-                return (f"ERROR: testo originale non trovato nel file. "
-                        "Assicurati di copiare esattamente il blocco di codice.")
-            
-            new_content = content.replace(old_text, new_text, 1)
-            
-            if len(new_content) > self.max_write_bytes:
-                return "ERROR: file risultante troppo grande."
-            
-            # Scrittura transazionale
-            full.parent.mkdir(parents=True, exist_ok=True)
-            tmp = full.parent / f".{full.name}.patch.{os.getpid()}.tmp"
-            tmp.write_text(new_content, encoding="utf-8")
-            os.replace(tmp, full)
-            
-            return f"OK: patch applicata a {path}"
-        except Exception as e:
-            return f"ERROR patching {path}: {e}"
-
     # ----- 15. analyze_project -----
     def analyze_project(self) -> str:
         """Genera una mappa strutturale del progetto (classi e funzioni).
@@ -860,22 +665,67 @@ class ToolSet:
 
     # ----- 18. lint_code -----
     def lint_code(self, path: str) -> str:
-        """Esegue un controllo statico (linting) su un file.
-        
-        Usa pycompile per verificare la sintassi di base.
+        """Controlli statici su un file: py_compile + Bandit + Mypy.
+
+        Bandit e Mypy girano SEMPRE nel sandbox (via `_run`). Se non sono
+        installati vengono segnalati con un errore istruttivo, il gate
+        sintattico resta comunque bloccante.
         """
         try:
             full = safe_project_path(path, self.project_root)
             if not full.exists():
                 return f"ERROR: file non trovato: {path}"
             
-            # Usiamo il modulo py_compile di python per check sintattico rapido
+            # 1. Sintassi (bloccante)
             import py_compile
             try:
                 py_compile.compile(str(full), doraise=True)
-                return f"OK: {path} ha una sintassi valida."
             except py_compile.CompileError as e:
                 return f"SINTASSI ERRATA in {path}:\n{str(e)}"
+            
+            report = [f"SYNTAX OK: {path}"]
+            
+            # 2. Bandit (analisi sicurezza statica)
+            try:
+                rel = str(full.relative_to(self.project_root))
+                r = self._run(
+                    [sys.executable, "-m", "bandit", "-q", "-f", "text", rel],
+                    timeout=120, cwd=self.project_root,
+                )
+                if "No module named bandit" in r:
+                    report.append(
+                        "BANDIT: non installato (pip install bandit). "
+                        "Gate statico parziale: ieri puro py_compile."
+                    )
+                elif "No issues identified." in r or "Total issues: 0" in r:
+                    report.append("BANDIT OK: nessun problema di sicurezza.")
+                else:
+                    snippet = r.strip()[:800]
+                    report.append(f"BANDIT ISSUES:\n{snippet}")
+            except Exception as e:
+                report.append(f"BANDIT: errore esecuzione: {e}")
+            
+            # 3. Mypy (tipi statici, best-effort)
+            try:
+                rel = str(full.relative_to(self.project_root))
+                r = self._run(
+                    [sys.executable, "-m", "mypy", "--no-error-summary", rel],
+                    timeout=120, cwd=self.project_root,
+                )
+                if "No module named mypy" in r:
+                    report.append(
+                        "MYPY: non installato (pip install mypy). "
+                        "Type check non eseguito."
+                    )
+                elif "Success: no issues found" in r or r.strip().endswith("exit_code=0"):
+                    report.append("MYPY OK: nessun errore di tipo.")
+                else:
+                    snippet = r.strip()[:800]
+                    report.append(f"MYPY ISSUES:\n{snippet}")
+            except Exception as e:
+                report.append(f"MYPY: errore esecuzione: {e}")
+            
+            return "\n".join(report)
         except Exception as e:
             return f"ERROR linting {path}: {e}"
 
@@ -901,6 +751,21 @@ class ToolSet:
             
             if len(new_content) > self.max_write_bytes:
                 return "ERROR: file risultante troppo grande."
+            
+            # GATE ANTI-CORRUZIONE (todo 9c/M1): una patch su un file Python
+            # deve lasciare il file ancora compilabile e senza codice vietato.
+            # Chiude il buco per cui una patch corrotta (es. artefatti di
+            # escape) potevano infrangere la validita di un file esistente.
+            if str(path).endswith(".py"):
+                safe, reason = ast_scanner.scan(new_content)
+                if not safe:
+                    self._audit(
+                        "blocked_patch_scan",
+                        f'path="{self._q(path)}" reason="{self._q(reason)}"',
+                        "CRITICAL",
+                    )
+                    return (f"ERROR: patch rifiutata (il file `{path}` risulterebbe "
+                            f"invalido o insicuro): {reason}")
             
             # Scrittura transazionale
             full.parent.mkdir(parents=True, exist_ok=True)
@@ -949,6 +814,11 @@ class ToolSet:
         Fail closed: se bubblewrap non è disponibile il comando non viene
         eseguito sull'host e l'evento viene registrato come CRITICAL.
         """
+        # M7: quota disco — non avviare comandi con project/ satura.
+        guard = self._disk_guard()
+        if guard:
+            return guard
+
         try:
             workdir = sandbox.sandbox_workdir(cwd, self.project_root)
             cmd, env = sandbox.build_command(
@@ -1030,6 +900,35 @@ class ToolSet:
             return text
         half = self.max_output // 2
         return text[:half] + TRUNCATED + text[-half:]
+
+    def _project_disk_mb(self) -> int:
+        """Usa cumulata in MB dei file in project/ (non .git)."""
+        total = 0
+        for root, dirs, files in os.walk(self.project_root):
+            if ".git" in dirs:
+                dirs.remove(".git")
+            for name in files:
+                try:
+                    total += os.path.getsize(os.path.join(root, name))
+                except OSError:
+                    continue
+        return total // (1024 * 1024)
+
+    def _disk_guard(self) -> str:
+        """Rifiuta l'esecuzione se project/ supera la quota (M7)."""
+        used = self._project_disk_mb()
+        if used >= self.max_project_mb:
+            self._audit(
+                "resource_limit",
+                f'project_size={used}MB limit={self.max_project_mb}MB',
+                "WARNING",
+            )
+            return (
+                f"ERROR: quota disco project/ superata "
+                f"({used} MB >= limite {self.max_project_mb} MB). "
+                "Elimina i file temporanei grandi in project/ e riprova."
+            )
+        return ""
 
     # ----- 23. inspect_usb_devices -----
     def inspect_usb_devices(self) -> str:

@@ -445,8 +445,8 @@ class Worker:
                 # --- TDD VERIFICATION ---
                 if is_tdd_required and not tdd_verified:
                     history = self.memory.get_history()
-                    has_test_file = any("write_file" in e["content"] and "test_" in e["content"] for e in history)
-                    has_failed_run = any("run_test_suite" in e["content"] and "FAILED" in e["content"] for e in history)
+                    has_test_file = any("write_file" in e.get("content", "") and "test_" in e.get("content", "") for e in history)
+                    has_failed_run = any("run_test_suite" in e.get("content", "") and "FAILED" in e.get("content", "") for e in history)
 
                     if not (has_test_file and has_failed_run):
                         self.log.warn(f"[{self.agent_id}] TDD Violation: No failing test found before completion.")
@@ -464,7 +464,7 @@ class Worker:
                 history = self.memory.get_history()
                 test_passed = None
                 for event in reversed(history):
-                    if event["type"] == "tool_result" and "run_test_suite" in event["content"]:
+                    if event.get("type") == "tool_result" and "run_test_suite" in event.get("content", ""):
                         c = event["content"]
                         test_passed = (
                             "TUTTO OK" in c
