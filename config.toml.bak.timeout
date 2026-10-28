@@ -1,0 +1,272 @@
+# ====================================================================
+# BYTE-SWARMY configuration — single process, single loop, classes
+# Tutti i parametri operativi in un unico file.
+# ====================================================================
+
+[ollama]
+host = "http://localhost:11434"
+request_timeout = 120
+
+# --------------------------------------------------------------------
+# Modelli Ollama e relativi parametri di inferenza.
+# Un solo modello caricato in RAM alla volta (rotation gestita da ModelClient).
+# --------------------------------------------------------------------
+
+[models.orchestrator]
+name = "qwen2.5:0.5b"
+temperature = 0.1
+top_p = 0.8
+top_k = 20
+repeat_penalty = 1.15
+repeat_last_n = 256
+num_ctx = 2048
+num_predict = 256
+seed = 42
+
+[models.planner]
+name = "phi3:mini"
+temperature = 0.4
+top_p = 0.9
+top_k = 40
+repeat_penalty = 1.1
+repeat_last_n = 512
+num_ctx = 4096
+num_predict = 1024
+
+[models.worker_coder]
+name = "phi3:mini"
+temperature = 0.1
+top_p = 0.8
+top_k = 30
+repeat_penalty = 1.15
+repeat_last_n = 512
+num_ctx = 4096
+num_predict = 2048
+
+[models.worker_general]
+name = "phi3:mini"
+temperature = 0.1
+top_p = 0.8
+top_k = 30
+repeat_penalty = 1.15
+repeat_last_n = 512
+num_ctx = 4096
+num_predict = 2048
+
+[models.embedding]
+name = "nomic-embed-text"
+
+# --------------------------------------------------------------------
+# Decision Models (per task generici e routing avanzato).
+# Modelli elencati su https://ollama.com/search?c=decision
+# Vanno prima scaricati con `ollama pull <name>`.
+# L'orchestratore userà il modello abilitato per:
+#   - scomporre "Generic Task" in Code task
+#   - routing intelligente (quando le keyword non matchano)
+#   - valutazione yes/no su domande strutturate
+# --------------------------------------------------------------------
+
+[decision_models]
+# Modello attivo per il routing decisionale e scomposizione Generic Task.
+# Scegline UNO tra quelli abilitati sotto. Default: tev1 (più leggero).
+active = "tev1"
+
+# Abilita/disabilita singoli modelli. Solo quelli installati localmente vanno
+# abilitati. Verifica con `ollama list`.
+[decision_models.d3]
+name = "d3:2b"               # alternativa: d3:4b, d3:9b, d3:27b
+enabled = false              # true se hai `ollama pull d3`
+temperature = 0.1
+num_ctx = 4096
+description = "Turn text/data/images into scored choices, yes/no, ratings. 2b-27b."
+
+[decision_models.tev1]
+name = "tev1:4b"             # alternativa: tev1:0.8b
+enabled = true
+temperature = 0.1
+num_ctx = 4096
+description = "Together AI 4B decision model for fast classification."
+
+[decision_models.nimble]
+name = "nimble:9b"
+enabled = false
+temperature = 0.1
+num_ctx = 4096
+description = "Bespoke Labs 9B decision model, typed classification."
+
+[decision_models.clef]
+name = "clef:27b"
+enabled = false
+temperature = 0.1
+num_ctx = 8192
+description = "Cloudflare 27B multimodal decision model. Cloud or local."
+
+[decision_models.clef_flash]
+name = "clef-flash:9b"
+enabled = false
+temperature = 0.1
+num_ctx = 4096
+description = "9B multimodal decision (state + typed schema)."
+
+[decision_models.nimble_v3]
+name = "nimble-v3:9b"
+enabled = false
+temperature = 0.1
+num_ctx = 4096
+description = "Bespoke Labs v3 9B: classification, routing, scoring."
+
+[decision_models.pplx_decider]
+name = "pplx-decider:27b"
+enabled = false
+temperature = 0.1
+num_ctx = 8192
+description = "Perplexity 27B decision, fine-tuned from Qwen3.8-27B."
+
+[decision_models.kev]
+name = "kev"
+enabled = false
+temperature = 0.1
+num_ctx = 4096
+description = "Scores answers to structured questions in one forward pass."
+
+[decision_models.laya]
+name = "laya"
+enabled = false
+temperature = 0.1
+num_ctx = 2048
+description = "Convai 421M decision model (ModernBERT-large based). Ultra light."
+
+[decision_models.strands_decider]
+name = "strands-decider:2b"
+enabled = false
+temperature = 0.1
+num_ctx = 4096
+description = "Strands Agents 2B: classification, routing, scoring."
+
+# --------------------------------------------------------------------
+# Generic Task Planner — usa il decision model attivo per decomporre
+# task "generici" (es. "voglio un tool per fare X") in Code task atomici.
+# --------------------------------------------------------------------
+
+[generic_task_planner]
+enabled = true
+# Numero massimo di Code task che un Generic Task può generare
+max_subtasks = 8
+# Massimo token per la risposta del planner
+max_tokens = 1500
+# Prompt di sistema (puoi customizzarlo). Lasciare così se non sai cosa fare.
+system_prompt = """You are a software task planner. Given a GENERIC task description,
+produce a JSON list of 2-8 ATOMIC code tasks. Each subtask MUST have:
+  - title: short (max 80 chars)
+  - description: detailed, includes file path, language, requirements, test criteria
+  - type: one of "implement", "test", "fix", "document"
+  - priority: 1 (highest) to 5 (lowest)
+  - depends_on: list of subtask indices (0-based) that must complete first
+
+Rules:
+- Each subtask must be implementable in <300 lines of code
+- Use stdlib where possible
+- File paths must start with "project/"
+- Output JSON only, no prose before or after"""
+
+# --------------------------------------------------------------------
+# Thermal Manager (Timestral) — monitor termico + dynamic tuning
+# --------------------------------------------------------------------
+
+[thermal]
+enabled = true
+sample_interval = 30             # secondi tra campioni
+history_max = 2880               # 24h di campioni a 30s
+
+[thermal.thresholds]
+temp_cold = 50.0                 # sotto: ottimizza (tick_multiplier 0.6)
+temp_warm = 65.0                 # sopra: rallenta (tick_multiplier 1.7)
+temp_hot = 80.0                  # sopra: rallenta molto (tick_multiplier 2.5)
+temp_critical = 90.0             # sopra: pausa (nessun dispatch)
+cpu_pause_threshold = 0.95       # CPU load > 95% per 60s = pausa
+
+# --------------------------------------------------------------------
+# Cadenze temporali (secondi). Tutto sfasato per evitare collisioni.
+# --------------------------------------------------------------------
+
+[timing]
+orchestrator_tick = 30        # poll coda
+worker_tick = 60              # esecuzione worker
+health_check = 300            # 5 min
+git_snapshot = 999999         # disabilitato di fatto
+memory_compaction = 3600      # 1 ora
+backup_complete = 86400       # 24 ore
+model_unload_idle = 120       # scarica modello se inattivo
+
+# --------------------------------------------------------------------
+# Sicurezza e limiti.
+# --------------------------------------------------------------------
+
+[safety]
+max_attempts = 10
+max_consecutive_failures = 3
+cooldown_after_failure = 120
+swap_threshold = 0.8
+disk_free_threshold = 1_000_000_000   # 1 GB
+max_log_size = 10_000_000             # 10 MB, poi rotate
+heartbeat_timeout = 300
+max_tasks_per_agent_per_hour = 20
+memory_compaction_threshold = 50
+
+# --------------------------------------------------------------------
+# Sicurezza (vedi security.py e SECURITY.md).
+# I worker eseguono codice generato da LLM piccoli: questi limiti sono
+# la difesa minima. Non disabilitarli in produzione.
+# --------------------------------------------------------------------
+
+[security]
+# REGOLA 0 — la difesa è sempre attiva.
+# Questo flag è ignorato: impostarlo a false non disabilita nulla e produce
+# un evento CRITICAL in logs/security.log. Resta solo per retrocompatibilità.
+enabled = true
+# Output massimo restituito ai worker (caratteri): non satura il contesto.
+max_output_chars = 10000
+# Dimensione massima di un file scritto con write_file (byte).
+max_file_size_write = 2_000_000
+# Dimensione massima di un file creato da un processo figlio (RLIMIT_FSIZE).
+max_file_size_bytes = 50_000_000
+# Memoria massima per singolo processo figlio (MB, RLIMIT_AS).
+max_memory_mb = 1536
+# I comandi bash sono validati in security.py: allowlist + blacklist.
+# I worker NON hanno una shell (niente pipe/redirect/&&).
+# git push/pull/remote add|remove sono disabilitati per i worker.
+
+# --------------------------------------------------------------------
+# Decision model: routing e regole deterministiche.
+# --------------------------------------------------------------------
+
+[routing]
+confidence_threshold = 0.65
+max_files_per_task = 8
+max_file_size_readable = 50000
+timeout_bash = 30
+
+# Keyword che bypassano il pianificatore e vanno dritte al worker.
+[routing.direct_keywords]
+worker_coder = ["implementa", "fix", "refactor", "parser", "bug", "funzione", "classe", "test", "scrivi", "crea", "write", "make", "compila", "build", "hello world", "semplice", "singolo file"]
+worker_general = ["documenta", "commenta", "readme", "spiega"]
+
+# --------------------------------------------------------------------
+# Path del progetto (relativi alla cwd del processo).
+# --------------------------------------------------------------------
+
+[paths]
+project_root = "./project"
+state_dir = "./state"
+tasks_dir = "./tasks"
+logs_dir = "./logs"
+backups_dir = "./backups"
+git_dir = "./project"
+
+# --------------------------------------------------------------------
+# Logging.
+# --------------------------------------------------------------------
+
+[logging]
+level = "DEBUG"               # DEBUG | INFO | WARNING | ERROR
+file = "./logs/byte-swarmy.log"

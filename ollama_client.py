@@ -10,6 +10,7 @@ import json
 import time
 import urllib.request
 import urllib.error
+from pathlib import Path
 from typing import Optional
 
 
@@ -86,7 +87,45 @@ class ModelClient:
                        f"prompt_len={len(prompt)}")
 
         response = self._post("/api/chat", payload)
-        return response.get("message", {}).get("content", "").strip()
+        content = response.get("message", {}).get("content", "").strip()
+        self._save_call_metrics(model_key, model_name, response)
+        return content
+
+    def _save_call_metrics(self, model_key: str, model_name: str,
+                           response: dict) -> None:
+        """Estrae metriche dalla response Ollama e le salva su file.
+        Ollama include nei campi finali: eval_count, eval_duration,
+        prompt_eval_count, load_duration, total_duration.
+        """
+        try:
+            import time as _time
+            metrics = {
+                "timestamp": _time.time(),
+                "model": model_name,
+                "model_key": model_key,
+                "tokens_in": response.get("prompt_eval_count", 0),
+                "tokens_out": response.get("eval_count", 0),
+                "ttft_ms": (
+                    response.get("load_duration", 0)
+                    + response.get("prompt_eval_duration", 0)
+                ) / 1e6,
+                "total_ms": response.get("total_duration", 0) / 1e6,
+                "tokens_per_sec": 0.0,
+                "context_used": 0,
+            }
+            eval_dur_s = response.get("eval_duration", 0) / 1e9
+            if eval_dur_s > 0 and metrics["tokens_out"] > 0:
+                metrics["tokens_per_sec"] = round(
+                    metrics["tokens_out"] / eval_dur_s, 1
+                )
+            metrics["context_used"] = (
+                metrics["tokens_in"] + metrics["tokens_out"]
+            )
+            mfile = Path("state/last_metrics.json")
+            mfile.parent.mkdir(parents=True, exist_ok=True)
+            mfile.write_text(json.dumps(metrics, indent=2))
+        except Exception as e:
+            self.log.debug(f"metrics save failed: {e}")
 
     def embed(self, text: str) -> list:
         """Calcola embedding. Non scarica il modello chat (più leggero)."""

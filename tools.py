@@ -109,7 +109,10 @@ class ToolSet:
     def allowed_tools(self) -> set[str]:
         """Tool che il worker può realmente chiamare."""
         return {
-            "read_file", "write_file", "run_bash", "search",
+            "read_file", "write_file", "patch_code", "run_bash", "search",
+            "analyze_project", "find_references", "lint_code",
+            "rename_symbol", "analyze_complexity", "get_call_graph",
+            "extract_method",
             "git_commit", "git_diff", "git_status", "git_log",
             "git_branch", "git_merge", "git_pull", "git_push", "git_remote",
         }

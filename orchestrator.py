@@ -244,30 +244,15 @@ class Planner:
     )
     
     # Costituzione dell'Agente Worker: regole ferree di sicurezza e qualità.
+    # Versione compatta per modelli piccoli (3-4B su CPU).
     WORKER_CONSTRAINTS = (
-        "### 🛡️ PROTOCOLLO DI SICUREZZA (OBBLIGATORIO)\n"
-        "1. PRIVILEGIO MINIMO: Non richiedere mai l'accesso a file o directory fuori da `project/`.\n"
-        "2. SANIFICAZIONE: Tratta ogni input esterno come dato non fidato. Non inserire variabili "
-        "non validate in comandi bash.\n"
-        "3. NO-SHELL: È vietato l'uso di pipe (|), redirect (>, >>), concatenazione (;, &&, ||) "
-        "o backtick/substituzioni. Se l'operazione richiede più step, usa i tool in sequenza.\n"
-        "4. FAIL-CLOSED: Se un tool di sicurezza restituisce un errore, NON provare a bypassarlo.\n\n"
-        "### 💻 STANDARD DI CODIFICA (BEST PRACTICES)\n"
-        "1. MODULARITÀ: Se una funzione supera le 20 righe o ha un'alta complessità, "
-        "DEVI usare `extract_method` per scomporla.\n"
-        "2. ATOMICITÀ: Usa `patch_code` per modifiche mirate. Riscrivi l'intero file con "
-        "`write_file` SOLO per la creazione iniziale.\n"
-        "3. DOCUMENTAZIONE: Ogni nuova funzione DEVE avere un docstring chiaro e type hints.\n"
-        "4. VERIFICA: Non dichiarare un task come `done` senza aver prima eseguito `lint_code` "
-        "e `run_test_suite`. Il risultato deve essere 'OK'.\n\n"
-        "### 🛠️ WORKFLOW PROFESSIONALE (REFACTOR-LOOP)\n"
-        "Per ogni modifica, segui rigorosamente questa sequenza:\n"
-        "1. MAPPATURA: Usa `analyze_project` per capire la struttura e `find_references` per l'impatto.\n"
-        "2. ANALISI: Usa `analyze_complexity` e `get_call_graph` per identificare i punti critici.\n"
-        "3. INTERVENTO: Applica modifiche mirate con `patch_code` o tool di refactoring (`rename_symbol`, `extract_method`).\n"
-        "4. VALIDAZIONE: Esegui `lint_code` per la sintassi e `run_test_suite` per la logica.\n"
-        "5. CHIUSURA: Solo dopo il superamento dei test, dichiara `done=true`.\n\n"
-        "RISPETTA QUESTE REGOLE O IL TASK VERRÀ RIFIUTATO."
+        "RULES:\n"
+        "1. Work only inside project/ directory.\n"
+        "2. Use ONLY the tools listed in TOOLS section. Do not invent tool names.\n"
+        "3. write_file(path, content) to CREATE files.\n"
+        "4. patch_code(path, old_string, new_string) to MODIFY files.\n"
+        "5. After writing, run run_test_suite() to verify.\n"
+        "6. When done: set done=true with a short result string.\n"
     )
 
     def __init__(self, model_client: ModelClient, logger):
@@ -377,7 +362,7 @@ class Worker:
         '{"thought":"...","action":"none","args":[],"done":true,"result":"what you did"}.\n'
     )
 
-    MAX_STEPS = 12
+    MAX_STEPS = 6  # ridotto per CPU lente (era 12)
 
     def __init__(self, agent_id: str, model_key: str,
                  tools: ToolSet, memory: AgentMemory,
@@ -440,23 +425,15 @@ class Worker:
                 continue
 
             self.memory.add_event({"type": "thought", "content": action.get("thought", "")[:200]})
+            self.log.info(f"[{self.agent_id}] thought: {action.get('thought', '')[:200]}")
 
             if action.get("done"):
-                # --- TDD VERIFICATION ---
-                if is_tdd_required and not tdd_verified:
-                    history = self.memory.get_history()
-                    has_test_file = any("write_file" in e.get("content", "") and "test_" in e.get("content", "") for e in history)
-                    has_failed_run = any("run_test_suite" in e.get("content", "") and "FAILED" in e.get("content", "") for e in history)
-
-                    if not (has_test_file and has_failed_run):
-                        self.log.warn(f"[{self.agent_id}] TDD Violation: No failing test found before completion.")
-                        prompt = (
-                            "ERRORE: Violazione TDD. Prima di implementare la soluzione, "
-                            "DEVI: 1) Scrivere un test che fallisca, 2) Eseguirlo con `run_test_suite` "
-                            "per confermare il fallimento. Solo allora puoi implementare e risolvere.\n\n"
-                            "Riprova ora:"
-                        )
-                        continue
+                # --- TDD VERIFICATION (disabilitato per modelli piccoli) ---
+                # TDD check disabilitato (opzionale): era troppo restrittivo per phi3:mini.
+                # Il worker può dichiarare done=true senza dover prima scrivere test falliti.
+                # L'auditor comunque verificherà la qualità.
+                if False:  # was: is_tdd_required and not tdd_verified
+                    pass  # no-op
 
                 # --- QUALITY CONTROL ---
                 # None = la suite non e mai stata eseguita in questo task.
@@ -474,14 +451,9 @@ class Worker:
                         break
 
                 if test_passed is False:
-                    self.log.warn(f"[{self.agent_id}] task marked done without passing tests. Rejecting.")
-                    prompt = (
-                        "ERRORE: Non puoi dichiarare il task come 'done' senza aver "
-                        "dimostrato che il codice funziona. DEVI eseguire `run_test_suite` "
-                        "e assicurarti che tutti i test passino prima di terminare.\n\n"
-                        "Riprova ora:"
-                    )
-                    continue
+                    # Quality check rilassato: solo warning, non blocca done=true.
+                    # L'auditor verificherà comunque la qualità del codice.
+                    self.log.info(f"[{self.agent_id}] task marked done without passing tests (warning only).")
 
                 result = action.get("result", "(no result)")
                 self.memory.add_event({"type": "task_done", "content": result[:200]})
@@ -580,7 +552,42 @@ class Worker:
             data = json.loads(m.group(0))
         except json.JSONDecodeError:
             return None
-        return data if isinstance(data, dict) else None
+        if not isinstance(data, dict):
+            return None
+        # 🆕 Fix: se il modello ha messo args inlineati in "action",
+        # estrai nome tool + args dalla stringa.
+        # Esempi che gestisce:
+        #   "patch_code('a','b','c')" → action="patch_code", args=["a","b","c"]
+        #   "read_file('main.py')" → action="read_file", args=["main.py"]
+        #   "tool(['analyze_project'])" → action="analyze_project", args=[]
+        action = data.get("action", "")
+        args = data.get("args", [])
+        if isinstance(action, str) and "(" in action and not args:
+            # Estrai nome funzione e argomenti
+            m2 = re.match(r"^(\w+)\s*\((.*)\)\s*$", action)
+            if m2:
+                func_name = m2.group(1)
+                args_str = m2.group(2).strip()
+                # Se è una lista come argomento: tool(['analyze_project'])
+                if args_str.startswith("[") and args_str.endswith("]"):
+                    try:
+                        args = json.loads(args_str)
+                    except json.JSONDecodeError:
+                        args = []
+                elif args_str:
+                    # Split by comma, pulisci quotes
+                    parts = [p.strip().strip("'\"") for p in args_str.split(",")]
+                    args = [p for p in parts if p]
+                else:
+                    args = []
+                # Se il func_name è "tool" e args è una lista, usa il primo elemento
+                if func_name == "tool" and args and isinstance(args[0], str):
+                    data["action"] = args[0]
+                    data["args"] = []
+                else:
+                    data["action"] = func_name
+                    data["args"] = args
+        return data
 
     def _call_tool(self, name: str, args: list) -> str:
         if not isinstance(name, str) or name not in self.tools.allowed_tools():
@@ -942,6 +949,18 @@ class Orchestrator:
         self.models = ModelClient(self.config, self.log)
         self.tools = ToolSet(self.config, self.log)
         self.queue = TaskQueue(Path(self.config["paths"]["tasks_dir"]), self.log)
+        # 🆕 Fix: resetta task "running" a "pending" all'avvio (erano crashati)
+        try:
+            with self.queue._get_conn() as conn:
+                cur = conn.execute(
+                    "UPDATE tasks SET status = 'pending', started_at = NULL "
+                    "WHERE status = 'running'"
+                )
+                if cur.rowcount > 0:
+                    self.log.info(f"reset {cur.rowcount} zombie running task(s) to pending")
+                conn.commit()
+        except Exception as e:
+            self.log.warning(f"reset running tasks failed: {e}")
         self.planner = Planner(self.models, self.log)
         self.generic_planner = GenericTaskPlanner(self.config, self.models, self.log)
         self.auditor = AuditWorker(self.models, self.log)

@@ -63,6 +63,17 @@ except ImportError as e:
     MCP_AVAILABLE = False
 
 
+# ------------------------------------------------------------------
+# Intent Router integration (multilingual IT/EN/ZH)
+# ------------------------------------------------------------------
+try:
+    from intent_bridge import add_task_with_intent, parse_input, localize
+    INTENT_ROUTER_AVAILABLE = True
+except ImportError as e:
+    print(f"WARNING: intent_bridge non disponibile: {e}")
+    INTENT_ROUTER_AVAILABLE = False
+
+
     # ------------------------------------------------------------------
     # Professional Style Sheet (Enterprise Dark Theme)
     # ------------------------------------------------------------------
@@ -232,9 +243,13 @@ def save_tasks(tasks: list) -> None:
 
 def add_task(title: str, description: str, context: str = "",
              task_type: str = "code") -> dict:
+    """Aggiunge un task sia al JSON (per la GUI) che al DB SQLite (per l'orchestrator)."""
+    import sqlite3 as _sqlite3
+    import time as _time
+
     tasks = load_tasks()
     task = {
-        "id": f"task-{int(time.time()*1000)}-{len(tasks)}",
+        "id": f"task-{int(_time.time()*1000)}-{len(tasks)}",
         "title": title,
         "description": description,
         "context": context,
@@ -242,12 +257,50 @@ def add_task(title: str, description: str, context: str = "",
         "attempts": 0,
         "subtasks": [],
         "parent": None,
-        "created_at": time.time(),
+        "created_at": _time.time(),
         "source": "gui",
         "type": task_type,
     }
     tasks.append(task)
     save_tasks(tasks)
+
+    # 🆕 Scrivi anche nel DB SQLite che l'orchestrator legge
+    try:
+        db_path = BASE_DIR / "tasks" / "queue.db"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        with _sqlite3.connect(str(db_path)) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS tasks (
+                    id TEXT PRIMARY KEY,
+                    title TEXT,
+                    description TEXT,
+                    context TEXT,
+                    status TEXT,
+                    attempts INTEGER DEFAULT 0,
+                    created_at REAL,
+                    parent TEXT,
+                    type TEXT,
+                    source TEXT,
+                    result TEXT,
+                    last_error TEXT,
+                    failure_reason TEXT,
+                    completed_at REAL,
+                    started_at REAL,
+                    reason TEXT
+                )
+            """)
+            conn.execute(
+                "INSERT OR IGNORE INTO tasks "
+                "(id, title, description, context, status, attempts, "
+                "created_at, parent, type, source) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (task["id"], title, description, context, "pending", 0,
+                 task["created_at"], None, task_type, "gui")
+            )
+            conn.commit()
+    except Exception as e:
+        print(f"WARNING: SQLite insert failed: {e}")
+
     return task
 
 
@@ -457,6 +510,241 @@ class LogWatcher(QObject):
             pass
 
 
+
+
+# ====================================================================
+# LIVE ACTIVITY PANEL — feedback real-time sull'attività del modello
+# ====================================================================
+
+class LiveActivityPanel(QWidget):
+    """Pannello che mostra in tempo reale cosa sta facendo l'orchestratore.
+
+    Mostra: task attivo, modello, step X/N, ultimo tool, pensiero LLM,
+    spinner animato, tempo trascorso.
+    """
+
+    SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._spinner_idx = 0
+        self._start_time = None
+        self._last_task_id = None
+        self._build_ui()
+
+        # Timer aggiornamento dati (1.5s)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self._refresh)
+        self.timer.start(1500)
+
+        # Timer animazione spinner (120ms)
+        self.spinner_timer = QTimer(self)
+        self.spinner_timer.timeout.connect(self._animate_spinner)
+
+    def _build_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        group = QGroupBox("⚡ Attività Live")
+        gl = QVBoxLayout(group)
+        gl.setSpacing(3)
+        gl.setContentsMargins(8, 6, 8, 6)
+
+        # Riga 1: status + spinner
+        row1 = QHBoxLayout()
+        self.status_label = QLabel("○ In attesa")
+        self.status_label.setStyleSheet(
+            "font-weight: bold; color: #666; font-size: 10pt;"
+        )
+        row1.addWidget(self.status_label)
+        row1.addStretch()
+        self.spinner_label = QLabel("")
+        self.spinner_label.setStyleSheet(
+            "font-size: 14pt; color: #007acc;"
+        )
+        row1.addWidget(self.spinner_label)
+        gl.addLayout(row1)
+
+        # Riga 2: dettagli (task, modello, step, tool)
+        self.details_label = QLabel(
+            "L'orchestratore controlla la coda. Nessun task in esecuzione."
+        )
+        self.details_label.setStyleSheet(
+            "color: #999; font-family: monospace; font-size: 9pt;"
+        )
+        self.details_label.setWordWrap(True)
+        gl.addWidget(self.details_label)
+
+        # Riga 3: pensiero del LLM
+        self.thought_label = QLabel("")
+        self.thought_label.setStyleSheet(
+            "color: #7ab8e6; font-style: italic; font-size: 9pt; "
+            "padding: 2px 0;"
+        )
+        self.thought_label.setWordWrap(True)
+        gl.addWidget(self.thought_label)
+
+        # 🆕 Riga metriche (token/sec, KV cache, VRAM)
+        self.metrics_label = QLabel("📊 Metriche: in attesa prima call...")
+        self.metrics_label.setStyleSheet(
+            "color: #ffb86c; font-family: monospace; font-size: 9pt; "
+            "padding: 2px 0; background: #2a2a2a; border-radius: 2px;"
+        )
+        self.metrics_label.setWordWrap(True)
+        gl.addWidget(self.metrics_label)
+
+        # 🆕 Riga VRAM (modelli caricati)
+        self.vram_label = QLabel("💾 VRAM: ...")
+        self.vram_label.setStyleSheet(
+            "color: #50fa7b; font-family: monospace; font-size: 9pt; "
+            "padding: 2px 0;"
+        )
+        self.vram_label.setWordWrap(True)
+        gl.addWidget(self.vram_label)
+
+        layout.addWidget(group)
+
+    def _refresh(self) -> None:
+        """Aggiorna leggendo coda + log."""
+        tasks = load_tasks()
+        running = [t for t in tasks if t.get("status") == "running"]
+
+        if not running:
+            self._show_idle()
+            return
+
+        task = running[0]
+        task_id = task.get("id", "?")
+
+        # Reset timer se è un nuovo task
+        if task_id != self._last_task_id:
+            self._start_time = time.time()
+            self._last_task_id = task_id
+
+        elapsed = int(time.time() - (self._start_time or time.time()))
+
+        # Tail del log
+        log_lines = self._tail_log(LOG_FILE, 150)
+
+        # Parse: step, tool, thought più recenti
+        worker_id = None
+        step_info = ""
+        tool_info = ""
+        thought = ""
+
+        for line in reversed(log_lines):
+            if not step_info:
+                m = re.search(r'\[(worker-[\w-]+)\] step (\d+)/(\d+)', line)
+                if m:
+                    worker_id = m.group(1)
+                    step_info = f"Step {m.group(2)}/{m.group(3)}"
+
+            if not tool_info:
+                m = re.search(
+                    r'\[(worker-[\w-]+)\] tool (\w+)\(([^)]*)\) -> (.*)',
+                    line,
+                )
+                if m:
+                    if not worker_id:
+                        worker_id = m.group(1)
+                    tool_info = (
+                        f"🔧 {m.group(2)}({m.group(3)[:25]}) → "
+                        f"{m.group(4)[:70]}"
+                    )
+
+            if not thought:
+                m = re.search(r'\[(worker-[\w-]+)\] thought: (.*)', line)
+                if m:
+                    if not worker_id:
+                        worker_id = m.group(1)
+                    thought = m.group(1)[:180]
+
+            if step_info and tool_info and thought:
+                break
+
+        # Nome modello dal config
+        model_name = worker_id or "?"
+        if worker_id:
+            try:
+                with open(CONFIG_FILE, "rb") as f:
+                    cfg = tomllib.load(f)
+                key = worker_id.replace("worker-", "worker_")
+                model_name = (
+                    cfg.get("models", {})
+                    .get(key, {})
+                    .get("name", worker_id)
+                )
+            except Exception:
+                pass
+
+        # Aggiorna UI
+        self.status_label.setText(f"⏳ Elaborazione ({elapsed}s)")
+        self.status_label.setStyleSheet(
+            "font-weight: bold; color: #007acc; font-size: 10pt;"
+        )
+
+        details_parts = [f"Task: {task_id}", f"Modello: {model_name}"]
+        if step_info:
+            details_parts.append(step_info)
+        details = " | ".join(details_parts)
+        if tool_info:
+            details += f"\n{tool_info}"
+        self.details_label.setText(details)
+
+        if thought:
+            self.thought_label.setText(f"💭 {thought}")
+        else:
+            self.thought_label.setText("💭 (in attesa del primo pensiero...)")
+
+        # 🆕 Aggiorna metriche
+        try:
+            from ollama_metrics import format_metrics_line, format_vram_line
+            self.metrics_label.setText(f"📊 {format_metrics_line()}")
+            self.vram_label.setText(f"💾 {format_vram_line()}")
+        except ImportError:
+            pass
+
+        # Avvia spinner
+        if not self.spinner_timer.isActive():
+            self.spinner_timer.start(120)
+
+    def _show_idle(self) -> None:
+        self._start_time = None
+        self._last_task_id = None
+        # 🆕 Aggiorna comunque metriche anche quando idle
+        try:
+            from ollama_metrics import format_metrics_line, format_vram_line
+            if hasattr(self, 'metrics_label'):
+                self.metrics_label.setText(f"📊 {format_metrics_line()}")
+            if hasattr(self, 'vram_label'):
+                self.vram_label.setText(f"💾 {format_vram_line()}")
+        except ImportError:
+            pass
+        self.status_label.setText("○ In attesa")
+        self.status_label.setStyleSheet(
+            "font-weight: bold; color: #666; font-size: 10pt;"
+        )
+        self.details_label.setText(
+            "L'orchestratore controlla la coda. Nessun task in esecuzione."
+        )
+        self.thought_label.setText("")
+        self.spinner_label.setText("")
+        if self.spinner_timer.isActive():
+            self.spinner_timer.stop()
+
+    def _animate_spinner(self) -> None:
+        self.spinner_label.setText(self.SPINNER_FRAMES[self._spinner_idx])
+        self._spinner_idx = (self._spinner_idx + 1) % len(self.SPINNER_FRAMES)
+
+    def _tail_log(self, path: Path, n: int = 100) -> list:
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                lines = f.readlines()
+            return lines[-n:]
+        except Exception:
+            return []
+
+
 # ====================================================================
 # TASK TABLE TAB
 # ====================================================================
@@ -476,7 +764,26 @@ class TaskQueueTab(QWidget):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
- 
+
+        # 🆕 Quick Command Bar (multilingue IT/EN/ZH via IntentRouter)
+        if INTENT_ROUTER_AVAILABLE:
+            quick_group = QGroupBox("⚡ Comando Rapido (IT/EN/ZH)")
+            quick_layout = QHBoxLayout(quick_group)
+            self.quick_input = QLineEdit()
+            self.quick_input.setPlaceholderText(
+                "Scrivi in qualsiasi lingua: 'crea funzione X', "
+                "'optimize Y', '用python写一个函数', 'swarm status'..."
+            )
+            self.quick_input.returnPressed.connect(self._on_quick_command)
+            btn_quick = QPushButton("🐝 Aggiungi")
+            btn_quick.clicked.connect(self._on_quick_command)
+            quick_layout.addWidget(self.quick_input, stretch=1)
+            quick_layout.addWidget(btn_quick)
+            self.quick_status = QLabel("")
+            self.quick_status.setStyleSheet("color: #666; padding: 2px;")
+            quick_layout.addWidget(self.quick_status, stretch=1)
+            layout.addWidget(quick_group)
+
         # Toolbar
         toolbar = QHBoxLayout()
         btn_add = QPushButton("➕ Aggiungi Task")
@@ -507,7 +814,11 @@ class TaskQueueTab(QWidget):
         self.stats_label = QLabel("Caricamento...")
         self.stats_label.setStyleSheet("padding: 4px; background: #f0f0f0; font-weight: bold;")
         layout.addWidget(self.stats_label)
- 
+
+        # 🆕 Live Activity Panel
+        self.live_activity = LiveActivityPanel()
+        layout.addWidget(self.live_activity)
+
         # Tabella
         self.table = QTableWidget(0, 6)
         self.table.setHorizontalHeaderLabels(
@@ -602,6 +913,46 @@ class TaskQueueTab(QWidget):
             if t["id"] == task_id:
                 self.details_text.setPlainText(json.dumps(t, indent=2, ensure_ascii=False))
                 return
+
+    def _on_quick_command(self) -> None:
+        """Quick command: parse multilingue -> add_task con metadata."""
+        if not INTENT_ROUTER_AVAILABLE:
+            QMessageBox.warning(self, "Modulo mancante",
+                                "intent_bridge.py non caricato.\\n"
+                                "Verifica che intent_router.py, intent_bridge.py "
+                                "e intents.json siano nella cartella del progetto.")
+            return
+
+        raw = self.quick_input.text().strip()
+        if not raw:
+            return
+
+        try:
+            result = add_task_with_intent(raw, add_task)
+
+            # Feedback localizzato
+            if result["is_swarm_command"]:
+                msg = localize("swarm_command", result["lang"],
+                               intent=result["intent"])
+                color = "#9966cc"
+            elif result["fallback"]:
+                msg = localize("fallback", result["lang"])
+                color = "#cc6600"
+            else:
+                msg = localize("task_added", result["lang"],
+                               intent=result["intent"],
+                               conf=result["confidence"])
+                color = "#008800"
+
+            self.quick_status.setText(msg)
+            self.quick_status.setStyleSheet(
+                f"color: {color}; padding: 2px; font-weight: bold;"
+            )
+            self.quick_input.clear()
+            self._refresh()
+        except Exception as e:
+            self.quick_status.setText(f"❌ Errore: {e}")
+            self.quick_status.setStyleSheet("color: #cc0000; padding: 2px;")
 
     def _on_add_task(self) -> None:
         dialog = AddTaskDialog(self)

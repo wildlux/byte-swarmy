@@ -225,6 +225,14 @@ def _mount_args(project_root: Path,
         # /opt contiene solo bind read-only (venv, helper): tmpfs temporaneo
         # rimontato read-only subito dopo i bind.
         "--tmpfs", "/opt",
+
+        # /etc come tmpfs vuoto: serve come mount point per --remount-ro.
+
+        # I file necessari sono ro-bindati sotto; --remount-ro finale
+
+        # rende la directory stessa read-only (no /etc/.sandbox-escape).
+
+        "--tmpfs", "/etc",
     ]
 
     # Selettiva `/etc`: il minimo per loader dinamico, risoluzione nomi
@@ -257,6 +265,14 @@ def _mount_args(project_root: Path,
 
     # L'unica directory persistente e scrivibile è il progetto.
     cmd += [
+        # 🛡️ FIX v2: /etc e /opt read-only come directory (non solo i file bindati).
+
+        # Previene la creazione di file arbitrari (es. /etc/.sandbox-escape, /opt/.sandbox-escape).
+
+        "--remount-ro", "/etc",
+
+        "--remount-ro", "/opt",
+
         "--bind", str(project_root), WORKSPACE,
     ]
     return cmd
