@@ -187,8 +187,50 @@ L'obiettivo è trasformare BYTE-SWARMY da un prototipo avanzato a un sistema res
 
 ### 🧹 Igiene del Codice (Incidente escape artifacts)
 - [x] **9b. Eliminazione artefatti di escape** — Riscrittura pulita di `watchdog.py`, `memory.py`, `ast_scanner.py` e regione Worker di `orchestrator.py` (rimossi `\"` literal, `\\n` literal e caratteri `//` iniettati); Quality Control cleanup: rifiuta il `done` solo se la suite è stata eseguita e non è passata. Suite: 47/47 PASS.
-- [ ] **9c. Guardrail anti-corruzione** — Gate nel `write_file`/`patch_code` che browser rifiuta script contenenti artefatti di escape fuori contesto (`\"` fuori da stringa, `\` a fine riga nonda continuazione legittima).
+- [ ] **9c. Guardrail anti-corruzione** — Gate nel `write_file`/`patch_code` che rifiuta script contenenti artefatti di escape fuori contesto (`\"` fuori da stringa, `\` a fine riga non da continuazione legittima).
 
 ### 🔌 USB Analysis (Post-Consolidamento)
 - [ ] **10. Protocol Parser** — Tool per l'analisi dei pacchetti USB (traduzione descrittori, endpoint, analisi payload).
 - [ ] **11. Differential Analysis** — Tool per confrontare due catture USB e isolare i pacchetti di un'azione specifica.
+
+---
+
+## Brutal Honesty — Audit del 2026-10-28 (verifica su codice reale, non teoria)
+
+Report generato verificando il codice attuale riga per riga (non opinioni).
+Fonti: `py_compile` su 24 file, suite 47/47 PASS, boot reale sotto watchdog.
+Nota umiliante: la prima stesura di QUESTA sezione conteneva testo corrotto
+(parole fuse, caratteri spurio). Il difetto e di origine AI, conferma la tesi
+B1 e rende il gate 9c non opzionale.
+
+### Dritti La verita scomoda sui bug di questi giorni
+- [ ] **B1. I bug erano nostri, non del sistema** — Gli artefatti `\\"`, i `//` iniettati e i blocchi duplicati sono stati **prodotti dagli agent AI durante la scrittura del codice**, non da nulla di esterno. Prova: `watchdog.py`, `memory.py`, `ast_scanner.py` e la regione Worker di `orchestrator.py` contenevano lo stesso pattern in giorni diversi. Prevenire la fonte richiede il gate 9c, non rincorrere i sintomi riscrivendo a mano.
+- [ ] **B2. Classe Orchestrator conteneva codice morto significativo** — Un paio `run`/`_tick` duplicato conviveva con quello attivo (l'ultimo definito vince a runtime). Il crash `last_health_check` era il sintomo; la causa radice e che **nessun controllo structure-level legge l'intera classe**: il codice morto e stato scoperto solo oggi, a boot avvenuto.
+- [ ] **B3. Il Quality Control era non funzionante fin dall'inserimento** — Il matcher non corrispondeva a nessuna stringa reale di `run_test_suite` (che emette `FAIL: 0` / `Tutti i test sono passati!`); rifiutava il done anche quando la suite non era MAI stata eseguita, generando potenziali loop infiniti. La suite lo copre solo con un test mockato: la reale `run_test_suite` non e mai stata esercitata dentro il test.
+- [ ] **B4. Il boot reale e stato testato solo oggi (28/10)** — Tutte le verifiche precedenti erano unit test; la prima prova end-to-end ha subito scoperto l'AttributeError e il codice morto. **Una suite green non ha mai garantito che il sistema parta.**
+
+### Candidato Cosa e realmente solido (verificato, non sperato)
+- [x] **V1. Sandbox (bubblewrap) effettivo** — `--unshare-all`, `--cap-drop ALL`, `--die-with-parent`, `--clearenv`, `/home` tmpfs; fail-closed se bwrap manca (l'audit registra `CRITICAL`).
+- [x] **V2. run_bash sotto whitelist** — `validate_bash_command()` (whitelist + pattern bloccati + subcomandi git limitati); tutti i subprocess di `tools.py` passano per il sandbox.
+- [x] **V3. git push/pull/remote disabilitati per i worker** (`_disabled()` + audit).
+- [x] **V4. Suite di test 47/47** e py_compile pulito su tutti i 24 file `.py`.
+
+### Crossout Cosa manca davvero (ordine di priorita)
+- [ ] **M1. Guardrail anti-escape (9c)** — Circa 30 minuti di lavoro; il bug piu costoso del progetto e prevenibile con un check AST/regex al write. **FARE PER PRIMO.**
+- [ ] **M2. Exception Hardening (2)** — Le chiamate LLM/tool sono coperte da try/except ma non c'e una policy centralizzata sugli errori; un Worker che ritorna "ERROR" viene solo marcato, mai analizzato.
+- [ ] **M3. Static Checks (5 — Bandit/Mypy)** — NESSUN riferimento nel codebase (verificato). L'AST scanner copre solo la creazione di file, non la qualita statica dell'intero progetto in esecuzione.
+- [ ] **M4. State Recovery (3)** — Al riavvio la coda persiste ma il contesto dei worker si perde; il ripristino da event-store non e ancora un percorso di recupero reale.
+- [ ] **M5. Backup MAI verificato** — `perform_backup()` esiste ma non e mai stato provato con un restore reale: un backup non verificato e un backup inesistente.
+- [ ] **M6. Mascheratura selettiva /etc** — Oggi `--ro-bind /etc /etc` espone al sandbox tutti i file world-readable; meglio montare solo cio che serve.
+- [ ] **M7. Quota disco su project/** — Il check ogni 30s non vede un `dd` che riempie 50 GB in 10 s.
+- [ ] **M8. Utente dedicato** — Richiede sudo non passwordless; resta una depth defense addizionale da fare manualmente.
+- [ ] **M9. usbmon/tshark ambiente** — `capture_usb_traffic` chiama tshark su `usbmon{bus}`: senza kernel module e tshark installati il tool restituisce errore; l'installazione delle dipendenze non e automatizzata.
+
+### Conector USB (obiettivo dichiarato del progetto — ancora 0% del piano)
+- [ ] **M10. Protocol Parser (10)** — Descrittori/endpoint/payload: **non esiste**.
+- [ ] **M11. Differential Analysis (11)** — Confronto automatico tra due catture: **non esiste**.
+
+### Pin Regole di lavoro da qui in avanti (derivate dai bug)
+- [ ] **R1. Ogni modifica strutturale (`orchestrator.py`, `tools.py`) deve finire con `py_compile` + boot reale sotto watchdog, non solo unit test.**
+- [ ] **R2. Mai considerare "fatto" un gate di sicurezza senza un test che lo provi a livello di interazione reale (modello + pipeline), non solo di singolo modulo.**
+- [ ] **R3. Se un file supera le ~500 righe, prima di aggiungere altro: verificare che la funzionalita non esista gia (gia successo con `run`/`_tick` duplicati).**
