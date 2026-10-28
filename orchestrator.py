@@ -960,62 +960,14 @@ class Orchestrator:
         
         self.memories = {}
         self.running = True
+        # Timer di manutenzione usati dal loop principale (_tick)
+        now = time.time()
+        self.last_health_check = now
+        self.last_git_snapshot = now
+        self.last_memory_compaction = now
+        self.last_backup = now
         signal.signal(signal.SIGINT, self._handle_signal)
         signal.signal(signal.SIGTERM, self._handle_signal)
-
-    def run(self) -> None:
-        tick = self.config["timing"]["orchestrator_tick"]
-        while self.running:
-            try:
-                self._tick()
-            except Exception as e:
-                self.log.error(f"Tick error: {e}", exc_info=True)
-            time.sleep(tick)
-
-    def _tick(self) -> None:
-        # Safety and Thermal check
-        if not self.monitor.check_resources(): return
-        action, mult = self.monitor.get_thermal_advice()
-        if action == "pause": return
-
-        # Maintenance
-        if time.time() - self.last_backup > self.config["timing"]["backup_complete"]:
-            self.lifecycle.perform_backup()
-            self.last_backup = time.time()
-
-        # Dispatch
-        task = self.dispatcher.dispatch_next()
-        if task == "DELEGATE_TO_ORCHESTRATOR":
-            # Logic for worker execution moved here for AgentMemory management
-            # Since dispatch_next() returns the task if it should be executed
-            pass
-        elif task:
-            # Execute with worker
-            model_key = self.dispatcher._select_worker(task)
-            worker = self._build_worker(task["id"], model_key)
-            try:
-                result = worker.execute(task)
-                if result.startswith("ERROR"):
-                    self.queue.mark_failed(task["id"], result)
-                    self.log.warning(f"task {task['id']} failed: {result[:100]}")
-                else:
-                    self.log.info(f"task {task['id']} submitted for audit")
-                    worker_history = worker.memory.get_history()
-                    audit_res = self.auditor.audit(task, result, worker_history)
-                    if audit_res.get("decision") == "APPROVE":
-                        self.log.info(f"task {task['id']} APPROVED by auditor")
-                        self.queue.mark_done(task["id"], result)
-                        self.tools.git_commit(f"task {task['id']}: {task.get('title', '')[:50]}")
-                    else:
-                        feedback = audit_res.get("feedback", "No feedback")
-                        self.log.warning(f"task {task['id']} REJECTED: {feedback[:100]}")
-                        task["description"] += f"\n\n⚠️ AUDIT REJECTION: {feedback}"
-                        self.queue.mark_failed(task["id"], f"AUDIT_REJECT: {feedback}")
-            except Exception as e:
-                self.queue.mark_failed(task["id"], str(e))
-                self.log.error(f"task {task['id']} exception: {e}", exc_info=True)
-
-
 
     # ------------------------------------------------------------------
     # Main loop
