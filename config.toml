@@ -5,7 +5,7 @@
 
 [ollama]
 host = "http://localhost:11434"
-request_timeout = 120
+request_timeout = 300
 
 # --------------------------------------------------------------------
 # Modelli Ollama e relativi parametri di inferenza.
@@ -30,28 +30,28 @@ top_p = 0.9
 top_k = 40
 repeat_penalty = 1.1
 repeat_last_n = 512
-num_ctx = 4096
-num_predict = 1024
+num_ctx = 3072
+num_predict = 512
 
 [models.worker_coder]
-name = "qwen2.5-coder:1.5b"
+name = "phi3:mini"
 temperature = 0.1
 top_p = 0.8
 top_k = 30
 repeat_penalty = 1.15
 repeat_last_n = 512
-num_ctx = 4096
-num_predict = 2048
+num_ctx = 3072
+num_predict = 512
 
 [models.worker_general]
-name = "qwen2.5:1.5b"
+name = "phi3:mini"
 temperature = 0.1
 top_p = 0.8
 top_k = 30
 repeat_penalty = 1.15
 repeat_last_n = 512
-num_ctx = 4096
-num_predict = 2048
+num_ctx = 3072
+num_predict = 512
 
 [models.embedding]
 name = "nomic-embed-text"
@@ -77,21 +77,21 @@ active = "tev1"
 name = "d3:2b"               # alternativa: d3:4b, d3:9b, d3:27b
 enabled = false              # true se hai `ollama pull d3`
 temperature = 0.1
-num_ctx = 4096
+num_ctx = 3072
 description = "Turn text/data/images into scored choices, yes/no, ratings. 2b-27b."
 
 [decision_models.tev1]
 name = "tev1:4b"             # alternativa: tev1:0.8b
 enabled = true
 temperature = 0.1
-num_ctx = 4096
+num_ctx = 3072
 description = "Together AI 4B decision model for fast classification."
 
 [decision_models.nimble]
 name = "nimble:9b"
 enabled = false
 temperature = 0.1
-num_ctx = 4096
+num_ctx = 3072
 description = "Bespoke Labs 9B decision model, typed classification."
 
 [decision_models.clef]
@@ -105,14 +105,14 @@ description = "Cloudflare 27B multimodal decision model. Cloud or local."
 name = "clef-flash:9b"
 enabled = false
 temperature = 0.1
-num_ctx = 4096
+num_ctx = 3072
 description = "9B multimodal decision (state + typed schema)."
 
 [decision_models.nimble_v3]
 name = "nimble-v3:9b"
 enabled = false
 temperature = 0.1
-num_ctx = 4096
+num_ctx = 3072
 description = "Bespoke Labs v3 9B: classification, routing, scoring."
 
 [decision_models.pplx_decider]
@@ -126,7 +126,7 @@ description = "Perplexity 27B decision, fine-tuned from Qwen3.8-27B."
 name = "kev"
 enabled = false
 temperature = 0.1
-num_ctx = 4096
+num_ctx = 3072
 description = "Scores answers to structured questions in one forward pass."
 
 [decision_models.laya]
@@ -140,7 +140,7 @@ description = "Convai 421M decision model (ModernBERT-large based). Ultra light.
 name = "strands-decider:2b"
 enabled = false
 temperature = 0.1
-num_ctx = 4096
+num_ctx = 3072
 description = "Strands Agents 2B: classification, routing, scoring."
 
 # --------------------------------------------------------------------

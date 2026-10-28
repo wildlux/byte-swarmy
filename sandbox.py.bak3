@@ -1,0 +1,401 @@
+"""
+sandbox.py — esecuzione di processi non fidati in un sandbox bubblewrap.
+
+Il codice generato dai worker (e i comandi git che possono eseguire hook) non
+viene mai eseguito direttamente sull'host. Ogni processo esterno viene lanciato
+dentro un namespace creato da `bwrap`:
+
+- filesystem: solo `/usr`, `/etc`, il venv e `project/` (montato su `/workspace`);
+- niente home reale: `/home` è un tmpfs con la sola directory `sandbox`;
+- niente rete: network namespace separato;
+- PID, IPC, UTS e user namespace separati;
+- capability droppate, `no_new_privs`, nesting degli user namespace disabilitato;
+- ambiente ripulito: solo variabili esplicite.
+
+Se `bwrap` non è disponibile il modulo fallisce chiuso: `tools.py` restituisce
+un errore invece di eseguire il comando sull'host.
+
+Richiede Linux con user namespace non privilegiati abilitati.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+from typing import Iterable, Mapping, Optional, Sequence
+
+BWRAP = shutil.which("bwrap")
+WORKSPACE = "/workspace"
+VENV_TARGET = "/opt/venv"
+HELPER_TARGET = "/opt/byte-swarmy/sandbox_selftest.py"
+SANDBOX_HOME = "/home/sandbox"
+
+_available: Optional[bool] = None
+_probe_error: str = ""
+_disable_userns: Optional[bool] = None
+
+
+def supports_disable_userns() -> bool:
+    """True se questo bubblewrap supporta `--disable-userns` (>= 0.11)."""
+    global _disable_userns
+    if _disable_userns is None:
+        if not BWRAP:
+            _disable_userns = False
+        else:
+            try:
+                out = subprocess.run(
+                    [BWRAP, "--help"],
+                    capture_output=True, text=True, timeout=5,
+                )
+                text = (out.stdout or "") + (out.stderr or "")
+                _disable_userns = "--disable-userns" in text
+            except Exception:
+                _disable_userns = False
+    return _disable_userns
+
+
+class SandboxError(RuntimeError):
+    """bwrap assente, non funzionante o configurazione non valida."""
+
+
+def bwrap_version() -> Optional[str]:
+    if not BWRAP:
+        return None
+    try:
+        out = subprocess.run(
+            [BWRAP, "--version"],
+            capture_output=True, text=True, timeout=5,
+        )
+        return (out.stdout or out.stderr).strip() or None
+    except Exception:
+        return None
+
+
+def _probe() -> bool:
+    """Verifica che bwrap possa creare un sandbox in questo ambiente."""
+    global _available, _probe_error
+    if _available is not None:
+        return _available
+
+    if not BWRAP:
+        _probe_error = "bwrap non installato (apt install bubblewrap)"
+        _available = False
+        return False
+
+    cmd = [
+        BWRAP,
+        "--unshare-all", "--unshare-user",
+        "--cap-drop", "ALL", "--die-with-parent",
+        "--ro-bind", "/usr", "/usr",
+        "--symlink", "usr/bin", "/bin",
+        "--symlink", "usr/lib", "/lib",
+        "--symlink", "usr/lib64", "/lib64",
+        "--proc", "/proc", "--dev", "/dev",
+        "/usr/bin/true",
+    ]
+    if supports_disable_userns():
+        cmd.insert(3, "--disable-userns")
+    try:
+        proc = subprocess.run(
+            cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE, text=True, timeout=8,
+        )
+        _available = proc.returncode == 0
+        if not _available:
+            _probe_error = (proc.stderr or "").strip()[:500] or (
+                f"bwrap ha restituito {proc.returncode}"
+            )
+    except Exception as exc:  # pragma: no cover - dipende dal kernel
+        _available = False
+        _probe_error = f"{type(exc).__name__}: {exc}"
+    return _available
+
+
+def is_available() -> bool:
+    return _probe()
+
+
+def backend_info() -> dict:
+    """Informazioni per GUI/diagnostica."""
+    ok = is_available()
+    hardened = supports_disable_userns()
+    return {
+        "available": ok,
+        "backend": "bubblewrap",
+        "bwrap": BWRAP or "",
+        "version": bwrap_version() if ok else None,
+        "error": "" if ok else _probe_error,
+        "workspace": WORKSPACE,
+        # `--disable-userns` blocca la creazione di user namespace annidati.
+        "hardened": hardened,
+        "userns_nesting_blocked": hardened,
+        "degraded": ok and not hardened,
+    }
+
+
+def _venv_root() -> Optional[Path]:
+    """Se stiamo girando in un venv, montalo read-only dentro il sandbox."""
+    prefix = Path(sys.prefix)
+    if sys.prefix != sys.base_prefix and (prefix / "bin" / "python").exists():
+        return prefix
+    return None
+
+
+def python_executable() -> str:
+    """Path del Python disponibile dentro il sandbox."""
+    return f"{VENV_TARGET}/bin/python" if _venv_root() else "/usr/bin/python3"
+
+
+def sandbox_env(extra: Optional[Mapping[str, str]] = None) -> dict:
+    """Ambiente minimo e prevedibile per il processo sandboxato."""
+    venv = _venv_root()
+    path = f"{VENV_TARGET}/bin:/usr/local/bin:/usr/bin:/bin" if venv else (
+        "/usr/local/bin:/usr/bin:/bin"
+    )
+    env = {
+        "PATH": path,
+        "HOME": SANDBOX_HOME,
+        "TMPDIR": "/tmp",
+        "TMP": "/tmp",
+        "TEMP": "/tmp",
+        "USER": "sandbox",
+        "LOGNAME": "sandbox",
+        "SHELL": "/bin/sh",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "TERM": "dumb",
+        "PAGER": "cat",
+        "GIT_PAGER": "cat",
+        "GIT_TERMINAL_PROMPT": "0",
+        "GIT_ASKPASS": "/bin/true",
+        "SSH_ASKPASS": "/bin/true",
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_SYSTEM": os.devnull,
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONIOENCODING": "utf-8",
+        "PYTHONNOUSERSITE": "1",
+    }
+    if extra:
+        env.update({str(k): str(v) for k, v in extra.items()})
+    return env
+
+
+def _mount_args(project_root: Path,
+                extra_ro_binds: Iterable[tuple[str, str]] = (),
+                allow_network: bool = False) -> list[str]:
+    cmd = [
+        BWRAP or "bwrap",
+        "--unshare-all",
+        "--unshare-user",
+        "--cap-drop", "ALL",
+        "--die-with-parent",
+        "--new-session",
+        "--hostname", "byte-swarmy-sandbox",
+    ]
+    if supports_disable_userns():
+        # Impedisce al codice sandboxato di creare nuovi user namespace.
+        cmd.append("--disable-userns")
+    if allow_network:
+        # Solo per diagnostica: il default è nessuna rete.
+        cmd.append("--share-net")
+
+    cmd += [
+        # Sistema minimo, read-only. `/etc` NON e piu montato per intero:
+        # bind selettivo solo dei file che glibc/python richiedono (M6),
+        # niente segreti (/etc/shadow, /etc/ssh, credentials non esistono
+        # per il processo sandboxato).
+        "--ro-bind", "/usr", "/usr",
+        "--symlink", "usr/bin", "/bin",
+        "--symlink", "usr/sbin", "/sbin",
+        "--symlink", "usr/lib", "/lib",
+        "--symlink", "usr/lib64", "/lib64",
+        # Pseudo-filesystem.
+        "--proc", "/proc",
+        "--dev", "/dev",
+        # Scrivibili ma volatili: niente persistenza fuori dal progetto.
+        "--tmpfs", "/tmp",
+        "--tmpfs", "/home",
+        "--tmpfs", "/run",
+        "--dir", SANDBOX_HOME,
+        # /opt contiene solo bind read-only (venv, helper): tmpfs temporaneo
+        # rimontato read-only subito dopo i bind.
+        "--tmpfs", "/opt",
+    ]
+
+    # Selettiva `/etc`: il minimo per loader dinamico, risoluzione nomi
+    # locale e account sintetici. Tutto il resto di /etc non esiste qui.
+    _etc_files = (
+        "ld.so.cache", "ld.so.conf", "nsswitch.conf",
+        "passwd", "group", "hosts", "localtime", "gai.conf",
+    )
+    _etc_dirs = ("ld.so.conf.d", "ssl")
+    for name in _etc_files:
+        p = Path("/etc") / name
+        if p.is_file():
+            cmd += ["--ro-bind", str(p), str(p)]
+    for name in _etc_dirs:
+        d = Path("/etc") / name
+        if d.is_dir():
+            cmd += ["--ro-bind", str(d), str(d)]
+
+    venv = _venv_root()
+    if venv is not None:
+        cmd += ["--ro-bind", str(venv), VENV_TARGET]
+
+    for src, dest in extra_ro_binds:
+        parent = str(Path(dest).parent)
+        if parent not in ("/", ""):
+            cmd += ["--dir", parent]
+        cmd += ["--ro-bind", str(src), str(dest)]
+
+    cmd += ["--remount-ro", "/opt"]
+
+    # L'unica directory persistente e scrivibile è il progetto.
+    cmd += [
+        # 🛡️ FIX v2: /etc e /opt read-only come directory (non solo i file bindati).
+
+        # Previene la creazione di file arbitrari (es. /etc/.sandbox-escape, /opt/.sandbox-escape).
+
+        "--remount-ro", "/etc",
+
+        "--remount-ro", "/opt",
+
+        "--bind", str(project_root), WORKSPACE,
+    ]
+    return cmd
+
+
+def sandbox_workdir(cwd: str | Path | None, project_root: str | Path) -> str:
+    """Traduce una cwd sull'host nel path corrispondente dentro il sandbox.
+
+    Solo `project_root` e le sue sottodirectory sono rappresentabili: qualunque
+    altro path viene rifiutato (fail closed).
+    """
+    root = Path(project_root).resolve()
+    if cwd is None:
+        return WORKSPACE
+    target = Path(cwd)
+    if not target.is_absolute():
+        target = (root / target)
+    try:
+        target = target.resolve()
+        rel = target.relative_to(root)
+    except (ValueError, OSError) as exc:
+        raise SandboxError(
+            f"workdir fuori dal progetto: {cwd}"
+        ) from exc
+    if not rel.parts:
+        return WORKSPACE
+    return f"{WORKSPACE}/{rel.as_posix()}"
+
+
+def build_command(argv: Sequence[str], project_root: str | Path,
+                  extra_ro_binds: Iterable[tuple[str, str]] = (),
+                  extra_env: Optional[Mapping[str, str]] = None,
+                  allow_network: bool = False,
+                  workdir: str = WORKSPACE) -> tuple[list[str], dict]:
+    """Costruisce `(comando bwrap, ambiente)` per eseguire argv nel sandbox."""
+    if not is_available():
+        raise SandboxError(_probe_error or "bubblewrap non disponibile")
+    if not argv:
+        raise SandboxError("comando vuoto")
+
+    root = Path(project_root).resolve()
+    if not root.is_dir():
+        raise SandboxError(f"project root inesistente: {root}")
+    if not workdir.startswith("/") or ".." in Path(workdir).parts:
+        raise SandboxError(f"workdir sandbox non valido: {workdir}")
+
+    env = sandbox_env(extra_env)
+    cmd = _mount_args(root, extra_ro_binds, allow_network)
+    cmd += ["--clearenv"]
+    for key, value in env.items():
+        cmd += ["--setenv", key, value]
+    cmd += ["--chdir", workdir, "--", *[str(a) for a in argv]]
+    return cmd, env
+
+
+def run_selftest(project_root: str | Path, timeout: int = 30) -> dict:
+    """Esegue sandbox_selftest.py dentro il sandbox e ne ritorna il JSON."""
+    helper = Path(__file__).with_name("sandbox_selftest.py").resolve()
+    if not helper.is_file():
+        return {
+            "ok": False,
+            "available": is_available(),
+            "error": f"helper mancante: {helper}",
+            "checks": [],
+        }
+    if not is_available():
+        return {
+            "ok": False,
+            "available": False,
+            "error": _probe_error or "bubblewrap non disponibile",
+            "checks": [],
+        }
+
+    python_in_sandbox = python_executable()
+    extra_env = {
+        "SANDBOX_HOST_PID": str(os.getpid()),
+        "SANDBOX_HOST_HOME": str(Path.home()),
+        "SANDBOX_DISABLE_USERNS": "1" if supports_disable_userns() else "0",
+    }
+    try:
+        cmd, env = build_command(
+            [python_in_sandbox, HELPER_TARGET, "--json"],
+            project_root,
+            extra_ro_binds=[(str(helper), HELPER_TARGET)],
+            extra_env=extra_env,
+        )
+        proc = subprocess.run(
+            cmd,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=env,
+            timeout=timeout,
+        )
+    except SandboxError as exc:
+        return {
+            "ok": False,
+            "available": False,
+            "error": str(exc),
+            "checks": [],
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            "ok": False,
+            "available": True,
+            "error": f"timeout dopo {timeout}s",
+            "checks": [],
+        }
+
+    stdout = (proc.stdout or "").strip()
+    if not stdout:
+        return {
+            "ok": False,
+            "available": True,
+            "error": (proc.stderr or "nessun output").strip()[:800],
+            "checks": [],
+        }
+    try:
+        data = json.loads(stdout.splitlines()[-1])
+    except json.JSONDecodeError:
+        return {
+            "ok": False,
+            "available": True,
+            "error": f"output non JSON: {stdout[-500:]}",
+            "checks": [],
+        }
+    data.setdefault("available", True)
+    data.setdefault("checks", [])
+    if proc.returncode != 0:
+        data["ok"] = False
+    return data

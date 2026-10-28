@@ -43,5 +43,18 @@
     "started_at": 1792869606.1212244,
     "result": "Added hello_world.c to staging area.",
     "completed_at": 1792869610.933234
+  },
+  {
+    "id": "task-1793222253573-3",
+    "title": "crea funzione fattoriale in python",
+    "description": "crea funzione fattoriale in python",
+    "context": "",
+    "status": "pending",
+    "attempts": 0,
+    "subtasks": [],
+    "parent": null,
+    "created_at": 1793222253.5733767,
+    "source": "gui",
+    "type": "code"
   }
 ]
