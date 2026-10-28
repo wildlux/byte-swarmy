@@ -348,7 +348,7 @@ class Worker:
         "  rename_symbol(symbol, new_name)\n"
         "  analyze_complexity(path)\n"
         "  get_call_graph(symbol)\n"
-        "  extract_method(path, start_line, end_line, new_//name)\n"
+        "  extract_method(path, start_line, end_line, new_name)\n"
         "  run_bash(cmd)\n"
         "  search(pattern, glob)\n"
         "  git_status()\n"
@@ -431,160 +431,109 @@ class Worker:
             if not action:
                 self.memory.add_event({"type": "parse_error", "content": raw[:300]})
                 prompt = (
-                    \"ERRORE: la risposta non era JSON valido. \"
-                    \"Rispondi con SOLO un oggetto JSON, niente testo prima o dopo.\\n\"
-                    \"Formato: {\\\"thought\\\": \\\"...\\\", \\\"action\\\": \\\"tool_name\\\", \"
-                    \"\\\"args\\\": [...], \\\"done\\\": false}\\n\\n\"
-                    \"Riprova ora:\"
+                    "ERRORE: la risposta non era JSON valido. "
+                    "Rispondi con SOLO un oggetto JSON, niente testo prima o dopo.\n"
+                    'Formato: {"thought": "...", "action": "tool_name", '
+                    '"args": [...], "done": false}\n\n'
+                    "Riprova ora:"
                 )
                 continue
 
-            self.memory.add_event({\"type\": \"thought\", \"content\": action.get(\"thought\", \"\")[:200]})
+            self.memory.add_event({"type": "thought", "content": action.get("thought", "")[:200]})
 
-            if action.get(\"done\"):
+            if action.get("done"):
                 # --- TDD VERIFICATION ---
                 if is_tdd_required and not tdd_verified:
                     history = self.memory.get_history()
                     has_test_file = any("write_file" in e["content"] and "test_" in e["content"] for e in history)
                     has_failed_run = any("run_test_suite" in e["content"] and "FAILED" in e["content"] for e in history)
-                    
+
                     if not (has_test_file and has_failed_run):
                         self.log.warn(f"[{self.agent_id}] TDD Violation: No failing test found before completion.")
                         prompt = (
                             "ERRORE: Violazione TDD. Prima di implementare la soluzione, "
-                            "DEVI: 1) Scrivere un test che fallisca, 2) Eseguirlo con `run_test_//suite` "
+                            "DEVI: 1) Scrivere un test che fallisca, 2) Eseguirlo con `run_test_suite` "
                             "per confermare il fallimento. Solo allora puoi implementare e risolvere.\n\n"
                             "Riprova ora:"
                         )
                         continue
 
                 # --- QUALITY CONTROL ---
+                # None = la suite non e mai stata eseguita in questo task.
+                # Si rifiuta il done solo se la suite e stata eseguita e non e passata.
                 history = self.memory.get_history()
-                test_passed = False
+                test_passed = None
                 for event in reversed(history):
-                    if event[\"type\"] == \"tool_result\" and \"run_test_suite\" in event[\"content\"]:
-                        if \"TUTTI i test sono passati\" in event[\"content\"] or \"TUTTO OK\" in event[\"content\"]:\n                            test_passed = True
+                    if event["type"] == "tool_result" and "run_test_suite" in event["content"]:
+                        c = event["content"]
+                        test_passed = (
+                            "TUTTO OK" in c
+                            or "tutti i test sono passati" in c.lower()
+                            or ("FAIL: 0" in c and "ERR: 0" in c)
+                        )
                         break
-                
-                if not test_passed:
-                    self.log.warn(f\"[{self.agent_id}] task marked done without passing tests. Rejecting.\")
+
+                if test_passed is False:
+                    self.log.warn(f"[{self.agent_id}] task marked done without passing tests. Rejecting.")
                     prompt = (
-                        \"ERRORE: Non puoi dichiarare il task come 'done' senza aver \"
-                        \"dimostrato che il codice funziona. DEVI eseguire `run_test_suite` \"
-                        \"e assicurarti che tutti i test passino prima di terminare.\\n\\n\"
-                        \"Riprova ora:\"
+                        "ERRORE: Non puoi dichiarare il task come 'done' senza aver "
+                        "dimostrato che il codice funziona. DEVI eseguire `run_test_suite` "
+                        "e assicurarti che tutti i test passino prima di terminare.\n\n"
+                        "Riprova ora:"
                     )
                     continue
 
-                result = action.get(\"result\", \"(no result)\")
-                self.memory.add_event({\"type\": \"task_done\", \"content\": result[:200]})
+                result = action.get("result", "(no result)")
+                self.memory.add_event({"type": "task_done", "content": result[:200]})
                 return result
 
             # Esegui il tool
-            tool_name = action.get(\"action\")
-            args = action.get(\"args\", [])
-            
+            tool_name = action.get("action")
+            args = action.get("args", [])
+
             # --- CIRCUIT BREAKER CHECK ---
-            action_key = f\"{tool_name}:{json.dumps(args)}\"
+            action_key = f"{tool_name}:{json.dumps(args)}"
             repeated_actions[action_key] = repeated_actions.get(action_key, 0) + 1
             if repeated_actions[action_key] >= 3:
-                self.log.warning(f\"[{self.agent_id}] CIRCUIT BREAKER: Action {tool_name} repeated 3x with same args. Forcing pivot.\")
+                self.log.warning(f"[{self.agent_id}] CIRCUIT BREAKER: Action {tool_name} repeated 3x with same args. Forcing pivot.")
                 prompt = (
-                    f\"ERRORE: Hai provato a eseguire {tool_name}({args}) per 3 volte con lo stesso risultato. \"
-                    \"Il sistema ha bloccato questa azione. ANALIZZA perché non funziona e cambia completamente approccio. \"
-                    \"Non ripetere l'azione.\\n\\n\"
-                    \"Next step (JSON only):\"
+                    f"ERRORE: Hai provato a eseguire {tool_name}({args}) per 3 volte con lo stesso risultato. "
+                    "Il sistema ha bloccato questa azione. ANALIZZA perché non funziona e cambia completamente approccio. "
+                    "Non ripetere l'azione.\n\n"
+                    "Next step (JSON only):"
                 )
                 continue
 
             tool_result = self._call_tool(tool_name, args)
 
-            if tool_name == \"write_file\" and tool_result.startswith(\"OK:\"):
+            if tool_name == "write_file" and tool_result.startswith("OK:"):
                 wrote_file = True
             last_tool_result = tool_result
 
             self.memory.add_event({
-                \"type\": \"tool_result\",
-                \"content\": f\"{tool_name}({args}) -> {tool_result[:200]}\",
+                "type": "tool_result",
+                "content": f"{tool_name}({args}) -> {tool_result[:200]}",
             })
-            self.log.info(f\"[{self.agent_id}] tool {tool_name}({args[:1] if args else ''}) -> {tool_result[:120]}\")
+            self.log.info(f"[{self.agent_id}] tool {tool_name}({args[:1] if args else ''}) -> {tool_result[:120]}")
 
             # Track TDD progress
-            if tool_name == \"run_test_suite\" and \"FAILED\" in tool_result.upper():
+            if tool_name == "run_test_suite" and "FAILED" in tool_result.upper():
                 tdd_verified = True
 
             # Aggiungi al prompt per il prossimo step
-            if tool_result.startswith(\"ERROR:\"):
+            if tool_result.startswith("ERROR:"):
                 prompt = (
-                    f\"Last action: {tool_name}({args})\\n\"
-                    f\"Result: ❌ {tool_result[:2000]}\\n\\n\"
-                    \"The previous tool call failed. Analyze the error and try a different approach. \"
-                    \"Do not repeat the same failing command.\\n\\n\"
-                    \"Next step (JSON only):\"
+                    f"Last action: {tool_name}({args})\n"
+                    f"Result: ❌ {tool_result[:2000]}\n\n"
+                    "The previous tool call failed. Analyze the error and try a different approach. "
+                    "Do not repeat the same failing command.\n\n"
+                    "Next step (JSON only):"
                 )
             else:
                 prompt = (
-                    f\"Last action: {tool_name}({args})\\n\"
-                    f\"Result:\\n{tool_result[:2000]}\\n\\n\"
-                    \"Next step (JSON only):\"
-                )
-
-                # --- QUALITY CONTROL ---
-                history = self.memory.get_history()
-                test_passed = False
-                for event in reversed(history):
-                    if event[\"type\"] == \"tool_result\" and \"run_test_suite\" in event[\"content\"]:
-                        if \"TUTTI i test sono passati\" in event[\"content\"] or \"TUTTO OK\" in event[\"content\"]:\n                            test_passed = True
-                        break
-                
-                if not test_passed:
-                    self.log.warn(f\"[{self.agent_id}] task marked done without passing tests. Rejecting.\")
-                    prompt = (
-                        \"ERRORE: Non puoi dichiarare il task come 'done' senza aver \"
-                        \"dimostrato che il codice funziona. DEVI eseguire `run_test_suite` \"
-                        \"e assicurarti che tutti i test passino prima di terminare.\\n\\n\"
-                        \"Riprova ora:\"
-                    )
-                    continue
-
-                result = action.get(\"result\", \"(no result)\")
-                self.memory.add_event({\"type\": \"task_done\", \"content\": result[:200]})
-                return result
-
-            # Esegui il tool
-            tool_name = action.get(\"action\")
-            args = action.get(\"args\", [])
-            tool_result = self._call_tool(tool_name, args)
-
-            if tool_name == \"write_file\" and tool_result.startswith(\"OK:\"):
-                wrote_file = True
-            last_tool_result = tool_result
-
-            self.memory.add_event({
-                \"type\": \"tool_result\",
-                \"content\": f\"{tool_name}({args}) -> {tool_result[:200]}\",
-            })
-            self.log.info(f\"[{self.agent_id}] tool {tool_name}({args[:1] if args else ''}) -> {tool_result[:120]}\")
-
-            # Track TDD progress
-            if tool_name == \"run_test_suite\" and \"FAILED\" in tool_result.upper():
-                tdd_verified = True
-
-            # Aggiungi al prompt per il prossimo step
-            # If the tool failed (result starts with ERROR), we make it more explicit
-            if tool_result.startswith(\"ERROR:\"):
-                prompt = (
-                    f\"Last action: {tool_name}({args})\\n\"
-                    f\"Result: ❌ {tool_result[:2000]}\\n\\n\"
-                    \"The previous tool call failed. Analyze the error and try a different approach. \"
-                    \"Do not repeat the same failing command.\\n\\n\"
-                    \"Next step (JSON only):\"
-                )
-            else:
-                prompt = (
-                    f\"Last action: {tool_name}({args})\\n\"
-                    f\"Result:\\n{tool_result[:2000]}\\n\\n\"
-                    \"Next step (JSON only):\"
+                    f"Last action: {tool_name}({args})\n"
+                    f"Result:\n{tool_result[:2000]}\n\n"
+                    "Next step (JSON only):"
                 )
 
         # FALLBACK: se abbiamo scritto almeno un file con successo, consideriamo done
@@ -1060,7 +1009,7 @@ class Orchestrator:
                     else:
                         feedback = audit_res.get("feedback", "No feedback")
                         self.log.warning(f"task {task['id']} REJECTED: {feedback[:100]}")
-                        task["description"] += f"\\n\\n⚠️ AUDIT REJECTION: {feedback}"
+                        task["description"] += f"\n\n⚠️ AUDIT REJECTION: {feedback}"
                         self.queue.mark_failed(task["id"], f"AUDIT_REJECT: {feedback}")
             except Exception as e:
                 self.queue.mark_failed(task["id"], str(e))

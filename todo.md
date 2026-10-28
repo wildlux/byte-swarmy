@@ -168,21 +168,26 @@ L'obiettivo è elevare il sistema a standard Enterprise, introducendo una catena
 L'obiettivo è trasformare BYTE-SWARMY da un prototipo avanzato a un sistema resiliente e stabile. Prima di aggiungere nuove feature, ci concentriamo sulla sopravvivenza del sistema e sulla eliminazione della fragilità strutturale.
 
 ### 🏗️ Resilienza dell'Orchestratore (Crash-Proofing)
-- [ ] **1. System Watchdog** — Implementazione di un processo supervisore che monitora l'orchestratore e lo riavvia istantaneamente in caso di crash, garantendo la continuità del servizio.
+- [x] **1. System Watchdog** — Implementazione di un processo supervisore che monitora l'orchestratore e lo riavvia istantaneamente in caso di crash, garantendo la continuità del servizio (`watchdog.py`, `avvia.sh` avvia il watchdog).
 - [ ] **2. Exception Hardening** — Revisione di ogni punto di chiamata LLM e Tool per gestire ogni possibile eccezione senza abbattere il loop principale.
 - [ ] **3. State Recovery** — Ottimizzazione del ripristino dello stato da SQLite al riavvio, per minimizzare la perdita di contesto tra un crash e un restart.
+- [x] **2b. Circuit Breaker** — In `Worker.execute`: 3 azioni identiche (tool + args) forzano un pivot di prompt obbligatorio; il worker non può più ciclare all'infinito.
 
 ### 🛡️ Validazione Deterministica (Zero-Trust)
-- [ ] **4. AST Security Scanner** — Implementazione di uno scanner basato su Abstract Syntax Trees (AST) per bloccare l'esecuzione di codice Python pericoloso prima che entri nel sandbox.
+- [x] **4. AST Security Scanner** — Implementazione di uno scanner basato su Abstract Syntax Trees (AST) per bloccare l'esecuzione di codice Python pericoloso prima che entri nel sandbox (`ast_scanner.py`, gate obbligatorio in `write_file`).
 - [ ] **5. Mandatory Static Checks** — Integrazione di `Bandit` e `Mypy` come gate obbligatori: se il codice non passa l'analisi statica, non viene nemmeno provato l'avvio.
 
 ### 🧠 Memoria Immutabile (Event Sourcing)
-- [ ] **6. Event Sourcing Architecture** — Passaggio da "riassunti" a un log immutabile di eventi. Il riassunto diventa una vista, non la fonte della verità.
+- [x] **6. Event Sourcing Architecture** — Passaggio da "riassunti" a un log immutabile di eventi (`SQLiteMemoryProvider`); il riassunto diventa una vista (`is_summary=1`), non la fonte della verità.
 - [ ] **7. Memory Integrity Check** — Sistema di validazione dei buffer di memoria per prevenire il "drift" (perdita di contesto) durante la compattazione.
 
 ### 🔒 Hardening di Sistema Obbligatorio
-- [ ] **8. Mandatory Isolation Check** — L'orchestratore deve verificare all'avvio se l'isolamento (utente dedicato/cgroups) è attivo; in caso contrario, attiva la "Safe Mode" con restrizioni estreme.
+- [x] **8. Mandatory Isolation Check** — L'orchestratore verifica all'avvio se l'isolamento è attivo (`security_checks.check_isolation`); in caso contrario attiva la "Safe Mode" con restrizioni estreme (`apply_safe_mode`).
 - [ ] **9. Automated Hardening Flow** — Integrazione di `setup-hardening.sh` nel flusso di installazione guidata per ridurre l'attrito dell'utente.
+
+### 🧹 Igiene del Codice (Incidente escape artifacts)
+- [x] **9b. Eliminazione artefatti di escape** — Riscrittura pulita di `watchdog.py`, `memory.py`, `ast_scanner.py` e regione Worker di `orchestrator.py` (rimossi `\"` literal, `\\n` literal e caratteri `//` iniettati); Quality Control cleanup: rifiuta il `done` solo se la suite è stata eseguita e non è passata. Suite: 47/47 PASS.
+- [ ] **9c. Guardrail anti-corruzione** — Gate nel `write_file`/`patch_code` che browser rifiuta script contenenti artefatti di escape fuori contesto (`\"` fuori da stringa, `\` a fine riga nonda continuazione legittima).
 
 ### 🔌 USB Analysis (Post-Consolidamento)
 - [ ] **10. Protocol Parser** — Tool per l'analisi dei pacchetti USB (traduzione descrittori, endpoint, analisi payload).
