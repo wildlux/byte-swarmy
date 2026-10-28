@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import os
 import time
+import subprocess
 import threading
 from collections import deque
 from dataclasses import dataclass, asdict, field
@@ -47,6 +48,7 @@ class ThermalSample:
     swap_used_ratio: float   # 0.0 - 1.0
     n_processes: int
 
+    gpu_temp: float = 0.0  # GPU temp (NVIDIA), 0.0 if no GPU
     def to_dict(self) -> dict:
         return asdict(self)
 
