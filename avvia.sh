@@ -103,9 +103,9 @@ if ! curl -s http://localhost:11434/api/tags | grep -q "qwen2.5:0.5b" 2>/dev/nul
     echo "    L'orchestratore potrebbe fallire."
     echo "    Per installare tutti i modelli: ./setup.sh"
     echo
-    read -p "Continuare comunque? (s/N) " -n 1 -r
+    read -p "Continuare comunque? (S/N) " -n 1 -r
     echo
-    [[ $REPLY =~ ^[Ss]$ ]] || exit 1
+    [[ $REPLY =~ ^[Nn]$ ]] || exit 1
 fi
 
 # File di stato
@@ -133,7 +133,7 @@ start_orchestrator() {
         return 0
     fi
     echo "🐝 Avvio orchestratore via Watchdog..."
-    nohup python watchdog.py > logs/watchdog.log 2>&1 &
+    nohup python -m SAFETY.watchdog > logs/watchdog.log 2>&1 &
     echo $! > "$PID_FILE"
     sleep 3
     if is_orchestrator_running; then
@@ -194,7 +194,7 @@ case "${1:-all}" in
         show_banner
         echo
         echo "🎨 Avvio solo GUI..."
-        exec python gui.py
+        exec python -m GUI.main_window
         ;;
     --orch)
         show_banner
@@ -216,7 +216,7 @@ case "${1:-all}" in
         echo "   (chiudi la GUI con X — l'orchestratore continua in background)"
         echo
         # Avvia GUI in foreground
-        python gui.py
+        python -m GUI.main_window
         # Quando la GUI chiude
         echo
         echo "GUI chiusa. Orchestratore ancora attivo in background."

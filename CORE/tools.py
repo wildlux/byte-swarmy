@@ -27,9 +27,9 @@ import subprocess
 from pathlib import Path
 from typing import Optional, Sequence
 
-import sandbox
+from CORE import sandbox
 
-from security import (
+from SAFETY.security import (
     SecurityError,
     allowed_commands_text,
     log_security_event,
@@ -37,7 +37,7 @@ from security import (
     safe_project_path,
     validate_bash_command,
 )
-from ast_scanner import scanner as ast_scanner
+from CORE.ast_scanner import scanner as ast_scanner
 
 
 # Branch che i worker non possono cancellare.

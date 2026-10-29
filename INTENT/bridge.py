@@ -6,13 +6,13 @@ Progettato per funzionare con:
 - orchestrator.py: estrae metadati dal campo 'context' (JSON) del task
 
 Usage GUI:
-    from intent_bridge import add_task_with_intent, localize
+    from INTENT.bridge import add_task_with_intent, localize
     
     task = add_task_with_intent("ottimizza parse_json è lenta")
     # → usa la tua add_task() esistente, arricchisce context con lang+intent+params
 
 Usage Orchestrator:
-    from intent_bridge import extract_task_metadata
+    from INTENT.bridge import extract_task_metadata
     meta = extract_task_metadata(task)
     user_lang = meta["lang"]
 """
@@ -24,7 +24,7 @@ import logging
 from pathlib import Path
 from typing import Optional, Callable
 
-from intent_router import IntentRouter
+from INTENT.router import IntentRouter
 
 
 # ====================================================================

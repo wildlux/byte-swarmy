@@ -29,14 +29,14 @@ if str(ROOT) not in sys.path:
 # Log di sicurezza dei test in una directory temporanea.
 os.environ["BYTE_SWARM_SECURITY_LOG_DIR"] = tempfile.mkdtemp(prefix="bswarm-sec-")
 
-import security  # noqa: E402
-from security import (  # noqa: E402
+from SAFETY import security  # noqa: E402
+from SAFETY.security import (  # noqa: E402
     SecurityError,
     normalize_bash_argv,
     safe_project_path,
     validate_bash_command,
 )
-from tools import ToolSet  # noqa: E402
+from CORE.tools import ToolSet  # noqa: E402
 
 
 class TestValidateBashCommand(unittest.TestCase):
@@ -457,8 +457,8 @@ class TestAlwaysOnSecurity(unittest.TestCase):
         self.assertEqual(self.sentinel.read_text(), "do not delete\n")
 
     def test_worker_ignores_injected_instruction(self):
-        from memory import AgentMemory
-        from orchestrator import Worker
+        from CORE.memory import AgentMemory
+        from CORE.orchestrator import Worker
 
         class InjectionModel:
             """Modello che *obbedisce* all'iniezione: prova a cancellare fuori."""

@@ -7,7 +7,7 @@ import signal
 import subprocess
 from pathlib import Path
 from typing import Optional
-from constants import DEFAULT_PATHS
+from CORE.constants import DEFAULT_PATHS
 
 class LifecycleManager:
     def __init__(self, config, logger):

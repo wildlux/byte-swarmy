@@ -2,7 +2,7 @@
 task_dispatcher.py — Manages task queue, routing and worker execution.
 """
 from typing import Optional
-from constants import TaskStatus
+from CORE.constants import TaskStatus
 
 class TaskDispatcher:
     def __init__(self, queue, planner, generic_planner, models, tools, logger):

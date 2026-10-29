@@ -1,0 +1,41 @@
+byte-swarmy/
+├── byte_swarmy/              ← package principale
+│   ├── __init__.py
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── orchestrator.py
+│   │   ├── tools.py
+│   │   ├── sandbox.py
+│   │   ├── memory.py
+│   │   ├── ollama_client.py
+│   │   └── task_dispatcher.py
+│   ├── intent/
+│   │   ├── __init__.py
+│   │   ├── router.py          ← (ex intent_router.py)
+│   │   ├── bridge.py          ← (ex intent_bridge.py)
+│   │   ├── metrics.py         ← (ex ollama_metrics.py)
+│   │   └── intents.json
+│   ├── safety/
+│   │   ├── __init__.py
+│   │   ├── security.py
+│   │   ├── security_checks.py
+│   │   └── watchdog.py
+│   ├── monitoring/
+│   │   ├── __init__.py
+│   │   ├── thermal_manager.py
+│   │   ├── system_monitor.py
+│   │   └── lifecycle_manager.py
+│   └── gui/
+│       ├── __init__.py
+│       └── main_window.py     ← (ex gui.py)
+├── scripts/
+│   ├── avvia.sh
+│   ├── ferma.sh
+│   └── sync.sh
+├── tests/
+│   ├── __init__.py
+│   ├── test_intent_integration.py
+│   └── test_sandbox.py
+├── config.toml
+├── requirements_gui.txt
+└── README.md

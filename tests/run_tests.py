@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import sandbox  # noqa: E402
+from CORE import sandbox  # noqa: E402
 
 
 class RecordingResult(unittest.TextTestResult):

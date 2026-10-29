@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 
 # Configurazione minima
-ORCHESTRATOR_CMD = [sys.executable, "orchestrator.py"]
+ORCHESTRATOR_CMD = [sys.executable, "-m", "CORE.orchestrator"]
 LOG_FILE = Path("logs/watchdog.log")
 LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
