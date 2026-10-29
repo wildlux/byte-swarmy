@@ -202,11 +202,15 @@ Cosa puoi vedere:
 | **Worker** | Esegue il task atomico: file, shell controllata, git locale | Ollama |
 | **Decision Models** | Classificazione e scomposizione dei task generici | Ollama |
 | **Generic Task Planner** | Trasforma un task vago in task atomici | Ollama |
-| **Timestral** | Monitor termico e tuning dinamico dei parametri | Python |
+| **Intent Router** | Classifica input libero multilingue (IT/EN/ZH) in task strutturati | Python (rapidfuzz) |
+| **Watchdog** | Supervisore: riavvia l'orchestratore dopo un crash | Python |
+| **AST Scanner** | Gate deterministico che blocca codice Python pericoloso in `write_file` | Python |
+| **Event Store** | Memoria worker come log immutabile su SQLite (event sourcing) | Python |
+| **Timestral** | Monitor termico CPU/GPU e tuning dinamico dei parametri | Python |
 | **MCP Client** | Riceve task da server MCP esterni via SSE | Python |
-| **GUI PyQt6** | Control Center con 5 tab | PyQt6 |
+| **GUI PyQt6** | Control Center con 6 tab | PyQt6 |
 | **CLI Launcher** | `byte-swarmy` e alias `bswarm` | Bash |
-| **Backup** | Snapshot git periodici e sync GitHub on-demand | git |
+| **Backup** | Snapshot git periodici, tar verificati e sync GitHub on-demand | git |
 
 ### Ciclo di un tick
 
@@ -280,8 +284,8 @@ cd byte-swarmy
 - Python, pip, git e Ollama;
 - pacchetti di sistema (`python3-venv`, `python3-full`, `git`) tramite `sudo`;
 - virtualenv `.venv/` con pip funzionante;
-- dipendenze Python: `PyQt6`, `tomli-w`, `mcp`, `httpx`, `httpx-sse`,
-  `uvicorn`, `starlette`;
+- dipendenze Python: `PyQt6`, `tomli-w`, `rapidfuzz`, `mcp`, `httpx`,
+  `httpx-sse`, `uvicorn`, `starlette`;
 - modelli Ollama necessari (chiede prima di scaricarli);
 - directory di lavoro: `state/`, `logs/`, `tasks/`, `project/`, `backups/`.
 
@@ -301,8 +305,9 @@ Per installare solo le dipendenze della GUI:
 ./avvia.sh
 ```
 
-Lo script attiva il virtualenv, avvia l'orchestratore in background e apre la
-GUI. Chiudendo la GUI l'orchestratore continua a girare.
+Lo script attiva il virtualenv, avvia l'orchestratore **sotto supervisore
+Watchdog** in background e apre la GUI. Chiudendo la GUI l'orchestratore
+continua a girare; se il processo crasha viene riavviato automaticamente.
 
 Modalità alternative:
 
@@ -387,17 +392,23 @@ python gui.py
 ./avvia.sh --gui
 ```
 
-Cinque tab:
+Sei tab, più una Quick Command Bar in cima alla coda:
 
+0. **Quick Command Bar** — scrivi in linguaggio naturale (IT/EN/ZH); l'Intent
+   Router classifica la richiesta e crea il task strutturato in coda.
 1. **Coda Task** — task pending, in esecuzione e completati. Azioni: aggiungi,
    aggiorna, elimina, reset, riesegui, elimina sotto-task, pulisci i completati.
+   Accanto alla tabella un **Live Activity Panel** mostra l'attività in tempo reale.
 2. **MCP Servers** — configura server MCP esterni, polling automatico e
    discovery dei tool.
 3. **Logs** — tail in tempo reale, auto-scroll ed export.
-4. **Timestral** — metriche live (temperatura, carico, frequenza, memoria),
-   consigli operativi e storico.
+4. **Timestral (Termico)** — metriche live (temperatura CPU e GPU, carico,
+   frequenza, memoria), consigli operativi e storico. Gli indicatori CPU/GPU
+   colorati sono anche nella toolbar.
 5. **Config** — editor bidirezionale form↔TOML con validazione live, copia
    errore e revert automatico in caso di parametri non validi.
+6. **Test & Sandbox** — esecuzione della suite, self-test del sandbox e
+   verifica dello stato di isolamento senza usare il terminale.
 
 ### Task generici
 
@@ -452,6 +463,15 @@ Workflow:
 
 ## Come funziona
 
+### Intent Router (multilingue)
+
+L'input libero (Quick Command Bar della GUI) passa da `intent_router.py`
+prima di entrare in coda: il testo viene classificato con matching fuzzy
+(`rapidfuzz`) su un dataset di intenti in `intents.json`, la lingua viene
+rilevata (italiano, inglese, cinese) e i parametri estratti finiscono nei
+metadati del task. Se l'intent non è riconosciuto con sufficiente
+confidenza, il task degrada a `generic` e passa dal Generic Task Planner.
+
 ### Routing deterministico
 
 | Keyword nel task | Destinazione |
@@ -487,6 +507,8 @@ Lo storico è salvato in `state/timestral_history.json` (24 ore di campioni).
 | Temperatura CPU > 90 °C | Pausa termica |
 | CPU load > 95% per 60 s | Pausa per evitare thrashing |
 | 10 fallimenti consecutivi | Task in stato `stuck`, richiede intervento manuale |
+| Crash dell'orchestratore | Il Watchdog riavvia il processo (loop supervisore in `watchdog.py`) |
+| Codice Python pericoloso in `write_file` | Gate AST: l'operazione viene rifiutata prima del sandbox |
 | SIGTERM | Salvataggio stato, unload dei modelli, uscita pulita |
 | Task oltre il limite di step | Fallimento e retry (fino a 10 tentativi) |
 
@@ -559,30 +581,45 @@ l'orchestratore come utente principale.
 ```
 byte-swarmy/
 ├── orchestrator.py          # Orchestratore, Planner, Worker, TaskQueue
+├── watchdog.py              # Supervisore: riavvia l'orchestratore dopo i crash
+├── task_dispatcher.py       # Dispatch dei task dalla coda ai worker
 ├── security.py              # Policy centrale: comandi, path, audit log
-├── tools.py                 # ToolSet: 13 tool, esecuzione senza shell
+├── security_checks.py       # Verifica isolamento all'avvio + Safe Mode
+├── ast_scanner.py           # Gate AST: blocca codice Python pericoloso
+├── sandbox.py               # Sandbox bubblewrap (fail-closed se assente)
+├── sandbox_selftest.py      # Self-test del sandbox
+├── tools.py                 # ToolSet: tool di esecuzione senza shell
 ├── memory.py                # AgentMemory: short/working/long_term + compaction
+├── memory_provider.py       # Store memoria: JSON e SQLite (event sourcing)
+├── intent_router.py         # Classificazione intenti multilingue IT/EN/ZH
+├── intents.json             # Dataset di intenti del router
+├── intent_bridge.py         # Bridge router ↔ GUI / orchestratore
+├── integrazione_add_task.py # Esempio di integrazione del router nella CLI
+├── constants.py             # Enum e costanti condivise
+├── lifecycle_manager.py     # Startup, backup verificati, gestione git
+├── system_monitor.py        # Check RAM/disco per la safety valve
+├── thermal_manager.py       # TimestralManager: CPU e GPU, monitor e tuning
+├── ollama_metrics.py        # Metriche chiamate Ollama per la GUI
 ├── ollama_client.py         # ModelClient con rotation dei modelli
 ├── mcp_client.py            # Client MCP su SSE
-├── thermal_manager.py       # TimestralManager: monitor e tuning
 ├── example_mcp_server.py    # Server MCP di esempio (loopback)
-├── add_task.py              # Helper CLI per aggiungere task
-├── gui.py                   # GUI PyQt6 (Control Center)
+├── gui.py                   # GUI PyQt6 Control Center (6 tab)
 ├── config.toml              # Parametri: modelli, timing, safety, security
 ├── byte-swarmy              # CLI launcher (alias: bswarm)
-├── avvia.sh                 # Launcher: venv + orchestratore + GUI
+├── avvia.sh                 # Launcher: venv + watchdog orchestratore + GUI
 ├── ferma.sh                 # Arresto con validazione del PID
 ├── setup.sh                 # Check e installazione dipendenze
 ├── setup-hardening.sh       # Hardening di sistema opzionale (root)
 ├── sync.sh                  # Commit + push GitHub manuale
-├── tests/
-│   └── test_security.py     # Suite stdlib (unittest), senza root
+├── tests/                   # Suite stdlib: security, sandbox, intent router
 ├── SECURITY.md              # Threat model, mitigazioni, rischi residui
+├── IMPLEMENTED.md           # Registro delle feature implementate
+├── todo.md                  # Roadmap e audit di avanzamento
 ├── BYTE-SWARMY.desktop      # Voce di menu per KDE/Kubuntu
 ├── requirements_gui.txt     # Dipendenze Python della GUI
-├── state/                   # Stato persistente (JSON)
+├── state/                   # Stato persistente (JSON + event store SQLite)
 ├── tasks/                   # Coda task (queue.json)
-├── logs/                    # Log applicativo e audit di sicurezza
+├── logs/                    # Log applicativo, JSONL e audit di sicurezza
 ├── project/                 # Codice prodotto dai worker
 └── backups/                 # Snapshot e archivi (ultimi 7)
 ```
@@ -603,6 +640,9 @@ Coprono, tra gli altri:
 
 - comandi distruttivi, pipe, redirect, command substitution e fork bomb;
 - path traversal, symlink escape e file sensibili;
+- l'interazione col sandbox bubblewrap (`test_sandbox.py`), incluso il
+  comportamento fail-closed quando bwrap non è disponibile;
+- il mapping intenti → task in IT/EN/ZH (`test_intent_integration.py`);
 - git push/pull/remote e injection nelle revisioni;
 - ambiente sanificato e limiti di output;
 - task MCP e configurazione ostile;
@@ -611,7 +651,9 @@ Coprono, tra gli altri:
 ### Controlli statici
 
 ```bash
-python -m py_compile security.py tools.py orchestrator.py gui.py mcp_client.py
+python -m py_compile security.py tools.py orchestrator.py gui.py mcp_client.py \
+  watchdog.py intent_router.py intent_bridge.py ast_scanner.py sandbox.py \
+  thermal_manager.py memory.py memory_provider.py task_dispatcher.py
 bash -n avvia.sh ferma.sh sync.sh setup.sh setup-hardening.sh
 git diff --check
 ```
@@ -646,6 +688,7 @@ allowlist per comodità.
 |---|---|---|
 | `ModuleNotFoundError: PyQt6` | Dipendenze GUI assenti | `./setup.sh` oppure `pip install -r requirements_gui.txt` |
 | `ModuleNotFoundError: mcp` | Dipendenze MCP assenti | `pip install mcp httpx httpx-sse` (la GUI propone l'auto-install) |
+| `ModuleNotFoundError: rapidfuzz` | Router intenti non installato | `pip install rapidfuzz` (la Quick Command Bar resta disattiva) |
 | Tab MCP vuoto | Modulo `mcp` non caricato | Controlla il banner nel tab MCP |
 | MCP: `connection refused` | Server non avviato | `./byte-swarmy mcp start` in un altro terminale |
 | Orchestratore non parte | Virtualenv non attivo | `source .venv/bin/activate` |

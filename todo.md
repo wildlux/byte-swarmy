@@ -230,6 +230,11 @@ B1 e rende il gate 9c non opzionale.
 - [ ] **M10. Protocol Parser (10)** — Descrittori/endpoint/payload: **non esiste**.
 - [ ] **M11. Differential Analysis (11)** — Confronto automatico tra due catture: **non esiste**.
 
+### Pad incoerenze emerse nell'audit dei documenti (2026-10-29)
+- [ ] **M12. `task_dispatcher.py` e' codice morto e incompatibile** — `orchestrator.py` crea `TaskDispatcher` (linea ~979) ma non chiama mai `dispatch_next()`: il dispatch avviene altrove nel ciclo. Inoltre il dispatcher usa l'API della vecchia coda JSON (`self.queue.tasks.append`, `self.queue._save()`), inesistente nella `TaskQueue` SQLite attuale: se qualcuno lo attivasse, crasherebbe con `AttributeError`. Da eliminare o riallineare all'API `add()`.
+- [ ] **M13. Rifiuti e file scratch nel repository** — `fix_gpu_temp*.py`, `fix_temp*.py`, `fix_imports.py`, `redesign_gui.py`, `gui.py.bak*`, `sandbox.py.bak`, `thermal_manager.py.bak.*`, `timeout.py` (vuoto, 0 byte) sono script di patching one-shot e backup: vanno spostati fuori dal repo o cancellati dopo verifica. `tasks/queue.json` resta come legacy accanto a `queue.db`: verificare che nessun lettore lo usi ancora e rimuoverlo.
+- [x] **(risolto 2026-10-29) `rapidfuzz` non dichiarato** — `intent_router.py` lo richiede con `raise ImportError` ma era assente da `requirements_gui.txt` e `setup.sh`. Ora e' incluso in entrambi.
+
 ### Pin Regole di lavoro da qui in avanti (derivate dai bug)
 - [ ] **R1. Ogni modifica strutturale (`orchestrator.py`, `tools.py`) deve finire con `py_compile` + boot reale sotto watchdog, non solo unit test.**
 - [ ] **R2. Mai considerare "fatto" un gate di sicurezza senza un test che lo provi a livello di interazione reale (modello + pipeline), non solo di singolo modulo.**
