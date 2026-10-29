@@ -6,6 +6,9 @@ PyQt6>=6.6
 # TOML writer (per il sync form↔testo nel Config tab)
 tomli-w>=1.0
 
+# Intent Router (Quick Command Bar multilingue IT/EN/ZH, matching fuzzy)
+rapidfuzz>=3.0
+
 # MCP (Model Context Protocol) - client per ricevere task da server esterni
 mcp>=1.0.0
 httpx>=0.27

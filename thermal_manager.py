@@ -277,6 +277,19 @@ class TimestralManager:
                 self.log.error(f"[timestral] sample error: {e}")
 
             self._stop_event.wait(timeout=self.SAMPLE_INTERVAL)
+    def _read_gpu_temp(self) -> float:
+        """Legge la temperatura GPU via nvidia-smi. Ritorna 0.0 se non disponibile."""
+        try:
+            result = subprocess.run(
+                ["nvidia-smi", "--query-gpu=temperature.gpu",
+                 "--format=csv,noheader,nounits"],
+                capture_output=True, text=True, timeout=2
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return float(result.stdout.strip().split()[0])
+        except (FileNotFoundError, ValueError, subprocess.TimeoutExpired):
+            pass
+        return 0.0
 
     def _take_sample(self) -> Optional[ThermalSample]:
         """Prende un campione leggendo /proc e /sys (Linux)."""
@@ -289,6 +302,7 @@ class TimestralManager:
                 mem_used_ratio=self._read_mem_used(),
                 swap_used_ratio=self._read_swap_used(),
                 n_processes=self._count_processes(),
+                gpu_temp=self._read_gpu_temp(),
             )
         except Exception as e:
             self.log.error(f"[timestral] _take_sample failed: {e}")

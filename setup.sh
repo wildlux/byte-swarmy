@@ -4,7 +4,7 @@
 #
 # Fa il check di:
 #   1. Dipendenze sistema (python3, pip, git, ollama)
-#   2. Pacchetti Python (PyQt6, tomli-w, mcp, httpx, httpx-sse, uvicorn, starlette)
+#   2. Pacchetti Python (PyQt6, tomli-w, rapidfuzz, mcp, httpx, httpx-sse, uvicorn, starlette)
 #   3. Virtualenv .venv
 #   4. Modelli Ollama necessari
 #
@@ -278,6 +278,7 @@ check_pip_package() {
 
 check_pip_package "PyQt6" "PyQt6" || exit 1
 check_pip_package "tomli_w" "tomli-w" || exit 1
+check_pip_package "rapidfuzz" "rapidfuzz" || exit 1
 # tomllib è stdlib in Python 3.11+
 if $VENV_PYTHON -c "import tomllib" 2>/dev/null; then
     ok "tomllib (stdlib) disponibile"
@@ -300,6 +301,7 @@ missing = []
 for mod, name in [
     ('PyQt6', 'PyQt6'),
     ('tomli_w', 'tomli-w'),
+    ('rapidfuzz', 'rapidfuzz'),
     ('mcp', 'mcp'),
     ('httpx', 'httpx'),
     ('httpx_sse', 'httpx-sse'),

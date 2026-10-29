@@ -51,7 +51,7 @@ from PyQt6.QtWidgets import (
     QHeaderView, QFormLayout, QSpinBox, QDoubleSpinBox, QCheckBox, QComboBox,
     QDialog, QDialogButtonBox, QMessageBox, QFileDialog, QSplitter, QGroupBox,
     QPlainTextEdit, QToolBar, QStatusBar, QListWidget, QListWidgetItem,
-    QScrollArea, QFrame, QTextBrowser, QProgressBar,
+    QScrollArea, QFrame, QTextBrowser, QProgressBar, QSizePolicy,
 )
 
 # Import moduli del progetto
@@ -74,143 +74,234 @@ except ImportError as e:
     print(f"WARNING: intent_bridge non disponibile: {e}")
     INTENT_ROUTER_AVAILABLE = False
 
+try:
+    from ollama_metrics import get_last_call_metrics, estimate_kv_cache_mb
+    OLLAMA_METRICS_AVAILABLE = True
+except ImportError:
+    get_last_call_metrics = None
+    estimate_kv_cache_mb = None
+    OLLAMA_METRICS_AVAILABLE = False
+
 
     # ------------------------------------------------------------------
-    # Professional Style Sheet (Enterprise Dark Theme)
-    # ------------------------------------------------------------------
-    STYLESHEET = """
-    QMainWindow, QWidget {
-        background-color: #1a1a1a;
-        color: #e0e0e0;
-        font-family: 'Segoe UI', 'Ubuntu', sans-serif;
-        font-size: 10pt;
-    }
-    QMainWindow { background-color: #1a1a1a; }
-    QTabWidget::pane {
-        border: 1px solid #333;
-        background-color: #1a1a1a;
-        border-top: 2px solid #007acc;
-    }
-    QTabBar::tab {
-        background: #252525;
-        color: #999;
-        padding: 8px 18px;
-        border: 1px solid #333;
-        border-bottom: none;
-        border-top-left-radius: 4px;
-        border-top-right-radius: 4px;
-        margin-right: 2px;
-    }
-    QTabBar::tab:selected {
-        background: #007acc;
-        color: #fff;
-        border-color: #007acc;
-    }
-    QTabBar::tab:hover:!selected {
-        background: #2d2d2d;
-        color: #ccc;
-    }
-    QPushButton {
-        background-color: #2d2d2d;
-        color: #e0e0e0;
-        border: 1px solid #444;
-        padding: 6px 14px;
-        border-radius: 4px;
-        min-height: 24px;
-    }
-    QPushButton:hover { background-color: #383838; border-color: #555; }
-    QPushButton:pressed { background-color: #404040; }
-    QPushButton:disabled { color: #666; background-color: #252525; }
-    QPushButton#toggleOrchestrator {
-        background-color: #28a745;
-        color: white;
-        font-weight: bold;
-        border: none;
-        padding: 8px 16px;
-        min-width: 200px;
-    }
-    QPushButton#toggleOrchestrator:hover { background-color: #218838; }
-    QPushButton#toggleOrchestrator[data-running="true"] {
-        background-color: #dc3545;
-    }
-    QPushButton#toggleOrchestrator[data-running="true"]:hover {
-        background-color: #c82333;
-    }
-    QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {
-        background-color: #252525;
-        color: #e0e0e0;
-        border: 1px solid #333;
-        padding: 5px;
-        border-radius: 3px;
-        selection-background-color: #007acc;
-    }
-    QLineEdit:focus { border: 1px solid #007acc; }
-    QTableWidget {
-        background-color: #1f1f1f;
-        gridline-color: #333;
-        border: 1px solid #333;
-        selection-background-color: #264f78;
-        alternate-background-color: #252525;
-    }
-    QTableWidget::item { padding: 4px; }
-    QHeaderView::section {
-        background-color: #2d2d2d;
-        color: #aaa;
-        padding: 6px;
-        border: none;
-        border-bottom: 2px solid #007acc;
-        font-weight: bold;
-    }
-    QGroupBox {
-        font-weight: bold;
-        border: 1px solid #333;
-        border-radius: 4px;
-        margin-top: 1.5ex;
-        padding-top: 1.2ex;
-        background-color: #1f1f1f;
-    }
-    QGroupBox::title {
-        subcontrol-origin: margin;
-        left: 12px;
-        padding: 0 6px;
-        color: #007acc;
-    }
-    QScrollBar:vertical {
-        background: #1a1a1a; width: 10px; border: none;
-    }
-    QScrollBar::handle:vertical {
-        background: #444; min-height: 25px; border-radius: 5px;
-    }
-    QScrollBar::handle:vertical:hover { background: #555; }
-    QStatusBar {
-        background-color: #007acc;
-        color: white;
-        font-weight: bold;
-    }
-    QStatusBar QLabel { color: white; padding: 0 8px; }
-    QToolBar {
-        background-color: #252525;
-        border-bottom: 1px solid #333;
-        spacing: 4px;
-        padding: 4px;
-    }
-    QToolBar QToolButton {
-        background: transparent;
-        color: #e0e0e0;
-        padding: 6px 10px;
-        border-radius: 3px;
-    }
-    QToolBar QToolButton:hover { background: #383838; }
-    QLabel#tempIndicator {
-        font-family: 'Consolas', 'Monaco', monospace;
-        font-size: 11pt;
-        font-weight: bold;
-        padding: 4px 10px;
-        border-radius: 3px;
-    }
-    QSplitter::handle { background-color: #333; }
-    QSplitter::handle:hover { background-color: #007acc; }
-    """
+# Professional Style Sheet (Enterprise Dark Theme)
+# ------------------------------------------------------------------
+# ------------------------------------------------------------------
+# Tema: chiaro/scuro (flat minimal). Scelta persistente in state/gui_theme.json
+# ------------------------------------------------------------------
+_THEMES = {
+    "dark": {
+        "window": "#16181d", "surface": "#1f232b", "elevated": "#242933",
+        "pressed": "#1a1e25", "input": "#1b1f26", "alt": "#191c22",
+        "grid": "#21252d", "border": "#2a2f39", "border_hover": "#333a46",
+        "text": "#d8dde6", "bright": "#eef1f6", "text_soft": "#b9c1cc",
+        "muted": "#8a93a2", "faint": "#5a6270",
+        "accent": "#4a9eff", "sel_bg": "#2f6fd1",
+        "ok": "#6cc286", "warn": "#d8a657", "err": "#e06c75", "handle": "#2c313b",
+    },
+    "light": {
+        "window": "#f7f8fa", "surface": "#ffffff", "elevated": "#f0f2f5",
+        "pressed": "#e8ebef", "input": "#ffffff", "alt": "#f2f4f7",
+        "grid": "#e3e6ea", "border": "#d6dae1", "border_hover": "#b9c0ca",
+        "text": "#24292f", "bright": "#111418", "text_soft": "#4a5461",
+        "muted": "#6a737d", "faint": "#9aa2ad",
+        "accent": "#0969da", "sel_bg": "#0969da",
+        "ok": "#1a7f37", "warn": "#9a6700", "err": "#cf222e", "handle": "#c9ced6",
+    },
+}
+
+_CSS = """\
+
+/* BYTE-SWARMY — flat minimal dark theme */
+
+QMainWindow, QDialog, QWidget {
+    background-color: @window;
+    color: @text;
+    font-family: 'Segoe UI', 'Noto Sans', 'Ubuntu', 'DejaVu Sans', sans-serif;
+    font-size: 10pt;
+}
+* { selection-background-color: @sel_bg; selection-color: #ffffff; }
+
+/* ---- Tabs: testuale, underline accento quando selezionato ---- */
+QTabWidget::pane {
+    border: 1px solid @border;
+    background: @window;
+    top: -1px;
+}
+QTabBar { qproperty-drawBase: 0; }
+QTabBar::tab {
+    background: transparent;
+    color: @muted;
+    padding: 7px 16px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-right: 4px;
+}
+QTabBar::tab:selected { color: @bright; border-bottom: 2px solid @accent; }
+QTabBar::tab:hover:!selected { color: @text_soft; }
+
+/* ---- Buttons: flat neutri, un solo colore di stato ---- */
+QPushButton {
+    background: @surface;
+    color: @text;
+    border: 1px solid @border;
+    padding: 5px 14px;
+    border-radius: 3px;
+    min-height: 22px;
+}
+QPushButton:hover { background: @elevated; border-color: @border_hover; }
+QPushButton:pressed { background: @pressed; }
+QPushButton:disabled { color: @faint; background: @pressed; border-color: @grid; }
+QPushButton:focus { border-color: @accent; }
+QPushButton#toggleOrchestrator {
+    font-weight: 600;
+    padding: 6px 20px;
+    background: @pressed;
+}
+QPushButton#toggleOrchestrator[data-running="false"] { color: @ok; }
+QPushButton#toggleOrchestrator[data-running="true"]  { color: @err; }
+
+/* ---- Input ---- */
+QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {
+    background: @input;
+    color: @text;
+    border: 1px solid @border;
+    padding: 4px 6px;
+    border-radius: 3px;
+}
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus, QComboBox:focus,
+QSpinBox:focus, QDoubleSpinBox:focus { border-color: @accent; }
+QComboBox QAbstractItemView {
+    background: @surface;
+    border: 1px solid @border;
+}
+
+/* ---- Table ---- */
+QTableWidget {
+    background: @window;
+    gridline-color: @grid;
+    border: 1px solid @border;
+    alternate-background-color: @alt;
+}
+QTableWidget::item { padding: 4px; }
+QHeaderView::section {
+    background: @window;
+    color: @muted;
+    padding: 6px 8px;
+    border: none;
+    border-bottom: 1px solid @border;
+    font-weight: 600;
+}
+
+/* ---- GroupBox ---- */
+QGroupBox {
+    border: 1px solid @border;
+    border-radius: 3px;
+    margin-top: 1.4ex;
+    padding-top: 1.1ex;
+    background: @window;
+    font-weight: 600;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 12px;
+    padding: 0 6px;
+    color: @muted;
+}
+
+/* ---- Toolbar ---- */
+QToolBar {
+    background: @window;
+    border-bottom: 1px solid @border;
+    spacing: 6px;
+    padding: 4px 8px;
+}
+QToolBar QToolButton {
+    background: transparent;
+    color: @text_soft;
+    padding: 5px 10px;
+    border-radius: 3px;
+}
+QToolBar QToolButton:hover { background: @surface; }
+
+QLabel#tempIndicator {
+    font-family: 'DejaVu Sans Mono', 'Consolas', monospace;
+    font-size: 9.5pt;
+    color: @muted;
+    padding: 0 8px;
+}
+
+/* ---- Status bar: discreta, non urlata ---- */
+QStatusBar {
+    background: @window;
+    color: @muted;
+    border-top: 1px solid @border;
+    font-size: 9pt;
+}
+QStatusBar QLabel { color: @muted; padding: 0 8px; }
+
+/* ---- Scrollbar sottili ---- */
+QScrollBar:vertical {
+    background: transparent; width: 10px; border: none; margin: 0;
+}
+QScrollBar::handle:vertical {
+    background: @handle; min-height: 25px; border-radius: 3px; margin: 1px;
+}
+QScrollBar::handle:vertical:hover { background: @border_hover; }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+QScrollBar:horizontal {
+    background: transparent; height: 10px; border: none; margin: 0;
+}
+QScrollBar::handle:horizontal {
+    background: @handle; min-width: 25px; border-radius: 3px; margin: 1px;
+}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }
+
+QSplitter::handle { background: @input; }
+QSplitter::handle:hover { background: @border; }
+
+QToolTip {
+    background: @surface;
+    color: @text;
+    border: 1px solid @border;
+    padding: 4px;
+}
+
+QMenuBar { background: @window; color: @text; }
+QMenuBar::item:selected { background: @surface; }
+QMenu { background: @surface; color: @text; border: 1px solid @border; }
+QMenu::item:selected { background: @border; }
+
+"""
+
+def build_stylesheet(theme: str = "dark") -> str:
+    """Restituisce il foglio di stile per il tema richiesto ('dark' o 'light')."""
+    pal = _THEMES.get(theme if theme in _THEMES else "dark")
+    css = _CSS
+    # token più lunghi prima: "@text" non deve mangiare "@text_soft"
+    for key in sorted(pal, key=len, reverse=True):
+        css = css.replace("@" + key, pal[key])
+    return css
+
+def _theme_file() -> Path:
+    return BASE_DIR / "state" / "gui_theme.json"
+
+def load_theme() -> str:
+    """Legge il tema salvato (default: dark)."""
+    try:
+        data = json.loads(_theme_file().read_text(encoding="utf-8"))
+        theme = data.get("theme", "dark")
+        return theme if theme in _THEMES else "dark"
+    except Exception:
+        return "dark"
+
+def save_theme(theme: str) -> None:
+    try:
+        _theme_file().parent.mkdir(parents=True, exist_ok=True)
+        _theme_file().write_text(json.dumps({"theme": theme}), encoding="utf-8")
+    except Exception:
+        pass
+
 
 class CopyableErrorDialog(QDialog):
     """Dialog di errore con testo selezionabile e copiabile.
@@ -247,7 +338,7 @@ class CopyableErrorDialog(QDialog):
 
         # Pulsanti
         btn_layout = QHBoxLayout()
-        btn_copy = QPushButton("📋 Copia tutto")
+        btn_copy = QPushButton("Copia tutto")
         btn_copy.clicked.connect(lambda: QApplication.clipboard().setText(message))
         btn_close = QPushButton("Chiudi")
         btn_close.clicked.connect(self.accept)
@@ -602,7 +693,7 @@ class LiveActivityPanel(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        group = QGroupBox("⚡ Attività Live")
+        group = QGroupBox("Attività Live")
         gl = QVBoxLayout(group)
         gl.setSpacing(3)
         gl.setContentsMargins(8, 6, 8, 6)
@@ -611,13 +702,13 @@ class LiveActivityPanel(QWidget):
         row1 = QHBoxLayout()
         self.status_label = QLabel("○ In attesa")
         self.status_label.setStyleSheet(
-            "font-weight: bold; color: #666; font-size: 10pt;"
+            "font-weight: bold; color: #8a93a2; font-size: 10pt;"
         )
         row1.addWidget(self.status_label)
         row1.addStretch()
         self.spinner_label = QLabel("")
         self.spinner_label.setStyleSheet(
-            "font-size: 14pt; color: #007acc;"
+            "font-size: 14pt; color: #4a9eff;"
         )
         row1.addWidget(self.spinner_label)
         gl.addLayout(row1)
@@ -642,7 +733,7 @@ class LiveActivityPanel(QWidget):
         gl.addWidget(self.thought_label)
 
         # 🆕 Riga metriche (token/sec, KV cache, VRAM)
-        self.metrics_label = QLabel("📊 Metriche: in attesa prima call...")
+        self.metrics_label = QLabel("Metriche: in attesa prima call...")
         self.metrics_label.setStyleSheet(
             "color: #ffb86c; font-family: monospace; font-size: 9pt; "
             "padding: 2px 0; background: #2a2a2a; border-radius: 2px;"
@@ -651,7 +742,7 @@ class LiveActivityPanel(QWidget):
         gl.addWidget(self.metrics_label)
 
         # 🆕 Riga VRAM (modelli caricati)
-        self.vram_label = QLabel("💾 VRAM: ...")
+        self.vram_label = QLabel("VRAM: ...")
         self.vram_label.setStyleSheet(
             "color: #50fa7b; font-family: monospace; font-size: 9pt; "
             "padding: 2px 0;"
@@ -705,7 +796,7 @@ class LiveActivityPanel(QWidget):
                     if not worker_id:
                         worker_id = m.group(1)
                     tool_info = (
-                        f"🔧 {m.group(2)}({m.group(3)[:25]}) → "
+                        f"{m.group(2)}({m.group(3)[:25]}) → "
                         f"{m.group(4)[:70]}"
                     )
 
@@ -737,7 +828,7 @@ class LiveActivityPanel(QWidget):
         # Aggiorna UI
         self.status_label.setText(f"⏳ Elaborazione ({elapsed}s)")
         self.status_label.setStyleSheet(
-            "font-weight: bold; color: #007acc; font-size: 10pt;"
+            "font-weight: bold; color: #4a9eff; font-size: 10pt;"
         )
 
         details_parts = [f"Task: {task_id}", f"Modello: {model_name}"]
@@ -749,15 +840,15 @@ class LiveActivityPanel(QWidget):
         self.details_label.setText(details)
 
         if thought:
-            self.thought_label.setText(f"💭 {thought}")
+            self.thought_label.setText(f"{thought}")
         else:
             self.thought_label.setText("💭 (in attesa del primo pensiero...)")
 
         # 🆕 Aggiorna metriche
         try:
             from ollama_metrics import format_metrics_line, format_vram_line
-            self.metrics_label.setText(f"📊 {format_metrics_line()}")
-            self.vram_label.setText(f"💾 {format_vram_line()}")
+            self.metrics_label.setText(f"{format_metrics_line()}")
+            self.vram_label.setText(f"{format_vram_line()}")
         except ImportError:
             pass
 
@@ -772,14 +863,14 @@ class LiveActivityPanel(QWidget):
         try:
             from ollama_metrics import format_metrics_line, format_vram_line
             if hasattr(self, 'metrics_label'):
-                self.metrics_label.setText(f"📊 {format_metrics_line()}")
+                self.metrics_label.setText(f"{format_metrics_line()}")
             if hasattr(self, 'vram_label'):
-                self.vram_label.setText(f"💾 {format_vram_line()}")
+                self.vram_label.setText(f"{format_vram_line()}")
         except ImportError:
             pass
         self.status_label.setText("○ In attesa")
         self.status_label.setStyleSheet(
-            "font-weight: bold; color: #666; font-size: 10pt;"
+            "font-weight: bold; color: #8a93a2; font-size: 10pt;"
         )
         self.details_label.setText(
             "L'orchestratore controlla la coda. Nessun task in esecuzione."
@@ -801,6 +892,126 @@ class LiveActivityPanel(QWidget):
         except Exception:
             return []
 
+
+class LiveMetricsBar(QWidget):
+    """Metriche dell'ultima chiamata Ollama, sempre visibili in toolbar.
+
+    Mostra: modello, tok/s, token in ingresso/in uscita, TTFT e la barra
+    che si riempie col riempimento della finestra di contesto (num_ctx).
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._ctx_map: dict = {}
+        self._num_ctx_default = 4096
+
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(4, 2, 4, 2)
+        lay.setSpacing(8)
+
+        self.info_label = QLabel("nessuna chiamata modello")
+        self.info_label.setObjectName("metricsBoard")
+        self.ctx_bar = QProgressBar()
+        self.ctx_bar.setFixedWidth(90)
+        self.ctx_bar.setTextVisible(False)
+
+        lay.addWidget(self.info_label)
+        lay.addWidget(self.ctx_bar)
+        lay.addStretch()
+
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._refresh)
+        self._timer.start(2000)
+        self._refresh()
+
+    # -- helper ------------------------------------------------------
+    def _num_ctx_for(self, model_key: str) -> int:
+        """Ritorna num_ctx per la sezione [models.<model_key>] del config."""
+        if model_key in self._ctx_map:
+            return self._ctx_map[model_key]
+        value = self._num_ctx_default
+        try:
+            with open(CONFIG_FILE, "rb") as f:
+                cfg = tomllib.load(f)
+            value = int(
+                cfg.get("models", {}).get(model_key, {}).get("num_ctx", 4096)
+            )
+        except Exception:
+            pass
+        self._ctx_map[model_key] = value
+        return value
+
+    def _refresh(self) -> None:
+        pal = _THEMES.get(load_theme(), _THEMES["dark"])
+        metric = get_last_call_metrics() if OLLAMA_METRICS_AVAILABLE else None
+        if not metric:
+            self.info_label.setText(
+                f'<span style="color:{pal["faint"]}">'
+                f'in attesa della prima chiamata modello</span>'
+            )
+            self.ctx_bar.setRange(0, 1)
+            self.ctx_bar.setValue(0)
+            self.ctx_bar.setStyleSheet(self._bar_style(pal["accent"]))
+            self.setToolTip("Metriche Ollama: visibili dopo la prima call")
+            return
+
+        model = str(metric.get("model", "?"))
+        key = str(metric.get("model_key", ""))
+        tps = metric.get("tokens_per_sec", 0)
+        tok_in = int(metric.get("tokens_in") or 0)
+        tok_out = int(metric.get("tokens_out") or 0)
+        ttft = float(metric.get("ttft_ms") or 0)
+        used = int(metric.get("context_used") or 0)
+        num_ctx = self._num_ctx_for(key)
+        kv_mb = estimate_kv_cache_mb(used, model) if estimate_kv_cache_mb else 0
+
+        # Barra contesto: percentuale riempimento della finestra num_ctx
+        frac = min(used / max(num_ctx, 1), 1.0)
+        self.ctx_bar.setRange(0, max(num_ctx, 1))
+        self.ctx_bar.setValue(used)
+        if frac < 0.8:
+            chunk = pal["ok"]
+        elif frac < 0.97:
+            chunk = pal.get("warn", pal["err"])
+        else:
+            chunk = pal["err"]
+        self.ctx_bar.setStyleSheet(self._bar_style(chunk))
+
+        self.info_label.setText(
+            f'<span style="color:{pal["bright"]};font-weight:600">{model}</span>'
+            f'<span style="color:{pal["muted"]}"> ·</span>'
+            f'<span style="color:{pal["text"]}"> {tps} tok/s</span>'
+            f'<span style="color:{pal["muted"]}"> ·</span>'
+            f'<span style="color:{pal["ok"]}">▲{tok_in}</span>'
+            f'<span style="color:{pal["err"]}"> ▼{tok_out}</span>'
+            f'<span style="color:{pal["muted"]}"> ·</span>'
+            f'<span style="color:{pal["text"]}"> TTFT {ttft:.0f}ms</span>'
+            f'<span style="color:{pal["muted"]}"> ·</span>'
+            f'<span style="color:{pal["text_soft"]}">KV {kv_mb}MB</span>'
+        )
+        self.setToolTip(
+            f"Ultima chiamata Ollama\n"
+            f"modello: {model}\n"
+            f"velocità: {tps} tok/s\n"
+            f"token prompt: {tok_in} · token generati: {tok_out}\n"
+            f"TTFT: {ttft:.0f} ms\n"
+            f"contesto: {used} / {num_ctx} token ({frac * 100:.0f}%)"
+        )
+
+    @staticmethod
+    def _bar_style(chunk_color: str) -> str:
+        return (
+            "QProgressBar {"
+            " background: transparent; border: 1px solid #7f7f7f40;"
+            " border-radius: 3px; }"
+            f"QProgressBar::chunk {{ background: {chunk_color};"
+            " border-radius: 2px; margin: 1px; }"
+        )
+
+
+# ====================================================================
+# TASK TABLE TAB
+# ====================================================================
 
 # ====================================================================
 # TASK TABLE TAB
@@ -824,7 +1035,7 @@ class TaskQueueTab(QWidget):
 
         # 🆕 Quick Command Bar (multilingue IT/EN/ZH via IntentRouter)
         if INTENT_ROUTER_AVAILABLE:
-            quick_group = QGroupBox("⚡ Comando Rapido (IT/EN/ZH)")
+            quick_group = QGroupBox("Comando Rapido — IT/EN/ZH")
             quick_layout = QHBoxLayout(quick_group)
             self.quick_input = QLineEdit()
             self.quick_input.setPlaceholderText(
@@ -832,32 +1043,38 @@ class TaskQueueTab(QWidget):
                 "'optimize Y', '用python写一个函数', 'swarm status'..."
             )
             self.quick_input.returnPressed.connect(self._on_quick_command)
-            btn_quick = QPushButton("🐝 Aggiungi")
+            btn_quick = QPushButton("Aggiungi")
             btn_quick.clicked.connect(self._on_quick_command)
+            btn_new = QPushButton("Nuovo Task…")
+            btn_new.setToolTip("Apri il form completo (titolo, descrizione, contesto)")
+            btn_new.clicked.connect(self._on_add_task)
             quick_layout.addWidget(self.quick_input, stretch=1)
             quick_layout.addWidget(btn_quick)
+            quick_layout.addWidget(btn_new)
             self.quick_status = QLabel("")
-            self.quick_status.setStyleSheet("color: #666; padding: 2px;")
+            self.quick_status.setStyleSheet("color: #8a93a2; padding: 2px;")
             quick_layout.addWidget(self.quick_status, stretch=1)
             layout.addWidget(quick_group)
 
-        # Toolbar
+        # Toolbar (azioni sulla selezione; l'inserimento sta nel Quick Bar.
+        # Se l'Intent Router non è disponibile, "Nuovo Task…" sta qui.)
         toolbar = QHBoxLayout()
-        btn_add = QPushButton("➕ Aggiungi Task")
-        btn_add.clicked.connect(self._on_add_task)
-        btn_refresh = QPushButton("🔄 Aggiorna")
+        if not INTENT_ROUTER_AVAILABLE:
+            btn_add = QPushButton("Nuovo Task…")
+            btn_add.clicked.connect(self._on_add_task)
+            toolbar.addWidget(btn_add)
+        btn_refresh = QPushButton("Aggiorna")
         btn_refresh.clicked.connect(self._refresh)
-        btn_delete = QPushButton("🗑️ Elimina")
+        btn_delete = QPushButton("Elimina")
         btn_delete.clicked.connect(self._on_delete_selected)
-        btn_reset = QPushButton("⏮️ Reset -> pending")
+        btn_reset = QPushButton("Reset → pending")
         btn_reset.clicked.connect(self._on_reset_selected)
-        btn_rerun = QPushButton("🔁 Forza re-run")
+        btn_rerun = QPushButton("Forza re-run")
         btn_rerun.clicked.connect(self._on_rerun_selected)
-        btn_del_subs = QPushButton("📉 Elimina sottotask")
+        btn_del_subs = QPushButton("Elimina sottotask")
         btn_del_subs.clicked.connect(self._on_delete_subtasks)
-        btn_cleanup = QPushButton("🧹 Pulisci completati")
+        btn_cleanup = QPushButton("Pulisci completati")
         btn_cleanup.clicked.connect(self._on_cleanup_done)
-        toolbar.addWidget(btn_add)
         toolbar.addWidget(btn_refresh)
         toolbar.addWidget(btn_delete)
         toolbar.addWidget(btn_reset)
@@ -869,7 +1086,7 @@ class TaskQueueTab(QWidget):
  
         # Statistiche
         self.stats_label = QLabel("Caricamento...")
-        self.stats_label.setStyleSheet("padding: 4px; background: #f0f0f0; font-weight: bold;")
+        self.stats_label.setStyleSheet("padding: 4px; color: #8a93a2;")
         layout.addWidget(self.stats_label)
 
         # 🆕 Live Activity Panel (creato qui, inserito nello splitter sotto)
@@ -884,7 +1101,7 @@ class TaskQueueTab(QWidget):
         left_layout.setContentsMargins(0, 0, 0, 0)
         self.table = QTableWidget(0, 6)
         self.table.setHorizontalHeaderLabels(
-            ["🆔 ID", "🚦 Stato", "📝 Titolo", "🛠️ Tipo", "🔄 Tentativi", "🌐 Sorgente"])
+            ["ID", "Stato", "Titolo", "Tipo", "Tentativi", "Sorgente"])
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
@@ -1025,7 +1242,7 @@ class TaskQueueTab(QWidget):
             self._refresh()
         except Exception as e:
             self.quick_status.setText(f"❌ Errore: {e}")
-            self.quick_status.setStyleSheet("color: #cc0000; padding: 2px;")
+            self.quick_status.setStyleSheet("color: #e06c75; padding: 2px;")
 
     def _on_add_task(self) -> None:
         dialog = AddTaskDialog(self)
@@ -1148,7 +1365,7 @@ class AddTaskDialog(QDialog):
             "in 2-8 Code task atomici, che vengono accodati automaticamente."
         )
         type_hint.setWordWrap(True)
-        type_hint.setStyleSheet("color: #555; padding: 4px;")
+        type_hint.setStyleSheet("color: #8a93a2; padding: 4px;")
         type_layout.addWidget(type_hint)
 
         type_row = QHBoxLayout()
@@ -1183,7 +1400,7 @@ class AddTaskDialog(QDialog):
         # Hint
         self.hint_label = QLabel()
         self.hint_label.setWordWrap(True)
-        self.hint_label.setStyleSheet("color: #666; padding: 8px;")
+        self.hint_label.setStyleSheet("color: #8a93a2; padding: 8px;")
         layout.addWidget(self.hint_label)
 
         # Buttons
@@ -1198,13 +1415,13 @@ class AddTaskDialog(QDialog):
         is_generic = self.type_combo.currentData() == "generic"
         if is_generic:
             self.hint_label.setText(
-                "💡 Il decision model analizzerà la descrizione e genererà "
+                "Il decision model analizzerà la descrizione e genererà "
                 "2-8 Code task atomici. Verifica che un decision model sia "
                 "abilitato nel config (sezione [decision_models])."
             )
         else:
             self.hint_label.setText(
-                "💡 Suggerimento: includi sempre file di output, linguaggio e criteri di test. "
+                "Suggerimento: includi sempre file di output, linguaggio e criteri di test. "
                 "Task semplici (con keyword 'scrivi', 'crea', 'implementa') bypassano il planner."
             )
 
@@ -1237,23 +1454,23 @@ class McpServersTab(QWidget):
         if not MCP_AVAILABLE:
             import mcp_client as _mc
             banner = QLabel(
-                f"🔌 Modulo `mcp` non installato. Solo task locali disponibili.\n"
+                f"Modulo `mcp` non installato. Solo task locali disponibili.\n"
                 f"Installa con: pip install mcp httpx httpx-sse\n"
                 f"Errore: {_mc.MCP_IMPORT_ERROR}"
             )
-            banner.setStyleSheet("padding: 12px; background: #fff3cd; color: #856404;")
+            banner.setStyleSheet("padding: 12px; background: #221d10; color: #d8a657;")
             banner.setWordWrap(True)
             layout.addWidget(banner)
  
         # Toolbar
         toolbar = QHBoxLayout()
-        btn_add = QPushButton("➕ Aggiungi Server")
+        btn_add = QPushButton("Aggiungi Server")
         btn_add.clicked.connect(self._on_add_server)
-        btn_edit = QPushButton("📝 Modifica")
+        btn_edit = QPushButton("Modifica")
         btn_edit.clicked.connect(self._on_edit_server)
-        btn_delete = QPushButton("🗑️ Elimina")
+        btn_delete = QPushButton("Elimina")
         btn_delete.clicked.connect(self._on_delete_server)
-        btn_discover = QPushButton("🔍 Discover Tools")
+        btn_discover = QPushButton("Discover Tools")
         btn_discover.clicked.connect(self._on_discover)
         toolbar.addWidget(btn_add)
         toolbar.addWidget(btn_edit)
@@ -1284,7 +1501,7 @@ class McpServersTab(QWidget):
             "4. L'orchestratore li elabora come qualsiasi altro task"
         )
         info.setWordWrap(True)
-        info.setStyleSheet("padding: 8px; background: #e8f4fd;")
+        info.setStyleSheet("padding: 8px; background: #1b2330; color: #b9c1cc;")
         layout.addWidget(info)
 
         # Auto-refresh stato
@@ -1715,7 +1932,7 @@ class ConfigTab(QWidget):
         # Status label (valid/invalid) + pulsante Copia errore
         status_row = QHBoxLayout()
         self.status_label = QLabel("Caricamento...")
-        self.status_label.setStyleSheet("padding: 4px; background: #f0f0f0; font-weight: bold;")
+        self.status_label.setStyleSheet("padding: 4px; color: #8a93a2;")
         self.status_label.setMinimumWidth(400)
         # Click sulla label copia il messaggio
         self.status_label.setCursor(Qt.CursorShape.IBeamCursor)
@@ -1737,7 +1954,7 @@ class ConfigTab(QWidget):
             "Le due viste sono sincronizzate in tempo reale. "
             "Clicca 'Applica e Salva' per scrivere su disco (richiede riavvio orchestratore)."
         )
-        warn.setStyleSheet("padding: 8px; background: #fff3cd; color: #856404;")
+        warn.setStyleSheet("padding: 8px; background: #221d10; color: #d8a657;")
         warn.setWordWrap(True)
         layout.addWidget(warn)
 
@@ -1772,7 +1989,7 @@ class ConfigTab(QWidget):
                 "⚠️ Modulo `tomli_w` non installato. Le modifiche dal FORM non aggiorneranno il testo. "
                 "Installa con: pip install tomli-w"
             )
-            banner.setStyleSheet("padding: 8px; background: #f8d7da; color: #721c24;")
+            banner.setStyleSheet("padding: 8px; background: #2a171a; color: #e06c75;")
             layout.addWidget(banner)
 
     def _build_form_panel(self) -> QWidget:
@@ -2198,7 +2415,7 @@ class ConfigTab(QWidget):
     def _update_status_error(self, msg: str) -> None:
         self.status_label.setText(f"✗ {msg}")
         self.status_label.setStyleSheet(
-            "padding: 4px; background: #f8d7da; color: #721c24; font-weight: bold;"
+            "padding: 4px; background: #2a171a; color: #e06c75; font-weight: bold;"
         )
         # Salva il messaggio per copia facile
         self._last_error_msg = msg
@@ -2214,7 +2431,7 @@ class ConfigTab(QWidget):
         clipboard.setText(text)
         # Feedback visivo breve
         original = self.status_label.text()
-        self.status_label.setText("📋 Copiato negli appunti")
+        self.status_label.setText("Copiato negli appunti")
         QTimer.singleShot(1500, lambda: self.status_label.setText(original))
 
 
@@ -2254,17 +2471,17 @@ class ThermalTab(QWidget):
  
         # Banner informativo
         info = QLabel(
-            "🌡️ <b>Timestral — Monitoraggio termico + dynamic tuning</b><br>"
+            "<b>Timestral — Monitoraggio termico + dynamic tuning</b><br>"
             "L'orchestratore consulta Timestral a ogni tick. Se la CPU è troppo calda, "
             "rallenta o mette in pausa il dispatch dei task per proteggere l'hardware.<br>"
             "Storico salvato in <code>state/timestral_history.json</code> (24h di campioni)."
         )
         info.setWordWrap(True)
-        info.setStyleSheet("padding: 8px; background: #e8f4fd;")
+        info.setStyleSheet("padding: 8px; background: #1b2330; color: #b9c1cc;")
         layout.addWidget(info)
  
         # Status corrente
-        status_group = QGroupBox("🌡️ Stato corrente")
+        status_group = QGroupBox("Stato corrente")
         status_layout = QFormLayout(status_group)
         self.advice_label = QLabel("...")
         self.advice_label.setStyleSheet("font-weight: bold; font-size: 14pt;")
@@ -2272,17 +2489,17 @@ class ThermalTab(QWidget):
         self.reason_label.setWordWrap(True)
         self.sample_label = QLabel("...")
         self.sample_label.setStyleSheet("font-family: monospace;")
-        status_layout.addRow("🎯 Advice:", self.advice_label)
+        status_layout.addRow("Advice:", self.advice_label)
         status_layout.addRow("❓ Motivo:", self.reason_label)
-        status_layout.addRow("📊 Ultimo campione:", self.sample_label)
+        status_layout.addRow("Ultimo campione:", self.sample_label)
         layout.addWidget(status_group)
  
         # Metriche live (4 cards)
         metrics_row = QHBoxLayout()
-        self.metric_temp = self._make_metric_card("🌡️ Temperatura", "°C", "#dc3545")
-        self.metric_load = self._make_metric_card("⚡ CPU Load", "%", "#fd7e14")
-        self.metric_freq = self._make_metric_card("🚀 CPU Freq", "MHz", "#007bff")
-        self.metric_mem = self._make_metric_card("💾 RAM usata", "%", "#28a745")
+        self.metric_temp = self._make_metric_card("Temperatura", "°C", "#dc3545")
+        self.metric_load = self._make_metric_card("CPU Load", "%", "#fd7e14")
+        self.metric_freq = self._make_metric_card("CPU Freq", "MHz", "#007bff")
+        self.metric_mem = self._make_metric_card("RAM usata", "%", "#28a745")
         metrics_row.addWidget(self.metric_temp)
         metrics_row.addWidget(self.metric_load)
         metrics_row.addWidget(self.metric_freq)
@@ -2290,7 +2507,7 @@ class ThermalTab(QWidget):
         layout.addLayout(metrics_row)
  
         # Soglie
-        thresholds_group = QGroupBox("⚙️ Soglie (da config.toml)")
+        thresholds_group = QGroupBox("Soglie (da config.toml)")
         thresholds_layout = QFormLayout(thresholds_group)
         self.thresholds_label = QLabel("...")
         self.thresholds_label.setStyleSheet("font-family: monospace;")
@@ -2298,7 +2515,7 @@ class ThermalTab(QWidget):
         layout.addWidget(thresholds_group)
  
         # Statistiche 24h
-        stats_group = QGroupBox("📊 Statistiche ultime 24h")
+        stats_group = QGroupBox("Statistiche ultime 24h")
         stats_layout = QFormLayout(stats_group)
         self.stats_label = QLabel("...")
         self.stats_label.setStyleSheet("font-family: monospace;")
@@ -2306,7 +2523,7 @@ class ThermalTab(QWidget):
         layout.addWidget(stats_group)
  
         # Storico testuale
-        history_group = QGroupBox("📜 Storico recente (ultimi 20 campioni)")
+        history_group = QGroupBox("Storico recente (ultimi 20 campioni)")
         history_layout = QVBoxLayout(history_group)
         self.history_text = QPlainTextEdit()
         self.history_text.setReadOnly(True)
@@ -2455,7 +2672,7 @@ class TestsTab(QWidget):
         layout = QVBoxLayout(self)
 
         header_layout = QHBoxLayout()
-        title = QLabel("<h3>🧪 Test &amp; Sandbox</h3>")
+        title = QLabel("<h3>Test &amp; Sandbox</h3>")
         header_layout.addWidget(title)
         header_layout.addStretch()
 
@@ -2508,7 +2725,7 @@ class TestsTab(QWidget):
 
         controls.addStretch()
         self.last_run_label = QLabel("Mai eseguito")
-        self.last_run_label.setStyleSheet("color: #666;")
+        self.last_run_label.setStyleSheet("color: #8a93a2;")
         controls.addWidget(self.last_run_label)
         layout.addLayout(controls)
 
@@ -2516,7 +2733,7 @@ class TestsTab(QWidget):
         self.summary_label = QLabel("In attesa di esecuzione")
         self.summary_label.setWordWrap(True)
         self.summary_label.setStyleSheet(
-            "padding: 8px; background: #f0f0f0; font-weight: bold; "
+            "padding: 8px; color: #8a93a2; "
             "border-radius: 4px;"
         )
         layout.addWidget(self.summary_label)
@@ -2588,7 +2805,7 @@ class TestsTab(QWidget):
                 "i namespace utente annidati non sono bloccati."
             )
             self.sandbox_banner.setStyleSheet(
-                "padding: 10px; background: #fff3cd; color: #856404; "
+                "padding: 10px; background: #221d10; color: #d8a657; "
                 "border-radius: 4px;"
             )
         else:
@@ -2599,7 +2816,7 @@ class TestsTab(QWidget):
                 "Installa con: <code>sudo apt install bubblewrap</code>"
             )
             self.sandbox_banner.setStyleSheet(
-                "padding: 10px; background: #f8d7da; color: #721c24; "
+                "padding: 10px; background: #2a171a; color: #e06c75; "
                 "border-radius: 4px;"
             )
 
@@ -2632,7 +2849,7 @@ class TestsTab(QWidget):
         self.progress.setVisible(True)
         self.summary_label.setText("⏳ Test in esecuzione…")
         self.summary_label.setStyleSheet(
-            "padding: 8px; background: #fff3cd; color: #856404; "
+            "padding: 8px; background: #221d10; color: #d8a657; "
             "font-weight: bold; border-radius: 4px;"
         )
         self._show_backend_info()
@@ -2704,7 +2921,7 @@ class TestsTab(QWidget):
         if report is None:
             self.summary_label.setText("❌ Output del runner non valido")
             self.summary_label.setStyleSheet(
-                "padding: 8px; background: #f8d7da; color: #721c24; "
+                "padding: 8px; background: #2a171a; color: #e06c75; "
                 "font-weight: bold; border-radius: 4px;"
             )
             self.details.setPlainText(
@@ -2753,7 +2970,7 @@ class TestsTab(QWidget):
                 "<code>--disable-userns</code> (serve ≥ 0.11)."
             )
             self.sandbox_banner.setStyleSheet(
-                "padding: 10px; background: #fff3cd; color: #856404; "
+                "padding: 10px; background: #221d10; color: #d8a657; "
                 "border-radius: 4px;"
             )
         else:
@@ -2763,7 +2980,7 @@ class TestsTab(QWidget):
                 "I comandi dei worker vengono rifiutati (fail closed)."
             )
             self.sandbox_banner.setStyleSheet(
-                "padding: 10px; background: #f8d7da; color: #721c24; "
+                "padding: 10px; background: #2a171a; color: #e06c75; "
                 "border-radius: 4px;"
             )
 
@@ -2819,7 +3036,7 @@ class TestsTab(QWidget):
         else:
             self.summary_label.setText(f"❌ TEST NON COMPLETATI — {counts}")
             self.summary_label.setStyleSheet(
-                "padding: 8px; background: #f8d7da; color: #721c24; "
+                "padding: 8px; background: #2a171a; color: #e06c75; "
                 "font-weight: bold; border-radius: 4px;"
             )
 
@@ -2854,6 +3071,9 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("BYTE-SWARMY · Control Center")
+
+        # Tema corrente (usato anche dagli indicatori termici)
+        self._theme = load_theme()
         
         # Imposta l'icona della finestra principale
         icon_path = str(BASE_DIR / "IMG" / "icona.ico")
@@ -2941,6 +3161,12 @@ class MainWindow(QMainWindow):
         self.status_timer.timeout.connect(self._update_status_bar)
         self.status_timer.start(2000)
 
+        # Timer indicatori temperatura (funzionano anche da fermo)
+        self._update_temp_indicators()
+        self.temp_timer = QTimer(self)
+        self.temp_timer.timeout.connect(self._update_temp_indicators)
+        self.temp_timer.start(3000)
+
     def _on_tab_changed(self, index: int) -> None:
         """Avvia i test la prima volta che si apre il tab Test & Sandbox."""
         if self.tabs.widget(index) is self.tests_tab:
@@ -2970,13 +3196,44 @@ class MainWindow(QMainWindow):
         self.temp_gpu_label.setObjectName("tempIndicator")
         toolbar.addWidget(self.temp_gpu_label)
 
+        # Spaziatore: spinge le metriche all'estremo destro
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        toolbar.addWidget(spacer)
+
+        # Metriche ultima chiamata modello (sempre visibili a destra)
+        if OLLAMA_METRICS_AVAILABLE:
+            self.metrics_bar = LiveMetricsBar()
+            toolbar.addWidget(self.metrics_bar)
+        else:
+            self.metrics_bar = None
+
         toolbar.addSeparator()
 
+        # Toggle tema chiaro/scuro
+        self.act_theme = QAction("◐ Tema", self)
+        self.act_theme.setToolTip("Cambia tema chiaro ⇄ scuro")
+        self.act_theme.triggered.connect(self._on_toggle_theme)
+        toolbar.addAction(self.act_theme)
+
         # Pulsante esci
-        self.act_quit = QAction("✕  Esci", self)
+        self.act_quit = QAction("Esci", self)
         self.act_quit.setShortcut("Ctrl+Q")
         self.act_quit.triggered.connect(self.close)
         toolbar.addAction(self.act_quit)
+
+    def _on_toggle_theme(self) -> None:
+        """Alterna tema chiaro/scuro e applica subito il nuovo stile."""
+        new_theme = "light" if load_theme() == "dark" else "dark"
+        save_theme(new_theme)
+        self._theme = new_theme
+        app = QApplication.instance()
+        if app is not None:
+            app.setStyleSheet(build_stylesheet(new_theme))
+        # Gli indicatori termici usano i colori del tema: ripassali
+        self._update_temp_indicators()
+        label = "chiaro" if new_theme == "light" else "scuro"
+        self.status_bar.showMessage(f"Tema {label} attivato", 2000)
 
     def _on_toggle_orchestrator(self) -> None:
         """Toggle: avvia o ferma l'orchestratore con un solo pulsante."""
@@ -2995,6 +3252,69 @@ class MainWindow(QMainWindow):
                 self.btn_toggle_orch.setChecked(False)
                 self.status_bar.showMessage("❌ Avvio fallito", 3000)
         self._update_toolbar_state()
+    def _read_cpu_temp_direct(self) -> float:
+        """Legge CPU temp direttamente da /sys/class/thermal/."""
+        temps = []
+        try:
+            from pathlib import Path
+            thermal_dir = Path("/sys/class/thermal")
+            if thermal_dir.exists():
+                for zone in thermal_dir.glob("thermal_zone*"):
+                    temp_file = zone / "temp"
+                    if temp_file.exists():
+                        try:
+                            raw = int(temp_file.read_text().strip())
+                            temps.append(raw / 1000.0)
+                        except Exception:
+                            continue
+        except Exception:
+            pass
+        return max(temps) if temps else 0.0
+
+    def _read_gpu_temp_direct(self) -> float:
+        """Legge GPU temp direttamente da nvidia-smi."""
+        try:
+            import subprocess
+            r = subprocess.run(
+                ["nvidia-smi", "--query-gpu=temperature.gpu",
+                 "--format=csv,noheader,nounits"],
+                capture_output=True, text=True, timeout=2
+            )
+            if r.returncode == 0 and r.stdout.strip():
+                return float(r.stdout.strip().split()[0])
+        except Exception:
+            pass
+        return 0.0
+
+    def _set_temp_label(self, label: QLabel, name: str, temp: float) -> None:
+        """Imposta il testo e il colore di un indicatore termico.
+
+        Convenzione: 0.0 = lettura non disponibile (--). Soglie coerenti
+        con Timestral: verde < 50 °C, ambra 50-70, rosso > 70.
+        """
+        if temp <= 0.0:
+            label.setText(f"{name}: --°C")
+            # stile base dal tema (nessun colore semantico)
+            label.setStyleSheet("")
+            return
+        label.setText(f"{name}: {temp:.0f}°C")
+        pal = _THEMES.get(getattr(self, "_theme", "dark"), _THEMES["dark"])
+        if temp < 50.0:
+            color = pal["ok"]
+        elif temp <= 70.0:
+            color = pal.get("warn", pal["err"])
+        else:
+            color = pal["err"]
+        label.setStyleSheet(f"color: {color};")
+
+    def _update_temp_indicators(self) -> None:
+        """Aggiorna gli indicatori CPU/GPU della toolbar."""
+        if not hasattr(self, "temp_cpu_label"):
+            return
+        cpu_temp = self._read_cpu_temp_direct()
+        gpu_temp = self._read_gpu_temp_direct()
+        self._set_temp_label(self.temp_cpu_label, "CPU", cpu_temp)
+        self._set_temp_label(self.temp_gpu_label, "GPU", gpu_temp)
 
     def _update_toolbar_state(self) -> None:
         """Aggiorna lo stato del toggle button."""
@@ -3017,6 +3337,8 @@ class MainWindow(QMainWindow):
         else:
             self.status_bar.showMessage("Avvio fallito (già in esecuzione?)", 3000)
         self._update_status_bar()
+        # Aggiorna indicatori temperatura nella toolbar
+        self._update_temp_indicators()
 
     def _on_stop(self) -> None:
         if self.orchestrator.stop():
@@ -3269,6 +3591,9 @@ def main():
         app = QApplication(sys.argv)
     app.setApplicationName("BYTE-SWARMY Control Center")
     app.setOrganizationName("BYTE-SWARMY")
+
+    # Tema (chiaro/scuro, scelta persistente in state/gui_theme.json)
+    app.setStyleSheet(build_stylesheet(load_theme()))
 
     # 3. Assicura che le dir base esistano
     for d in ("tasks", "state", "logs", "project", "backups"):
