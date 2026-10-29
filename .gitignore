@@ -136,3 +136,7 @@ __pycache__/
 
 # Metriche runtime
 state/last_metrics.json
+*.bak
+*.bak.*
+state/last_metrics.json
+__pycache__/
