@@ -8,7 +8,7 @@ Zero dipendenze da orchestrator.py: può essere usato standalone
 o integrato in add_task.py / gui.py.
 
 Usage:
-    router = IntentRouter("intents.json")
+    router = IntentRouter("INTENT/intents.json")
     result = router.parse("ottimizza la funzione parse_json")
     # → {"intent": "optimize", "lang": "it", "params": {...}, "confidence": 92}
 
@@ -282,7 +282,7 @@ class IntentRouter:
 
 if __name__ == "__main__":
     import sys
-    json_path = sys.argv[1] if len(sys.argv) > 1 else "intents.json"
+    json_path = sys.argv[1] if len(sys.argv) > 1 else str(Path(__file__).parent / "intents.json")
     router = IntentRouter(json_path)
 
     tests = [

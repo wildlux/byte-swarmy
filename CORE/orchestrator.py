@@ -25,6 +25,11 @@ import tarfile
 from pathlib import Path
 from typing import Optional
 
+# core/orchestrator.py
+from CORE.tools import ToolSet
+from CORE.memory import AgentMemory
+from CORE.ollama_client import ModelClient
+
 # New import for structured logging
 import datetime
 
@@ -38,12 +43,12 @@ except ImportError:
         print("ERROR: serve Python 3.11+ o `pip install tomli`")
         sys.exit(1)
 
-from tools import ToolSet
-from memory import AgentMemory
-from ollama_client import ModelClient
-from security import log_security_event
-from security_checks import check_isolation, apply_safe_mode
-from thermal_manager import TimestralManager
+from CORE.tools import ToolSet
+from CORE.memory import AgentMemory
+from CORE.ollama_client import ModelClient
+from SAFETY.security import log_security_event
+from SAFETY.security_checks import check_isolation, apply_safe_mode
+from MONITORING.thermal_manager import TimestralManager
 
 
 # ====================================================================
@@ -94,7 +99,7 @@ def setup_logger(config) -> logging.Logger:
 # CONFIG LOADER
 # ====================================================================
 
-def load_config(path: str = "config.toml") -> dict:
+def load_config(path: str = "CONFIG/config.toml") -> dict:
     with open(path, "rb") as f:
         return tomllib.load(f)
 
@@ -919,17 +924,17 @@ class GenericTaskPlanner:
 # ORCHESTRATOR — il main loop
 # ====================================================================
 
-from constants import TaskStatus, TaskType, ThermalState, AuditDecision, Severity
-from lifecycle_manager import LifecycleManager
-from system_monitor import SystemMonitor
-from task_dispatcher import TaskDispatcher
+from CORE.constants import TaskStatus, TaskType, ThermalState, AuditDecision, Severity
+from MONITORING.lifecycle_manager import LifecycleManager
+from MONITORING.system_monitor import SystemMonitor
+from CORE.task_dispatcher import TaskDispatcher
 
 class Orchestrator:
     """
     Coordination layer. Integrates specialized managers to maintain the swarm.
     Follows Single Responsibility Principle (SRP).
     """
-    def __init__(self, config_path: str = "config.toml"):
+    def __init__(self, config_path: str = "CONFIG/config.toml"):
         self.config = load_config(config_path)
         self.log = setup_logger(self.config)
         
@@ -1287,7 +1292,7 @@ class Orchestrator:
 # ====================================================================
 
 def main():
-    config_path = sys.argv[1] if len(sys.argv) > 1 else "config.toml"
+    config_path = sys.argv[1] if len(sys.argv) > 1 else "CONFIG/config.toml"
     orch = Orchestrator(config_path)
     orch.run()
 

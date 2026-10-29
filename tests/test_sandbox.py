@@ -24,8 +24,8 @@ if str(ROOT) not in sys.path:
 os.environ.setdefault("BYTE_SWARM_SECURITY_LOG_DIR",
                       tempfile.mkdtemp(prefix="bswarm-sbx-"))
 
-import sandbox  # noqa: E402
-from tools import ToolSet  # noqa: E402
+from CORE import sandbox  # noqa: E402
+from CORE.tools import ToolSet  # noqa: E402
 
 PROJECT = ROOT / "project"
 

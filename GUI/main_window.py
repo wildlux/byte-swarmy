@@ -56,7 +56,7 @@ from PyQt6.QtWidgets import (
 
 # Import moduli del progetto
 try:
-    from mcp_client import MCPClient, McpServerConfig, MCP_AVAILABLE
+    from CORE.mcp_client import MCPClient, McpServerConfig, MCP_AVAILABLE
 except ImportError as e:
     print(f"WARNING: cannot import mcp_client: {e}")
     MCPClient = None
@@ -68,14 +68,14 @@ except ImportError as e:
 # Intent Router integration (multilingual IT/EN/ZH)
 # ------------------------------------------------------------------
 try:
-    from intent_bridge import add_task_with_intent, parse_input, localize
+    from INTENT.bridge import add_task_with_intent, parse_input, localize
     INTENT_ROUTER_AVAILABLE = True
 except ImportError as e:
     print(f"WARNING: intent_bridge non disponibile: {e}")
     INTENT_ROUTER_AVAILABLE = False
 
 try:
-    from ollama_metrics import get_last_call_metrics, estimate_kv_cache_mb
+    from INTENT.metrics import get_last_call_metrics, estimate_kv_cache_mb
     OLLAMA_METRICS_AVAILABLE = True
 except ImportError:
     get_last_call_metrics = None
@@ -361,10 +361,10 @@ def show_error_dialog(parent, title: str, message: str) -> None:
 # PATH CONSTANTS
 # ====================================================================
 
-BASE_DIR = Path(__file__).parent.resolve()
+BASE_DIR = Path(__file__).parent.parent.resolve()
 TASKS_FILE = BASE_DIR / "tasks" / "queue.json"
 LOG_FILE = BASE_DIR / "logs" / "byte-swarmy.log"
-CONFIG_FILE = BASE_DIR / "config.toml"
+CONFIG_FILE = BASE_DIR / "CONFIG" / "config.toml"
 MCP_CONFIG_FILE = BASE_DIR / "mcp_servers.json"
 PID_FILE = BASE_DIR / "state" / "orchestrator.pid"
 
@@ -846,7 +846,7 @@ class LiveActivityPanel(QWidget):
 
         # 🆕 Aggiorna metriche
         try:
-            from ollama_metrics import format_metrics_line, format_vram_line
+            from INTENT.metrics import format_metrics_line, format_vram_line
             self.metrics_label.setText(f"{format_metrics_line()}")
             self.vram_label.setText(f"{format_vram_line()}")
         except ImportError:
@@ -861,7 +861,7 @@ class LiveActivityPanel(QWidget):
         self._last_task_id = None
         # 🆕 Aggiorna comunque metriche anche quando idle
         try:
-            from ollama_metrics import format_metrics_line, format_vram_line
+            from INTENT.metrics import format_metrics_line, format_vram_line
             if hasattr(self, 'metrics_label'):
                 self.metrics_label.setText(f"{format_metrics_line()}")
             if hasattr(self, 'vram_label'):
@@ -2779,7 +2779,7 @@ class TestsTab(QWidget):
     def _show_backend_info(self) -> None:
         """Mostra subito lo stato di bubblewrap, senza eseguire i test."""
         try:
-            import sandbox
+            from CORE import sandbox
             info = sandbox.backend_info()
         except Exception as exc:  # pragma: no cover - difensivo
             info = {"available": False, "error": str(exc), "version": None,
@@ -3091,7 +3091,7 @@ class MainWindow(QMainWindow):
         try:
             import sys as _sys
             _sys.path.insert(0, str(BASE_DIR))
-            from thermal_manager import TimestralManager
+            from MONITORING.thermal_manager import TimestralManager
             import logging as _logging
             _log = _logging.getLogger("byte-swarmy-gui")
             _log.addHandler(_logging.NullHandler())
@@ -3308,13 +3308,80 @@ class MainWindow(QMainWindow):
         label.setStyleSheet(f"color: {color};")
 
     def _update_temp_indicators(self) -> None:
-        """Aggiorna gli indicatori CPU/GPU della toolbar."""
-        if not hasattr(self, "temp_cpu_label"):
-            return
+        """Aggiorna le label temperatura CPU/GPU leggendo direttamente i sensori."""
         cpu_temp = self._read_cpu_temp_direct()
         gpu_temp = self._read_gpu_temp_direct()
-        self._set_temp_label(self.temp_cpu_label, "CPU", cpu_temp)
-        self._set_temp_label(self.temp_gpu_label, "GPU", gpu_temp)
+        self._set_temp_label(self.temp_cpu_label, "CPU", cpu_temp, is_gpu=False)
+        self._set_temp_label(self.temp_gpu_label, "GPU", gpu_temp, is_gpu=True)
+
+    def _set_temp_label(self, label, name: str, temp: float, is_gpu: bool = False) -> None:
+        """Imposta il testo e colore di una label temperatura."""
+        if temp <= 0:
+            label.setText(f"{name}: --°C")
+            label.setStyleSheet("background-color: #444; color: #999;")
+            return
+        label.setText(f"{name}: {temp:.0f}°C")
+        # Soglie (GPU più alta di CPU)
+        if is_gpu:
+            warm, hot, crit = 70, 80, 90
+        else:
+            warm, hot, crit = 60, 75, 90
+        if temp >= crit:
+            label.setStyleSheet("background-color: #dc3545; color: white;")
+        elif temp >= hot:
+            label.setStyleSheet("background-color: #fd7e14; color: white;")
+        elif temp >= warm:
+            label.setStyleSheet("background-color: #ffc107; color: black;")
+        else:
+            label.setStyleSheet("background-color: #28a745; color: white;")
+
+    def _read_cpu_temp_direct(self) -> float:
+        """Legge CPU temp direttamente da /sys/class/thermal/."""
+        temps = []
+        try:
+            from pathlib import Path
+            thermal_dir = Path("/sys/class/thermal")
+            if thermal_dir.exists():
+                for zone in thermal_dir.glob("thermal_zone*"):
+                    temp_file = zone / "temp"
+                    if temp_file.exists():
+                        try:
+                            raw = int(temp_file.read_text().strip())
+                            temps.append(raw / 1000.0)
+                        except Exception:
+                            continue
+        except Exception:
+            pass
+        if not temps:
+            try:
+                from pathlib import Path
+                hwmon_dir = Path("/sys/class/hwmon")
+                for hwmon in hwmon_dir.iterdir():
+                    for temp_file in hwmon.glob("temp*_input"):
+                        try:
+                            raw = int(temp_file.read_text().strip())
+                            temps.append(raw / 1000.0)
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+        return max(temps) if temps else 0.0
+
+    def _read_gpu_temp_direct(self) -> float:
+        """Legge GPU temp direttamente da nvidia-smi."""
+        try:
+            import subprocess
+            r = subprocess.run(
+                ["nvidia-smi", "--query-gpu=temperature.gpu",
+                 "--format=csv,noheader,nounits"],
+                capture_output=True, text=True, timeout=2
+            )
+            if r.returncode == 0 and r.stdout.strip():
+                return float(r.stdout.strip().split()[0])
+        except Exception:
+            pass
+        return 0.0
+
 
     def _update_toolbar_state(self) -> None:
         """Aggiorna lo stato del toggle button."""

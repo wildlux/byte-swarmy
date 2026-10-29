@@ -42,6 +42,7 @@
     "created_at": 1792868858.2656894,
     "started_at": 1792869606.1212244,
     "result": "Added hello_world.c to staging area.",
-    "completed_at": 1792869610.933234
+    "completed_at": 1792869610.933234,
+    "subtasks": []
   }
 ]

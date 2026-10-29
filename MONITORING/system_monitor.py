@@ -3,7 +3,7 @@ system_monitor.py — Handles health checks, resource monitoring and Timestral i
 """
 import os
 from pathlib import Path
-from constants import SAFETY_THRESHOLDS
+from CORE.constants import SAFETY_THRESHOLDS
 
 class SystemMonitor:
     def __init__(self, config, logger, timestral_manager=None):

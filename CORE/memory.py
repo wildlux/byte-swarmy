@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, List, Dict, Optional
 import sqlite3
 
-from memory_provider import SQLiteMemoryProvider, JSONMemoryProvider, MemoryProvider
+from CORE.memory_provider import SQLiteMemoryProvider, JSONMemoryProvider, MemoryProvider
 
 
 class AgentMemory:

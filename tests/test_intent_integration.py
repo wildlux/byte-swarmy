@@ -22,15 +22,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 def test_router_loads():
     """Il router carica correttamente intents.json."""
-    from intent_router import IntentRouter
-    router = IntentRouter("intents.json")
+    from INTENT.router import IntentRouter
+    router = IntentRouter("INTENT/intents.json")
     assert len(router.intents) >= 20, f"Expected 20+ intents, got {len(router.intents)}"
     print(f"✓ Router carica {len(router.intents)} intent con {len(router._index)} trigger")
 
 
 def test_bridge_parse():
     """Il bridge parse correttamente input multilingue."""
-    from intent_bridge import parse_input
+    from INTENT.bridge import parse_input
     
     cases = [
         ("crea funzione fattoriale", "it", "create_function"),
@@ -51,7 +51,7 @@ def test_bridge_parse():
 
 def test_bridge_add_task():
     """Il bridge chiama add_task con i parametri giusti."""
-    from intent_bridge import add_task_with_intent
+    from INTENT.bridge import add_task_with_intent
     
     captured = {}
     def mock_add_task(title, description, context, task_type):
@@ -71,7 +71,7 @@ def test_bridge_add_task():
 
 def test_metadata_extraction():
     """L'orchestrator può estrarre metadati dal context del task."""
-    from intent_bridge import add_task_with_intent, extract_task_metadata
+    from INTENT.bridge import add_task_with_intent, extract_task_metadata
     
     captured = {}
     def mock_add_task(title, description, context, task_type):
@@ -91,7 +91,7 @@ def test_metadata_extraction():
 
 def test_localization():
     """I messaggi UI sono localizzati in 3 lingue."""
-    from intent_bridge import localize
+    from INTENT.bridge import localize
     
     for lang, expected_substring in [("it", "aggiunto"), ("en", "added"), ("zh", "添加")]:
         msg = localize("task_added", lang, intent="test", conf=100)
@@ -101,7 +101,7 @@ def test_localization():
 
 def test_swarm_command_detection():
     """Gli intent di swarm control vengono identificati correttamente."""
-    from intent_bridge import parse_input
+    from INTENT.bridge import parse_input
     
     swarm_commands = [
         "swarm status",

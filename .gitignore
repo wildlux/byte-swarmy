@@ -118,3 +118,21 @@ fix_*.py
 *.bak2
 *.bak3
 state/last_metrics.json
+
+# File temporanei di fix/patch (non committare)
+fix_*.py
+*_patch.py
+apply_*.py
+add_*.py
+redesign_*.py
+
+# Backup locali
+*.bak
+*.bak.*
+
+# Cache Python
+__pycache__/
+*.pyc
+
+# Metriche runtime
+state/last_metrics.json
