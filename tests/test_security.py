@@ -483,6 +483,11 @@ class TestAlwaysOnSecurity(unittest.TestCase):
                     "result": "completed",
                 })
 
+
+            def call_streaming(self, **kwargs):
+                """Mock che simula streaming yieldando la stessa risposta di call()."""
+                result = self.call(**kwargs)
+                yield result
         logger = logging.getLogger(f"inject-{id(self)}")
         logger.addHandler(logging.NullHandler())
         memory = AgentMemory("injection-test", self.tmp / "state", None, logger)
@@ -500,7 +505,6 @@ class TestAlwaysOnSecurity(unittest.TestCase):
         self.assertEqual(result, "completed")
         self.assertTrue(self.sentinel.exists())
         self.assertEqual(self.sentinel.read_text(), "do not delete\n")
-
 
 class TestSecurityLog(unittest.TestCase):
 

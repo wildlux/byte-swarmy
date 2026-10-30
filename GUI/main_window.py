@@ -680,10 +680,10 @@ class LiveActivityPanel(QWidget):
         self._last_task_id = None
         self._build_ui()
 
-        # Timer aggiornamento dati (1.5s)
+        # Timer aggiornamento dati (300ms per streaming real-time)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._refresh)
-        self.timer.start(1500)
+        self.timer.start(300)
 
         # Timer animazione spinner (120ms)
         self.spinner_timer = QTimer(self)
@@ -850,6 +850,25 @@ class LiveActivityPanel(QWidget):
             self.metrics_label.setText(f"{format_metrics_line()}")
             self.vram_label.setText(f"{format_vram_line()}")
         except ImportError:
+            pass
+
+        # 🆕 Mostra token streaming
+        try:
+            streaming_file = Path("state/streaming.txt")
+            if streaming_file.exists():
+                content = streaming_file.read_text(encoding="utf-8", errors="replace")
+                if content:
+                    # Mostra ultimi 400 caratteri
+                    display = content[-400:] if len(content) > 400 else content
+                    # Pulisci per display (rimuovi newline eccessivi)
+                    display = display.replace("\n", " ⏎ ").strip()
+                    if hasattr(self, 'thought_label'):
+                        self.thought_label.setText(f"⚡ Streaming: {display}")
+                        self.thought_label.setStyleSheet(
+                            "color: #50fa7b; font-family: monospace; "
+                            "font-size: 9pt; padding: 2px 0;"
+                        )
+        except Exception:
             pass
 
         # Avvia spinner

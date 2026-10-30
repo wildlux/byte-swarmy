@@ -36,13 +36,10 @@
     "title": "Compilare ed eseguire l'applicazione",
     "description": "Configura lo strumento compilatore per creare un oggetto da 'hello_world.c', collegarlo con eventuali librerie necessarie (se presenti) e infine linkare questi oggetti per generare un binario eseguibile chiamato 'hello_world'. Esegui questo applicativo per verificarne la corretta operatività.",
     "type": "execute",
-    "status": "done",
+    "status": "pending",
     "parent": "task-1792868814623-0",
     "attempts": 0,
     "created_at": 1792868858.2656894,
-    "started_at": 1792869606.1212244,
-    "result": "Added hello_world.c to staging area.",
-    "completed_at": 1792869610.933234,
     "subtasks": []
   }
 ]

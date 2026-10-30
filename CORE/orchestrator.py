@@ -414,12 +414,30 @@ class Worker:
             self.log.info(f"[{self.agent_id}] step {step+1}/{self.MAX_STEPS}")
 
             try:
-                raw = self.models.call(
+                # 🆕 Streaming: raccogli token e scrivi su file per la GUI
+                streaming_file = Path("state/streaming.txt")
+                streaming_file.parent.mkdir(parents=True, exist_ok=True)
+                streaming_file.write_text("")  # reset all'inizio di ogni call
+                
+                raw_parts = []
+                token_count = 0
+                for token in self.models.call_streaming(
                     model_key=self.model_key,
                     prompt=prompt,
                     system=self.SYSTEM,
                     max_tokens=400,
-                )
+                ):
+                    raw_parts.append(token)
+                    token_count += 1
+                    # Scrivi su file (append) per la GUI
+                    with open(streaming_file, "a", encoding="utf-8") as f:
+                        f.write(token)
+                    # Log ogni 50 token
+                    if token_count % 50 == 0:
+                        self.log.debug(f"[{self.agent_id}] streaming: {token_count} tokens")
+                
+                raw = "".join(raw_parts)
+                self.log.debug(f"[{self.agent_id}] streaming done: {token_count} tokens total")
             except Exception as e:
                 self.log.error(f"[{self.agent_id}] model call failed: {e}")
                 return f"ERROR: model unavailable: {e}"
@@ -469,6 +487,18 @@ class Worker:
 
                 result = action.get("result", "(no result)")
                 self.memory.add_event({"type": "task_done", "content": result[:200]})
+                # 🆕 Registra task completato nella memoria persistente
+                try:
+                    from CORE.persistent_memory import record_task_completed, update_project_context
+                    record_task_completed(
+                        task_id=task.get("id", "?"),
+                        title=task.get("title", ""),
+                        result=result,
+                    )
+                    # Aggiorna lista file esistenti
+                    update_project_context()
+                except Exception:
+                    pass
                 return result
 
             # Esegui il tool
@@ -530,10 +560,19 @@ class Worker:
         return "ERROR: max steps reached without completion"
 
     def _build_initial_prompt(self, task: dict, context: str) -> str:
+        # 🆕 Carica contesto persistente
+        persistent_context = ""
+        try:
+            from CORE.persistent_memory import build_context_for_prompt
+            persistent_context = build_context_for_prompt()
+        except Exception:
+            pass
+        
         return (
             f"## TASK\n{task.get('title', '')}\n\n"
             f"## DESCRIPTION\n{task.get('description', '')}\n\n"
             f"## PROJECT STATE\n{self._project_state()}\n\n"
+            f"## PERSISTENT CONTEXT\n{persistent_context}\n\n"
             f"## RULES\n{Planner.WORKER_CONSTRAINTS}\n\n"
             "PLAN (follow strictly):\n"
             "1. write_file(path, content) to create the implementation file\n"
@@ -1062,6 +1101,19 @@ class Orchestrator:
         if not task:
             return  # coda vuota, aspetta
 
+        # 🆕 Intercetta swarm commands (gestione diretta, no LLM)
+        swarm_intent = self._extract_swarm_intent(task)
+        if swarm_intent:
+            self.log.info(f"swarm command: {swarm_intent} (handling directly)")
+            try:
+                result = self._handle_swarm_command(task, swarm_intent)
+                self.queue.mark_done(task["id"], result)
+                self.log.info(f"swarm command {swarm_intent} done")
+            except Exception as e:
+                self.queue.mark_failed(task["id"], str(e))
+                self.log.error(f"swarm command failed: {e}")
+            return  # non passare al worker
+
         self.log.info(f"dispatching {task['id']}: {task.get('title', '')[:80]}")
 
         # 6a. Generic Task? Usa GenericTaskPlanner (decision model)
@@ -1273,6 +1325,199 @@ class Orchestrator:
     # ------------------------------------------------------------------
     # Shutdown
     # ------------------------------------------------------------------
+
+
+    # ------------------------------------------------------------------
+    # 🆕 Swarm command handlers (no LLM needed)
+    # ------------------------------------------------------------------
+
+    def _handle_swarm_command(self, task: dict, intent: str) -> str:
+        """Gestisce direttamente i comandi swarm senza usare il worker LLM.
+        Ritorna il risultato testuale da salvare come result del task.
+        """
+        try:
+            if intent == "swarm_status":
+                return self._cmd_swarm_status()
+            elif intent == "list_tasks":
+                return self._cmd_list_tasks()
+            elif intent == "show_logs":
+                return self._cmd_show_logs()
+            elif intent == "pause_swarm":
+                return self._cmd_pause_swarm()
+            elif intent == "resume_swarm":
+                return self._cmd_resume_swarm()
+            elif intent == "inspect_memory":
+                return self._cmd_inspect_memory()
+            elif intent == "cancel_task":
+                return self._cmd_cancel_task(task)
+            elif intent == "run_audit":
+                return self._cmd_run_audit()
+            else:
+                return f"unknown swarm command: {intent}"
+        except Exception as e:
+            self.log.error(f"swarm command {intent} failed: {e}")
+            return f"ERROR: {e}"
+
+    def _cmd_swarm_status(self) -> str:
+        """Stato completo dello swarm."""
+        stats = self.queue.stats()
+        models_loaded = self.models.list_models()
+        timestral_state = "n/a"
+        if self.timestral:
+            advice = self.timestral.get_advice()
+            timestral_state = advice.action
+            if advice.sample:
+                timestral_state += f" (CPU {advice.sample.cpu_temp_max:.0f}°C, load {advice.sample.cpu_load*100:.0f}%)"
+        
+        lines = [
+            "🐝 BYTE-SWARMY Status",
+            "=" * 40,
+            f"Coda task: {stats}",
+            f"Modelli Ollama disponibili: {len(models_loaded)}",
+            f"Modello attivo: {self.models.current_model or 'nessuno'}",
+            f"Stato timestral: {timestral_state}",
+            f"Agenti in memoria: {len(self.memories)}",
+            f"Running: {self.running}",
+        ]
+        return "\n".join(lines)
+
+    def _cmd_list_tasks(self) -> str:
+        """Lista tutti i task nella coda."""
+        tasks = self.queue.get_all_tasks()
+        if not tasks:
+            return "Nessun task nella coda."
+        
+        lines = [f"📋 Coda task ({len(tasks)} totali):", "=" * 60]
+        for t in tasks[:20]:  # max 20
+            status_icon = {
+                "pending": "⏳", "running": "▶", "done": "✓",
+                "retry": "🔄", "stuck": "⛔", "planned": "📝",
+                "needs_human": "👤"
+            }.get(t.get("status", ""), "?")
+            lines.append(f"{status_icon} [{t['status']:10}] {t['id']} | {t.get('title', '')[:50]}")
+        return "\n".join(lines)
+
+    def _cmd_show_logs(self) -> str:
+        """Ultime 30 righe di log."""
+        try:
+            log_file = Path(self.config["logging"]["file"])
+            if not log_file.exists():
+                return "Log file non trovato."
+            lines = log_file.read_text(encoding="utf-8", errors="replace").splitlines()
+            # Filtra timestral (troppo verboso)
+            filtered = [l for l in lines if "timestral" not in l.lower()][-30:]
+            return "📜 Ultimi log:\n" + "\n".join(filtered)
+        except Exception as e:
+            return f"ERROR reading logs: {e}"
+
+    def _cmd_pause_swarm(self) -> str:
+        """Mette in pausa lo swarm."""
+        self.running = False
+        return "⏸ Swarm messo in pausa. Usa 'resume swarm' per riprendere."
+
+    def _cmd_resume_swarm(self) -> str:
+        """Riprende lo swarm."""
+        self.running = True
+        return "▶ Swarm ripreso."
+
+    def _cmd_inspect_memory(self) -> str:
+        """Ispeziona memoria agenti."""
+        if not self.memories:
+            return "Nessun agente ha memoria attiva."
+        
+        lines = ["🧠 Memoria agenti:", "=" * 40]
+        for agent_id, mem in self.memories.items():
+            try:
+                history = mem.get_history() if hasattr(mem, 'get_history') else []
+                lines.append(f"\n{agent_id}:")
+                lines.append(f"  Eventi: {len(history)}")
+                if history:
+                    last = history[-1] if history else {}
+                    lines.append(f"  Ultimo: {last.get('type', '?')} - {str(last.get('content', ''))[:80]}")
+            except Exception as e:
+                lines.append(f"  ERROR: {e}")
+        return "\n".join(lines)
+
+    def _cmd_cancel_task(self, task: dict) -> str:
+        """Cancella un task (quello corrente o specificato nel context)."""
+        # Estrai task_id dal context se presente
+        import json
+        target_id = None
+        try:
+            ctx = json.loads(task.get("context", "{}"))
+            target_id = ctx.get("params", {}).get("task_id")
+        except Exception:
+            pass
+        
+        if not target_id:
+            # Cancella tutti i task pending
+            try:
+                with self.queue._get_conn() as conn:
+                    cur = conn.execute("DELETE FROM tasks WHERE status = 'pending'")
+                    deleted = cur.rowcount
+                    conn.commit()
+                return f"🗑 Cancellati {deleted} task pending."
+            except Exception as e:
+                return f"ERROR: {e}"
+        else:
+            try:
+                with self.queue._get_conn() as conn:
+                    cur = conn.execute("DELETE FROM tasks WHERE id = ?", (target_id,))
+                    conn.commit()
+                if cur.rowcount > 0:
+                    return f"🗑 Task {target_id} cancellato."
+                else:
+                    return f"⚠ Task {target_id} non trovato."
+            except Exception as e:
+                return f"ERROR: {e}"
+
+    def _cmd_run_audit(self) -> str:
+        """Esegue un audit veloce del progetto."""
+        try:
+            project_root = Path(self.config["paths"]["project_root"])
+            files = list(project_root.rglob("*.py"))
+            total_lines = 0
+            for f in files:
+                try:
+                    total_lines += sum(1 for _ in f.open(encoding="utf-8", errors="replace"))
+                except Exception:
+                    pass
+            
+            lines = [
+                "🔍 Audit progetto:",
+                "=" * 40,
+                f"File Python: {len(files)}",
+                f"Linee totali: {total_lines}",
+                f"Directory: {project_root}",
+            ]
+            if files:
+                lines.append("\nFile:")
+                for f in files[:10]:
+                    lines.append(f"  - {f.relative_to(project_root)}")
+                if len(files) > 10:
+                    lines.append(f"  ... e altri {len(files) - 10}")
+            return "\n".join(lines)
+        except Exception as e:
+            return f"ERROR: {e}"
+
+
+
+    def _extract_swarm_intent(self, task: dict) -> str:
+        """Estrae l'intent swarm dal task context, se presente."""
+        try:
+            import json
+            ctx_raw = task.get("context", "")
+            if not ctx_raw:
+                return None
+            ctx = json.loads(ctx_raw)
+            intent = ctx.get("intent")
+            swarm_intents = {
+                "swarm_status", "list_tasks", "show_logs", "pause_swarm",
+                "resume_swarm", "inspect_memory", "cancel_task", "run_audit",
+            }
+            return intent if intent in swarm_intents else None
+        except (json.JSONDecodeError, TypeError):
+            return None
 
     def _handle_signal(self, signum, frame) -> None:
         self.log.info(f"signal {signum} received, shutting down...")
