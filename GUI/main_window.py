@@ -3563,6 +3563,79 @@ class MainWindow(QMainWindow):
         label = "chiaro" if new_theme == "light" else "scuro"
         self.status_bar.showMessage(f"Tema {label} attivato", 2000)
 
+    def _show_hamburger_menu(self):
+        """Mostra il menu hamburger con Impostazioni e Cronologia."""
+        from PyQt6.QtWidgets import QMenu
+        menu = QMenu(self)
+        
+        act_settings = menu.addAction("⚙  Impostazioni")
+        menu.addSeparator()
+        act_history = menu.addAction("📋  Cronologia chat")
+        act_models = menu.addAction("🤖  Gestione modelli")
+        menu.addSeparator()
+        act_theme = menu.addAction("◐  Cambia tema")
+        
+        action = menu.exec(self.btn_menu.mapToGlobal(self.btn_menu.rect().bottomLeft()))
+        
+        if action == act_settings:
+            self.tabs.setCurrentWidget(self.config_tab)
+        elif action == act_history:
+            self._open_chat_history()
+        elif action == act_models:
+            self.tabs.setCurrentWidget(self.models_tab)
+        elif action == act_theme:
+            self._toggle_theme()
+
+    def _open_chat_history(self):
+        """Mostra la cronologia delle chat/task completati."""
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QPlainTextEdit, QPushButton, QHBoxLayout
+        from PyQt6.QtGui import QFont
+        dialog = QDialog(self)
+        dialog.setWindowTitle("📋  Cronologia chat")
+        dialog.setMinimumSize(600, 400)
+        layout = QVBoxLayout(dialog)
+        
+        text = QPlainTextEdit()
+        text.setReadOnly(True)
+        font = QFont("Monospace")
+        font.setStyleHint(QFont.StyleHint.Monospace)
+        font.setPointSize(9)
+        text.setFont(font)
+        
+        try:
+            import json
+            import time
+            mem_file = Path("state/persistent_memory.json")
+            if mem_file.exists():
+                mem = json.loads(mem_file.read_text())
+                history = mem.get("task_history", [])
+                if history:
+                    lines = [f"Ultimi {len(history)} task completati:", "=" * 60]
+                    for t in reversed(history[-20:]):
+                        ts = time.strftime("%H:%M:%S", time.localtime(t.get("timestamp", 0)))
+                        lines.append(f"[{ts}] {t.get('title', '?')}")
+                        if t.get('result'):
+                            lines.append(f"  -> {t['result'][:80]}")
+                    text.setPlainText("\n".join(lines))
+                else:
+                    text.setPlainText("Nessun task completato nella cronologia.")
+            else:
+                text.setPlainText("Memoria persistente non ancora creata.")
+        except Exception as e:
+            text.setPlainText(f"Errore lettura cronologia: {e}")
+        
+        layout.addWidget(text)
+        
+        btn_layout = QHBoxLayout()
+        btn_close = QPushButton("Chiudi")
+        btn_close.clicked.connect(dialog.accept)
+        btn_layout.addStretch()
+        btn_layout.addWidget(btn_close)
+        layout.addLayout(btn_layout)
+        
+        dialog.exec()
+
+
     def _on_toggle_orchestrator(self) -> None:
         """Toggle: avvia o ferma l'orchestratore con un solo pulsante."""
         if self.orchestrator.is_running():

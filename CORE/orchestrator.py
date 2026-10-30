@@ -410,18 +410,7 @@ class Worker:
         # --- CIRCUIT BREAKER STATE ---
         repeated_actions = {}
 
-        # 🆕 Dynamic MAX_STEPS from TimestralLLMTuner
-        try:
-            from CORE.orchestrator import Orchestrator as _Orch
-            # Access the global orchestrator instance via models.llm_tuner
-            if hasattr(self.models, "llm_tuner") and self.models.llm_tuner:
-                current_max = self.models.llm_tuner.get_max_steps()
-            else:
-                current_max = self.MAX_STEPS
-        except Exception:
-            current_max = self.MAX_STEPS
-        
-        for step in range(current_max):
+        for step in range(self.MAX_STEPS):
             self.memory.heartbeat()
             self.log.info(f"[{self.agent_id}] step {step+1}/{self.MAX_STEPS}")
 
@@ -1004,14 +993,6 @@ class Orchestrator:
 
         # 2. Core Components
         self.models = ModelClient(self.config, self.log)
-        # 🆕 Initialize LLM tuner (will be connected to Timestral later)
-        try:
-            from CORE.llm_tuner import TimestralLLMTuner
-            self.llm_tuner = TimestralLLMTuner(timestral_manager=None, config=self.config)
-            self.models.llm_tuner = self.llm_tuner  # connect to ModelClient
-        except Exception as e:
-            self.log.warning(f"llm_tuner init failed: {e}")
-            self.llm_tuner = None
         self.tools = ToolSet(self.config, self.log)
         self.queue = TaskQueue(Path(self.config["paths"]["tasks_dir"]), self.log)
         # 🆕 Fix: resetta task "running" a "pending" all'avvio (erano crashati)
@@ -1036,10 +1017,6 @@ class Orchestrator:
             try:
                 self.timestral = TimestralManager(self.config, self.log, base_dir=Path(self.config["paths"]["state_dir"]).parent)
                 self.timestral.start()
-                # 🆕 Connect tuner to Timestral
-                if self.llm_tuner:
-                    self.llm_tuner.timestral = self.timestral
-                    self.log.info("llm_tuner connected to Timestral")
             except Exception as e:
                 self.log.warning(f"Timestral failed: {e}")
         
