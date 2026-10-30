@@ -732,30 +732,32 @@ class LiveActivityPanel(QWidget):
         self.thought_label.setWordWrap(True)
         gl.addWidget(self.thought_label)
 
-        # 🆕 Riga metriche (token/sec, KV cache, VRAM)
-        self.metrics_label = QLabel("Metriche: in attesa prima call...")
-        self.metrics_label.setStyleSheet(
-            "color: #ffb86c; font-family: monospace; font-size: 9pt; "
-            "padding: 2px 0; background: #2a2a2a; border-radius: 2px;"
-        )
-        self.metrics_label.setWordWrap(True)
-        gl.addWidget(self.metrics_label)
-
-        # 🆕 Riga VRAM (modelli caricati)
-        self.vram_label = QLabel("VRAM: ...")
-        self.vram_label.setStyleSheet(
-            "color: #50fa7b; font-family: monospace; font-size: 9pt; "
-            "padding: 2px 0;"
-        )
-        self.vram_label.setWordWrap(True)
-        gl.addWidget(self.vram_label)
+        # NB: le metriche di chiamata (tok/s, TTFT, KV, contesto) sono
+        # spostate nella toolbar del Control Center (LiveMetricsBar).
 
         layout.addWidget(group)
 
     def _refresh(self) -> None:
         """Aggiorna leggendo coda + log."""
-        tasks = load_tasks()
-        running = [t for t in tasks if t.get("status") == "running"]
+                # Leggi dal DB SQLite (fonte di verità dell'orchestratore)
+        import sqlite3
+        running = []
+        db_path = Path("tasks/queue.db")
+        if db_path.exists():
+            try:
+                conn = sqlite3.connect(str(db_path))
+                conn.row_factory = sqlite3.Row
+                rows = conn.execute(
+                    "SELECT * FROM tasks WHERE status = 'running' ORDER BY created_at"
+                ).fetchall()
+                conn.close()
+                running = [dict(r) for r in rows]
+            except Exception:
+                pass
+        if not running:
+            # Fallback: file JSON
+            running = [t for t in load_tasks() if t.get("status") == "running"]
+
 
         if not running:
             self._show_idle()
@@ -844,14 +846,6 @@ class LiveActivityPanel(QWidget):
         else:
             self.thought_label.setText("💭 (in attesa del primo pensiero...)")
 
-        # 🆕 Aggiorna metriche
-        try:
-            from INTENT.metrics import format_metrics_line, format_vram_line
-            self.metrics_label.setText(f"{format_metrics_line()}")
-            self.vram_label.setText(f"{format_vram_line()}")
-        except ImportError:
-            pass
-
         # 🆕 Mostra token streaming
         try:
             streaming_file = Path("state/streaming.txt")
@@ -878,15 +872,6 @@ class LiveActivityPanel(QWidget):
     def _show_idle(self) -> None:
         self._start_time = None
         self._last_task_id = None
-        # 🆕 Aggiorna comunque metriche anche quando idle
-        try:
-            from INTENT.metrics import format_metrics_line, format_vram_line
-            if hasattr(self, 'metrics_label'):
-                self.metrics_label.setText(f"{format_metrics_line()}")
-            if hasattr(self, 'vram_label'):
-                self.vram_label.setText(f"{format_vram_line()}")
-        except ImportError:
-            pass
         self.status_label.setText("○ In attesa")
         self.status_label.setStyleSheet(
             "font-weight: bold; color: #8a93a2; font-size: 10pt;"
@@ -1001,7 +986,7 @@ class LiveMetricsBar(QWidget):
             f'<span style="color:{pal["muted"]}"> ·</span>'
             f'<span style="color:{pal["text"]}"> {tps} tok/s</span>'
             f'<span style="color:{pal["muted"]}"> ·</span>'
-            f'<span style="color:{pal["ok"]}">▲{tok_in}</span>'
+            f'<span style="color:{pal["ok"]}"> ▲{tok_in}</span>'
             f'<span style="color:{pal["err"]}"> ▼{tok_out}</span>'
             f'<span style="color:{pal["muted"]}"> ·</span>'
             f'<span style="color:{pal["text"]}"> TTFT {ttft:.0f}ms</span>'
@@ -3738,7 +3723,7 @@ class MainWindow(QMainWindow):
 
 
     def _update_toolbar_state(self) -> None:
-        """Aggiorna lo stato del toggle button."""
+        """Aggiorna lo stato del toggle button in base allo stato reale."""
         running = self.orchestrator.is_running()
         if running:
             self.btn_toggle_orch.setChecked(True)
@@ -3752,6 +3737,7 @@ class MainWindow(QMainWindow):
         self.btn_toggle_orch.style().unpolish(self.btn_toggle_orch)
         self.btn_toggle_orch.style().polish(self.btn_toggle_orch)
 
+    
     def _on_start(self) -> None:
         if self.orchestrator.start():
             self.status_bar.showMessage("Orchestratore avviato", 3000)
