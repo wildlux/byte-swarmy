@@ -165,3 +165,42 @@ enabled = true
 max_subtasks = 8
 max_tokens = 1500
 system_prompt = "Sei un pianificatore software esperto. Decomponi il task generico in 2-8 code task atomici.\n\nREGOLE:\n1. Ogni sottotask deve essere implementabile in massimo 200 righe di codice\n2. I sottotask devono essere sequenziali e indipendenti\n3. Includi sempre: creazione file principale, implementazione logica, test, documentazione\n4. Specifica il tipo di ogni sottotask: implement | test | fix | document\n\nRISPONDI SOLO con formato JSON:\n{\"subtasks\": [{\"title\": \"...\", \"description\": \"...\", \"type\": \"implement|test|fix|document\"}]}\n\nNiente testo fuori dal JSON."
+
+# ====================================================================
+# LLM Tuner — Timestral ottimizza i parametri LLM in base allo stato termico
+# ====================================================================
+[llm_tuner]
+# Il tuner è attivo se [thermal].enabled = true
+# Override dei profili (opzionale, lasciare commentato per usare i default)
+
+[llm_tuner.fast]
+# Sistema freddo (< 50°C): creativo, output lungo
+# temperature = 0.25
+# top_p = 0.92
+# num_predict = 600
+# num_ctx = 3072
+# max_steps = 8
+
+[llm_tuner.normal]
+# Sistema normale (50-65°C): bilanciato
+# temperature = 0.15
+# top_p = 0.85
+# num_predict = 450
+# num_ctx = 3072
+# max_steps = 6
+
+[llm_tuner.slow]
+# Sistema caldo (65-85°C): deterministico, output corto
+# temperature = 0.08
+# top_p = 0.78
+# num_predict = 300
+# num_ctx = 2048
+# max_steps = 5
+
+[llm_tuner.pause]
+# Sistema critico (> 85°C): lavoro minimo
+# temperature = 0.05
+# top_p = 0.70
+# num_predict = 200
+# num_ctx = 1536
+# max_steps = 4

@@ -33,6 +33,7 @@ class ModelClient:
 
         self.current_model: Optional[str] = None
         self.last_call_ts: float = 0
+        self.llm_tuner = None  # 🆕 TimestralLLMTuner (set by orchestrator)
 
     # ------------------------------------------------------------------
     # API pubblica
@@ -57,18 +58,8 @@ class ModelClient:
         self.current_model = model_name
         self.last_call_ts = time.time()
 
-        # Costruisci payload
-        options = {
-            "temperature": model_cfg["temperature"],
-            "top_p": model_cfg["top_p"],
-            "top_k": model_cfg["top_k"],
-            "repeat_penalty": model_cfg["repeat_penalty"],
-            "repeat_last_n": model_cfg["repeat_last_n"],
-            "num_ctx": model_cfg["num_ctx"],
-            "num_predict": max_tokens or model_cfg["num_predict"],
-        }
-        if "seed" in model_cfg:
-            options["seed"] = model_cfg["seed"]
+        # 🆕 Build options with TimestralLLMTuner (if available)
+        options = self._get_tuned_options(model_key, model_cfg, max_tokens)
 
         # Endpoint /api/chat (più pulito di /api/generate per system prompt)
         messages = []
@@ -149,15 +140,8 @@ class ModelClient:
         self.current_model = model_name
         self.last_call_ts = time.time()
 
-        options = {
-            "temperature": model_cfg["temperature"],
-            "top_p": model_cfg["top_p"],
-            "top_k": model_cfg["top_k"],
-            "repeat_penalty": model_cfg["repeat_penalty"],
-            "repeat_last_n": model_cfg["repeat_last_n"],
-            "num_ctx": model_cfg["num_ctx"],
-            "num_predict": max_tokens or model_cfg["num_predict"],
-        }
+        # 🆕 Build options with TimestralLLMTuner (if available)
+        options = self._get_tuned_options(model_key, model_cfg, max_tokens)
 
         messages = []
         if system:
@@ -249,6 +233,45 @@ class ModelClient:
             mfile.write_text(json.dumps(metrics, indent=2))
         except Exception as e:
             self.log.debug(f"streaming metrics save failed: {e}")
+
+
+
+    def _get_tuned_options(self, model_key: str, model_cfg: dict,
+                            max_tokens: Optional[int] = None) -> dict:
+        """Build options dict, applying TimestralLLMTuner if available.
+        
+        The tuner overrides: temperature, top_p, top_k, num_predict, num_ctx,
+        repeat_penalty, repeat_last_n — based on current thermal state.
+        """
+        # Start with config values
+        options = {
+            "temperature": model_cfg["temperature"],
+            "top_p": model_cfg["top_p"],
+            "top_k": model_cfg["top_k"],
+            "repeat_penalty": model_cfg["repeat_penalty"],
+            "repeat_last_n": model_cfg["repeat_last_n"],
+            "num_ctx": model_cfg["num_ctx"],
+            "num_predict": max_tokens or model_cfg["num_predict"],
+        }
+        if "seed" in model_cfg:
+            options["seed"] = model_cfg["seed"]
+        
+        # 🆕 Apply TimestralLLMTuner if available
+        if hasattr(self, "llm_tuner") and self.llm_tuner:
+            try:
+                tuned = self.llm_tuner.get_params(model_key)
+                # Override with tuned values (except num_predict if max_tokens was explicit)
+                for key in ("temperature", "top_p", "top_k", "num_ctx",
+                            "repeat_penalty", "repeat_last_n"):
+                    if key in tuned:
+                        options[key] = tuned[key]
+                # num_predict: use explicit max_tokens if provided, else tuned
+                if max_tokens is None:
+                    options["num_predict"] = tuned.get("num_predict", options["num_predict"])
+            except Exception as e:
+                self.log.debug(f"llm_tuner failed (using static config): {e}")
+        
+        return options
 
 
     def embed(self, text: str) -> list:

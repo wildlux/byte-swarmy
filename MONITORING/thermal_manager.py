@@ -273,6 +273,24 @@ class TimestralManager:
                         f"freq={sample.cpu_freq_avg//1000}MHz "
                         f"mem={sample.mem_used_ratio*100:.0f}%"
                     )
+                    # 🆕 Scrivi advice su file per la GUI (LLM tuner indicator)
+                    try:
+                        advice = self.get_advice()
+                        import json as _json
+                        advice_file = Path("state/timestral_advice.json")
+                        advice_file.parent.mkdir(parents=True, exist_ok=True)
+                        advice_data = {
+                            "action": advice.action,
+                            "tick_multiplier": advice.tick_multiplier,
+                            "reason": advice.reason,
+                            "timestamp": sample.timestamp,
+                            "cpu_temp": sample.cpu_temp_max,
+                            "gpu_temp": getattr(sample, "gpu_temp", 0.0),
+                            "cpu_load": sample.cpu_load,
+                        }
+                        advice_file.write_text(_json.dumps(advice_data, indent=2))
+                    except Exception as e:
+                        self.log.debug(f"advice file write failed: {e}")
             except Exception as e:
                 self.log.error(f"[timestral] sample error: {e}")
 
