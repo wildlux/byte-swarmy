@@ -14,7 +14,6 @@ Requisiti:
     pip install PyQt6 mcp httpx httpx-sse
 """
 
-
 from __future__ import annotations
 
 import json
@@ -63,7 +62,6 @@ except ImportError as e:
     McpServerConfig = None
     MCP_AVAILABLE = False
 
-
 # ------------------------------------------------------------------
 # Intent Router integration (multilingual IT/EN/ZH)
 # ------------------------------------------------------------------
@@ -81,7 +79,6 @@ except ImportError:
     get_last_call_metrics = None
     estimate_kv_cache_mb = None
     OLLAMA_METRICS_AVAILABLE = False
-
 
     # ------------------------------------------------------------------
 # Professional Style Sheet (Enterprise Dark Theme)
@@ -274,15 +271,6 @@ QMenu::item:selected { background: @border; }
 
 """
 
-def build_stylesheet(theme: str = "dark") -> str:
-    """Restituisce il foglio di stile per il tema richiesto ('dark' o 'light')."""
-    pal = _THEMES.get(theme if theme in _THEMES else "dark")
-    css = _CSS
-    # token più lunghi prima: "@text" non deve mangiare "@text_soft"
-    for key in sorted(pal, key=len, reverse=True):
-        css = css.replace("@" + key, pal[key])
-    return css
-
 def _theme_file() -> Path:
     return BASE_DIR / "state" / "gui_theme.json"
 
@@ -301,7 +289,6 @@ def save_theme(theme: str) -> None:
         _theme_file().write_text(json.dumps({"theme": theme}), encoding="utf-8")
     except Exception:
         pass
-
 
 class CopyableErrorDialog(QDialog):
     """Dialog di errore con testo selezionabile e copiabile.
@@ -350,12 +337,10 @@ class CopyableErrorDialog(QDialog):
         # Seleziona tutto all'apertura
         text_edit.selectAll()
 
-
 def show_error_dialog(parent, title: str, message: str) -> None:
     """Mostra un dialog di errore con testo copiabile."""
     dialog = CopyableErrorDialog(title, message, parent, is_error=True)
     dialog.exec()
-
 
 # ====================================================================
 # PATH CONSTANTS
@@ -367,7 +352,6 @@ LOG_FILE = BASE_DIR / "logs" / "byte-swarmy.log"
 CONFIG_FILE = BASE_DIR / "CONFIG" / "config.toml"
 MCP_CONFIG_FILE = BASE_DIR / "mcp_servers.json"
 PID_FILE = BASE_DIR / "state" / "orchestrator.pid"
-
 
 # ====================================================================
 # TASK QUEUE I/O (shared with orchestrator)
@@ -381,13 +365,11 @@ def load_tasks() -> list:
     except Exception:
         return []
 
-
 def save_tasks(tasks: list) -> None:
     TASKS_FILE.parent.mkdir(parents=True, exist_ok=True)
     tmp = TASKS_FILE.with_suffix(".tmp")
     tmp.write_text(json.dumps(tasks, ensure_ascii=False, indent=2))
     tmp.replace(TASKS_FILE)
-
 
 def add_task(title: str, description: str, context: str = "",
              task_type: str = "code") -> dict:
@@ -451,12 +433,10 @@ def add_task(title: str, description: str, context: str = "",
 
     return task
 
-
 def delete_task(task_id: str) -> None:
     tasks = load_tasks()
     tasks = [t for t in tasks if t["id"] != task_id]
     save_tasks(tasks)
-
 
 def reset_task(task_id: str) -> None:
     """Resetta un task a pending, qualunque sia lo stato attuale.
@@ -470,7 +450,6 @@ def reset_task(task_id: str) -> None:
                       "completed_at", "started_at", "reason"):
                 t.pop(k, None)
     save_tasks(tasks)
-
 
 def force_rerun_task(task_id: str) -> None:
     """Forza re-run: resetta il task E elimina i suoi sottotask (se presenti).
@@ -496,7 +475,6 @@ def force_rerun_task(task_id: str) -> None:
                 t.pop(k, None)
     save_tasks(tasks)
 
-
 def cleanup_done_tasks() -> int:
     """Elimina tutti i task in stato 'done'. Ritorna il numero eliminati."""
     tasks = load_tasks()
@@ -505,7 +483,6 @@ def cleanup_done_tasks() -> int:
     after = len(tasks)
     save_tasks(tasks)
     return before - after
-
 
 def delete_subtasks(task_id: str) -> int:
     """Elimina i sottotask di un task. Ritorna il numero eliminati."""
@@ -527,7 +504,6 @@ def delete_subtasks(task_id: str) -> int:
     save_tasks(tasks)
     return before - len(tasks)
 
-
 # ====================================================================
 # MCP SERVERS CONFIG (persistente)
 # ====================================================================
@@ -540,10 +516,8 @@ def load_mcp_servers() -> list:
     except Exception:
         return []
 
-
 def save_mcp_servers(servers: list) -> None:
     MCP_CONFIG_FILE.write_text(json.dumps(servers, indent=2))
-
 
 # ====================================================================
 # ORCHESTRATOR PROCESS MANAGER
@@ -607,7 +581,6 @@ class OrchestratorProcess:
             return self.process.pid
         return None
 
-
 # ====================================================================
 # LOG WATCHER (tail del file di log)
 # ====================================================================
@@ -656,9 +629,6 @@ class LogWatcher(QObject):
                 self.new_lines.emit(new_data)
         except Exception:
             pass
-
-
-
 
 # ====================================================================
 # LIVE ACTIVITY PANEL — feedback real-time sull'attività del modello
@@ -757,7 +727,6 @@ class LiveActivityPanel(QWidget):
         if not running:
             # Fallback: file JSON
             running = [t for t in load_tasks() if t.get("status") == "running"]
-
 
         if not running:
             self._show_idle()
@@ -931,7 +900,6 @@ class LiveActivityPanel(QWidget):
         except Exception:
             return []
 
-
 class LiveMetricsBar(QWidget):
     """Metriche dell'ultima chiamata Ollama, sempre visibili in toolbar.
 
@@ -981,7 +949,7 @@ class LiveMetricsBar(QWidget):
         return value
 
     def _refresh(self) -> None:
-        pal = _THEMES.get(load_theme(), _THEMES["dark"])
+        pal = _THEMES.get("dark", _THEMES["dark"])
         metric = get_last_call_metrics() if OLLAMA_METRICS_AVAILABLE else None
         if not metric:
             self.info_label.setText(
@@ -1046,7 +1014,6 @@ class LiveMetricsBar(QWidget):
             f"QProgressBar::chunk {{ background: {chunk_color};"
             " border-radius: 2px; margin: 1px; }"
         )
-
 
 # ====================================================================
 # TASK TABLE TAB
@@ -1376,7 +1343,6 @@ class TaskQueueTab(QWidget):
             QMessageBox.information(self, "OK", f"Eliminati {n} task completati.")
             self._refresh()
 
-
 # ====================================================================
 # ADD TASK DIALOG
 # ====================================================================
@@ -1471,7 +1437,6 @@ class AddTaskDialog(QDialog):
             "context": self.context_edit.text().strip(),
             "type": self.type_combo.currentData(),
         }
-
 
 # ====================================================================
 # MCP SERVERS TAB
@@ -1661,7 +1626,6 @@ class McpServersTab(QWidget):
         self.client.remove_server(server_data["name"])
         self._register_with_client(server_data)
 
-
 # ====================================================================
 # MCP SERVER DIALOG
 # ====================================================================
@@ -1730,7 +1694,6 @@ class McpServerDialog(QDialog):
             "enabled": self.enabled_check.isChecked(),
         }
 
-
 # ====================================================================
 # LOGS TAB
 # ====================================================================
@@ -1793,7 +1756,6 @@ class LogsTab(QWidget):
         )
         if path:
             Path(path).write_text(self.text.toPlainText())
-
 
 # ====================================================================
 # CONFIG TAB (con sync bidirezionale form <-> testo)
@@ -2473,7 +2435,6 @@ class ConfigTab(QWidget):
         self.status_label.setText("Copiato negli appunti")
         QTimer.singleShot(1500, lambda: self.status_label.setText(original))
 
-
 # ====================================================================
 # THERMAL TAB (Timestral — monitor CPU/temperatura + advice)
 # ====================================================================
@@ -2678,14 +2639,12 @@ class ThermalTab(QWidget):
                 )
             self.history_text.setPlainText("\n".join(lines))
 
-
 # ====================================================================
 # TEST & SANDBOX TAB
 # ====================================================================
 
 TEST_RUNNER = BASE_DIR / "tests" / "run_tests.py"
 TEST_TIMEOUT_MS = 5 * 60 * 1000
-
 
 class TestsTab(QWidget):
     """Esegue la suite di test e il self-test del sandbox, con esito visibile.
@@ -3091,7 +3050,6 @@ class TestsTab(QWidget):
         )
         self._show_backend_info()
 
-
 _STATUS_COLORS = {
     "PASS": "#155724",
     "FAIL": "#721c24",
@@ -3099,12 +3057,9 @@ _STATUS_COLORS = {
     "SKIP": "#666666",
 }
 
-
 # ====================================================================
 # MAIN WINDOW
 # ====================================================================
-
-
 
 # ====================================================================
 # MODELS TAB — selettore modelli LLM con auto-selezione intelligente
@@ -3435,8 +3390,6 @@ class ModelsTab(QWidget):
             import traceback
             QMessageBox.critical(self, "Errore", traceback.format_exc())
 
-
-
 class MainWindow(QMainWindow):
     """Finestra principale."""
 
@@ -3445,7 +3398,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("BYTE-SWARMY · Control Center")
 
         # Tema corrente (usato anche dagli indicatori termici)
-        self._theme = load_theme()
+        self._theme = "dark"
         
         # Imposta l'icona della finestra principale
         icon_path = str(BASE_DIR / "IMG" / "icona.ico")
@@ -3598,12 +3551,13 @@ class MainWindow(QMainWindow):
 
     def _on_toggle_theme(self) -> None:
         """Alterna tema chiaro/scuro e applica subito il nuovo stile."""
-        new_theme = "light" if load_theme() == "dark" else "dark"
+        new_theme = "light" if "dark" == "dark" else "dark"
         save_theme(new_theme)
         self._theme = new_theme
         app = QApplication.instance()
         if app is not None:
-            app.setStyleSheet(build_stylesheet(new_theme))
+            from GUI.theme.theme import toggle_theme
+            toggle_theme(app)
         # Gli indicatori termici usano i colori del tema: ripassali
         self._update_temp_indicators()
         label = "chiaro" if new_theme == "light" else "scuro"
@@ -3756,7 +3710,6 @@ class MainWindow(QMainWindow):
             pass
         return 0.0
 
-
     def _update_toolbar_state(self) -> None:
         """Aggiorna lo stato del toggle button in base allo stato reale."""
         running = self.orchestrator.is_running()
@@ -3861,7 +3814,6 @@ class MainWindow(QMainWindow):
         if self.timestral:
             self.timestral.stop()
         event.accept()
-
 
 # ====================================================================
 # ENTRY POINT
@@ -3999,7 +3951,6 @@ def check_dependencies() -> bool:
 
     return True
 
-
 def _try_install(package: str) -> bool:
     """Tenta di installare un pacchetto pip. Ritorna True se OK.
     Usa sys.executable per rispettare il venv attivo.
@@ -4020,7 +3971,6 @@ def _try_install(package: str) -> bool:
         print(f"  Errore installazione {package}: {e}", file=sys.stderr)
         return False
 
-
 def main():
     # 1. Check dipendenze PRIMA di creare QApplication definitiva
     # check_dependencies() puo' creare una QApplication temporanea per i dialog
@@ -4031,11 +3981,22 @@ def main():
     app = QApplication.instance()
     if app is None:
         app = QApplication(sys.argv)
+    # Apply QSS theme (light/dark)
+    try:
+        from GUI.theme.theme import apply_theme
+        apply_theme(app)
+    except Exception as e:
+        print(f"Theme load failed: {e}")
+
+    # Apply QSS theme (light/dark)
+    from GUI.theme.theme import apply_theme
+    apply_theme(app)
     app.setApplicationName("BYTE-SWARMY Control Center")
     app.setOrganizationName("BYTE-SWARMY")
 
     # Tema (chiaro/scuro, scelta persistente in state/gui_theme.json)
-    app.setStyleSheet(build_stylesheet(load_theme()))
+    from GUI.theme.theme import apply_theme
+    apply_theme(app)
 
     # 3. Assicura che le dir base esistano
     for d in ("tasks", "state", "logs", "project", "backups"):
@@ -4049,7 +4010,6 @@ def main():
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
-
 
 if __name__ == "__main__":
     main()
