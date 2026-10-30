@@ -197,3 +197,104 @@ def update_project_context() -> None:
     
     mem["project_context"]["existing_files"] = existing
     save_memory(mem)
+
+
+# ====================================================================
+# 9.9: Estrazione preferenze utente (pattern matching, no LLM)
+# ====================================================================
+
+import re as _re
+
+_PATTERNS = {
+    "type_hints": [
+        _re.compile(r'def\s+\w+\s*\([^)]*:\s*\w+', _re.IGNORECASE),
+        _re.compile(r'->\s*\w+\s*:', _re.IGNORECASE),
+    ],
+    "languages": {
+        "python": _re.compile(r'(python|\.py|pip|django|flask|fastapi)', _re.IGNORECASE),
+        "c": _re.compile(r'(gcc|\.c|\.h|makefile|cmake)', _re.IGNORECASE),
+        "javascript": _re.compile(r'(javascript|\.js|node|npm)', _re.IGNORECASE),
+        "rust": _re.compile(r'(rust|\.rs|cargo)', _re.IGNORECASE),
+    },
+    "frameworks": {
+        "flask": _re.compile(r'flask', _re.IGNORECASE),
+        "django": _re.compile(r'django', _re.IGNORECASE),
+        "fastapi": _re.compile(r'fastapi', _re.IGNORECASE),
+        "pytest": _re.compile(r'pytest', _re.IGNORECASE),
+        "unittest": _re.compile(r'unittest', _re.IGNORECASE),
+    },
+    "styles": {
+        "docstrings": _re.compile(r'""".*?"""', _re.DOTALL),
+        "comments": _re.compile(r'#\s+\w+', _re.IGNORECASE),
+        "dataclass": _re.compile(r'@dataclass', _re.IGNORECASE),
+    },
+}
+
+
+def extract_preferences(task_history: list) -> dict:
+    """Estrae preferenze utente dalla cronologia dei task (pattern matching).
+    
+    Args:
+        task_history: lista di dict con title, result, ecc.
+    
+    Returns:
+        dict con: preferred_language, uses_type_hints, frameworks, styles
+    """
+    if not task_history:
+        return {}
+    
+    all_text = " ".join([
+        t.get("title", "") + " " + t.get("result", "")
+        for t in task_history
+    ])
+    
+    # Lingua preferita
+    lang_scores = {}
+    for lang, pattern in _PATTERNS["languages"].items():
+        matches = len(pattern.findall(all_text))
+        if matches > 0:
+            lang_scores[lang] = matches
+    
+    preferred_lang = max(lang_scores, key=lang_scores.get) if lang_scores else "python"
+    
+    # Type hints
+    type_hint_count = sum(len(p.findall(all_text)) for p in _PATTERNS["type_hints"])
+    uses_type_hints = type_hint_count > 0
+    
+    # Frameworks
+    frameworks = []
+    for fw, pattern in _PATTERNS["frameworks"].items():
+        if pattern.search(all_text):
+            frameworks.append(fw)
+    
+    # Styles
+    styles = []
+    for style, pattern in _PATTERNS["styles"].items():
+        if pattern.search(all_text):
+            styles.append(style)
+    
+    return {
+        "preferred_language": preferred_lang,
+        "uses_type_hints": uses_type_hints,
+        "frameworks": frameworks,
+        "styles": styles,
+        "language_scores": lang_scores,
+    }
+
+
+def update_user_profile():
+    """Aggiorna il profilo utente nella memoria persistente."""
+    mem = load_memory()
+    history = mem.get("task_history", [])
+    
+    prefs = extract_preferences(history)
+    if prefs:
+        mem["user_profile"].update({
+            "preferred_language": prefs.get("preferred_language", "python"),
+            "style_preferences": prefs.get("styles", []),
+            "framework_preferences": prefs.get("frameworks", []),
+            "uses_type_hints": prefs.get("uses_type_hints", False),
+        })
+        save_memory(mem)
+    
+    return prefs
