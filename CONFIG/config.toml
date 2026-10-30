@@ -1,19 +1,9 @@
-# ====================================================================
-# BYTE-SWARMY configuration — single process, single loop, classes
-# Tutti i parametri operativi in un unico file.
-# ====================================================================
-
 [ollama]
 host = "http://localhost:11434"
 request_timeout = 300
 
-# --------------------------------------------------------------------
-# Modelli Ollama e relativi parametri di inferenza.
-# Un solo modello caricato in RAM alla volta (rotation gestita da ModelClient).
-# --------------------------------------------------------------------
-
 [models.orchestrator]
-name = "qwen2.5:0.5b"
+name = "qwen2.5:1.5b"
 temperature = 0.1
 top_p = 0.8
 top_k = 20
@@ -24,7 +14,7 @@ num_predict = 256
 seed = 42
 
 [models.planner]
-name = "qwen2.5-coder:1.5b"
+name = "qwen2.5:1.5b"
 temperature = 0.4
 top_p = 0.9
 top_k = 40
@@ -34,7 +24,7 @@ num_ctx = 3072
 num_predict = 512
 
 [models.worker_coder]
-name = "qwen2.5-coder:1.5b"
+name = "deepseek-coder:1.3b"
 temperature = 0.1
 top_p = 0.8
 top_k = 30
@@ -44,7 +34,7 @@ num_ctx = 3072
 num_predict = 512
 
 [models.worker_general]
-name = "qwen2.5-coder:1.5b"
+name = "qwen2.5:1.5b"
 temperature = 0.1
 top_p = 0.8
 top_k = 30
@@ -54,89 +44,49 @@ num_ctx = 3072
 num_predict = 512
 
 [models.embedding]
-name = "nomic-embed-text"
-
-# --------------------------------------------------------------------
-# Decision Models (per task generici e routing avanzato).
-# Modelli elencati su https://ollama.com/search?c=decision
-# Vanno prima scaricati con `ollama pull <name>`.
-# L'orchestratore userà il modello abilitato per:
-#   - scomporre "Generic Task" in Code task
-#   - routing intelligente (quando le keyword non matchano)
-#   - valutazione yes/no su domande strutturate
-# --------------------------------------------------------------------
+name = "moondream:latest"
 
 [thermal]
 enabled = true
-sample_interval = 30             # secondi tra campioni
-history_max = 2880               # 24h di campioni a 30s
+sample_interval = 30
+history_max = 2880
 
 [thermal.thresholds]
-temp_cold = 50.0                 # sotto: ottimizza (tick_multiplier 0.6)
-temp_warm = 65.0                 # sopra: rallenta (tick_multiplier 1.7)
-temp_hot = 80.0                  # sopra: rallenta molto (tick_multiplier 2.5)
+temp_cold = 50.0
+temp_warm = 65.0
+temp_hot = 80.0
 temp_critical = 90.0
 gpu_temp_warm = 80.0
 gpu_temp_hot = 85.0
 gpu_temp_critical = 95.0
-
-             # sopra: pausa (nessun dispatch)
-cpu_pause_threshold = 0.95       # CPU load > 95% per 60s = pausa
-
-# --------------------------------------------------------------------
-# Cadenze temporali (secondi). Tutto sfasato per evitare collisioni.
-# --------------------------------------------------------------------
+cpu_pause_threshold = 0.95
 
 [timing]
-orchestrator_tick = 30        # poll coda
-worker_tick = 60              # esecuzione worker
-health_check = 300            # 5 min
-git_snapshot = 999999         # disabilitato di fatto
-memory_compaction = 3600      # 1 ora
-backup_complete = 86400       # 24 ore
-model_unload_idle = 120       # scarica modello se inattivo
-
-# --------------------------------------------------------------------
-# Sicurezza e limiti.
-# --------------------------------------------------------------------
+orchestrator_tick = 30
+worker_tick = 60
+health_check = 300
+git_snapshot = 999999
+memory_compaction = 3600
+backup_complete = 86400
+model_unload_idle = 120
 
 [safety]
 max_attempts = 10
 max_consecutive_failures = 3
 cooldown_after_failure = 120
 swap_threshold = 0.8
-disk_free_threshold = 1_000_000_000   # 1 GB
-max_log_size = 10_000_000             # 10 MB, poi rotate
+disk_free_threshold = 1000000000
+max_log_size = 10000000
 heartbeat_timeout = 300
 max_tasks_per_agent_per_hour = 20
 memory_compaction_threshold = 50
 
-# --------------------------------------------------------------------
-# Sicurezza (vedi security.py e SECURITY.md).
-# I worker eseguono codice generato da LLM piccoli: questi limiti sono
-# la difesa minima. Non disabilitarli in produzione.
-# --------------------------------------------------------------------
-
 [security]
-# REGOLA 0 — la difesa è sempre attiva.
-# Questo flag è ignorato: impostarlo a false non disabilita nulla e produce
-# un evento CRITICAL in logs/security.log. Resta solo per retrocompatibilità.
 enabled = true
-# Output massimo restituito ai worker (caratteri): non satura il contesto.
 max_output_chars = 10000
-# Dimensione massima di un file scritto con write_file (byte).
-max_file_size_write = 2_000_000
-# Dimensione massima di un file creato da un processo figlio (RLIMIT_FSIZE).
-max_file_size_bytes = 50_000_000
-# Memoria massima per singolo processo figlio (MB, RLIMIT_AS).
+max_file_size_write = 2000000
+max_file_size_bytes = 50000000
 max_memory_mb = 1536
-# I comandi bash sono validati in security.py: allowlist + blacklist.
-# I worker NON hanno una shell (niente pipe/redirect/&&).
-# git push/pull/remote add|remove sono disabilitati per i worker.
-
-# --------------------------------------------------------------------
-# Decision model: routing e regole deterministiche.
-# --------------------------------------------------------------------
 
 [routing]
 confidence_threshold = 0.65
@@ -144,14 +94,32 @@ max_files_per_task = 8
 max_file_size_readable = 50000
 timeout_bash = 30
 
-# Keyword che bypassano il pianificatore e vanno dritte al worker.
 [routing.direct_keywords]
-worker_coder = ["implementa", "fix", "refactor", "parser", "bug", "funzione", "classe", "test", "scrivi", "crea", "write", "make", "compila", "build", "hello world", "semplice", "singolo file"]
-worker_general = ["documenta", "commenta", "readme", "spiega"]
-
-# --------------------------------------------------------------------
-# Path del progetto (relativi alla cwd del processo).
-# --------------------------------------------------------------------
+worker_coder = [
+    "implementa",
+    "fix",
+    "refactor",
+    "parser",
+    "bug",
+    "funzione",
+    "classe",
+    "test",
+    "scrivi",
+    "crea",
+    "write",
+    "make",
+    "compila",
+    "build",
+    "hello world",
+    "semplice",
+    "singolo file",
+]
+worker_general = [
+    "documenta",
+    "commenta",
+    "readme",
+    "spiega",
+]
 
 [paths]
 project_root = "./project"
@@ -161,23 +129,16 @@ logs_dir = "./logs"
 backups_dir = "./backups"
 git_dir = "./project"
 
-# --------------------------------------------------------------------
-# Logging.
-# --------------------------------------------------------------------
-
 [logging]
-level = "DEBUG"               # DEBUG | INFO | WARNING | ERROR
+level = "DEBUG"
 file = "./logs/byte-swarmy.log"
 
-# ====================================================================
-# Decision Models — modelli per scomporre task generici complessi
-# ====================================================================
 [decision_models]
-active = "tev1"
+active = "qwen2_5"
 
 [decision_models.tev1]
 name = "tev1:4b"
-enabled = true
+enabled = false
 temperature = 0.1
 num_ctx = 4096
 
@@ -193,22 +154,14 @@ enabled = false
 temperature = 0.1
 num_ctx = 4096
 
-# ====================================================================
-# Generic Task Planner — usa il decision model attivo
-# ====================================================================
+[decision_models.qwen2_5]
+name = "qwen2.5:1.5b"
+enabled = true
+temperature = 0.1
+num_ctx = 4096
+
 [generic_task_planner]
 enabled = true
 max_subtasks = 8
 max_tokens = 1500
-system_prompt = """Sei un pianificatore software esperto. Decomponi il task generico in 2-8 code task atomici.
-
-REGOLE:
-1. Ogni sottotask deve essere implementabile in massimo 200 righe di codice
-2. I sottotask devono essere sequenziali e indipendenti
-3. Includi sempre: creazione file principale, implementazione logica, test, documentazione
-4. Specifica il tipo di ogni sottotask: implement | test | fix | document
-
-RISPONDI SOLO con formato JSON:
-{"subtasks": [{"title": "...", "description": "...", "type": "implement|test|fix|document"}]}
-
-Niente testo fuori dal JSON."""
+system_prompt = "Sei un pianificatore software esperto. Decomponi il task generico in 2-8 code task atomici.\n\nREGOLE:\n1. Ogni sottotask deve essere implementabile in massimo 200 righe di codice\n2. I sottotask devono essere sequenziali e indipendenti\n3. Includi sempre: creazione file principale, implementazione logica, test, documentazione\n4. Specifica il tipo di ogni sottotask: implement | test | fix | document\n\nRISPONDI SOLO con formato JSON:\n{\"subtasks\": [{\"title\": \"...\", \"description\": \"...\", \"type\": \"implement|test|fix|document\"}]}\n\nNiente testo fuori dal JSON."

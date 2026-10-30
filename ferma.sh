@@ -26,7 +26,7 @@ if ! [[ "$PID" =~ ^[0-9]+$ ]]; then
     rm -f "$PID_FILE"
     exit 1
 fi
-if [ -r "/proc/$PID/cmdline" ] && ! tr '\0' ' ' < "/proc/$PID/cmdline" | grep -q "orchestrator.py"; then
+if [ -r "/proc/$PID/cmdline" ] && ! tr '\0' ' ' < "/proc/$PID/cmdline" | grep -q "CORE.orchestrator"; then
     echo "❌ Il PID $PID non è l'orchestratore: non lo termino."
     exit 1
 fi
