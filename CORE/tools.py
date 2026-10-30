@@ -37,7 +37,7 @@ from SAFETY.security import (
     safe_project_path,
     validate_bash_command,
 )
-from CORE.ast_scanner import scanner as ast_scanner
+from CORE.ast_scanner import scanner as ast_scanner, detect_artifacts
 
 
 # Branch che i worker non possono cancellare.
@@ -156,6 +156,15 @@ class ToolSet:
                 self._audit("blocked_ast", f'path="{self._q(path)}" reason="{self._q(reason)}"', 
                             "CRITICAL")
                 return f"ERROR: Security Violation. Il codice contiene elementi vietati: {reason}."
+
+        # Gate anti-corruzione (todo 9c/M1): artefatti di escape su QUALSIASI
+        # file di testo (il bug più costoso del progetto colpiva anche .py/.md).
+        if detect_artifacts(content):
+            self._audit("blocked_escape_artifact",
+                        f'path="{self._q(path)}"', "CRITICAL")
+            return (f"ERROR: write_file rifiutato: il contenuto contiene artefatti "
+                    f"di escape (es. \\\" a inizio riga). NON usare patch_code per "
+                    f"correggere: riscrivi l'intero file pulito con write_file.")
 
         if len(content) > self.max_write_bytes:
             return (f"ERROR: contenuto troppo grande ({len(content)} byte, "
@@ -769,6 +778,18 @@ class ToolSet:
                     )
                     return (f"ERROR: patch rifiutata (il file `{path}` risulterebbe "
                             f"invalido o insicuro): {reason}")
+
+            # Gate anti-corruzione (todo 9c/M1): artefatti di escape su
+            # qualunque file di testo, non solo .py.
+            if detect_artifacts(new_text):
+                self._audit(
+                    "blocked_patch_artifact",
+                    f'path="{self._q(path)}"',
+                    "CRITICAL",
+                )
+                return (f"ERROR: patch rifiutata: contiene artefatti di escape. "
+                        f"NON usare patch_code per correggere: riscrivi l'intero "
+                        f"file pulito con write_file.")
             
             # Scrittura transazionale
             full.parent.mkdir(parents=True, exist_ok=True)

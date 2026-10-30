@@ -48,6 +48,7 @@ from CORE.memory import AgentMemory
 from CORE.ollama_client import ModelClient
 from SAFETY.security import log_security_event
 from SAFETY.security_checks import check_isolation, apply_safe_mode
+from CORE.execute_handler import handle_execute_task
 from MONITORING.thermal_manager import TimestralManager
 
 
@@ -1113,6 +1114,26 @@ class Orchestrator:
                 self.queue.mark_failed(task["id"], str(e))
                 self.log.error(f"swarm command failed: {e}")
             return  # non passare al worker
+
+        # 🆕 type=execute: handler deterministico (compila + esegui, no LLM)
+        if task.get("type") == "execute":
+            self.log.info(f"execute task {task['id']}: direct handler (no LLM)")
+            try:
+                result = handle_execute_task(
+                    task, run_cmd=self.tools.run_bash, log=self.log
+                )
+            except Exception as e:
+                result = f"ERROR: {e}"
+            if str(result).startswith("ERROR"):
+                self.queue.mark_failed(task["id"], str(result))
+                self.log.warning(f"execute task {task['id']} failed "
+                                 f"{str(result)[:120]}")
+            else:
+                self.queue.mark_done(task["id"], str(result))
+                self.tools.git_commit(f"execute {task['id']}: "
+                                      f"{task.get('title', '')[:50]}")
+                self.log.info(f"execute task {task['id']} done")
+            return  # il task è gestito: nessun worker, nessun auditor
 
         self.log.info(f"dispatching {task['id']}: {task.get('title', '')[:80]}")
 

@@ -17,6 +17,7 @@ class TaskType(Enum):
     IMPLEMENT = "implement"
     TEST = "test"
     FIX = "fix"
+    EXECUTE = "execute"
     GENERIC = "generic"
     DOCUMENT = "document"
 

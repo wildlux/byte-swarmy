@@ -9,20 +9,23 @@ This file tracks every significant feature, fix, and architectural change implem
 - [x] **Path Confinement**: Strict restriction of all file operations to the `project/` directory.
 - [x] **Environment Sanitization**: `avvia.sh` now clears sensitive env vars and sets strict `ulimit`.
 - [x] **Hardening Scripts**: Created `setup-hardening.sh` for root-level isolation (cgroups, dedicated user).
+- [x] **Sandbox escape fix**: `--tmpfs /etc` + `--remount-ro /etc` + `--remount-ro /opt` to prevent writing outside `project/` (escape via `/etc/.sandbox-escape` blocked). All 11 sandbox self-tests pass.
 
 ## 🧠 Intelligence & Orchestration
-- [x] **Multi-Agent Hierarchy**: Implemented Orchestrator $\rightarrow$ Planner $\rightarrow$ Worker $\rightarrow$ Auditor flow.
+- [x] **Multi-Agent Hierarchy**: Implemented Orchestrator → Planner → Worker → Auditor flow.
 - [x] **Audit Worker (The Reviewer)**: Dedicated agent for senior-level code review and security gating.
-- [x] **TDD Enforcement**: Orchestrator now rejects `done` status if a failing test wasn't run first.
 - [x] **Tiered Memory**: Implemented Short-Term (RAM), Working (JSON), and Long-Term memory buffers.
-- [x] **Professional Refactor-Loop**: Workers now follow Map $\rightarrow$ Analyze $\rightarrow$ Modify $\rightarrow$ Verify.
-- [x] **Generic Task Planner**: Integration of decision models for high-level task decomposition.
+- [x] **Professional Refactor-Loop**: Workers now follow Map → Analyze → Modify → Verify.
+- [x] **Generic Task Planner**: Integration of decision models (`tev1:4b`) for high-level task decomposition.
+- [x] **Swarm Command Handlers**: 8 commands (`swarm_status`, `list_tasks`, `show_logs`, `pause_swarm`, `resume_swarm`, `inspect_memory`, `cancel_task`, `run_audit`) handled directly by the orchestrator without invoking any LLM (instant response, zero token cost).
+- [x] **Persistent Memory** (`CORE/persistent_memory.py`): cross-task memory that records existing project files, common errors, recent files and task history; injected into the worker's initial prompt so it doesn't recreate files that already exist.
 
 ## 💻 Development Toolset
 - [x] **Precision Patching**: `patch_code` for targeted find-and-replace modifications.
 - [x] **Refactoring Suite**: `rename_symbol`, `extract_method`, `analyze_complexity`, `get_call_graph`.
 - [x] **Static Analysis**: Integration of `lint_code` and `Bandit` (SAST) for security scanning.
 - [x] **Automated Testing**: `run_test_suite` for self-healing and verification.
+- [x] **Full Tool Allowlist**: `allowed_tools()` exposes all 21 tools to the worker (was missing `patch_code`, `analyze_project`, `lint_code`, `rename_symbol`, `analyze_complexity`, `get_call_graph`, `extract_method`, `find_references`).
 
 ## 🔌 Hardware & USB Analysis
 - [x] **Passive Capture**: `inspect_usb_devices` and `capture_usb_traffic` (Read-Only).
@@ -30,32 +33,56 @@ This file tracks every significant feature, fix, and architectural change implem
 - [x] **Safe Hardware Access**: Tool-layer block on any write operations to the USB bus.
 
 ## ⚙️ Infrastructure & GUI
-- [x] **ACID Task Queue**: Migrated from JSON to SQLite for data integrity.
+- [x] **ACID Task Queue**: Migrated from JSON to SQLite for data integrity (dual-write JSON kept for the GUI for now).
 - [x] **Enterprise GUI**: Professional dark theme with a dedicated "Test & Sandbox" monitoring tab.
-- [x] **Thermal Management**: `TimestralManager` for CPU temperature monitoring and tick-rate adjustment.
-- [x] **Automatic Backups**: Lifecycle manager handles periodic project snapshots.
+- [x] **Thermal Management**: `TimestralManager` for CPU **and GPU** temperature monitoring and tick-rate adjustment (NVIDIA via `nvidia-smi`).
+- [x] **Automatic Backups**: Lifecycle manager handles periodic project snapshots; verified with restore-count.
+- [x] **Toggle button**: Single Start/Stop button that changes colour and label based on real orchestrator state.
+- [x] **Toolbar temperature indicators**: CPU and GPU temperature chips coloured green/orange/red, read directly from `/sys/class/thermal` and `nvidia-smi` (no longer dependent on Timestral samples).
+- [x] **Live Activity Panel**: 2-column layout (task table | live activity) with step counter, last tool call, LLM thought, streaming token preview, and real-time metrics (tok/s, KV cache, VRAM).
+- [x] **Streaming tokens**: `ollama_client.call_streaming()` yields tokens; the worker writes them to `state/streaming.txt` and the Live Activity Panel polls every 300 ms (was 1.5 s) so the user sees tokens appear in real time.
+- [x] **Quick Command Bar**: multilingual (IT/EN/ZH) free-text input routed through the Intent Router.
+- [x] **ModelsTab**: new "Modelli" tab with ComboBox per role, "Auto-Select" button (applies the intelligent selector), per-model "Test" button (measures tok/s with `hello`), and "Save & Restart" (writes `CONFIG/config.toml` and restarts the orchestrator). Config tab auto-reloads from disk when revisited.
 
 ## 🏗️ Cycle 7 — Foundations & Robustness (2026-10-28)
-- [x] **System Watchdog** (`watchdog.py`): supervisor process restarts the orchestrator after a crash; `avvia.sh` now launches the orchestrator through it.
+- [x] **System Watchdog** (`SAFETY/watchdog.py`): supervisor process restarts the orchestrator after a crash; `avvia.sh` now launches the orchestrator through it via `python -m SAFETY.watchdog`.
 - [x] **Circuit Breaker** in `Worker.execute`: 3 identical tool calls force a mandatory prompt pivot (no more infinite tool-call loops).
-- [x] **AST Security Scanner** (`ast_scanner.py`): deterministic gate on `write_file`; blocks banned functions/modules regardless of obfuscation.
-- [x] **Event Sourcing Memory** (`memory_provider.py`): immutable SQLite event log per worker; summaries become views (`is_summary=1`), not the source of truth.
-- [x] **Mandatory Isolation Check** (`security_checks.py`): boot-time verification of user/cgroups; without isolation the orchestrator starts in **Safe Mode** with extreme restrictions.
-- [x] **Escape-artifacts cleanup**: clean rewrite of `watchdog.py`, `memory.py`, `ast_scanner.py` and the Worker region of `orchestrator.py`; suite 47/47 PASS, `py_compile` clean on all modules.
+- [x] **AST Security Scanner** (`CORE/ast_scanner.py`): deterministic gate on `write_file`; blocks banned functions/modules regardless of obfuscation.
+- [x] **Event Sourcing Memory** (`CORE/memory_provider.py`): immutable SQLite event log per worker; summaries become views (`is_summary=1`), not the source of truth.
+- [x] **Mandatory Isolation Check** (`SAFETY/security_checks.py`): boot-time verification of user/cgroups; without isolation the orchestrator starts in **Safe Mode** with extreme restrictions.
+- [x] **Escape-artifacts cleanup**: clean rewrite of `watchdog.py`, `memory.py`, `ast_scanner.py` and the Worker region of `orchestrator.py`.
 - [x] **Orchestrator modularization**: `constants.py`, `lifecycle_manager.py`, `system_monitor.py`, `task_dispatcher.py`; removed dead duplicated `run`/`_tick` and duplicated QC block.
 - [x] **Verified backups**: `perform_backup()` now extracts and re-counts archives after creation ("an unverified backup is no backup").
 
 ## 🌊 Cycle 8 — Intent Router & GUI Control Center (2026-10-28/29)
-- [x] **Intent Router** (`intent_router.py` + `intents.json`): multilingual (IT/EN/ZH) fuzzy classification of free-form input via `rapidfuzz`; confidence-based fallback to `generic`.
-- [x] **Intent Bridge** (`intent_bridge.py`): router↔GUI/orchestrator adapter; integrated in the GUI Quick Command Bar (`integrazione_add_task.py` documents the CLI path).
-- [x] **GUI redesign**: unified Start/Stop toggle, colored CPU/GPU temperature indicators in the toolbar, **Live Activity Panel** beside the task table, simplified status bar.
-- [x] **Test & Sandbox tab**: run the suite, sandbox self-test and isolation status from the GUI (Control Center now has 6 tabs).
+- [x] **Intent Router** (`INTENT/router.py` + `INTENT/intents.json`): multilingual (IT/EN/ZH) fuzzy classification of free-form input via `rapidfuzz`; confidence-based fallback to `generic`. 28 intents, 314 triggers.
+- [x] **Intent Bridge** (`INTENT/bridge.py`): router↔GUI/orchestrator adapter; integrated in the GUI Quick Command Bar.
+- [x] **GUI redesign**: unified Start/Stop toggle, colored CPU/GPU temperature indicators in the toolbar, Live Activity Panel beside the task table, simplified status bar.
+- [x] **Test & Sandbox tab**: run the suite, sandbox self-test and isolation status from the GUI (Control Center now has 7 tabs).
 - [x] **GPU thermal sensing**: `nvidia-smi` GPU temperature in `thermal_manager.py` + direct `/sys/class/thermal` reads in the GUI indicators.
-- [x] **Ollama metrics** (`ollama_metrics.py`): last-call metrics and loaded VRAM models exposed to the GUI.
+- [x] **Ollama metrics** (`INTENT/metrics.py`): last-call metrics and loaded VRAM models exposed to the GUI.
 - [x] **Dependency fix**: `rapidfuzz` added to `requirements_gui.txt` and `setup.sh` (was required but never declared).
-- [x] **Toolbar temperature fix**: `_set_temp_label` was referenced but never defined (silent `AttributeError` swallowed by try/except) and there was no refresh timer — indicators stayed at `--°C` unless the orchestrator started. Added `_update_temp_indicators()` with a 3 s timer; CPU reads `/sys/class/thermal`, GPU via `nvidia-smi`. Works also with the orchestrator stopped.
-- [x] **Stylesheet actually applied**: `STYLESHEET` was defined inside the `except ImportError` block of the `intent_bridge` import (never executed when the module is present) and was never applied via `app.setStyleSheet`. Moved to module level, rewritten as a flat minimal dark theme, applied in `main()`.
-- [x] **Minimalist UI pass**: removed emoji chrome from buttons, table headers, quick bar, live panel, MCP/thermal/tests headings; semantic state dots (green/orange/red) kept; UI-only.
-- [x] **Themeable UI**: `STYLESHEET` replaced by `build_stylesheet(theme)` with two palettes (dark default, new light); choice persisted in `state/gui_theme.json`; toolbar toggle "◐ Tema" applies the new theme live. Token collision fixed (longest-token-first substitution).
-- [x] **Simplified task insertion**: single entry row — Quick Command Bar hosts both "Aggiungi" (natural language, Enter works too) and "Nuovo Task…" (full form); "Aggiungi Task" deduplicated from the selection buttons row. Fallback keeps "Nuovo Task…" visible when the Intent Router is unavailable.
-- [ ] **Open follow-ups from the Brutal Honesty audit** (`todo.md`, 2026-10-28): anti-escape guardrail in `write_file`/`patch_code` (M1), centralized exception policy (M2), Bandit/Mypy static gates (M3), full state recovery from the event store (M4), selective `/etc` masking (M6), disk quota on `project/` (M7), USB protocol parser and differential capture analysis (M10/M11).
+- [x] **Themeable UI**: `build_stylesheet(theme)` with two palettes (dark default, light); choice persisted in `state/gui_theme.json`; toolbar toggle "◐ Tema" applies the new theme live.
+- [x] **Simplified task insertion**: single entry row — Quick Command Bar hosts both "Aggiungi" (natural language, Enter works too) and "Nuovo Task…" (full form).
+
+## 🧩 Cycle 9 — Uppercase Package Migration (2026-10-29/30)
+- [x] **Package reorganization**: all modules moved into uppercase Python packages `CORE/`, `INTENT/`, `SAFETY/`, `MONITORING/`, `GUI/`, `CONFIG/`. Each has `__init__.py`.
+- [x] **Import rewrite**: every cross-module import updated to use package paths (`from CORE.tools import ToolSet`, `from SAFETY.security import …`, etc.).
+- [x] **Entry points**: `avvia.sh`/`ferma.sh` now use `python -m SAFETY.watchdog`, `python -m CORE.orchestrator`, `python -m GUI.main_window`. `main.py` is the CLI entry point.
+- [x] **Test suite realigned**: `tests/test_security.py` and `tests/run_tests.py` import from the new packages; 27 security + 22 sandbox + 6 intent = 55 tests pass.
+
+## 🚀 Cycle 10 — Advanced Features (2026-10-30)
+- [x] **Streaming token real-time** (Feature 1): `call_streaming()` yields tokens; Live Activity Panel refreshes every 300 ms.
+- [x] **Swarm command handlers** (Feature 2): 8 commands handled deterministically by the orchestrator (no LLM, instant response).
+- [x] **Decision model enabled** (Feature 3): `tev1:4b` configured in `[decision_models]` + `[generic_task_planner]`; generic tasks are decomposed into 2–8 atomic code tasks.
+- [x] **Persistent memory** (Feature 4): `CORE/persistent_memory.py` keeps user profile, project context, common errors, recent files, and task history across tasks; injected into the worker's prompt.
+- [x] **Intelligent Model Selector** (Feature 5a): `CORE/model_selector.py` scores every Ollama model 0–100 for each role. Hard gates (VRAM/RAM/capability) + soft scoring (family, name, quantization, thermal). Returns top recommendation + 3 alternatives per role. CLI: `python -m CORE.model_selector [--apply]`.
+- [x] **ModelsTab in GUI** (Feature 5b): ComboBox per role, Auto-Select button, per-model Test button (measures tok/s with `hello`), Save & Restart (writes config + restarts orchestrator). Hardware info displayed.
+- [x] **Config tab auto-reload** (Feature 5c): switching to the Config tab reloads from disk so the user sees the updated models after Save & Restart.
+- [x] **Dynamic KV cache estimation** (Feature 6): `INTENT/metrics.py` replaced hardcoded `bytes_per_token` per family with the real formula `2 (K+V) × layers × kv_heads × head_dim × 2 × tokens`, using a `MODEL_ARCHITECTURES` table for known models. Example: `phi3:mini` was estimated at 24 MB/1k tokens (hardcoded) → 375 MB/1k tokens (real, 15× more accurate).
+- [x] **Live Activity DB read**: Live Activity Panel now reads running tasks from `tasks/queue.db` (SQLite) with JSON fallback, instead of the empty `tasks/queue.json`.
+- [x] **Toggle button sync**: `_update_toolbar_state()` polls `orchestrator.is_running()` and updates label/colour so the button no longer shows "Ferma" when the orchestrator is stopped.
+- [x] **`ferma.sh`/`avvia.sh` PID check**: cmdline check now matches `orchestrator|watchdog` so the PID file (pointing to the watchdog) is correctly recognised as alive.
+
+## 🔓 Open follow-ups
+From the Brutal Honesty audit (`todo.md`): anti-escape guardrail in `write_file`/`patch_code` (M1), centralized exception policy (M2), Bandit/Mypy static gates (M3), full state recovery from the event store (M4), selective `/etc` masking (M6), disk quota on `project/` (M7), USB protocol parser and differential capture analysis (M10/M11), deterministic handler for `type=execute` (gcc + run, no LLM).
