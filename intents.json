@@ -1,0 +1,316 @@
+{
+  "version": "1.0-byte-swarmy",
+  "description": "Intent map per byte-swarmy: 28 intent (20 core + 8 swarm-specific), IT/EN/ZH",
+  "total_intents": 28,
+  "languages": ["it", "en", "zh"],
+  "intents": [
+    {
+      "id": "create_function",
+      "category": "creation",
+      "task_type": "implement",
+      "triggers": {
+        "it": ["crea funzione", "scrivi funzione", "definisci funzione", "genera funzione", "implementa funzione"],
+        "en": ["create function", "write function", "define function", "generate function", "implement function"],
+        "zh": ["创建函数", "写函数", "定义函数", "生成函数", "实现函数"]
+      },
+      "params": {"name": "string", "language": "string", "logic": "string", "style": "string|null"}
+    },
+    {
+      "id": "create_class",
+      "category": "creation",
+      "task_type": "implement",
+      "triggers": {
+        "it": ["crea classe", "scrivi classe", "definisci classe", "genera classe"],
+        "en": ["create class", "write class", "define class", "generate class"],
+        "zh": ["创建类", "写类", "定义类", "生成类"]
+      },
+      "params": {"name": "string", "language": "string", "attributes": "array", "methods": "array"}
+    },
+    {
+      "id": "create_file",
+      "category": "creation",
+      "task_type": "implement",
+      "triggers": {
+        "it": ["crea file", "nuovo file", "aggiungi file", "crea modulo"],
+        "en": ["create file", "new file", "add file", "create module"],
+        "zh": ["创建文件", "新建文件", "添加文件", "创建模块"]
+      },
+      "params": {"path": "string", "type": "string", "content": "string|null"}
+    },
+    {
+      "id": "create_project",
+      "category": "creation",
+      "task_type": "generic",
+      "triggers": {
+        "it": ["crea progetto", "inizializza progetto", "nuovo progetto", "scaffold progetto"],
+        "en": ["create project", "init project", "new project", "scaffold project"],
+        "zh": ["创建项目", "初始化项目", "新建项目", "脚手架项目"]
+      },
+      "params": {"name": "string", "framework": "string", "template": "string"}
+    },
+    {
+      "id": "modify_code",
+      "category": "modification",
+      "task_type": "implement",
+      "triggers": {
+        "it": ["modifica codice", "cambia codice", "aggiorna codice", "edita"],
+        "en": ["modify code", "change code", "update code", "edit"],
+        "zh": ["修改代码", "更改代码", "更新代码", "编辑"]
+      },
+      "params": {"target": "string", "change": "string"}
+    },
+    {
+      "id": "rename",
+      "category": "modification",
+      "task_type": "implement",
+      "triggers": {
+        "it": ["rinomina", "cambia nome"],
+        "en": ["rename", "change name"],
+        "zh": ["重命名", "改名"]
+      },
+      "params": {"old_name": "string", "new_name": "string", "scope": "string"}
+    },
+    {
+      "id": "extract_method",
+      "category": "modification",
+      "task_type": "implement",
+      "triggers": {
+        "it": ["estrai metodo", "estrarre funzione", "separa logica"],
+        "en": ["extract method", "extract function", "separate logic"],
+        "zh": ["提取方法", "提取函数", "分离逻辑"]
+      },
+      "params": {"target_code": "string", "new_method_name": "string"}
+    },
+    {
+      "id": "delete_code",
+      "category": "deletion",
+      "task_type": "implement",
+      "triggers": {
+        "it": ["elimina codice", "cancella", "rimuovi", "cancella funzione"],
+        "en": ["delete code", "remove", "erase", "delete function"],
+        "zh": ["删除代码", "移除", "清除", "删除函数"]
+      },
+      "params": {"target": "string", "cascade": "boolean"}
+    },
+    {
+      "id": "explain",
+      "category": "comprehension",
+      "task_type": "generic",
+      "triggers": {
+        "it": ["spiega", "cosa fa", "commenta codice", "descrivi"],
+        "en": ["explain", "what does", "describe", "walk me through"],
+        "zh": ["解释", "这是做什么的", "描述", "讲解"]
+      },
+      "params": {"code": "string", "detail_level": "string"}
+    },
+    {
+      "id": "summarize",
+      "category": "comprehension",
+      "task_type": "generic",
+      "triggers": {
+        "it": ["riassumi", "sintetizza", "riepiloga"],
+        "en": ["summarize", "sum up", "outline"],
+        "zh": ["总结", "概述", "摘要"]
+      },
+      "params": {"code": "string", "max_length": "integer"}
+    },
+    {
+      "id": "fix_error",
+      "category": "debug",
+      "task_type": "fix",
+      "triggers": {
+        "it": ["correggi errore", "fixa bug", "risolvi errore", "non funziona", "sistema"],
+        "en": ["fix error", "fix bug", "resolve error", "it's broken", "debug this"],
+        "zh": ["修复错误", "修复bug", "解决错误", "不工作了", "调试"]
+      },
+      "params": {"error": "string", "context": "string", "stack_trace": "string|null"}
+    },
+    {
+      "id": "find_bug",
+      "category": "debug",
+      "task_type": "generic",
+      "triggers": {
+        "it": ["trova bug", "cerca errore", "analizza problema", "verifica bug"],
+        "en": ["find bug", "look for error", "analyze issue", "check for bugs"],
+        "zh": ["查找bug", "寻找错误", "分析问题", "检查bug"]
+      },
+      "params": {"code": "string", "symptom": "string"}
+    },
+    {
+      "id": "create_test",
+      "category": "testing",
+      "task_type": "test",
+      "triggers": {
+        "it": ["crea test", "scrivi test", "genera unit test", "aggiungi test"],
+        "en": ["create test", "write test", "generate unit test", "add test"],
+        "zh": ["创建测试", "写测试", "生成单元测试", "添加测试"]
+      },
+      "params": {"target": "string", "framework": "string", "coverage": "string"}
+    },
+    {
+      "id": "run_test",
+      "category": "testing",
+      "task_type": "generic",
+      "triggers": {
+        "it": ["esegui test", "lancia test", "run test", "testa"],
+        "en": ["run test", "execute test", "test"],
+        "zh": ["运行测试", "执行测试", "测试"]
+      },
+      "params": {"target": "string", "filter": "string|null"}
+    },
+    {
+      "id": "refactor",
+      "category": "refactoring",
+      "task_type": "implement",
+      "triggers": {
+        "it": ["refactor", "ristruttura", "semplifica codice", "pulisci codice"],
+        "en": ["refactor", "restructure", "simplify code", "clean up code"],
+        "zh": ["重构", "重构代码", "简化代码", "清理代码"]
+      },
+      "params": {"target": "string", "goal": "string"}
+    },
+    {
+      "id": "optimize",
+      "category": "optimization",
+      "task_type": "implement",
+      "triggers": {
+        "it": ["ottimizza", "rendi più veloce", "migliora performance", "riduci memoria"],
+        "en": ["optimize", "make it faster", "improve performance", "reduce memory"],
+        "zh": ["优化", "提速", "提升性能", "减少内存"]
+      },
+      "params": {"target": "string", "target_metric": "velocity|memory|size|latency", "technique": "auto|memoization|lazy|parallel|vectorize|null"}
+    },
+    {
+      "id": "generate_docs",
+      "category": "documentation",
+      "task_type": "generic",
+      "triggers": {
+        "it": ["genera documentazione", "documenta", "aggiorna readme", "crea doc"],
+        "en": ["generate docs", "document", "update readme", "create documentation"],
+        "zh": ["生成文档", "文档化", "更新readme", "创建文档"]
+      },
+      "params": {"target": "string", "format": "markdown|html|rst", "style": "string"}
+    },
+    {
+      "id": "search",
+      "category": "navigation",
+      "task_type": "generic",
+      "triggers": {
+        "it": ["cerca", "trova", "dove viene usato", "cerca uso"],
+        "en": ["search", "find", "where is it used", "find usage"],
+        "zh": ["搜索", "查找", "在哪里使用", "查找用法"]
+      },
+      "params": {"query": "string", "scope": "file|project|workspace"}
+    },
+    {
+      "id": "code_review",
+      "category": "review",
+      "task_type": "generic",
+      "triggers": {
+        "it": ["code review", "revisiona codice", "controlla codice", "audita"],
+        "en": ["code review", "review code", "audit code", "check code"],
+        "zh": ["代码审查", "审查代码", "审计代码", "检查代码"]
+      },
+      "params": {"target": "string", "focus": "security|style|performance|all"}
+    },
+    {
+      "id": "run",
+      "category": "execution",
+      "task_type": "generic",
+      "triggers": {
+        "it": ["esegui", "lancia", "avvia", "run"],
+        "en": ["run", "execute", "launch", "start"],
+        "zh": ["运行", "执行", "启动"]
+      },
+      "params": {"target": "string", "args": "array|null", "env": "object|null"}
+    },
+    {
+      "id": "swarm_status",
+      "category": "swarm",
+      "task_type": "generic",
+      "triggers": {
+        "it": ["stato swarm", "come va lo swarm", "stato agenti", "swarm status"],
+        "en": ["swarm status", "how is the swarm", "agents status", "swarm state"],
+        "zh": ["集群状态", "代理状态", "swarm状态"]
+      },
+      "params": {"detailed": "boolean"}
+    },
+    {
+      "id": "list_tasks",
+      "category": "swarm",
+      "task_type": "generic",
+      "triggers": {
+        "it": ["lista task", "mostra task", "task in coda", "cosa sta facendo"],
+        "en": ["list tasks", "show tasks", "queued tasks", "what is it doing"],
+        "zh": ["列出任务", "显示任务", "队列任务", "在做什么"]
+      },
+      "params": {"filter": "pending|running|done|failed|all"}
+    },
+    {
+      "id": "cancel_task",
+      "category": "swarm",
+      "task_type": "generic",
+      "triggers": {
+        "it": ["cancella task", "ferma task", "annulla", "blocca task"],
+        "en": ["cancel task", "stop task", "abort", "kill task"],
+        "zh": ["取消任务", "停止任务", "中止任务"]
+      },
+      "params": {"task_id": "string"}
+    },
+    {
+      "id": "pause_swarm",
+      "category": "swarm",
+      "task_type": "generic",
+      "triggers": {
+        "it": ["pausa swarm", "metti in pausa", "ferma temporaneamente"],
+        "en": ["pause swarm", "pause", "halt temporarily"],
+        "zh": ["暂停集群", "暂停", "临时停止"]
+      },
+      "params": {"duration_sec": "integer|null"}
+    },
+    {
+      "id": "resume_swarm",
+      "category": "swarm",
+      "task_type": "generic",
+      "triggers": {
+        "it": ["riprendi swarm", "riavvia", "resume"],
+        "en": ["resume swarm", "restart", "resume"],
+        "zh": ["恢复集群", "重新开始", "恢复"]
+      },
+      "params": {}
+    },
+    {
+      "id": "inspect_memory",
+      "category": "swarm",
+      "task_type": "generic",
+      "triggers": {
+        "it": ["ispeziona memoria", "mostra memoria", "cosa ricorda", "stato memoria"],
+        "en": ["inspect memory", "show memory", "what does it remember", "memory state"],
+        "zh": ["检查记忆", "显示记忆", "记忆状态"]
+      },
+      "params": {"agent_id": "string|null"}
+    },
+    {
+      "id": "run_audit",
+      "category": "swarm",
+      "task_type": "generic",
+      "triggers": {
+        "it": ["esegui audit", "revisione sicurezza", "audit codice"],
+        "en": ["run audit", "security review", "code audit"],
+        "zh": ["执行审计", "安全审查", "代码审计"]
+      },
+      "params": {"target": "string|null", "focus": "security|quality|all"}
+    },
+    {
+      "id": "show_logs",
+      "category": "swarm",
+      "task_type": "generic",
+      "triggers": {
+        "it": ["mostra log", "ultimi log", "vedi log", "log swarm"],
+        "en": ["show logs", "recent logs", "view logs", "swarm logs"],
+        "zh": ["显示日志", "查看日志", "最近日志"]
+      },
+      "params": {"tail": "integer", "level": "INFO|WARNING|ERROR|all"}
+    }
+  ]
+}

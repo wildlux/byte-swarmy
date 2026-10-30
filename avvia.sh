@@ -120,7 +120,7 @@ is_orchestrator_running() {
     [[ "$pid" =~ ^[0-9]+$ ]] || return 1
     kill -0 "$pid" 2>/dev/null || return 1
     # Evita di considerare "orchestratore" un PID riutilizzato da altro.
-    if [ -r "/proc/$pid/cmdline" ] && ! tr '\0' ' ' < "/proc/$pid/cmdline" | grep -q "orchestrator.py"; then
+    if [ -r "/proc/$pid/cmdline" ] && ! tr '\0' ' ' < "/proc/$pid/cmdline" | grep -qE "orchestrator|watchdog"; then
         return 1
     fi
     return 0

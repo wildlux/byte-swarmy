@@ -66,113 +66,6 @@ name = "nomic-embed-text"
 #   - valutazione yes/no su domande strutturate
 # --------------------------------------------------------------------
 
-[decision_models]
-# Modello attivo per il routing decisionale e scomposizione Generic Task.
-# Scegline UNO tra quelli abilitati sotto. Default: tev1 (più leggero).
-active = "tev1"
-
-# Abilita/disabilita singoli modelli. Solo quelli installati localmente vanno
-# abilitati. Verifica con `ollama list`.
-[decision_models.d3]
-name = "d3:2b"               # alternativa: d3:4b, d3:9b, d3:27b
-enabled = false              # true se hai `ollama pull d3`
-temperature = 0.1
-num_ctx = 3072
-description = "Turn text/data/images into scored choices, yes/no, ratings. 2b-27b."
-
-[decision_models.tev1]
-name = "tev1:4b"             # alternativa: tev1:0.8b
-enabled = true
-temperature = 0.1
-num_ctx = 3072
-description = "Together AI 4B decision model for fast classification."
-
-[decision_models.nimble]
-name = "nimble:9b"
-enabled = false
-temperature = 0.1
-num_ctx = 3072
-description = "Bespoke Labs 9B decision model, typed classification."
-
-[decision_models.clef]
-name = "clef:27b"
-enabled = false
-temperature = 0.1
-num_ctx = 8192
-description = "Cloudflare 27B multimodal decision model. Cloud or local."
-
-[decision_models.clef_flash]
-name = "clef-flash:9b"
-enabled = false
-temperature = 0.1
-num_ctx = 3072
-description = "9B multimodal decision (state + typed schema)."
-
-[decision_models.nimble_v3]
-name = "nimble-v3:9b"
-enabled = false
-temperature = 0.1
-num_ctx = 3072
-description = "Bespoke Labs v3 9B: classification, routing, scoring."
-
-[decision_models.pplx_decider]
-name = "pplx-decider:27b"
-enabled = false
-temperature = 0.1
-num_ctx = 8192
-description = "Perplexity 27B decision, fine-tuned from Qwen3.8-27B."
-
-[decision_models.kev]
-name = "kev"
-enabled = false
-temperature = 0.1
-num_ctx = 3072
-description = "Scores answers to structured questions in one forward pass."
-
-[decision_models.laya]
-name = "laya"
-enabled = false
-temperature = 0.1
-num_ctx = 2048
-description = "Convai 421M decision model (ModernBERT-large based). Ultra light."
-
-[decision_models.strands_decider]
-name = "strands-decider:2b"
-enabled = false
-temperature = 0.1
-num_ctx = 3072
-description = "Strands Agents 2B: classification, routing, scoring."
-
-# --------------------------------------------------------------------
-# Generic Task Planner — usa il decision model attivo per decomporre
-# task "generici" (es. "voglio un tool per fare X") in Code task atomici.
-# --------------------------------------------------------------------
-
-[generic_task_planner]
-enabled = true
-# Numero massimo di Code task che un Generic Task può generare
-max_subtasks = 8
-# Massimo token per la risposta del planner
-max_tokens = 1500
-# Prompt di sistema (puoi customizzarlo). Lasciare così se non sai cosa fare.
-system_prompt = """You are a software task planner. Given a GENERIC task description,
-produce a JSON list of 2-8 ATOMIC code tasks. Each subtask MUST have:
-  - title: short (max 80 chars)
-  - description: detailed, includes file path, language, requirements, test criteria
-  - type: one of "implement", "test", "fix", "document"
-  - priority: 1 (highest) to 5 (lowest)
-  - depends_on: list of subtask indices (0-based) that must complete first
-
-Rules:
-- Each subtask must be implementable in <300 lines of code
-- Use stdlib where possible
-- File paths must start with "project/"
-- Output JSON only, no prose before or after"""
-
-# --------------------------------------------------------------------
-# Thermal Manager (Timestral) — monitor termico + dynamic tuning
-# --------------------------------------------------------------------
-
 [thermal]
 enabled = true
 sample_interval = 30             # secondi tra campioni
@@ -275,3 +168,47 @@ git_dir = "./project"
 [logging]
 level = "DEBUG"               # DEBUG | INFO | WARNING | ERROR
 file = "./logs/byte-swarmy.log"
+
+# ====================================================================
+# Decision Models — modelli per scomporre task generici complessi
+# ====================================================================
+[decision_models]
+active = "tev1"
+
+[decision_models.tev1]
+name = "tev1:4b"
+enabled = true
+temperature = 0.1
+num_ctx = 4096
+
+[decision_models.d3]
+name = "d3:4b"
+enabled = false
+temperature = 0.1
+num_ctx = 4096
+
+[decision_models.nimble]
+name = "nimble:4b"
+enabled = false
+temperature = 0.1
+num_ctx = 4096
+
+# ====================================================================
+# Generic Task Planner — usa il decision model attivo
+# ====================================================================
+[generic_task_planner]
+enabled = true
+max_subtasks = 8
+max_tokens = 1500
+system_prompt = """Sei un pianificatore software esperto. Decomponi il task generico in 2-8 code task atomici.
+
+REGOLE:
+1. Ogni sottotask deve essere implementabile in massimo 200 righe di codice
+2. I sottotask devono essere sequenziali e indipendenti
+3. Includi sempre: creazione file principale, implementazione logica, test, documentazione
+4. Specifica il tipo di ogni sottotask: implement | test | fix | document
+
+RISPONDI SOLO con formato JSON:
+{"subtasks": [{"title": "...", "description": "...", "type": "implement|test|fix|document"}]}
+
+Niente testo fuori dal JSON."""
