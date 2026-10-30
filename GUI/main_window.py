@@ -865,6 +865,41 @@ class LiveActivityPanel(QWidget):
         except Exception:
             pass
 
+        # 🆕 Mostra stato LLM tuner
+        try:
+            from CORE.llm_tuner import TimestralLLMTuner
+            # Crea un tuner temporaneo per leggere lo stato (no timestral connection)
+            # In futuro: leggere dall'orchestrator vero
+            import sqlite3
+            # Leggi l'ultimo advice dal file di stato (se esiste)
+            tuner_status = ""
+            advice_file = Path("state/timestral_advice.json")
+            if advice_file.exists():
+                import json
+                advice_data = json.loads(advice_file.read_text())
+                action = advice_data.get("action", "normal")
+                # Map action to profile
+                profile_map = {
+                    "fast": ("FAST", "cold: creative"),
+                    "normal": ("NORMAL", "balanced"),
+                    "slow": ("SLOW", "hot: deterministic"),
+                    "pause": ("PAUSE", "critical: minimal"),
+                }
+                label, desc = profile_map.get(action, ("NORMAL", "balanced"))
+                tuner_status = f"🎚️ LLM Tuned: {label} ({desc})"
+            
+            if hasattr(self, "tuner_label"):
+                if tuner_status:
+                    self.tuner_label.setText(tuner_status)
+                    self.tuner_label.setStyleSheet(
+                        "color: #ff79c6; font-family: monospace; "
+                        "font-size: 9pt; padding: 2px 0;"
+                    )
+                else:
+                    self.tuner_label.setText("🎚️ LLM Tuned: (no data)")
+        except Exception:
+            pass
+
         # Avvia spinner
         if not self.spinner_timer.isActive():
             self.spinner_timer.start(120)
