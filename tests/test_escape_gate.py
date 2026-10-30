@@ -23,7 +23,7 @@ class ArtifactGateTests(unittest.TestCase):
     def setUp(self):
         self.base = Path(tempfile.mkdtemp(prefix="bswarm-gate-"))
         (self.base / "project").mkdir()
-        self.tools = make_tools(self.base)
+        self.tools = make_tools(self.base / "project")
 
     def test_write_file_accepts_clean_text(self):
         r = self.tools.write_file("notes.txt", "riga un\nriga due\n")
