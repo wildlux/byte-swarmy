@@ -9,14 +9,14 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.2.0-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.3.0-blue">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-yellow">
   <img alt="Ollama" src="https://img.shields.io/badge/Ollama-required-orange">
   <img alt="RAM" src="https://img.shields.io/badge/RAM-4%20GB%20min-red">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Linux-lightgrey">
   <img alt="Cloud" src="https://img.shields.io/badge/cloud-NOT%20needed-success">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-55%20pass-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-58%20pass-brightgreen">
 </p>
 
 <p align="center">
@@ -28,9 +28,10 @@
 > **Nessun cloud, nessuna dipendenza da servizi esterni:**
 > solo Ollama, Python e SQLite/JSON. I worker eseguono task di programmazione,
 > test e documentazione sotto il controllo di un orchestratore deterministico,
-> con streaming token in tempo reale e selezione intelligente dei modelli.
+> con streaming token in tempo reale, selezione intelligente dei modelli e
+> ottimizzazione termica adattiva (Timestral LLM Tuner).
 
-**Versione:** 0.2.0 · **Licenza:** MIT · **Piattaforma:** Linux
+**Versione:** 0.3.0 · **Licenza:** MIT · **Piattaforma:** Linux
 
 ---
 
@@ -71,12 +72,15 @@ ma **non sostituiscono un isolamento di sistema**:
 
 - `run_bash` non usa una shell: allowlist, blacklist e path confinati in `project/`;
 - sandbox bubblewrap: filesystem isolato, rete bloccata, PID/user namespace separati;
+- escape `/etc` bloccato (`--tmpfs /etc` + `--remount-ro`);
 - `git push` / `pull` / `remote add|remove` sono disabilitati per i worker;
 - ambiente sanificato (niente token, `SSH_AUTH_SOCK`, `HOME` reale);
 - limiti di CPU, memoria, dimensione file e timeout sul process group;
+- quota disco su `project/` (500 MB default);
 - task MCP ricostruiti da zero e URL limitati a `http`/`https`;
 - audit log con rotazione in `logs/security.log`;
-- escape `/etc` bloccato (`--tmpfs /etc` + `--remount-ro`).
+- AST scanner: blocca `eval`, `exec`, `pickle` prima del sandbox;
+- anti-escape guardrail: blocca artefatti `\"`, `//` e righe duplicate nei file generati.
 
 `[security] enabled = false` in `config.toml` viene **ignorato** e registrato
 come `CRITICAL`: il flag esiste solo per retrocompatibilità.
@@ -95,7 +99,7 @@ Dettagli, modello di minaccia, rischi residui e rollback:
 Verifica della policy:
 
 ```bash
-python -m pytest tests/ -v            # 55 test: 27 security + 22 sandbox + 6 intent
+python -m pytest tests/ -v            # 58 test: 27 security + 22 sandbox + 3 escape-gate + 6 intent
 tail -f logs/security.log
 ```
 
@@ -118,15 +122,19 @@ dopo un riavvio.
 | **JSONL Logging** | Log strutturati e immutabili per ogni azione del sistema. | Audit completo e tracciabilità enterprise. |
 | **Sandbox Bwrap** | Isolamento completo dei processi worker via bubblewrap (no rete, no home, escape `/etc` bloccato). | Previene l'esecuzione di codice malevolo sul sistema host. |
 | **AST Scanner** | Gate deterministico che blocca codice Python pericoloso in `write_file`. | Ferma `eval`, `exec`, `pickle` prima del sandbox. |
+| **Anti-escape Guardrail** | Rileva artefatti di escape (`\"`, `//`, righe duplicate) nei file generati. | Previene il bug più costoso del progetto alla radice. |
 | **Event Sourcing** | Memoria worker come log immutabile su SQLite. | Crash recovery e audit completo delle decisioni. |
-| **Persistent Memory** | Memoria cross-task: file esistenti, errori comuni, task recenti. | Il worker non ricrea file già esistenti, evita errori noti. |
+| **State Recovery** | Ripristino contesto worker dall'event store al riavvio. | Minimizza la perdita di contesto tra crash e restart. |
+| **Exception Hardening** | Policy centralizzata per classificazione errori LLM/tool. | Retry intelligente con backoff, analisi degli errori. |
+| **Persistent Memory** | Memoria cross-task: file esistenti, errori comuni, task recenti, preferenze utente. | Il worker non ricrea file già esistenti, evita errori noti. |
 | **USB Analysis** | Tool di ispezione passiva del traffico USB via `usbmon`. | Reverse engineering hardware in modo sicuro e read-only. |
+| **Disk Quota** | Limite 500 MB su `project/` per prevenire saturazione disco. | Protezione contro attacchi di tipo `dd` o loop di scritture. |
 
 ### Principi di progettazione
 
 | Principio | Implementazione |
 |---|---|
-| **Routing deterministico prima dell'LLM** | Intent Router multilingue classifica l'input; swarm commands gestiti senza LLM. |
+| **Routing deterministico prima dell'LLM** | Intent Router multilingue classifica l'input; swarm commands ed execute tasks gestiti senza LLM. |
 | **Stato = SQLite + JSON** | Coda su SQLite (ACID), stato su JSON ispezionabile con `cat`. |
 | **Scritture transazionali** | `write_file` scrive un file temporaneo e poi esegue `rename()` atomico. |
 | **Memoria compattata** | Dopo 50 eventi il contesto viene riassunto in `long_term`. |
@@ -134,6 +142,8 @@ dopo un riavvio.
 | **Safety valve** | Pausa automatica per RAM, disco, temperatura CPU/GPU; shutdown pulito su SIGTERM. |
 | **Streaming token** | I token del modello appaiono in tempo reale nel Live Activity Panel (300 ms). |
 | **Model rotation** | Un solo modello in VRAM alla volta; caricamento/scaricamento esplicito. |
+| **Thermal optimization** | Timestral LLM Tuner adatta parametri LLM (temp, top_p, ctx, max_steps) allo stato termico. |
+| **Predictive throttling** | EMA + regressione lineare stimano "minuti alla soglia termica". |
 
 ### Identità del nome
 
@@ -160,20 +170,23 @@ dopo un riavvio.
 | L'LLM decide cosa eseguire | Orchestratore deterministico + Intent Router |
 | Fidi del prompt di sistema | Policy di sicurezza nel codice (Rule 0) |
 | Modelli hardcoded nel config | Auto-selezione intelligente basata su hardware |
+| Parametri LLM fissi | Timestral LLM Tuner adatta i parametri al calore |
 
 ---
 
 ## Demo
 
 <p align="center">
-  <em>Control Center: 7 tab, toggle button, temperature CPU/GPU colorate, Live Activity Panel con streaming token.</em>
+  <em>Control Center: 7 tab, toggle button, temperature CPU/GPU colorate, Live Activity Panel con streaming token e LLM Tuner indicator.</em>
 </p>
 
 Cosa puoi vedere:
 
 - il worker `worker_coder` che esegue un task con token streaming in tempo reale;
-- Timestral che mostra temperatura CPU e GPU in tempo reale;
+- Timestral che mostra temperatura CPU e GPU in tempo reale + predizione EMA;
+- il LLM Tuner che adatta parametri in base allo stato termico (🎚️ LLM Tuned: SLOW);
 - il tab Modelli con Auto-Select che sceglie il modello migliore per ogni ruolo;
+- il benchmark modelli con score 100/100;
 - l'audit log che registra ogni comando eseguito o bloccato dalla policy;
 - la coda con task pending, in esecuzione e completati.
 
@@ -184,19 +197,25 @@ Cosa puoi vedere:
 | Componente | Ruolo | Stack |
 |---|---|---|
 | **Intent Router** | Classifica input libero multilingue (IT/EN/ZH) in task strutturati | Python (rapidfuzz) |
-| **Orchestratore** | Loop principale, dispatch, safety check, swarm commands | Python |
+| **Orchestratore** | Loop principale, dispatch, safety check, swarm commands, execute handler | Python |
 | **Planner** | Scompone i task complessi | Ollama |
 | **Decision Model** | Scompone i task generici in 2–8 sottotask atomici | Ollama (`tev1:4b`) |
 | **Worker** | Esegue il task atomico: 21 tool, ReAct loop, streaming token | Ollama |
 | **Audit Worker** | Reviewer: approva/rifiuta il lavoro del worker | Ollama |
+| **Execute Handler** | Esegue task `type=execute` (gcc/python/make) deterministicamente senza LLM | Python |
 | **Model Selector** | Algoritmo 0–100 per scegliere il modello migliore per ruolo | Python |
-| **Persistent Memory** | Memoria cross-task: file, errori, preferenze | Python (JSON) |
+| **Benchmark Suite** | 3-test suite (code/summary/classify) con tok/s, TTFT, score | Python |
+| **Persistent Memory** | Memoria cross-task: file, errori, preferenze utente | Python (JSON) |
+| **Exception Handler** | Classificazione errori centralizzata con retry policy | Python |
+| **State Recovery** | Ripristino contesto worker da event store SQLite al riavvio | Python |
+| **LLM Tuner** | Adatta parametri LLM (temp, top_p, ctx, steps) allo stato termico | Python |
+| **Thermal Predictor** | EMA + regressione lineare per stimare minuti alla soglia termica | Python |
 | **Watchdog** | Supervisore: riavvia l'orchestratore dopo un crash | Python |
-| **AST Scanner** | Gate deterministico su `write_file` | Python |
+| **AST Scanner** | Gate deterministico su `write_file` + anti-escape guardrail | Python |
 | **Event Store** | Memoria worker come log immutabile su SQLite | Python |
 | **Timestral** | Monitor termico CPU + GPU e tuning dinamico | Python |
 | **MCP Client** | Riceve task da server MCP esterni via SSE | Python |
-| **GUI PyQt6** | Control Center con 7 tab | PyQt6 |
+| **GUI PyQt6** | Control Center con 7 tab + QSS theme system (light/dark) | PyQt6 |
 | **CLI Launcher** | `byte-swarmy` e alias `bswarm` | Bash |
 | **Backup** | Snapshot git periodici, tar verificati e sync GitHub on-demand | git |
 
@@ -204,19 +223,20 @@ Cosa puoi vedere:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  ogni 30 secondi (modulato da Timestral)                     │
+│  ogni 30 secondi (modulato da Timestral + LLM Tuner)         │
 │                                                              │
-│  1. SAFETY CHECK   → RAM > 80%? Disco < 1 GB? → pausa        │
+│  1. SAFETY CHECK   → RAM > 95%? Disco < 1 GB? → pausa        │
 │  2. TIMESTRAL      → temperatura CPU/GPU critiche? → pausa   │
 │  3. MAINTENANCE    → backup git, memory compaction           │
 │  4. DISPATCH       → leggi coda SQLite                       │
 │  5. SWARM CMD?     → handle diretto (no LLM, instantaneo)    │
-│  6. GENERIC?       → Decision Model scompone                 │
-│  7. COMPLEX?       → Planner scompone                        │
-│  8. EXECUTE        → Worker ReAct (6 step, streaming)        │
-│  9. AUDIT          → auto-APPROVE se tool utile chiamato     │
-│ 10. PERSIST        → memoria, eventi, stato su disco         │
-│ 11. SLEEP          → prossimo tick                           │
+│  6. EXECUTE?       → handler deterministico (gcc/python)     │
+│  7. GENERIC?       → Decision Model scompone                 │
+│  8. COMPLEX?       → Planner scompone                        │
+│  9. EXECUTE        → Worker ReAct (6 step, streaming)        │
+│ 10. AUDIT          → auto-APPROVE se tool utile chiamato     │
+│ 11. PERSIST        → memoria, eventi, stato su disco         │
+│ 12. SLEEP          → prossimo tick                           │
 │                                                              │
 └──────────────────────────────────────────────────────────────┘
 ```
@@ -257,7 +277,8 @@ ollama pull tev1:4b
 ```
 
 > Il tab **Modelli** nella GUI può auto-selezionare i modelli migliori per il
-> tuo hardware con un clic (pulsante "Auto-Select").
+> tuo hardware con un clic (pulsante "Auto-Select"). Puoi anche eseguire un
+> benchmark completo con `python -m CORE.benchmark`.
 
 ---
 
@@ -318,7 +339,8 @@ crea funzione fattoriale in python
 
 L'Intent Router classifica la richiesta (IT), crea il task e l'orchestratore lo
 esegue. Guarda il **Live Activity Panel** a destra: vedrai i token apparire in
-tempo reale mentre il worker genera il codice.
+tempo reale mentre il worker genera il codice, più l'indicatore `🎚️ LLM Tuned`
+che mostra il profilo termico attivo.
 
 ---
 
@@ -344,9 +366,11 @@ byte-swarmy queue cleanup                      # Elimina i task completati
 byte-swarmy thermal            # Ultimo campione (CPU + GPU)
 byte-swarmy thermal history    # Storico recente
 
-# Model selector
+# Model selector e benchmark
 python -m CORE.model_selector           # Mostra raccomandazioni
 python -m CORE.model_selector --apply   # Applica al config.toml
+python -m CORE.benchmark                # Benchmark tutti i modelli
+python -m CORE.benchmark --model qwen2.5-coder:1.5b  # Solo uno
 
 # Codice prodotto
 byte-swarmy honey              # Elenca project/
@@ -379,33 +403,25 @@ Alias disponibile: `bswarm`.
    Router classifica la richiesta e crea il task strutturato in coda.
 1. **Coda Task** — task pending, in esecuzione e completati. Accanto alla
    tabella un **Live Activity Panel** mostra streaming token, step, thought,
-   tool call e metriche (tok/s, KV cache, VRAM) in tempo reale (300 ms).
+   tool call, metriche (tok/s, KV cache, VRAM) e `🎚️ LLM Tuned` in tempo reale
+   (300 ms).
 2. **Modelli** — selettore modelli LLM con Auto-Select intelligente, ComboBox
    per ogni ruolo, Test button (misura tok/s), Save & Restart.
 3. **MCP Servers** — configura server MCP esterni, polling automatico e
    discovery dei tool.
 4. **Logs** — tail in tempo reale, auto-scroll ed export.
 5. **Timestral (Termico)** — metriche live (temperatura CPU e GPU, carico,
-   frequenza, memoria), consigli operativi e storico. Gli indicatori CPU/GPU
-   colorati (verde/arancio/rosso) sono anche nella toolbar.
+   frequenza, memoria), consigli operativi, predizione EMA e storico. Gli
+   indicatori CPU/GPU colorati (verde/arancio/rosso) sono anche nella toolbar.
 6. **Config** — editor bidirezionale form↔TOML con validazione live, copia
    errore e revert automatico. Si ricarica da disco quando torni al tab.
-7. **Test & Sandbox** — esecuzione della suite (55 test), self-test del
+7. **Test & Sandbox** — esecuzione della suite (58 test), self-test del
    sandbox e verifica dello stato di isolamento.
 
 **Toolbar**: toggle button unico Avvia/Ferma (verde/rosso), indicatori
-temperatura CPU/GPU colorati, pulsante Esci.
+temperatura CPU/GPU colorati, pulsante tema (◐), pulsante Esci.
 
-### Task generici
-
-Scrivi nella Quick Command Bar:
-
-```
-voglio una calcolatrice CLI in Python
-```
-
-Il decision model (`tev1:4b`) analizza la descrizione e genera da 2 a 8 task
-atomici, che vengono accodati automaticamente come sottotask.
+**Theme**: QSS theme system con light e dark. Toggle con `Ctrl+Shift+T`.
 
 ### Swarm commands (istantanei, no LLM)
 
@@ -420,12 +436,16 @@ atomici, che vengono accodati automaticamente come sottotask.
 | `cancella task` | Cancella task pending |
 | `run audit` | Audit del progetto (file, linee) |
 
-Questi comandi vengono gestiti direttamente dall'orchestratore senza invocare
-nessun LLM: risposta istantanea, zero token consumati.
+### Execute tasks (deterministici, no LLM)
 
-### Sincronizzazione GitHub
+I task con `type=execute` (es. "Compila ed esegui l'applicazione") vengono
+gestiti deterministicamente dall'Execute Handler senza invocare alcun LLM.
+Il parser estrae comandi `gcc`, `python`, `make` dalla descrizione e li esegue
+via `run_bash` nel sandbox.
 
-Il push è **solo manuale**. I worker non possono modificare remote né fare push.
+### GitHub sync
+
+Push è **manuale solo**. I worker non possono modificare remote o push.
 
 ```bash
 ./sync.sh "descrizione delle modifiche"
@@ -440,87 +460,109 @@ Il push è **solo manuale**. I worker non possono modificare remote né fare pus
 
 ### Intent Router (multilingue)
 
-L'input libero (Quick Command Bar) passa da `INTENT/router.py` prima di entrare
-in coda: il testo viene classificato con matching fuzzy (`rapidfuzz`) su 28
-intent in `INTENT/intents.json` (314 trigger totali), la lingua viene rilevata
-(italiano, inglese, cinese) e i parametri estratti finiscono nei metadati del
-task. Se l'intent non è riconosciuto con sufficiente confidenza, il task
-degrada a `generic` e passa dal Decision Model.
+Free-form input (Quick Command Bar) passes through `INTENT/router.py` before
+entering the queue: the text is classified with fuzzy matching (`rapidfuzz`)
+against 28 intents in `INTENT/intents.json` (314 triggers total), the language
+is detected (Italian, English, Chinese) and extracted parameters end up in the
+task metadata. If the intent is not recognised with sufficient confidence, the
+task degrades to `generic` and goes through the Decision Model.
 
 ### Swarm commands (zero LLM)
 
-8 comandi (`swarm_status`, `list_tasks`, `show_logs`, `pause_swarm`,
-`resume_swarm`, `inspect_memory`, `cancel_task`, `run_audit`) vengono
-intercettati dall'orchestratore prima del dispatch e gestiti direttamente con
-handler Python. Risposta istantanea, zero token.
+8 commands are intercepted by the orchestrator before dispatch and handled
+directly with Python handlers. Instant response, zero tokens.
+
+### Execute handler (zero LLM)
+
+Tasks with `type=execute` are parsed by `CORE/execute_handler.py` which
+extracts shell commands (gcc, python, make) from the description and executes
+them via `tools.run_bash` in the sandbox. No LLM invoked.
 
 ### Routing deterministico
 
 | Tipo di task | Destinazione |
 |---|---|
 | Swarm command | Handler diretto (no LLM) |
-| `type=generic` | Decision Model (`tev1:4b`) → 2–8 sottotask |
-| Keyword complesse ("sistema", "multi") | Planner (`phi3:mini`) → 2–5 sottotask |
+| `type=execute` | Execute Handler (gcc/python/make, no LLM) |
+| `type=generic` | Decision Model (`tev1:4b`) → 2–8 subtask |
+| Keyword complesse ("sistema", "multi") | Planner (`phi3:mini`) → 2–5 subtask |
 | Altrimenti | Worker diretto |
 
-### Timestral — tuning dinamico
+### Timestral — tuning dinamico + LLM Tuner
 
-Timestral campiona ogni 30 secondi temperatura CPU, temperatura GPU (via
-`nvidia-smi`), carico CPU, frequenza, RAM e swap. Le soglie sono configurabili
-in `config.toml`.
+Timestral samples CPU + GPU temperature every 30 seconds. Based on the thermal
+state, two things happen:
 
-| Stato | Condizione | Effetto |
-|---|---|---|
-| `FAST` | temperatura < 50 °C e carico < 60% | tick × 0.6, raddoppia i task/ora |
-| `NORMAL` | temperatura 50–65 °C | tick × 1.0 |
-| `SLOW` | temperatura 65–80 °C | tick × 1.7–2.5, dimezza i task/ora |
-| `PAUSE` | temperatura > 90 °C o GPU > 95 °C | Nessun dispatch fino al raffreddamento |
+1. **Tick modulation**: `fast` (×0.6) / `normal` (×1.0) / `slow` (×1.7–2.5) /
+   `pause` (no dispatch).
+2. **LLM Tuner**: adjusts LLM parameters for the current thermal profile:
 
-Lo storico è salvato in `state/timestral_history.json` (24 ore di campioni).
+| Profile | temp | top_p | num_predict | num_ctx | max_steps |
+|---------|------|-------|-------------|---------|-----------|
+| **FAST** (< 50°C) | 0.25 | 0.92 | 600 | 3072 | 8 |
+| **NORMAL** (50–65°C) | 0.15 | 0.85 | 450 | 3072 | 6 |
+| **SLOW** (65–85°C) | 0.08 | 0.78 | 300 | 2048 | 5 |
+| **PAUSE** (> 85°C) | 0.05 | 0.70 | 200 | 1536 | 4 |
 
-### Model Selector intelligente
+### Timestral predittivo (EMA)
 
-`CORE/model_selector.py` assegna un punteggio 0–100 a ogni modello Ollama per
-ogni ruolo (orchestrator, planner, worker_coder, worker_general, embedding,
-decision). Hard gates (VRAM/RAM/capability) + soft scoring (family match, name
-match, quantization, thermal penalty). Ritorna top 1 + 3 alternative per ruolo.
+`MONITORING/predictive.py` uses Exponential Moving Average + linear regression
+to estimate "minutes to thermal threshold". Pure stdlib, no numpy.
 
-```bash
-python -m CORE.model_selector           # solo raccomandazioni
-python -m CORE.model_selector --apply   # scrive nel config.toml
-```
+### Intelligent Model Selector
 
-### KV cache dinamica
+`CORE/model_selector.py` scores every Ollama model 0–100 for each role. Hard
+gates (VRAM/RAM/capability) + soft scoring (family, name, quantization,
+thermal). Returns top 1 + 3 alternatives per role.
 
-`INTENT/metrics.py` stima la KV cache con la formula reale
-`2 (K+V) × layers × kv_heads × head_dim × 2 × tokens`, usando una tabella
-`MODEL_ARCHITECTURES` per i modelli noti. Sostituisce la vecchia stima
-hardcoded per famiglia (era fino a 15× sbagliata per `phi3:mini`).
+### Dynamic KV cache
+
+`INTENT/metrics.py` estimates KV cache with the real formula
+`2 (K+V) × layers × kv_heads × head_dim × 2 × tokens`, using a
+`MODEL_ARCHITECTURES` table for known models.
+
+### Model Benchmark Suite
+
+`CORE/benchmark.py` runs a 3-test suite (code generation, summarization,
+classification) on each model. Results saved to `state/model_benchmarks.json`.
+qwen2.5-coder:1.5b scored 100/100, avg 31.8 tok/s.
+
+### Exception Hardening
+
+`CORE/exception_handler.py` classifies errors (model_unavailable, model_timeout,
+tool_error, sandbox_violation, parse_error) and recommends actions (retry,
+abort, simplify, pivot) with exponential backoff.
+
+### State Recovery
+
+`CORE/state_recovery.py` reconstructs worker context from the immutable SQLite
+event store on restart, minimizing context loss after crashes.
+
+### Persistent Memory
+
+4 tiers:
+
+- **short_term** — current task events (RAM);
+- **working** — compact context used in the prompt;
+- **long_term** — persistent summary after compaction (SQLite event store);
+- **persistent** — cross-task memory: existing files, common errors, recent
+  tasks, **user preferences** (preferred language, type hints, frameworks,
+  styles extracted via pattern matching). Injected into the worker's prompt.
 
 ### Safety valve
 
 | Condizione | Azione |
 |---|---|
-| RAM > 80% | Pausa del dispatch, ripresa automatica |
-| Disco libero < 1 GB | Pausa e blocco delle nuove scritture |
-| Temperatura CPU > 90 °C | Pausa termica |
-| Temperatura GPU > 95 °C | Pausa termica |
-| CPU load > 95% per 60 s | Pausa per evitare thrashing |
-| 10 fallimenti consecutivi | Task in stato `stuck` |
+| RAM > 95% | Pause dispatch, auto-resume |
+| Free disk < 1 GB | Pause and block new writes |
+| CPU temp > 90 °C | Thermal pause |
+| GPU temp > 95 °C | Thermal pause |
+| CPU load > 95% for 60 s | Pause to avoid thrashing |
+| 10 consecutive failures | Task in `stuck` state |
 | Crash dell'orchestratore | Watchdog riavvia il processo |
 | 3 tool call identiche | Circuit breaker: pivot obbligato |
-| SIGTERM | Salvataggio stato, unload modelli, uscita pulita |
-
-### Memoria
-
-Ogni worker ha 4 tier:
-
-- **short_term** — eventi del task corrente (RAM);
-- **working** — contesto compatto usato nel prompt;
-- **long_term** — riassunto persistente dopo la compaction (SQLite event store);
-- **persistent** — memoria cross-task: file esistenti, errori comuni, task
-  recenti (`state/persistent_memory.json`). Iniettata nel prompt iniziale del
-  worker così non ricrea file già esistenti.
+| Project/ > 500 MB | Disk quota: write_file rifiutato |
+| SIGTERM | Save state, unload models, clean exit |
 
 ---
 
@@ -530,32 +572,16 @@ Ogni worker ha 4 tier:
 |---|---|
 | **Comandi** | `run_bash` tokenizza, rifiuta metacaratteri shell, allowlist + blacklist, `shell=False`. |
 | **Path** | Solo path relativi a `project/`; blocco path assoluti, `..`, `~`, symlink escape, file sensibili. |
-| **Sandbox** | bubblewrap: filesystem isolato, rete bloccata, PID/user namespace separati, `--cap-drop ALL`, `--disable-userns`, `--remount-ro /etc` (escape bloccato). |
+| **Sandbox** | bubblewrap: isolated filesystem, blocked network, separate PID/user namespaces, `--cap-drop ALL`, `--disable-userns`, `--remount-ro /etc` (escape blocked). |
 | **AST** | `write_file` passa per `ast_scanner.py` che blocca `eval`, `exec`, `pickle`, ecc. |
-| **Git** | `status`, `log`, `diff`, `branch`, `merge`, `commit` locali; push/pull/remote disabilitati. |
-| **Ambiente** | `HOME` sandbox; token, socket SSH, variabili cloud rimossi. |
-| **Risorse** | Limiti CPU, memoria, file aperti, dimensione file, core dump; timeout process group. |
-| **Input esterni** | Task MCP ricostruiti da zero, campi con lunghezza max, URL solo `http`/`https`. |
-| **Audit** | Ogni comando permesso/bloccato/timeout registrato in `logs/security.log`. |
-
-La difesa **non dipende dal prompt**: anche se un task contiene "ignora le
-regole", il tool layer applica comunque la policy.
-
-### Isolamento di sistema (opzionale, richiede root)
-
-```bash
-./setup-hardening.sh                  # Diagnostica
-sudo ./setup-hardening.sh --all       # Utente byteswarmy + cgroup + firewall
-sudo ./setup-hardening.sh --undo      # Rimuove slice e regole firewall
-```
-
-### Rischi residui
-
-1. Il codice del progetto viene eseguito con i permessi dell'utente.
-2. `Makefile`/`CMakeLists.txt`/test possono eseguire comandi shell propri.
-3. Non sono inclusi seccomp, AppArmor o container.
-
-Per dati sensibili usa **utente dedicato + firewall**.
+| **Anti-escape** | `detect_artifacts` blocca `\"`, `//` C-style, righe duplicate, syntax error. |
+| **Git** | local `status`, `log`, `diff`, `branch`, `merge`, `commit`; push/pull/remote disabled. |
+| **Ambiente** | sandbox `HOME`; token, SSH sockets, cloud vars removed. |
+| **Risorse** | CPU, memory, open files, file size, core dump limits; process group timeout. |
+| **Disco** | Quota 500 MB su `project/` verificata prima di ogni `write_file`. |
+| **External input** | MCP tasks rebuilt from scratch, fields with max length, URLs `http`/`https` only. |
+| **Audit** | Every allowed/blocked/timed-out command logged in `logs/security.log`. |
+| **Exception** | `CORE/exception_handler.py` classifica errori con retry policy e backoff. |
 
 ---
 
@@ -565,43 +591,55 @@ Per dati sensibili usa **utente dedicato + firewall**.
 byte-swarmy/
 ├── CORE/                    # Motori: orchestrator, tools, sandbox, memory,
 │   │                          ollama_client, model_selector, mcp_client,
-│   │                          persistent_memory, ast_scanner, constants
+│   │                          persistent_memory, ast_scanner, constants,
+│   │                          execute_handler, llm_tuner, benchmark,
+│   │                          exception_handler, state_recovery
 │   ├── orchestrator.py      # Orchestratore, Planner, Worker, Auditor
-│   ├── tools.py             # ToolSet: 21 tool, esecuzione sandboxed
+│   ├── tools.py             # ToolSet: 21 tools, sandboxed execution
 │   ├── sandbox.py           # bubblewrap builder
 │   ├── memory.py            # AgentMemory: short/working/long_term
-│   ├── memory_provider.py   # Event sourcing SQLite
+│   ├── memory_provider.py   # SQLite event sourcing
 │   ├── ollama_client.py     # ModelClient + call_streaming()
 │   ├── model_selector.py    # Algoritmo 0–100 per ruolo
-│   ├── persistent_memory.py # Memoria cross-task
-│   ├── ast_scanner.py       # Gate AST su write_file
-│   ├── mcp_client.py        # Client MCP su SSE
+│   ├── persistent_memory.py # Memoria cross-task + extract_preferences()
+│   ├── ast_scanner.py       # AST gate + anti-escape guardrail
+│   ├── execute_handler.py   # Handler deterministico per type=execute
+│   ├── llm_tuner.py         # 4 profili termici per parametri LLM
+│   ├── benchmark.py         # Suite benchmark modelli (3 test)
+│   ├── exception_handler.py # Policy centralizzata gestione errori
+│   ├── state_recovery.py    # Ripristino stato worker da event store
+│   ├── mcp_client.py        # MCP client over SSE
 │   └── constants.py
 ├── INTENT/                  # Router multilingue + metrics
-│   ├── router.py            # Classificazione IT/EN/ZH (rapidfuzz)
+│   ├── router.py            # IT/EN/ZH classification (rapidfuzz)
 │   ├── intents.json         # 28 intent, 314 trigger
 │   ├── bridge.py            # Bridge router ↔ GUI/orchestratore
 │   └── metrics.py           # Metriche Ollama + KV cache dinamica
 ├── SAFETY/                  # security.py + watchdog
-│   ├── security.py          # Policy centrale (audit, allowlist)
+│   ├── security.py          # Policy centrale (audit, allowlist, ./binari)
 │   ├── security_checks.py   # Check isolamento + safe mode
 │   └── watchdog.py          # Supervisore crash-recovery
-├── MONITORING/              # Timestral
-│   ├── thermal_manager.py   # CPU + GPU monitoring
+├── MONITORING/              # Timestral + predittivo
+│   ├── thermal_manager.py   # CPU + GPU monitoring + advice.json
+│   ├── predictive.py        # EMA + regressione lineare
 │   ├── system_monitor.py
 │   └── lifecycle_manager.py
-├── GUI/                     # GUI PyQt6 Control Center
-│   └── main_window.py       # 7 tab + toolbar + live activity
+├── GUI/                     # PyQt6 Control Center
+│   ├── main_window.py       # 7 tab + toolbar + live activity
+│   └── theme/               # QSS theme system (light.qss, dark.qss, theme.py)
 ├── CONFIG/                  # config.toml
-├── tests/                   # 55 test: security, sandbox, intent
+├── tests/                   # 58 test: security, sandbox, escape-gate, intent
 │   ├── test_security.py     # 27 test
 │   ├── test_sandbox.py      # 22 test (11 subtest)
+│   ├── test_escape_gate.py  # 3 test (anti-escape)
 │   ├── test_intent_integration.py  # 6 test
 │   └── run_tests.py         # Runner JSON per GUI
 ├── state/                   # Stato persistente
 │   ├── timestral_history.json       # 24h campioni CPU/GPU
-│   ├── persistent_memory.json       # Memoria cross-task
+│   ├── timestral_advice.json        # Ultimo advice (per GUI)
+│   ├── persistent_memory.json       # Memoria cross-task + preferenze
 │   ├── last_metrics.json            # Metriche ultima call
+│   ├── model_benchmarks.json        # Risultati benchmark
 │   ├── streaming.txt                # Token streaming live
 │   └── orchestrator.pid
 ├── tasks/                   # Coda task
@@ -609,12 +647,12 @@ byte-swarmy/
 │   └── queue.json           # Mirror per GUI
 ├── logs/                    # Log applicativo, JSONL, audit, watchdog
 ├── project/                 # Codice prodotto dai worker (sandboxed)
-├── backups/                 # Snapshot tar.gz (ultimi 7)
-├── main.py                  # Entry point CLI
+├── backups/                 # tar.gz snapshots (ultimi 7)
+├── main.py                  # CLI entry point
 ├── byte-swarmy              # CLI launcher (alias: bswarm)
 ├── avvia.sh / ferma.sh / sync.sh / setup.sh / setup-hardening.sh
 ├── SECURITY.md / IMPLEMENTED.md / SPECIFICATIONS.md / AGENT.md / todo.md
-├── BYTE-SWARMY.desktop      # Voce di menu KDE
+├── BYTE-SWARMY.desktop      # KDE menu entry
 └── requirements_gui.txt
 ```
 
@@ -622,7 +660,7 @@ byte-swarmy/
 
 ## Sviluppo e test
 
-### Suite di test (55 test)
+### Test suite (58 test)
 
 ```bash
 source .venv/bin/activate
@@ -630,16 +668,18 @@ python -m pytest tests/ -v
 deactivate
 ```
 
-Copre:
+Covers:
 
-- **27 security** — comandi distruttivi, pipe, redirect, path traversal, symlink
-  escape, git push/pull/remote, ambiente sanificato, prompt injection;
-- **22 sandbox** — bubblewrap isolation, escape `/etc` bloccato, rete bloccata,
-  scrittura fuori progetto bloccata, 11 subtest self-test;
-- **6 intent** — routing multilingue IT/EN/ZH, swarm command detection,
-  localizzazione.
+- **27 security** — comandi distruttivi, pipe, redirect, path traversal,
+  symlink escapes, git push/pull/remote, sanitised environment, prompt injection;
+- **22 sandbox** — bubblewrap isolation, `/etc` escape blocked, network blocked,
+  write-outside-project blocked, 11 self-test subtests;
+- **3 escape-gate** — anti-escape guardrail: syntax error, C-style comment,
+  duplicated lines, JSON error;
+- **6 intent** — multilingual routing IT/EN/ZH, swarm command detection,
+  localisation.
 
-### Controlli statici
+### Static checks
 
 ```bash
 python -m py_compile CORE/*.py INTENT/*.py SAFETY/*.py MONITORING/*.py GUI/*.py
@@ -647,24 +687,26 @@ bash -n avvia.sh ferma.sh sync.sh setup.sh setup-hardening.sh
 git diff --check
 ```
 
-### Model selector
+### Model selector e benchmark
 
 ```bash
 python -m CORE.model_selector           # raccomandazioni
 python -m CORE.model_selector --apply   # applica al config
+python -m CORE.benchmark                # benchmark tutti i modelli
+python -m CORE.benchmark --model qwen2.5-coder:1.5b  # solo uno
 ```
 
 ---
 
 ## Limiti noti
 
-- **Un solo modello caricato alla volta**: la rotation è esplicita (vincolo 4 GB VRAM).
+- **Un solo modello caricato alla volta**: rotation è esplicita (vincolo 4 GB VRAM).
 - **Worker sequenziali**: nessun parallelismo, un task alla volta.
-- **Contesto limitato** (3072 token): i task grandi vengono scomposti.
-- **Output LLM limitato** (512 token/step, 6 step max): file grandi richiedono più task.
+- **Contesto limitato** (3072 token, ridotto a 1536 quando caldo): i task grandi vengono scomposti.
+- **Output LLM limitato** (512 token/step, 6 step max, ridotti quando caldo): file grandi richiedono più task.
 - **Modelli 1.5 B–4 B**: efficaci su task discreti, poco affidabili su architetture complesse.
 - **TDD relaxed**: il check TDD è warning-only (i modelli piccoli struggle col test-first).
-- **Nessun sandbox di kernel**: l'isolamento completo richiede l'hardening di sistema.
+- **Nessun sandbox di kernel**: l'isolamento completo richiede system hardening.
 
 ---
 
@@ -672,16 +714,16 @@ python -m CORE.model_selector --apply   # applica al config
 
 | Sintomo | Causa probabile | Soluzione |
 |---|---|---|
-| `ModuleNotFoundError: PyQt6` | Dipendenze GUI assenti | `./setup.sh` oppure `pip install -r requirements_gui.txt` |
+| `ModuleNotFoundError: PyQt6` | Dipendenze GUI assenti | `./setup.sh` o `pip install -r requirements_gui.txt` |
 | `ModuleNotFoundError: rapidfuzz` | Router intenti non installato | `pip install rapidfuzz` |
 | `ModuleNotFoundError: mcp` | Dipendenze MCP assenti | `pip install mcp httpx httpx-sse` |
 | Orchestratore non parte | Virtualenv non attivo | `source .venv/bin/activate` |
 | Status "fermato" dopo l'avvio | Subprocess terminato | Controlla `logs/byte-swarmy.log` |
-| Toggle button desincronizzato | Bug vecchio | Riavvia GUI (`./avvia.sh --gui`) |
-| RAM saturata | Modelli non scaricati | Verifica `keep_alive=0` nel log |
+| `RAM pressure: 94%` | Troppa RAM usata | Chiudi app pesanti, o alza `swap_threshold` a 0.95 |
 | Task sempre `stuck` | Prompt troppo complesso | Spezza il task o usa un Generic task |
 | KV cache enorme | Modello con tanti layer (es. phi3) | Usa modello più piccolo (qwen2.5-coder:1.5b) |
-| GPU troppo calda (> 90°C) | Timestral pausa | Migliora ventilazione o usa modello più piccolo |
+| GPU troppo calda (> 90°C) | Timestral pausa | LLM Tuner riduce parametri automaticamente |
+| `./hello_world` bloccato | Allowlist non aggiornata | Verifica `security.py` ha il check `./` |
 | `tomli_w non installato` | Writer TOML mancante | `pip install tomli-w` |
 | Push: `Authentication failed` | Token errato o scaduto | Crea un nuovo PAT su GitHub |
 | Comando bloccato da `run_bash` | Policy di sicurezza attiva | Leggi il messaggio: indica il motivo e l'alternativa |
@@ -693,7 +735,7 @@ python -m CORE.model_selector --apply   # applica al config
 - **OS:** Linux (testato su Kubuntu/Ubuntu). Su Windows/macOS disattiva Timestral.
 - **Python:** 3.11+ per `tomllib`; su 3.10 installa `tomli`.
 - **RAM:** 4 GB minimo, 8 GB consigliati.
-- **GPU:** NVIDIA opzionale (per accelerazione LLM, es. GTX 1050 4 GB).
+- **GPU:** NVIDIA opzionale (per LLM acceleration, es. GTX 1050 4 GB).
 - **Ollama:** qualsiasi versione recente.
 - **bubblewrap:** ≥ 0.11 (per `--disable-userns`).
 - **GUI:** PyQt6 con wheel disponibili per Python 3.14.
@@ -704,12 +746,10 @@ python -m CORE.model_selector --apply   # applica al config
 
 Il progetto è pensato per essere esteso. Le aree più aperte (vedi `todo.md`):
 
-- guardrail anti-escape in `write_file`/`patch_code` (M1);
-- handler deterministico per `type=execute` (gcc + run, no LLM);
-- Timestral predittivo (EMA/regressione);
-- memoria persistente avanzata (preferenze utente);
-- benchmark automatico dei modelli;
-- USB protocol parser e differential analysis.
+- UI redesign (menu hamburger, Live Activity in alto);
+- MCP E2E testing;
+- USB protocol parser e differential analysis;
+- unificazione coda GUI→SQLite (FM14).
 
 Prima di proporre una modifica, verifica che rispetti il vincolo del progetto:
 *"gira su 4 GB di RAM senza cloud?"*
@@ -739,7 +779,7 @@ Rilasciato sotto licenza MIT. Vedi [LICENSE](LICENSE).
 
 ---
 
-**BYTE-SWARMY v0.2.0**
+**BYTE-SWARMY v0.3.0**
 
 ```
 /ˈbaɪt ˈswɔːrmi/  ·  "BYTE SWOR-mee"

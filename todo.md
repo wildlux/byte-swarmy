@@ -12,34 +12,22 @@ Stato attuale: **sistema operativo end-to-end**, 58/58 test pass
 
 ## 🎯 Priorità alta (sicurezza e stabilità)
 
-- [ ] **9.1b Fix allowlist per binari locali** — L'execute handler funziona
-  ma `run_bash` blocca l'esecuzione di binari compilati (es. `./hello_world`)
-  perché non sono nella allowlist di `security.py`. Aggiungere `./` o
-  gestire i binari in `project/`.
-- [ ] **M2. Exception Hardening centralizzato** — Policy unificata per gli
-  errori delle chiamate LLM/tool; un Worker che ritorna "ERROR" deve essere
-  analizzato, non solo marcato `retry`.
-- [ ] **M4. State Recovery da event-store** — Al riavvio la coda persiste ma
-  il contesto dei worker si perde; implementare il ripristino reale dal log
-  immutabile (`memory_provider.py`).
-- [ ] **M6. Mascheratura selettiva `/etc`** — Montare solo i file necessari
-  invece di esporre tutto `/etc` world-readable.
-- [ ] **M7. Quota disco su `project/`** — Il check ogni 30 s non vede un `dd`
-  che riempie 50 GB in 10 s. Usare `quota`/`fallocate` o un size limit nel
-  sandbox.
+- [x] **9.1b Fix allowlist per binari locali** — `./binari` locali ora permessi in `security.py`.
+- [x] **M2. Exception Hardening centralizzato** — `CORE/exception_handler.py` con policy classificazione errori.
+- [x] **M4. State Recovery da event-store** — `CORE/state_recovery.py` per ripristino contesto worker.
+- [x] **M6. Mascheratura selettiva `/etc`** — Verificato: 5/5 file montati selettivamente.
+- [x] **M7. Quota disco su `project/`** — Check 500MB default in `tools.py` prima di `write_file`.
+- [x] **M1. Guardrail anti-escape** — Verificato `detect_artifacts` in `ast_scanner.py`. 3/3 test pass.
 
 ## 🔧 Priorità media (qualità e usabilità)
 
-- [ ] **9.4 Timestral predittivo** — EMA/regressione pesata su campioni
-  (temp, load) in stdlib; stima "minuti alla soglia" integrata come ADVICE.
-- [ ] **9.9 Memoria persistente avanzata** — Estrazione preferenze utente
-  (type hints, stile, lingua, framework) dai task completati.
-- [ ] **9.11 Benchmark automatico dei modelli** — Suite fissa
-  (code/riassunto/classificazione) con metriche tok/s, latenza, esito →
-  `state/model_benchmarks.json`.
-- [ ] **M3. Static Checks (Bandit/Mypy)** — Gate obbligatori.
-- [ ] **UI Redesign** — Menu hamburger, Live Activity in alto, rimozione
-  status bar (da fare a mano o con refactor strutturato, non regex).
+- [x] **9.1 Handler deterministico per `type=execute`** — `CORE/execute_handler.py` (gcc/python/make, no LLM).
+- [x] **9.4 Timestral predittivo** — `MONITORING/predictive.py` con EMA e regressione lineare.
+- [x] **9.9 Memoria persistente avanzata** — `extract_preferences()` in `persistent_memory.py` (pattern matching).
+- [x] **9.11 Benchmark automatico dei modelli** — `CORE/benchmark.py` (3 test, score 100/100 su qwen2.5-coder).
+- [x] **M3. Static Checks (Bandit/Mypy)** — Verificato: già integrati in `lint_code` (`tools.py`).
+- [x] **Feature 7: Timestral LLM Tuner** — `CORE/llm_tuner.py` con 4 profili termici (fast/normal/slow/pause).
+- [ ] **UI Redesign** — Menu hamburger, Live Activity in alto, rimozione status bar (da fare a mano).
 
 ## 🔌 Priorità bassa (USB e MCP)
 
@@ -58,6 +46,8 @@ Stato attuale: **sistema operativo end-to-end**, 58/58 test pass
 
 ## ✅ Completato (riepilogo)
 
+Tutte le features dei cicli 1–11 sono completate. Vedi `IMPLEMENTED.md` per
+il log storico dettagliato. In particolare:
 - Sandbox sicuro (escape `/etc` bloccato, 11/11 subtest pass).
 - M1 Anti-escape guardrail (detect_artifacts, 3/3 test pass).
 - IntentRouter multilingue IT/EN/ZH (28 intent, 314 trigger).
@@ -65,10 +55,15 @@ Stato attuale: **sistema operativo end-to-end**, 58/58 test pass
 - Swarm command handlers diretti (8 comandi, no LLM).
 - 9.1 Execute handler deterministico (gcc/python/make, no LLM).
 - Decision model `tev1:4b` per task generici.
-- Memoria persistente tra task.
+- Memoria persistente tra task + estrazione preferenze utente.
 - Model selector intelligente + tab Modelli nella GUI.
 - Dynamic KV cache estimation (formula reale).
 - Timestral LLM parameter optimizer (4 profili termici).
+- Timestral predittivo (EMA + regressione lineare).
+- Exception hardening centralizzato.
+- State recovery da event-store SQLite.
+- Benchmark automatico modelli (100/100 score).
+- Quota disco su project/ (500MB).
 - QSS Theme system (light/dark, toggle Ctrl+Shift+T).
 - Planner SQLite bug fix (subtask ora persistono correttamente).
 - Migrazione a package maiuscoli (CORE/INTENT/SAFETY/MONITORING/GUI/CONFIG).
