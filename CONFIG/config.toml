@@ -24,7 +24,7 @@ num_ctx = 3072
 num_predict = 512
 
 [models.worker_coder]
-name = "deepseek-coder:1.3b"
+name = "qwen2.5-coder:1.5b"
 temperature = 0.1
 top_p = 0.8
 top_k = 30
