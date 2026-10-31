@@ -843,6 +843,33 @@ class ToolSet:
         if guard:
             return guard
 
+        # 3. Sandbox opzionale: se disabilitato, esegui direttamente
+        sandbox_enabled = self.cfg.get("safety", {}).get("sandbox_enabled", True)
+        if not sandbox_enabled:
+            try:
+                proc = subprocess.Popen(
+                    argv,
+                    cwd=str(cwd or self.project_root),
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    start_new_session=True,
+                    preexec_fn=self._preexec(timeout),
+                )
+                stdout, stderr = proc.communicate(timeout=timeout)
+                stdout = self._truncate(stdout or "")
+                stderr = self._truncate(stderr or "")
+                return (
+                    f"exit_code={proc.returncode}\n"
+                    f"--- stdout ---\n{stdout}\n"
+                    f"--- stderr ---\n{stderr}"
+                )
+            except Exception as e:
+                return f"ERROR: {e}"
+        
         try:
             workdir = sandbox.sandbox_workdir(cwd, self.project_root)
             cmd, env = sandbox.build_command(

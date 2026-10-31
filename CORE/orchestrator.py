@@ -579,6 +579,7 @@ class Worker:
             "1. write_file(path, content) to create the implementation file\n"
             "2. lint_code(path) to verify syntax\n"
             "3. done=true with a short result\n\n"
+            f"{feedback}"
             "First step (JSON only, format: {action: \"write_file\", args: [\"project/main.py\", \"code...\"], done: false}):"
         )
 
@@ -1187,6 +1188,8 @@ class Orchestrator:
         try:
             result = worker.execute(task)
             if result.startswith("ERROR"):
+                # FEEDBACK LOOP: salva l'errore nel task per il prossimo tentativo
+                task["last_error"] = result[:500]
                 self.queue.mark_failed(task["id"], result)
                 self.log.warning(f"task {task['id']} failed: {result[:100]}")
             else:
