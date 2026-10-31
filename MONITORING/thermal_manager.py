@@ -71,6 +71,57 @@ class ThermalAdvice:
 
 
 # ====================================================================
+# Thermal Gatekeeper (work order T3) — gate termico prima dell'LLM
+# ====================================================================
+
+# Soglie del work order: pausa >= 75/80, ripresa < 65
+PAUSE_CPU = 75.0
+PAUSE_GPU = 80.0
+RESUME_TEMP = 65.0
+
+
+def thermal_should_pause(cpu_temp: float, gpu_temp: float = 0.0) -> bool:
+    """Funzione pura: True se la soglia di pausa e' superata."""
+    return float(cpu_temp) >= PAUSE_CPU or float(gpu_temp) >= PAUSE_GPU
+
+
+class TimestralGatekeeper:
+    """Gate termico con isteresi, consultabile a polling (non bloccante).
+
+    - l' latch `paused` si DRIVE True se cpu >= 75.0 o gpu >= 80.0;
+    - si richiude SOLO quando max(cpu,gpu) < 65.0 (isteresi: intorno alle
+      soglie non ci sono oscillazioni di stato);
+    - non fa mai I/O né sleep: chi lo consulta passa i valori di temperatura.
+    """
+
+    def __init__(self, pause_cpu: float = PAUSE_CPU,
+                 pause_gpu: float = PAUSE_GPU,
+                 resume_temp: float = RESUME_TEMP):
+        self.pause_cpu = float(pause_cpu)
+        self.pause_gpu = float(pause_gpu)
+        self.resume_temp = float(resume_temp)
+        self.paused = False
+        self.pause_reason = ""
+
+    def check(self, cpu_temp: float, gpu_temp: float = 0.0) -> bool:
+        """Aggiorna e ritorna lo stato latch (True = in pausa termica)."""
+        cpu = float(cpu_temp or 0.0)
+        gpu = float(gpu_temp or 0.0)
+        if not self.paused:
+            if cpu >= self.pause_cpu or gpu >= self.pause_gpu:
+                self.paused = True
+                self.pause_reason = (
+                    f"CPU {cpu:.1f}C (soglia {self.pause_cpu:.0f}) / "
+                    f"GPU {gpu:.1f}C (soglia {self.pause_gpu:.0f})"
+                )
+        else:
+            if max(cpu, gpu) < self.resume_temp:
+                self.paused = False
+                self.pause_reason = ""
+        return self.paused
+
+
+# ====================================================================
 # TimestralManager
 # ====================================================================
 

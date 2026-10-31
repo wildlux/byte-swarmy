@@ -49,7 +49,9 @@ from CORE.ollama_client import ModelClient
 from SAFETY.security import log_security_event
 from SAFETY.security_checks import check_isolation, apply_safe_mode
 from CORE.execute_handler import handle_execute_task
-from MONITORING.thermal_manager import TimestralManager
+from CORE.decision_feedback import DecisionValidator
+from CORE.correction import build_correction_prompt
+from MONITORING.thermal_manager import TimestralManager, TimestralGatekeeper, PAUSE_CPU, PAUSE_GPU, RESUME_TEMP
 
 
 # ====================================================================
@@ -152,7 +154,7 @@ class TaskQueue:
         return sqlite3.connect(self.db_path)
 
     def add(self, task: dict) -> str:
-        task_id = f"task-{int(time.time()*1000)}-{len(self.tasks_count())}"
+        task_id = f"task-{int(time.time()*1000)}-{self.tasks_count()}"
         task.setdefault("id", task_id)
         task.setdefault("status", "pending")
         task.setdefault("attempts", 0)
@@ -216,6 +218,84 @@ class TaskQueue:
         with self._get_conn() as conn:
             conn.execute("UPDATE tasks SET status = 'needs_human', reason = ? WHERE id = ?", (reason, task_id))
             conn.commit()
+
+    # ---------------------------------------------------------------
+    # Feedback loop (work order T2): retry con prompt sovrascritto
+    # ---------------------------------------------------------------
+    RETRY_LIMIT = 3            # fallimenti tollerati; il 4° e' definitivo
+    STATUS_FINAL = "failed_definitively"
+
+    def update_prompt(self, task_id: str, prompt: str) -> None:
+        """Sovrascrive la description del task (prompt corretto)."""
+        with self._get_conn() as conn:
+            conn.execute(
+                "UPDATE tasks SET description = ? WHERE id = ?",
+                (str(prompt)[:4000], task_id),
+            )
+            conn.commit()
+
+    def set_status(self, task_id: str, status: str) -> None:
+        with self._get_conn() as conn:
+            conn.execute(
+                "UPDATE tasks SET status = ? WHERE id = ?",
+                (status, task_id),
+            )
+            conn.commit()
+
+        # non ripesca piu' nulla di definitivo: loop terminato
+
+    def pause_thermal(self) -> int:
+        """Mette in 'thermal_paused' i task ancora in attesa (T3). Idempotente."""
+        with self._get_conn() as conn:
+            cur = conn.execute(
+                "UPDATE tasks SET status = 'thermal_paused' "
+                "WHERE status IN ('pending', 'retry')"
+            )
+            conn.commit()
+            return cur.rowcount
+
+    def resume_thermal(self) -> int:
+        """Riaccoda i task 'thermal_paused' quando la temperatura rientra."""
+        with self._get_conn() as conn:
+            cur = conn.execute(
+                "UPDATE tasks SET status = 'pending' WHERE status = 'thermal_paused'"
+            )
+            conn.commit()
+            return cur.rowcount
+
+    def fail_with_correction(self, task_id: str, reason: str,
+                             correction_prompt: str) -> str:
+        """Feedback-loop atomico.
+
+        attempt 1..3  -> status 'pending' + description sovrascritta col
+                         prompt di correzione (il loop lo ripesca).
+        attempt 4     -> status 'failed_definitively' + last_error.
+
+        Returns:
+            nuovo status ('pending' | 'failed_definitively').
+        """
+        with self._get_conn() as conn:
+            curr = conn.execute(
+                "SELECT attempts FROM tasks WHERE id = ?", (task_id,)
+            ).fetchone()
+            attempts = (curr[0] if curr else 0) + 1
+            if attempts <= self.RETRY_LIMIT:
+                status = "pending"
+                conn.execute(
+                    "UPDATE tasks SET attempts = ?, status = ?, "
+                    "description = ?, last_error = ? WHERE id = ?",
+                    (attempts, status, str(correction_prompt)[:4000],
+                     reason[:300], task_id),
+                )
+            else:
+                status = self.STATUS_FINAL
+                conn.execute(
+                    "UPDATE tasks SET attempts = ?, status = ?, "
+                    "last_error = ?, completed_at = ? WHERE id = ?",
+                    (attempts, status, reason[:300], time.time(), task_id),
+                )
+            conn.commit()
+            return status
 
     def stats(self) -> dict:
         with self._get_conn() as conn:
@@ -406,7 +486,7 @@ class Worker:
 
         wrote_file = False
         last_tool_result = ""
-        
+        self.last_code = ""      # ultimo codice scritto (feedback loop T2)
         # --- CIRCUIT BREAKER STATE ---
         repeated_actions = {}
 
@@ -523,6 +603,9 @@ class Worker:
 
             if tool_name == "write_file" and tool_result.startswith("OK:"):
                 wrote_file = True
+                # memoria per il feedback loop T2 (prompt di correzione)
+                if args and len(args) > 1:
+                    self.last_code = str(args[1])[:2000]
             last_tool_result = tool_result
 
             self.memory.add_event({
@@ -560,7 +643,8 @@ class Worker:
         self.memory.add_event({"type": "max_steps_reached"})
         return "ERROR: max steps reached without completion"
 
-    def _build_initial_prompt(self, task: dict, context: str) -> str:
+    def _build_initial_prompt(self, task: dict, context: str,
+                              correction: str = "") -> str:
         # 🆕 Carica contesto persistente
         persistent_context = ""
         try:
@@ -568,7 +652,12 @@ class Worker:
             persistent_context = build_context_for_prompt()
         except Exception:
             pass
-        
+
+        correction_block = (
+            f"## CORRECTION (tentativo precedente fallito)\n"
+            f"{correction[:500]}\n\n" if correction else ""
+        )
+
         return (
             f"## TASK\n{task.get('title', '')}\n\n"
             f"## DESCRIPTION\n{task.get('description', '')}\n\n"
@@ -579,7 +668,7 @@ class Worker:
             "1. write_file(path, content) to create the implementation file\n"
             "2. lint_code(path) to verify syntax\n"
             "3. done=true with a short result\n\n"
-            f"{feedback}"
+            f"{correction_block}"
             "First step (JSON only, format: {action: \"write_file\", args: [\"project/main.py\", \"code...\"], done: false}):"
         )
 
@@ -797,6 +886,39 @@ class GenericTaskPlanner:
     def is_enabled(self) -> bool:
         return self.planner_cfg.get("enabled", False) and self._get_active_model() is not None
 
+    def ask_verdict(self, prompt: str):
+        """Parere del decision model sul prompt (per il preflight di
+        DecisionValidator). Ritorna {"valid": bool, "reason": str} o None
+        se non configurato/irraggiungibile (non blocca l'accodamento).
+        """
+        model_cfg = self._get_active_model()
+        if not model_cfg:
+            return None
+        model_name = model_cfg.get("name", "tev1:4b")
+        system = ('Sei un validatore di task. Rispondi SOLO con JSON '
+                  'compatto: {"valid": true} oppure '
+                  '{"valid": false, "reason": "<motivo breve>"}')
+        try:
+            raw = self._call_decision_model(
+                model_name, prompt, system,
+                temperature=0.1,
+                num_ctx=int(model_cfg.get("num_ctx", 2048)),
+                max_tokens=64,
+            )
+        except Exception as e:
+            self.log.warning(f"[preflight] decision model non raggiungibile: {e}")
+            return None
+        import json as _json, re
+        m = re.search(r"\{[\s\S]*\}", raw)
+        if not m:
+            return None
+        try:
+            data = _json.loads(m.group(0))
+        except _json.JSONDecodeError:
+            self.log.warning(f"[preflight] decision model no JSON: {raw[:120]}")
+            return None
+        return data if isinstance(data, dict) else None
+
     def _get_active_model(self) -> dict:
         """Ritorna la config del decision model attivo, o None."""
         active_key = self.decision_cfg.get("active", "tev1")
@@ -1012,6 +1134,12 @@ class Orchestrator:
         self.generic_planner = GenericTaskPlanner(self.config, self.models, self.log)
         self.auditor = AuditWorker(self.models, self.log)
 
+        # Pre-flight validation + feedback su SQLite (work order T1)
+        self.decision_validator = DecisionValidator(
+            self.queue,
+            decision_client=self.generic_planner.ask_verdict,
+        )
+
         # 3. Monitoring
         self.timestral = None
         if self.config.get("thermal", {}).get("enabled", False):
@@ -1020,6 +1148,14 @@ class Orchestrator:
                 self.timestral.start()
             except Exception as e:
                 self.log.warning(f"Timestral failed: {e}")
+
+        # Gatekeeper termico (work order T3): LED CPU 75 / GPU 80 -> resume 65
+        thermal_cfg = self.config.get("thermal", {})
+        self.thermal_gate = TimestralGatekeeper(
+            pause_cpu=float(thermal_cfg.get("pause_cpu", PAUSE_CPU)),
+            pause_gpu=float(thermal_cfg.get("pause_gpu", PAUSE_GPU)),
+            resume_temp=float(thermal_cfg.get("resume_temp", RESUME_TEMP)),
+        )
         
         self.monitor = SystemMonitor(self.config, self.log, self.timestral)
         self.dispatcher = TaskDispatcher(self.queue, self.planner, self.generic_planner, self.models, self.tools, self.log)
@@ -1038,6 +1174,16 @@ class Orchestrator:
     # ------------------------------------------------------------------
     # Main loop
     # ------------------------------------------------------------------
+
+    def preflight_and_queue(self, prompt: str, params: dict) -> dict:
+        """Pre-flight + accodamento (work order T1).
+
+        API per CLI e GUI (Task 4): puo' essere chiamata da un processo
+        esterno (QProcess) per non bloccare mai il main thread della GUI.
+        Ritorna {"status": "queued", "task_id": ...} oppure
+        {"status": "needs_revision", "reason": ...}.
+        """
+        return self.decision_validator.validate(prompt, params).as_dict()
 
     def run(self) -> None:
         """Loop principale. Singolo thread."""
@@ -1058,8 +1204,42 @@ class Orchestrator:
         # Cleanup
         self._shutdown()
 
+    def _thermal_gate_pass(self) -> bool:
+        """Gatekeeper termico T3 (non bloccante, polling a ogni tick).
+
+        False = tick sospeso: i task in attesa sono messi in
+        'thermal_paused' e verrano riaccodati automaticamente appena la
+        temperatura scende sotto la soglia di ripresa.
+        """
+        sample = (getattr(self.timestral, "last_sample", None)
+                  if self.timestral else None)
+        if sample is None:
+            # sensori assenti/disabilitati: nessun gate (degradato, non blocca)
+            return True
+
+        paused = self.thermal_gate.check(
+            sample.cpu_temp_max, getattr(sample, "gpu_temp", 0.0)
+        )
+        if paused:
+            self.queue.pause_thermal()
+            self.log.warning(
+                f"[thermal-gate] PAUSA TERMICA: {self.thermal_gate.pause_reason}"
+            )
+            return False
+
+        resumed = self.queue.resume_thermal()
+        if resumed:
+            self.log.info(
+                f"[thermal-gate] ripresa (<{self.thermal_gate.resume_temp:.0f}C): "
+                f"{resumed} task riaccodati"
+            )
+        return True
+
     def _tick(self) -> None:
         """Singolo tick del loop."""
+        # 0. Gatekeeper termico (T3) PRIMA di avviare qualsiasi LLM
+        if not self._thermal_gate_pass():
+            return
 
         # 1. Safety checks (ogni tick, leggeri)
         if not self._check_resources():
@@ -1188,9 +1368,8 @@ class Orchestrator:
         try:
             result = worker.execute(task)
             if result.startswith("ERROR"):
-                # FEEDBACK LOOP: salva l'errore nel task per il prossimo tentativo
-                task["last_error"] = result[:500]
-                self.queue.mark_failed(task["id"], result)
+                self._process_worker_failure(task, result,
+                                             getattr(worker, "last_code", ""))
                 self.log.warning(f"task {task['id']} failed: {result[:100]}")
             else:
                 # --- ENTERPRISE AUDIT STEP ---
@@ -1211,8 +1390,35 @@ class Orchestrator:
                     task["description"] += f"\n\n⚠️ AUDIT REJECTION: {feedback}"
                     self.queue.mark_failed(task["id"], f"AUDIT_REJECT: {feedback}")
         except Exception as e:
-            self.queue.mark_failed(task["id"], str(e))
+            self._process_worker_failure(task, str(e),
+                                         getattr(worker, "last_code", ""))
             self.log.error(f"task {task['id']} exception: {e}", exc_info=True)
+
+    def _process_worker_failure(self, task: dict, reason: str,
+                                previous_code: str = "") -> str:
+        """Feedback loop T2: costruisce il prompt di correzione e riarma
+        il task fino a 3 retry; il 4° fallimento lo rende definitivo.
+
+        Returns:
+            nuovo status ('pending' | 'failed_definitively').
+        """
+        correction = build_correction_prompt(
+            original_task=f"{task.get('title', '')}\n{task.get('description', '')}",
+            previous_code=previous_code,
+            stderr=reason,
+        )
+        status = self.queue.fail_with_correction(task["id"], reason, correction)
+        if status == self.queue.STATUS_FINAL:
+            self.log.error(
+                f"task {task['id']} FAILED_DEFINITIVELY after "
+                f"{self.queue.RETRY_LIMIT + 1} attempts"
+            )
+        else:
+            self.log.warning(
+                f"task {task['id']} -> {status} "
+                f"(retry con prompt di correzione)"
+            )
+        return status
 
     # ------------------------------------------------------------------
     # Routing e decisioni
