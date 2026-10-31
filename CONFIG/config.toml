@@ -71,6 +71,8 @@ backup_complete = 86400
 model_unload_idle = 120
 
 [safety]
+# 3. Sandbox bubblewrap: true (default, sicuro) o false (locale, veloce)
+sandbox_enabled = true
 max_attempts = 10
 max_consecutive_failures = 3
 cooldown_after_failure = 120
