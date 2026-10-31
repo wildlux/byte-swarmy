@@ -3390,23 +3390,143 @@ class ModelsTab(QWidget):
             import traceback
             QMessageBox.critical(self, "Errore", traceback.format_exc())
 
+# ====================================================================
+# MAINWINDOW ZERO-CLICK (work order Task 4)
+# ====================================================================
+
+from PyQt6.QtCore import QAbstractTableModel, QModelIndex
+from PyQt6.QtWidgets import QTableView, QAbstractItemView, QMenu
+
+MAX_PROMPT_CHARS_GUI = 500      # constraint globale del work order
+
+
+class TaskQueueModel(QAbstractTableModel):
+    """Modello read-only della coda task (tasks/queue.db).
+
+    Refresh a polling con QTimer (nessun I/O sincrono percepibile: la
+    UPDATE e' a lettura e va aggiunta invisibile all'utente... la coda e'
+    piccola e viene letta in una singola query parametrizzata).
+    """
+
+    HEADERS = ["ID", "Titolo", "Stato", "Tent.", "Tipo", "Età"]
+
+    def __init__(self, db_path: Path, parent=None):
+        super().__init__(parent)
+        self.db_path = db_path
+        self._rows: list[tuple] = []
+
+    # -- refresh ------------------------------------------------------
+    def refresh(self) -> None:
+        rows: list[tuple] = []
+        try:
+            if self.db_path.exists():
+                import sqlite3
+                with sqlite3.connect(str(self.db_path)) as conn:
+                    rows = conn.execute(
+                        "SELECT id, title, status, attempts, type, created_at "
+                        "FROM tasks ORDER BY "
+                        "CASE status WHEN 'running' THEN 0 "
+                        "WHEN 'pending' THEN 1 WHEN 'retry' THEN 2 "
+                        "WHEN 'thermal_paused' THEN 3 ELSE 4 END, "
+                        "created_at ASC LIMIT 300"
+                    ).fetchall()
+        except Exception:
+            pass
+        self.beginResetModel()
+        self._rows = rows
+        self.endResetModel()
+
+    # -- Qt API ---------------------------------------------------------
+    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
+        return 0 if parent.isValid() else len(self._rows)
+
+    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
+        return len(self.HEADERS)
+
+    def headerData(self, section: int, orientation, role=Qt.ItemDataRole.DisplayRole):
+        if role != Qt.ItemDataRole.DisplayRole:
+            return None
+        if orientation == Qt.Orientation.Horizontal:
+            return self.HEADERS[section] if 0 <= section < len(self.HEADERS) else None
+        return str(section + 1)
+
+    def data(self, index: QModelIndex, role=Qt.ItemDataRole.DisplayRole):
+        if not index.isValid() or role not in (
+            Qt.ItemDataRole.DisplayRole,
+            Qt.ItemDataRole.ForegroundRole,
+        ):
+            return None
+        rid, title, status, attempts, ttype, created = self._rows[index.row()]
+        col = index.column()
+        if role == Qt.ItemDataRole.ForegroundRole:
+            try:
+                from GUI.main_window import _THEMES
+                pal = _THEMES.get("dark", {})
+            except Exception:
+                pal = {}
+            color_by_status = {
+                "running": pal.get("ok"), "done": pal.get("ok"),
+                "pending": pal.get("text_soft"), "retry": pal.get("warn"),
+                "thermal_paused": pal.get("warn"),
+                "failed_definitively": pal.get("err"), "stuck": pal.get("err"),
+                "needs_human": pal.get("err"),
+            }
+            if col == 2 and status in color_by_status and color_by_status[status]:
+                return QColor(color_by_status[status])
+            return None
+        if col == 0:
+            return str(rid)[:18]
+        if col == 1:
+            return str(title or "")[:60]
+        if col == 2:
+            return str(status)
+        if col == 3:
+            return str(attempts)
+        if col == 4:
+            return str(ttype)
+        if col == 5:
+            return _fmt_age(created)
+        return None
+
+
+def _fmt_age(created: float) -> str:
+    try:
+        delta = max(0, int(time.time() - float(created)))
+    except Exception:
+        return "-"
+    if delta < 60:
+        return f"{delta}s"
+    if delta < 3600:
+        return f"{delta // 60}m"
+    if delta < 86400:
+        return f"{delta // 3600}h"
+    return f"{delta // 86400}g"
+
+
 class MainWindow(QMainWindow):
-    """Finestra principale."""
+    """Zero-click: Top Bar fissa + body splitter (coda | log) + Bottom Bar.
+
+    Struttura (QVBoxLayout principale, niente QTabWidget):
+      - Top Bar (fixed): pallino stato, temperature, modello attivo.
+      - Body (expand): QSplitter orizzontale
+          sinistra (stretch 1): QTableView della coda task
+          destra (stretch 2): QPlainTextEdit read-only dei log
+      - Bottom Bar (fixed): QLineEdit + "Invia" (non bloccante via QProcess).
+
+    Le funzioni avanzate (MCP, Modelli, Config, Timestral, Test) restano
+    raggiungibili dal menu "Strumenti" (dialog, mai tab).
+    """
+
+    MAX_LOG_BLOCKS = 4000
 
     def __init__(self):
         super().__init__()
         self.setWindowTitle("BYTE-SWARMY · Control Center")
-
-        # Tema corrente (usato anche dagli indicatori termici)
         self._theme = "dark"
-        
-        # Imposta l'icona della finestra principale
-        icon_path = str(BASE_DIR / "IMG" / "icona.ico")
-        self.setWindowIcon(QIcon(icon_path))
-        
+        self.setWindowIcon(QIcon(str(BASE_DIR / "IMG" / "icona.ico")))
         self.setMinimumSize(900, 650)
 
-        # Componenti
+        # Componenti runtime (invariati rispetto alla versione a tab)
         self.orchestrator = OrchestratorProcess()
         self.log_watcher = LogWatcher(LOG_FILE)
         self.log_watcher.start()
@@ -3414,13 +3534,13 @@ class MainWindow(QMainWindow):
         # Timestral locale (la GUI monitora anche se l'orchestratore è fermo)
         self.timestral = None
         try:
-            import sys as _sys
-            _sys.path.insert(0, str(BASE_DIR))
+            _sys_path = sys.path
+            if str(BASE_DIR) not in _sys_path:
+                _sys_path.insert(0, str(BASE_DIR))
             from MONITORING.thermal_manager import TimestralManager
             import logging as _logging
             _log = _logging.getLogger("byte-swarmy-gui")
             _log.addHandler(_logging.NullHandler())
-            # Carica config per soglie
             try:
                 with open(CONFIG_FILE, "rb") as f:
                     _cfg = tomllib.load(f)
@@ -3439,7 +3559,6 @@ class MainWindow(QMainWindow):
                 on_task_received=self._on_mcp_task,
                 on_status_changed=self._on_mcp_status,
             )
-            # Carica server salvati
             for srv_data in load_mcp_servers():
                 if srv_data.get("enabled", True):
                     config = McpServerConfig(
@@ -3447,300 +3566,306 @@ class MainWindow(QMainWindow):
                         url=srv_data["url"],
                         enabled=srv_data.get("enabled", True),
                         poll_interval=srv_data.get("poll_interval", 30),
-                        tool_name=srv_data.get("tool_name", "get_pending_tasks"),
+                        tool_name=srv_data.get("tool_name",
+                                               "get_pending_tasks"),
                     )
                     self.mcp_client.add_server(config)
             self.mcp_client.start()
 
-        # Tab widget
-        self.tabs = QTabWidget()
-        self.task_tab = TaskQueueTab()
-        self.mcp_tab = McpServersTab(self.mcp_client)
-        self.logs_tab = LogsTab(self.log_watcher)
-        self.thermal_tab = ThermalTab()
-        self.config_tab = ConfigTab()
-        self.tests_tab = TestsTab()
-        self.models_tab = ModelsTab()
-        self.tabs.addTab(self.task_tab, "Coda Task")
-        self.tabs.addTab(self.models_tab, "Modelli")
-        self.tabs.addTab(self.mcp_tab, "MCP Servers")
-        self.tabs.addTab(self.logs_tab, "Logs")
-        self.tabs.addTab(self.thermal_tab, "Timestral (Termico)")
-        self.tabs.addTab(self.config_tab, "Config")
-        self.tabs.addTab(self.tests_tab, "Test & Sandbox")
-        self.tabs.currentChanged.connect(self._on_tab_changed)
-        self.setCentralWidget(self.tabs)
+        # ---- Layout principale ----------------------------------------
+        central = QWidget()
+        self.setCentralWidget(central)
+        root = QVBoxLayout(central)
+        root.setContentsMargins(8, 6, 8, 6)
+        root.setSpacing(6)
 
-        # Collega il Timestral locale al tab Thermal
-        if self.timestral:
-            self.thermal_tab.set_timestral(self.timestral)
+        root.addLayout(self._build_top_bar())
+        root.addWidget(self._build_body(), 1)
+        root.addLayout(self._build_bottom_bar())
 
-        # Toolbar
-        self._build_toolbar()
+        self._build_menu()
 
-        # Status bar
+        # log in tempo reale (Signal/Slot nativi, zero polling GUI)
+        self.log_watcher.new_lines.connect(self._on_log_lines)
+
+        # stato iniziale
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self._update_status_bar()
+        self.task_model.refresh()
 
-        # Timer per status bar
-        self.status_timer = QTimer(self)
-        self.status_timer.timeout.connect(self._update_status_bar)
-        self.status_timer.start(2000)
+        # QProcess preflight (T1 via CLI: mai bloccante)
+        self._preflight_proc = QProcess(self)
+        self._preflight_proc.finished.connect(self._on_preflight_finished)
+        self._preflight_running = False
 
-        # Timer indicatori temperatura (funzionano anche da fermo)
-        self._update_temp_indicators()
-        self.temp_timer = QTimer(self)
-        self.temp_timer.timeout.connect(self._update_temp_indicators)
-        self.temp_timer.start(3000)
+        # Timer di refresh: stato/temp/modello + coda (read-only, 2s)
+        self.refresh_timer = QTimer(self)
+        self.refresh_timer.timeout.connect(self._refresh_all)
+        self.refresh_timer.start(2000)
+        self._refresh_all()
 
-    def _on_tab_changed(self, index: int) -> None:
-        """Avvia i test la prima volta che si apre il tab Test & Sandbox."""
-        if self.tabs.widget(index) is self.tests_tab:
-            self.tests_tab.maybe_autorun()
+    # ------------------------------------------------------------------
+    # Top bar
+    # ------------------------------------------------------------------
+    def _build_top_bar(self) -> QHBoxLayout:
+        bar = QHBoxLayout()
+        bar.setSpacing(12)
 
-    def _build_toolbar(self) -> None:
-        toolbar = QToolBar("Main")
-        toolbar.setMovable(False)
-        toolbar.setIconSize(QSize(16, 16))
-        self.addToolBar(toolbar)
+        self.status_dot = QLabel("○ fermi")
+        self.status_dot.setProperty("data-running", "false")
+        bar.addWidget(self.status_dot)
 
-        # 🆕 Toggle button unico (Avvia/Ferma)
-        self.btn_toggle_orch = QPushButton("▶  Avvia Orchestratore")
+        self.active_model_label = QLabel("modello: auto")
+        self.active_model_label.setToolTip("Modello attivo (ultima chiamata)")
+        bar.addWidget(self.active_model_label)
+
+        bar.addStretch()
+
+        self.temp_cpu_label = QLabel("CPU: --°C")
+        self.temp_gpu_label = QLabel("GPU: --°C")
+        bar.addWidget(self.temp_cpu_label)
+        bar.addWidget(self.temp_gpu_label)
+
+        self.thermal_dot = QLabel("")
+        self.thermal_dot.setToolTip("Stato del gatekeeper termico")
+        bar.addWidget(self.thermal_dot)
+
+        # Start/stop orchestratore (QProcess-based, non blocca la GUI)
+        self.btn_toggle_orch = QPushButton("▶ Orchestratore")
         self.btn_toggle_orch.setObjectName("toggleOrchestrator")
         self.btn_toggle_orch.setCheckable(True)
         self.btn_toggle_orch.clicked.connect(self._on_toggle_orchestrator)
-        toolbar.addWidget(self.btn_toggle_orch)
+        bar.addWidget(self.btn_toggle_orch)
 
-        toolbar.addSeparator()
+        self.btn_theme = QPushButton("◐")
+        self.btn_theme.setToolTip("Cambia tema chiaro ⇄ scuro (Ctrl+Shift+T)")
+        self.btn_theme.clicked.connect(self._on_toggle_theme)
+        bar.addWidget(self.btn_theme)
+        return bar
 
-        # 🆕 Indicatori temperatura CPU/GPU
-        self.temp_cpu_label = QLabel("CPU: --°C")
-        self.temp_cpu_label.setObjectName("tempIndicator")
-        toolbar.addWidget(self.temp_cpu_label)
+    # ------------------------------------------------------------------
+    # Body: splitter coda (1) + log (2)
+    # ------------------------------------------------------------------
+    def _build_body(self) -> QSplitter:
+        splitter = QSplitter(Qt.Orientation.Horizontal, self)
 
-        self.temp_gpu_label = QLabel("GPU: --°C")
-        self.temp_gpu_label.setObjectName("tempIndicator")
-        toolbar.addWidget(self.temp_gpu_label)
+        # -- sinistra: coda task ---------------------------------------
+        self.task_model = TaskQueueModel(BASE_DIR / "tasks" / "queue.db", self)
+        self.tasks_view = QTableView()
+        self.tasks_view.setModel(self.task_model)
+        self.tasks_view.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows)
+        self.tasks_view.setEditTriggers(
+            QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.tasks_view.verticalHeader().setVisible(False)
+        self.tasks_view.horizontalHeader().setStretchLastSection(False)
+        self.tasks_view.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.ResizeMode.Stretch)
+        self.tasks_view.setColumnWidth(0, 110)
+        self.tasks_view.setColumnWidth(2, 110)
+        self.tasks_view.setColumnWidth(3, 40)
+        self.tasks_view.setColumnWidth(4, 70)
+        self.tasks_view.setColumnWidth(5, 50)
+        splitter.addWidget(self.tasks_view)
 
-        # Spaziatore: spinge le metriche all'estremo destro
-        spacer = QWidget()
-        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        toolbar.addWidget(spacer)
+        # -- destra: log -------------------------------------------------
+        self.log_pane = QPlainTextEdit()
+        self.log_pane.setReadOnly(True)
+        self.log_pane.setMaximumBlockCount(self.MAX_LOG_BLOCKS)
+        mono = QFont("Monospace")
+        mono.setStyleHint(QFont.StyleHint.Monospace)
+        mono.setPointSize(9)
+        self.log_pane.setFont(mono)
+        splitter.addWidget(self.log_pane)
 
-        # Metriche ultima chiamata modello (sempre visibili a destra)
-        if OLLAMA_METRICS_AVAILABLE:
-            self.metrics_bar = LiveMetricsBar()
-            toolbar.addWidget(self.metrics_bar)
-        else:
-            self.metrics_bar = None
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 2)
+        splitter.setSizes([450, 900])
+        return splitter
 
-        toolbar.addSeparator()
+    # ------------------------------------------------------------------
+    # Bottom bar: prompt (T1 via QProcess, mai bloccante)
+    # ------------------------------------------------------------------
+    def _build_bottom_bar(self) -> QHBoxLayout:
+        bar = QHBoxLayout()
+        self.prompt_input = QLineEdit()
+        self.prompt_input.setPlaceholderText(
+            "Comando o prompt (premi Invia; validazione pre-flight automatica)")
+        self.prompt_input.setMaxLength(MAX_PROMPT_CHARS_GUI)
+        self.prompt_input.returnPressed.connect(self._send_prompt)
+        bar.addWidget(self.prompt_input, 1)
 
-        # Toggle tema chiaro/scuro
-        self.act_theme = QAction("◐ Tema", self)
-        self.act_theme.setToolTip("Cambia tema chiaro ⇄ scuro")
-        self.act_theme.triggered.connect(self._on_toggle_theme)
-        toolbar.addAction(self.act_theme)
+        self.btn_send = QPushButton("Invia")
+        self.btn_send.clicked.connect(self._send_prompt)
+        bar.addWidget(self.btn_send)
+        return bar
 
-        # Pulsante esci
-        self.act_quit = QAction("Esci", self)
-        self.act_quit.setShortcut("Ctrl+Q")
-        self.act_quit.triggered.connect(self.close)
-        toolbar.addAction(self.act_quit)
+    # ------------------------------------------------------------------
+    # Menu "Strumenti" (le vecchie tab diventano finestre)
+    # ------------------------------------------------------------------
+    def _build_menu(self) -> None:
+        menu_bar = self.menuBar()
+        tools = menu_bar.addMenu("&Strumenti")
 
-    def _on_toggle_theme(self) -> None:
-        """Alterna tema chiaro/scuro e applica subito il nuovo stile."""
-        new_theme = "light" if "dark" == "dark" else "dark"
-        save_theme(new_theme)
-        self._theme = new_theme
-        app = QApplication.instance()
-        if app is not None:
-            from GUI.theme.theme import toggle_theme
-            toggle_theme(app)
-        # Gli indicatori termici usano i colori del tema: ripassali
-        self._update_temp_indicators()
-        label = "chiaro" if new_theme == "light" else "scuro"
-        self.status_bar.showMessage(f"Tema {label} attivato", 2000)
+        self._tool_actions = {}
+        entries = [
+            ("modelli", "🤖  Gestione modelli"),
+            ("mcp", "🔌  MCP Servers"),
+            ("timestral", "🌡  Timestral (Termico)"),
+            ("logs", "📜  Logs"),
+            ("config", "⚙  Config"),
+            ("tests", "🧪  Test & Sandbox"),
+        ]
+        for key, label in entries:
+            act = QAction(label, self)
+            act.triggered.connect(
+                lambda _checked=False, k=key: self._open_tool_dialog(k))
+            tools.addAction(act)
+            self._tool_actions[key] = act
 
-    def _show_hamburger_menu(self):
-        """Mostra il menu hamburger con Impostazioni e Cronologia."""
-        from PyQt6.QtWidgets import QMenu
-        menu = QMenu(self)
-        
-        act_settings = menu.addAction("⚙  Impostazioni")
-        menu.addSeparator()
-        act_history = menu.addAction("📋  Cronologia chat")
-        act_models = menu.addAction("🤖  Gestione modelli")
-        menu.addSeparator()
-        act_theme = menu.addAction("◐  Cambia tema")
-        
-        action = menu.exec(self.btn_menu.mapToGlobal(self.btn_menu.rect().bottomLeft()))
-        
-        if action == act_settings:
-            self.tabs.setCurrentWidget(self.config_tab)
-        elif action == act_history:
-            self._open_chat_history()
-        elif action == act_models:
-            self.tabs.setCurrentWidget(self.models_tab)
-        elif action == act_theme:
-            self._toggle_theme()
+        tools.addSeparator()
+        act_history = QAction("📋  Cronologia chat", self)
+        act_history.triggered.connect(self._open_chat_history)
+        tools.addAction(act_history)
 
-    def _open_chat_history(self):
-        """Mostra la cronologia delle chat/task completati."""
-        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QPlainTextEdit, QPushButton, QHBoxLayout
-        from PyQt6.QtGui import QFont
-        dialog = QDialog(self)
-        dialog.setWindowTitle("📋  Cronologia chat")
-        dialog.setMinimumSize(600, 400)
-        layout = QVBoxLayout(dialog)
-        
-        text = QPlainTextEdit()
-        text.setReadOnly(True)
-        font = QFont("Monospace")
-        font.setStyleHint(QFont.StyleHint.Monospace)
-        font.setPointSize(9)
-        text.setFont(font)
-        
+        act_quit = QAction("Esci", self)
+        act_quit.setShortcut("Ctrl+Q")
+        act_quit.triggered.connect(self.close)
+        tools.addAction(act_quit)
+
+    def _open_tool_dialog(self, key: str) -> None:
+        """Apre una vecchia 'tab' come finestra modale (lazy, riusata)."""
+        cache = getattr(self, "_tool_widgets", None)
+        if cache is None:
+            cache = self._tool_widgets = {}
+        if key in cache:
+            dlg = cache[key]
+            dlg.show(); dlg.raise_(); dlg.activateWindow()
+            return
         try:
-            import json
-            import time
-            mem_file = Path("state/persistent_memory.json")
-            if mem_file.exists():
-                mem = json.loads(mem_file.read_text())
-                history = mem.get("task_history", [])
-                if history:
-                    lines = [f"Ultimi {len(history)} task completati:", "=" * 60]
-                    for t in reversed(history[-20:]):
-                        ts = time.strftime("%H:%M:%S", time.localtime(t.get("timestamp", 0)))
-                        lines.append(f"[{ts}] {t.get('title', '?')}")
-                        if t.get('result'):
-                            lines.append(f"  -> {t['result'][:80]}")
-                    text.setPlainText("\n".join(lines))
-                else:
-                    text.setPlainText("Nessun task completato nella cronologia.")
+            if key == "modelli":
+                widget = ModelsTab()
+            elif key == "mcp":
+                widget = McpServersTab(self.mcp_client)
+            elif key == "timestral":
+                widget = ThermalTab()
+                if self.timestral:
+                    widget.set_timestral(self.timestral)
+            elif key == "logs":
+                widget = LogsTab(self.log_watcher)
+            elif key == "config":
+                widget = ConfigTab()
+            elif key == "tests":
+                widget = TestsTab()
             else:
-                text.setPlainText("Memoria persistente non ancora creata.")
+                return
         except Exception as e:
-            text.setPlainText(f"Errore lettura cronologia: {e}")
-        
-        layout.addWidget(text)
-        
-        btn_layout = QHBoxLayout()
-        btn_close = QPushButton("Chiudi")
-        btn_close.clicked.connect(dialog.accept)
-        btn_layout.addStretch()
-        btn_layout.addWidget(btn_close)
-        layout.addLayout(btn_layout)
-        
-        dialog.exec()
+            show_error_dialog(self, "Errore",
+                              f"Impossibile aprire lo strumento: {e}")
+            return
+        widget.resize(840, 570)
+        cache[key] = widget
+        widget.show()
 
+    # ------------------------------------------------------------------
+    # Invio prompt (T1): QProcess + preflight_cli.py
+    # ------------------------------------------------------------------
+    def _send_prompt(self) -> None:
+        if self._preflight_running:
+            return
+        prompt = self.prompt_input.text().strip()
+        if not prompt:
+            return
+        prompt = prompt[:MAX_PROMPT_CHARS_GUI]
+        self._preflight_running = True
+        self.btn_send.setEnabled(False)
+        self.btn_send.setText("…")
+        self.status_bar.showMessage("validazione pre-flight…", 0)
+        script = str(BASE_DIR / "CORE" / "preflight_cli.py")
+        self._preflight_proc.start(sys.executable, [script, prompt])
 
-    def _on_toggle_orchestrator(self) -> None:
-        """Toggle: avvia o ferma l'orchestratore con un solo pulsante."""
+    def _on_preflight_finished(self, exit_code: int, _exit_status) -> None:
+        self._preflight_running = False
+        self.btn_send.setEnabled(True)
+        self.btn_send.setText("Invia")
+        out = bytes(self._preflight_proc.readAllStandardOutput()).decode(
+            "utf-8", "replace").strip()
+        try:
+            result = json.loads(out.splitlines()[-1]) if out else {}
+        except Exception:
+            result = {"ok": False, "error": out[:120] or "output vuoto"}
+        if result.get("status") == "queued":
+            self.prompt_input.clear()
+            self.log_pane.appendPlainText(
+                f"✓ task accodato: {result.get('task_id', '?')}")
+            self.status_bar.showMessage(
+                f"✓ task accodato {result.get('task_id', '')}", 4000)
+            self.task_model.refresh()
+        elif result.get("status") == "needs_revision":
+            reason = result.get("reason", "parametri invalidi")
+            self.log_pane.appendPlainText(f"⚠ pre-flight: {reason}")
+            self.status_bar.showMessage(f"⚠ {reason}", 6000)
+        else:
+            err = result.get("error", "errore pre-flight")
+            self.log_pane.appendPlainText(f"✗ pre-flight: {err}")
+            self.status_bar.showMessage(f"✗ {err}", 6000)
+
+    # ------------------------------------------------------------------
+    # Log pane (Signal dal LogWatcher)
+    # ------------------------------------------------------------------
+    def _on_log_lines(self, text: str) -> None:
+        self.log_pane.appendPlainText(text.rstrip())
+        sb = self.log_pane.verticalScrollBar()
+        sb.setValue(sb.maximum())
+
+    # ------------------------------------------------------------------
+    # Refresh periodico (Tastbar / coda / gate termico)
+    # ------------------------------------------------------------------
+    def _refresh_all(self) -> None:
+        # pallino stato orchestratore
         if self.orchestrator.is_running():
-            self.orchestrator.stop()
+            self.status_dot.setText("● attivo")
+            self.status_dot.setProperty("data-running", "true")
+            self.btn_toggle_orch.setChecked(True)
+            self.btn_toggle_orch.setText("■ Ferma Orchestratore")
+        else:
+            self.status_dot.setText("○ fermi")
+            self.status_dot.setProperty("data-running", "false")
             self.btn_toggle_orch.setChecked(False)
-            self.btn_toggle_orch.setText("▶  Avvia Orchestratore")
-            self.status_bar.showMessage("○ Orchestratore fermato", 2000)
-        else:
-            ok = self.orchestrator.start()
-            if ok:
-                self.btn_toggle_orch.setChecked(True)
-                self.btn_toggle_orch.setText("■  Ferma Orchestratore")
-                self.status_bar.showMessage("● Orchestratore avviato", 2000)
+            self.btn_toggle_orch.setText("▶ Orchestratore")
+
+        # temperatura (lettura diretta sensori, ~0 I/O)
+        self._update_temp_indicators()
+
+        # gatekeeper termico: parcheggio le tabelle (impostato da Timestral)
+        if getattr(self, "thermal_dot", None) is not None:
+            sample = getattr(self.timestral, "last_sample", None) \
+                if self.timestral else None
+            if sample is not None and sample.cpu_temp_max >= 75.0:
+                self.thermal_dot.setText("🔥 pausa termica")
             else:
-                self.btn_toggle_orch.setChecked(False)
-                self.status_bar.showMessage("❌ Avvio fallito", 3000)
-        self._update_toolbar_state()
+                self.thermal_dot.setText("")
+
+        # modello attivo (dalle metriche dell'ultima chiamata)
+        if OLLAMA_METRICS_AVAILABLE:
+            metric = get_last_call_metrics() if get_last_call_metrics else None
+            if metric and metric.get("model"):
+                self.active_model_label.setText(f"modello: {metric['model']}")
+                self.active_model_label.setToolTip(
+                    f"{metric.get('model', '?')} · "
+                    f"{metric.get('output_tokens', '?')} tok out"
+                )
+
+        # coda task
+        self.task_model.refresh()
+
+    # ------------------------------------------------------------------
+    # Agenda: temperatura + orchestratore + tema
+    # ------------------------------------------------------------------
     def _read_cpu_temp_direct(self) -> float:
-        """Legge CPU temp direttamente da /sys/class/thermal/."""
+        """Legge CPU temp direttamente da /sys/class/thermal + hwmon."""
         temps = []
         try:
-            from pathlib import Path
-            thermal_dir = Path("/sys/class/thermal")
-            if thermal_dir.exists():
-                for zone in thermal_dir.glob("thermal_zone*"):
-                    temp_file = zone / "temp"
-                    if temp_file.exists():
-                        try:
-                            raw = int(temp_file.read_text().strip())
-                            temps.append(raw / 1000.0)
-                        except Exception:
-                            continue
-        except Exception:
-            pass
-        return max(temps) if temps else 0.0
-
-    def _read_gpu_temp_direct(self) -> float:
-        """Legge GPU temp direttamente da nvidia-smi."""
-        try:
-            import subprocess
-            r = subprocess.run(
-                ["nvidia-smi", "--query-gpu=temperature.gpu",
-                 "--format=csv,noheader,nounits"],
-                capture_output=True, text=True, timeout=2
-            )
-            if r.returncode == 0 and r.stdout.strip():
-                return float(r.stdout.strip().split()[0])
-        except Exception:
-            pass
-        return 0.0
-
-    def _set_temp_label(self, label: QLabel, name: str, temp: float) -> None:
-        """Imposta il testo e il colore di un indicatore termico.
-
-        Convenzione: 0.0 = lettura non disponibile (--). Soglie coerenti
-        con Timestral: verde < 50 °C, ambra 50-70, rosso > 70.
-        """
-        if temp <= 0.0:
-            label.setText(f"{name}: --°C")
-            # stile base dal tema (nessun colore semantico)
-            label.setStyleSheet("")
-            return
-        label.setText(f"{name}: {temp:.0f}°C")
-        pal = _THEMES.get(getattr(self, "_theme", "dark"), _THEMES["dark"])
-        if temp < 50.0:
-            color = pal["ok"]
-        elif temp <= 70.0:
-            color = pal.get("warn", pal["err"])
-        else:
-            color = pal["err"]
-        label.setStyleSheet(f"color: {color};")
-
-    def _update_temp_indicators(self) -> None:
-        """Aggiorna le label temperatura CPU/GPU leggendo direttamente i sensori."""
-        cpu_temp = self._read_cpu_temp_direct()
-        gpu_temp = self._read_gpu_temp_direct()
-        self._set_temp_label(self.temp_cpu_label, "CPU", cpu_temp, is_gpu=False)
-        self._set_temp_label(self.temp_gpu_label, "GPU", gpu_temp, is_gpu=True)
-
-    def _set_temp_label(self, label, name: str, temp: float, is_gpu: bool = False) -> None:
-        """Imposta il testo e colore di una label temperatura."""
-        if temp <= 0:
-            label.setText(f"{name}: --°C")
-            label.setStyleSheet("background-color: #444; color: #999;")
-            return
-        label.setText(f"{name}: {temp:.0f}°C")
-        # Soglie (GPU più alta di CPU)
-        if is_gpu:
-            warm, hot, crit = 70, 80, 90
-        else:
-            warm, hot, crit = 60, 75, 90
-        if temp >= crit:
-            label.setStyleSheet("background-color: #dc3545; color: white;")
-        elif temp >= hot:
-            label.setStyleSheet("background-color: #fd7e14; color: white;")
-        elif temp >= warm:
-            label.setStyleSheet("background-color: #ffc107; color: black;")
-        else:
-            label.setStyleSheet("background-color: #28a745; color: white;")
-
-    def _read_cpu_temp_direct(self) -> float:
-        """Legge CPU temp direttamente da /sys/class/thermal/."""
-        temps = []
-        try:
-            from pathlib import Path
             thermal_dir = Path("/sys/class/thermal")
             if thermal_dir.exists():
                 for zone in thermal_dir.glob("thermal_zone*"):
@@ -3755,7 +3880,6 @@ class MainWindow(QMainWindow):
             pass
         if not temps:
             try:
-                from pathlib import Path
                 hwmon_dir = Path("/sys/class/hwmon")
                 for hwmon in hwmon_dir.iterdir():
                     for temp_file in hwmon.glob("temp*_input"):
@@ -3783,50 +3907,133 @@ class MainWindow(QMainWindow):
             pass
         return 0.0
 
-    def _update_toolbar_state(self) -> None:
-        """Aggiorna lo stato del toggle button in base allo stato reale."""
-        running = self.orchestrator.is_running()
-        if running:
-            self.btn_toggle_orch.setChecked(True)
-            self.btn_toggle_orch.setText("■  Ferma Orchestratore")
-            self.btn_toggle_orch.setProperty("data-running", "true")
-        else:
-            self.btn_toggle_orch.setChecked(False)
-            self.btn_toggle_orch.setText("▶  Avvia Orchestratore")
-            self.btn_toggle_orch.setProperty("data-running", "false")
-        # Forza refresh stile
-        self.btn_toggle_orch.style().unpolish(self.btn_toggle_orch)
-        self.btn_toggle_orch.style().polish(self.btn_toggle_orch)
+    def _set_temp_label(self, label: QLabel, name: str, temp: float,
+                        is_gpu: bool = False) -> None:
+        """Testo + colore di una label temperatura.
 
-    
-    def _on_start(self) -> None:
-        if self.orchestrator.start():
-            self.status_bar.showMessage("Orchestratore avviato", 3000)
-        else:
-            self.status_bar.showMessage("Avvio fallito (già in esecuzione?)", 3000)
-        self._update_status_bar()
-        # Aggiorna indicatori temperatura nella toolbar
-        self._update_temp_indicators()
-
-    def _on_stop(self) -> None:
-        if self.orchestrator.stop():
-            self.status_bar.showMessage("Orchestratore fermato", 3000)
-        self._update_status_bar()
-
-    def _update_status_bar(self) -> None:
-        if self.orchestrator.is_running():
-            pid = self.orchestrator.pid()
-            self.status_bar.showMessage(f"● Orchestratore ATTIVO (PID {pid})")
-        else:
-            self.status_bar.showMessage("○ Orchestratore fermato")
-        
-    def _on_mcp_task(self, server_name: str, task: dict) -> None:
-        """Callback chiamata quando un server MCP invia un task.
-
-        I task MCP sono dati NON fidati: si tengono solo i campi utili,
-        con limiti di lunghezza. `id`, `status`, `parent` e `subtasks`
-        non possono essere imposti dall'esterno.
+        0.0/-1 = lettura non disponibile. Soglie coerenti col gatekeeper
+        T3: GPU con soglie piu' alte; ambra da 60/70, rosso da 75/80.
         """
+        if temp <= 0:
+            label.setText(f"{name}: --°C")
+            label.setStyleSheet("")
+            return
+        label.setText(f"{name}: {temp:.0f}°C")
+        if is_gpu:
+            warm, hot, crit = 70, 80, 90
+        else:
+            warm, hot, crit = 60, 75, 90
+        if temp >= crit:
+            label.setStyleSheet("background-color: #dc3545; color: white;")
+        elif temp >= hot:
+            label.setStyleSheet("background-color: #fd7e14; color: white;")
+        elif temp >= warm:
+            label.setStyleSheet("background-color: #ffc107; color: black;")
+        else:
+            label.setStyleSheet("background-color: #28a745; color: white;")
+
+    def _update_temp_indicators(self) -> None:
+        cpu = self._read_cpu_temp_direct()
+        gpu = self._read_gpu_temp_direct()
+        self._set_temp_label(self.temp_cpu_label, "CPU", cpu)
+        self._set_temp_label(self.temp_gpu_label, "GPU", gpu, is_gpu=True)
+
+    # ------------------------------------------------------------------
+    # Orchestratore (start/stop via OrchestratorProcess: QProcess)
+    # ------------------------------------------------------------------
+    def _on_toggle_orchestrator(self) -> None:
+        if self.orchestrator.is_running():
+            self.orchestrator.stop()
+            self.btn_toggle_orch.setChecked(False)
+            self.btn_toggle_orch.setText("▶ Orchestratore")
+            self.status_bar.showMessage("○ Orchestratore fermato", 2000)
+        else:
+            if self.orchestrator.start():
+                self.btn_toggle_orch.setChecked(True)
+                self.btn_toggle_orch.setText("■ Ferma Orchestratore")
+                self.status_bar.showMessage("● Orchestratore avviato", 2000)
+            else:
+                self.btn_toggle_orch.setChecked(False)
+                self.status_bar.showMessage("❌ Avvio fallito", 3000)
+
+    # ------------------------------------------------------------------
+    # Tema
+    # ------------------------------------------------------------------
+    def _on_toggle_theme(self) -> None:
+        save_theme("light" if self._theme == "dark" else "dark")
+        self._theme = "light" if self._theme == "dark" else "dark"
+        app = QApplication.instance()
+        if app is not None:
+            from GUI.theme.theme import toggle_theme
+            toggle_theme(app)
+        self._update_temp_indicators()
+        self.status_bar.showMessage(
+            f"Tema {'chiaro' if self._theme == 'light' else 'scuro'} attivato",
+            2000)
+
+    def keyPressEvent(self, event) -> None:
+        if (event.modifiers() & Qt.KeyboardModifier.ControlModifier
+                and event.modifiers() & Qt.KeyboardModifier.ShiftModifier
+                and event.key() == Qt.Key.Key_T):
+            self._on_toggle_theme()
+            return
+        super().keyPressEvent(event)
+
+    # ------------------------------------------------------------------
+    # Cronologia (menu Strumenti)
+    # ------------------------------------------------------------------
+    def _open_chat_history(self) -> None:
+        dialog = QDialog(self)
+        dialog.setWindowTitle("📋  Cronologia chat")
+        dialog.setMinimumSize(600, 400)
+        layout = QVBoxLayout(dialog)
+
+        text = QPlainTextEdit()
+        text.setReadOnly(True)
+        font = QFont("Monospace")
+        font.setStyleHint(QFont.StyleHint.Monospace)
+        font.setPointSize(9)
+        text.setFont(font)
+
+        try:
+            mem_file = Path("state/persistent_memory.json")
+            if mem_file.exists():
+                mem = json.loads(mem_file.read_text())
+                history = mem.get("task_history", [])
+                if history:
+                    lines = [f"Ultimi {len(history)} task completati:",
+                             "=" * 60]
+                    for t in reversed(history[-20:]):
+                        ts = time.strftime(
+                            "%H:%M:%S",
+                            time.localtime(t.get("timestamp", 0)))
+                        lines.append(f"[{ts}] {t.get('title', '?')}")
+                        if t.get('result'):
+                            lines.append(f"  -> {t['result'][:80]}")
+                    text.setPlainText("\n".join(lines))
+                else:
+                    text.setPlainText("Nessun task nella cronologia.")
+            else:
+                text.setPlainText("Memoria persistente non ancora creata.")
+        except Exception as e:
+            text.setPlainText(f"Errore lettura cronologia: {e}")
+
+        layout.addWidget(text)
+
+        btn_layout = QHBoxLayout()
+        btn_close = QPushButton("Chiudi")
+        btn_close.clicked.connect(dialog.accept)
+        btn_layout.addStretch()
+        btn_layout.addWidget(btn_close)
+        layout.addLayout(btn_layout)
+
+        dialog.exec()
+
+    # ------------------------------------------------------------------
+    # MCP callbacks (task in arrivo: dual-write json + db, come prima)
+    # ------------------------------------------------------------------
+    def _on_mcp_task(self, server_name: str, task: dict) -> None:
+        """I task MCP sono dati NON fidati: campi filtrati e limitati."""
         if not isinstance(task, dict):
             return
 
@@ -3839,10 +4046,10 @@ class MainWindow(QMainWindow):
         description = _clean(task.get("description"), 4000)
         context = _clean(task.get("context"), 2000)
         task_type = task.get("type", "code")
-        if task_type not in ("generic", "code", "implement", "test", "fix", "document"):
+        if task_type not in ("generic", "code", "implement", "test",
+                             "fix", "document"):
             task_type = "code"
 
-        # Aggiungi alla coda locale con campi controllati da noi.
         tasks = load_tasks()
         new_task = {
             "id": f"task-mcp-{int(time.time()*1000)}-{len(tasks)}",
@@ -3860,28 +4067,29 @@ class MainWindow(QMainWindow):
         tasks.append(new_task)
         save_tasks(tasks)
         self.status_bar.showMessage(
-            f"Task ricevuto da MCP '{server_name}': {title[:50]}",
-            5000
-        )
+            f"Task ricevuto da MCP '{server_name}': {title[:50]}", 5000)
+        self.task_model.refresh()
 
     def _on_mcp_status(self, server_name: str, status: str) -> None:
-        self.status_bar.showMessage(
-            f"MCP '{server_name}': {status}", 2000
-        )
+        self.status_bar.showMessage(f"MCP '{server_name}': {status}", 2000)
 
+    # ------------------------------------------------------------------
+    # Chiusura
+    # ------------------------------------------------------------------
     def closeEvent(self, event) -> None:
-        """Cleanup alla chiusura."""
         if self.orchestrator.is_running():
             reply = QMessageBox.question(
                 self, "Conferma uscita",
                 "L'orchestratore è ancora attivo. Fermarlo?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
-            )
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                | QMessageBox.StandardButton.Cancel)
             if reply == QMessageBox.StandardButton.Cancel:
                 event.ignore()
                 return
             if reply == QMessageBox.StandardButton.Yes:
                 self.orchestrator.stop()
+        self.refresh_timer.stop()
+        self._preflight_proc.kill()
         if self.mcp_client:
             self.mcp_client.stop()
         if self.timestral:
@@ -4061,15 +4269,8 @@ def main():
     except Exception as e:
         print(f"Theme load failed: {e}")
 
-    # Apply QSS theme (light/dark)
-    from GUI.theme.theme import apply_theme
-    apply_theme(app)
     app.setApplicationName("BYTE-SWARMY Control Center")
     app.setOrganizationName("BYTE-SWARMY")
-
-    # Tema (chiaro/scuro, scelta persistente in state/gui_theme.json)
-    from GUI.theme.theme import apply_theme
-    apply_theme(app)
 
     # 3. Assicura che le dir base esistano
     for d in ("tasks", "state", "logs", "project", "backups"):
