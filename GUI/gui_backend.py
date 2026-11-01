@@ -94,3 +94,65 @@ def add_task_to_db(title, description="", task_type="code"):
     json_file.write_text(json.dumps(tasks, indent=2))
     
     return task_id
+
+
+# ====================================================================
+# CONFIG — lettura/scrittura CONFIG/config.toml
+# ====================================================================
+def load_config():
+    """Legge CONFIG/config.toml e ritorna un dict."""
+    import tomllib
+    import os
+    config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                               'CONFIG', 'config.toml')
+    try:
+        with open(config_path, 'rb') as f:
+            return tomllib.load(f)
+    except Exception as e:
+        print(f"Errore load_config: {e}")
+        return {}
+
+
+def save_config(config_dict):
+    """Scrive un dict in CONFIG/config.toml (formato TOML)."""
+    import os
+    config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                               'CONFIG', 'config.toml')
+    try:
+        backup_path = config_path + '.bak'
+        if os.path.exists(config_path):
+            import shutil
+            shutil.copy2(config_path, backup_path)
+        with open(config_path, 'w') as f:
+            _write_toml(f, config_dict)
+        return True, f"Config salvato in {config_path}"
+    except Exception as e:
+        return False, f"Errore save_config: {e}"
+
+
+def _write_toml(f, data, parent_key=''):
+    """Scrive un dict in formato TOML (supporta sezioni annidate)."""
+    # Prima scrivi i valori semplici della sezione corrente
+    for k, v in data.items():
+        if isinstance(v, dict):
+            continue
+        if isinstance(v, str):
+            f.write(f'{k} = "{v}"\n')
+        elif isinstance(v, bool):
+            f.write(f'{k} = {"true" if v else "false"}\n')
+        elif isinstance(v, (int, float)):
+            f.write(f'{k} = {v}\n')
+        elif isinstance(v, list):
+            f.write(f'{k} = [\n')
+            for item in v:
+                if isinstance(item, str):
+                    f.write(f'    "{item}",\n')
+                else:
+                    f.write(f'    {item},\n')
+            f.write(']\n')
+    # Poi scrivi le sottosezioni
+    for k, v in data.items():
+        if isinstance(v, dict):
+            section_name = f"{parent_key}.{k}" if parent_key else k
+            f.write(f'\n[{section_name}]\n')
+            _write_toml(f, v, section_name)

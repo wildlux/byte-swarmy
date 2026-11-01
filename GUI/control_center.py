@@ -861,6 +861,342 @@ class FileEditorWidget(QFrame):
 # ═══════════════════════════════════════════════════════════════
 # MAIN WINDOW
 # ═══════════════════════════════════════════════════════════════
+class ConfigPanel(QFrame):
+    """Pannello configurazione con tutti i parametri modificabili."""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("config_panel")
+        self._widgets = {}  # path -> widget
+        self._build_ui()
+    
+    def _build_ui(self):
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(12, 12, 12, 12)
+        lay.setSpacing(8)
+        
+        # Header
+        title = QLabel("⚙ Configurazione BYTE-SWARMY")
+        title.setStyleSheet("font-size:18px; font-weight:bold; color:#1a1a1a;")
+        lay.addWidget(title)
+        
+        sub = QLabel("Modifica i parametri e premi 'Salva' per applicare. "
+                     "Backup automatico in config.toml.bak")
+        sub.setStyleSheet("font-size:11px; color:#666;")
+        sub.setWordWrap(True)
+        lay.addWidget(sub)
+        
+        # Scroll area con i parametri
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; }")
+        
+        container = QWidget()
+        container_lay = QVBoxLayout(container)
+        container_lay.setSpacing(12)
+        
+        # Carica config
+        try:
+            from GUI.gui_backend import load_config
+            self._config = load_config()
+        except Exception as e:
+            self._config = {}
+            container_lay.addWidget(QLabel(f"Errore lettura config: {e}"))
+        
+        # Definizione sezioni da mostrare (con campi)
+        sections = [
+            ("🧠 Modelli LLM", "models", [
+                ("Orchestratore", "orchestrator", [
+                    ("name", "Modello", "combo", []),
+                    ("temperature", "Temperature", "spin_float", (0.0, 2.0, 0.05)),
+                    ("top_p", "Top P", "spin_float", (0.0, 1.0, 0.05)),
+                    ("num_ctx", "Context window", "spin_int", (512, 32768, 256)),
+                    ("num_predict", "Max tokens", "spin_int", (64, 4096, 64)),
+                ]),
+                ("Planner", "planner", [
+                    ("name", "Modello", "combo", []),
+                    ("temperature", "Temperature", "spin_float", (0.0, 2.0, 0.05)),
+                    ("num_ctx", "Context window", "spin_int", (512, 32768, 256)),
+                    ("num_predict", "Max tokens", "spin_int", (64, 4096, 64)),
+                ]),
+                ("Worker Coder", "worker_coder", [
+                    ("name", "Modello", "combo", []),
+                    ("temperature", "Temperature", "spin_float", (0.0, 2.0, 0.05)),
+                    ("num_ctx", "Context window", "spin_int", (512, 32768, 256)),
+                    ("num_predict", "Max tokens", "spin_int", (64, 4096, 64)),
+                ]),
+                ("Worker General", "worker_general", [
+                    ("name", "Modello", "combo", []),
+                    ("temperature", "Temperature", "spin_float", (0.0, 2.0, 0.05)),
+                    ("num_ctx", "Context window", "spin_int", (512, 32768, 256)),
+                    ("num_predict", "Max tokens", "spin_int", (64, 4096, 64)),
+                ]),
+                ("Embedding", "embedding", [
+                    ("name", "Modello embedding", "combo", []),
+                ]),
+            ]),
+            ("🌡️ Thermal (Timestral)", "thermal", [
+                ("enabled", "Abilitato", "check", None),
+                ("sample_interval", "Intervallo campionamento (s)", "spin_int", (1, 3600, 1)),
+            ]),
+            ("🌡️ Soglie termiche", "thermal.thresholds", [
+                ("temp_cold", "Temp fredda (°C)", "spin_float", (0, 100, 1)),
+                ("temp_warm", "Temp calda (°C)", "spin_float", (0, 100, 1)),
+                ("temp_hot", "Temp molto calda (°C)", "spin_float", (0, 100, 1)),
+                ("temp_critical", "Temp critica (°C)", "spin_float", (0, 110, 1)),
+                ("gpu_temp_critical", "GPU critica (°C)", "spin_float", (0, 110, 1)),
+                ("cpu_pause_threshold", "CPU pause %", "spin_float", (0.5, 1.0, 0.05)),
+            ]),
+            ("⏱️ Timing", "timing", [
+                ("orchestrator_tick", "Tick orchestratore (s)", "spin_int", (5, 3600, 5)),
+                ("worker_tick", "Tick worker (s)", "spin_int", (5, 3600, 5)),
+                ("health_check", "Health check (s)", "spin_int", (30, 7200, 30)),
+                ("memory_compaction", "Compaction memory (s)", "spin_int", (60, 86400, 60)),
+            ]),
+            ("🛡️ Safety", "safety", [
+                ("sandbox_enabled", "Sandbox bubblewrap", "check", None),
+                ("max_attempts", "Max tentativi task", "spin_int", (1, 50, 1)),
+                ("max_consecutive_failures", "Max fallimenti consecutivi", "spin_int", (1, 20, 1)),
+                ("cooldown_after_failure", "Cooldown dopo fallimento (s)", "spin_int", (10, 3600, 10)),
+                ("max_log_size", "Max size log (bytes)", "spin_int", (100000, 100000000, 100000)),
+            ]),
+            ("🔒 Security", "security", [
+                ("enabled", "Security abilitata (ALWAYS-ON)", "check", None),
+                ("max_output_chars", "Max caratteri output", "spin_int", (1000, 1000000, 1000)),
+                ("max_file_size_write", "Max size file scritto (bytes)", "spin_int", (10000, 100000000, 10000)),
+                ("max_memory_mb", "Max memoria MB", "spin_int", (256, 8192, 128)),
+            ]),
+            ("🎯 Decision Models", "decision_models", [
+                ("active", "Modello decisionale attivo", "combo_decision", []),
+            ]),
+            ("📚 LLM Tuner (profili termici)", "llm_tuner", [
+                # Solo informativo — i valori sono commentati nel file
+            ]),
+        ]
+        
+        # Lista modelli Ollama disponibili
+        try:
+            import urllib.request, json
+            with urllib.request.urlopen("http://localhost:11434/api/tags", timeout=2) as r:
+                data = json.loads(r.read())
+                self._available_models = [m['name'] for m in data.get('models', [])]
+        except Exception:
+            self._available_models = ["qwen2.5:1.5b", "qwen2.5-coder:1.5b",
+                                      "tev1:4b", "nomic-embed-text"]
+        
+        # Costruisci le sezioni
+        for section_title, section_path, fields in sections:
+            section_widget = self._build_section(section_title, section_path, fields)
+            container_lay.addWidget(section_widget)
+        
+        container_lay.addStretch()
+        scroll.setWidget(container)
+        lay.addWidget(scroll, stretch=1)
+        
+        # Bottoni Salva / Ripristina / Applica
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+        
+        self.save_btn = QPushButton("💾 Salva")
+        self.save_btn.setStyleSheet("""
+            QPushButton {
+                background:#16a34a; color:white; border:none;
+                padding:8px 20px; border-radius:6px; font-weight:bold;
+            }
+            QPushButton:hover { background:#15803d; }
+        """)
+        self.save_btn.clicked.connect(self._save)
+        btn_row.addWidget(self.save_btn)
+        
+        self.reset_btn = QPushButton("↩ Ripristina")
+        self.reset_btn.setStyleSheet("""
+            QPushButton {
+                background:#f5f5f5; color:#333; border:1px solid #ccc;
+                padding:8px 20px; border-radius:6px;
+            }
+            QPushButton:hover { background:#e5e5e5; }
+        """)
+        self.reset_btn.clicked.connect(self._reset)
+        btn_row.addWidget(self.reset_btn)
+        
+        self.apply_btn = QPushButton("🔄 Applica & Riavvia")
+        self.apply_btn.setStyleSheet("""
+            QPushButton {
+                background:#f59e0b; color:white; border:none;
+                padding:8px 20px; border-radius:6px; font-weight:bold;
+            }
+            QPushButton:hover { background:#d97706; }
+        """)
+        self.apply_btn.clicked.connect(self._apply)
+        btn_row.addWidget(self.apply_btn)
+        
+        btn_row.addStretch()
+        lay.addLayout(btn_row)
+    
+    def _build_section(self, title, path, fields):
+        """Costruisce una sezione collassabile con i campi."""
+        section = CollapsibleSection(title, icon="⚙")
+        try:
+            data = self._get_nested(self._config, path)
+        except Exception:
+            data = {}
+        
+        if not data and not fields:
+            section.add_widget(QLabel(f"<i>Sezione {path} non presente nel config</i>"))
+            return section
+        
+        form = QFormLayout()
+        form.setSpacing(6)
+        form.setContentsMargins(8, 8, 8, 8)
+        
+        for field in fields:
+            key, label, widget_type, params = field
+            full_path = f"{path}.{key}"
+            current_val = data.get(key) if data else None
+            
+            widget = self._make_widget(widget_type, current_val, params)
+            if widget:
+                self._widgets[full_path] = widget
+                form.addRow(label + ":", widget)
+        
+        section.add_widget(QWidget() if not fields else self._wrap_form(form))
+        return section
+    
+    def _wrap_form(self, form_layout):
+        w = QWidget()
+        w.setLayout(form_layout)
+        return w
+    
+    def _make_widget(self, wtype, value, params):
+        try:
+            if wtype == "check":
+                w = QCheckBox()
+                w.setChecked(bool(value))
+                return w
+            elif wtype == "spin_int":
+                lo, hi, step = params
+                w = QSpinBox()
+                w.setRange(lo, hi)
+                w.setSingleStep(step)
+                w.setValue(int(value) if value is not None else lo)
+                return w
+            elif wtype == "spin_float":
+                lo, hi, step = params
+                w = QDoubleSpinBox()
+                w.setRange(lo, hi)
+                w.setSingleStep(step)
+                w.setDecimals(2)
+                w.setValue(float(value) if value is not None else lo)
+                return w
+            elif wtype == "combo":
+                w = QComboBox()
+                w.addItems(self._available_models)
+                if value and value in self._available_models:
+                    w.setCurrentText(value)
+                elif value:
+                    w.addItem(value)
+                    w.setCurrentText(value)
+                return w
+            elif wtype == "combo_decision":
+                w = QComboBox()
+                options = ["qwen2_5", "tev1", "d3", "nimble"]
+                w.addItems(options)
+                if value and value in options:
+                    w.setCurrentText(value)
+                return w
+            elif wtype == "line":
+                w = QLineEdit()
+                w.setText(str(value) if value is not None else "")
+                return w
+        except Exception as e:
+            print(f"Errore make_widget {wtype}: {e}")
+        return None
+    
+    def _get_nested(self, d, path):
+        for part in path.split('.'):
+            d = d[part]
+        return d
+    
+    def _set_nested(self, d, path, value):
+        parts = path.split('.')
+        for part in parts[:-1]:
+            if part not in d or not isinstance(d[part], dict):
+                d[part] = {}
+            d = d[part]
+        d[parts[-1]] = value
+    
+    def _collect_values(self):
+        """Raccoglie i valori dai widget e aggiorna self._config."""
+        for path, widget in self._widgets.items():
+            try:
+                if isinstance(widget, QCheckBox):
+                    val = widget.isChecked()
+                elif isinstance(widget, QSpinBox):
+                    val = widget.value()
+                elif isinstance(widget, QDoubleSpinBox):
+                    val = widget.value()
+                elif isinstance(widget, QComboBox):
+                    val = widget.currentText()
+                elif isinstance(widget, QLineEdit):
+                    val = widget.text()
+                else:
+                    continue
+                self._set_nested(self._config, path, val)
+            except Exception as e:
+                print(f"Errore collect {path}: {e}")
+    
+    def _save(self):
+        self._collect_values()
+        try:
+            from GUI.gui_backend import save_config
+            ok, msg = save_config(self._config)
+            if ok:
+                self.save_btn.setText("✓ Salvato!")
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(1500, lambda: self.save_btn.setText("💾 Salva"))
+            else:
+                QMessageBox.warning(self, "Errore", msg)
+        except Exception as e:
+            QMessageBox.warning(self, "Errore", f"Salvataggio fallito: {e}")
+    
+    def _reset(self):
+        """Ricarica il config dal file."""
+        try:
+            from GUI.gui_backend import load_config
+            self._config = load_config()
+            self._widgets = {}
+            # Ricrea la UI
+            lay = self.layout()
+            while lay.count():
+                item = lay.takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+            self._build_ui()
+        except Exception as e:
+            QMessageBox.warning(self, "Errore", f"Reset fallito: {e}")
+    
+    def _apply(self):
+        """Salva e riavvia l'orchestratore."""
+        self._save()
+        reply = QMessageBox.question(
+            self, "Applica & Riavvia",
+            "Riavviare l'orchestratore per applicare le modifiche?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                import subprocess, os
+                base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                # Ferma e riavvia
+                subprocess.Popen([os.path.join(base, 'ferma.sh')])
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(2000, lambda: subprocess.Popen([os.path.join(base, 'avvia.sh')]))
+                QMessageBox.information(self, "Riavvio", "Orchestratore riavviato!")
+            except Exception as e:
+                QMessageBox.warning(self, "Errore", f"Riavvio fallito: {e}")
+
+
+
 class ControlCenter(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -938,9 +1274,6 @@ class ControlCenter(QMainWindow):
         lay.addWidget(sep1)
 
         self.project_tabs = ProjectTabBar()
-        self.project_tabs.addTab("🔒 reverse-usb-engineering")
-        self.project_tabs.addTab("📦 firmware-parser")
-        self.project_tabs.addTab("🧪 test-sandbox")
         self.project_tabs.setCurrentIndex(0)
         lay.addWidget(self.project_tabs, stretch=1)
 
@@ -1212,34 +1545,28 @@ class FileTreeDrawer(QFrame):
         task_header.setStyleSheet("padding:4px 16px; color:#2563eb; font-size:12px;")
         lay.addWidget(task_header)
 
-        self.task_list = QWidget()
-        task_lay = QVBoxLayout(self.task_list)
-        task_lay.setContentsMargins(12, 4, 12, 4)
-        task_lay.setSpacing(4)
-
-                # SOSTITUISCI la lista tasks = [...] con:
-        real_tasks = get_tasks()
-        for t in real_tasks[:10]:  # Mostriamo solo gli ultimi 10
-            status = t.get("status", "pending")
-            icon = "✓" if status == "done" else "▶" if status == "running" else "○"
-            color = "#16a34a" if status == "done" else "#f59e0b" if status == "running" else "#888"
-            name = t.get("title", "senza titolo")[:20]
-            
-            row = QHBoxLayout()
-            row.setContentsMargins(4, 2, 4, 2)
-            ic = QLabel(icon)
-            ic.setStyleSheet(f"color:{color}; font-weight:bold;")
-            ic.setFixedWidth(20)
-            row.addWidget(ic)
-            nm = QLabel(name)
-            nm.setStyleSheet("color:#333; font-size:11px;")
-            row.addWidget(nm, stretch=1)
-            st = QLabel(status[:4]) # 'pend', 'run', 'done'
-            st.setStyleSheet(f"color:{color}; font-size:10px; background:#f0f0f0; padding:2px 6px; border-radius:4px;")
-            row.addWidget(st)
-            task_lay.addLayout(row)
-
-        task_lay.addStretch()
+        self.task_list = QListWidget()
+        self.task_list.setObjectName("task_list")
+        self.task_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.task_list.itemDoubleClicked.connect(self._on_task_double_clicked)
+        self.task_list.customContextMenuRequested.connect(self._on_task_context_menu)
+        # Popola con task reali dal DB
+        try:
+            from GUI import gui_backend as gb
+            tasks = gb.get_tasks()
+            for t in tasks:
+                title = t.get("title", t.get("description", "?"))[:50]
+                st = t.get("status", "?")
+                icon = {"done": "✓", "running": "▶", "pending": "○",
+                        "failed": "✗", "queued": "○"}.get(st, "?")
+                item = QListWidgetItem(f"{icon} {title}")
+                item.setData(Qt.ItemDataRole.UserRole, t.get("id", ""))
+                color = {"done": "#16a34a", "running": "#f59e0b",
+                         "pending": "#888", "failed": "#dc2626"}.get(st, "#888")
+                item.setForeground(QColor(color))
+                self.task_list.addItem(item)
+        except Exception as e:
+            print(f"Errore popolamento task_list: {e}")
         lay.addWidget(self.task_list, stretch=1)
 
         act = QHBoxLayout()
@@ -1326,6 +1653,257 @@ class FileTreeDrawer(QFrame):
         self._anim.setStartValue(280 if self._open else 0)
         self._anim.setEndValue(target)
         self._anim.start()
+
+
+    def _on_task_double_clicked(self, item):
+        """Doppio click su task nella sidebar -> riavvia."""
+        try:
+            task_id = item.data(Qt.ItemDataRole.UserRole) if hasattr(item, 'data') else None
+            if not task_id:
+                # Fallback: estrai dal testo
+                m = re.search(r'task-\d+', item.text() if hasattr(item, 'text') else str(item))
+                if m:
+                    task_id = m.group(0)
+                else:
+                    return
+            ok, msg = _restart_task(task_id)
+            if ok:
+                if hasattr(item, 'setText'):
+                    item.setText(f"↻ {item.text()} [restart]")
+                if hasattr(item, 'setStyleSheet'):
+                    item.setStyleSheet("color: #16a34a;")
+                # Refresh via ControlCenter
+                parent = self.parent()
+                while parent and not hasattr(parent, '_refresh_coda_card'):
+                    parent = parent.parent()
+                if parent:
+                    parent._refresh_coda_card()
+                    if hasattr(parent, '_refresh_task_list'):
+                        parent._refresh_task_list()
+        except Exception as e:
+            print(f"Errore double-click task: {e}")
+
+    def _on_task_context_menu(self, pos):
+        """Menu contestuale tasto destro su un task."""
+        try:
+            item = self.task_list.itemAt(pos)
+            if not item:
+                return
+            task_id = item.data(Qt.ItemDataRole.UserRole)
+            if not task_id:
+                return
+            
+            from PyQt6.QtGui import QAction
+            menu = QMenu(self)
+            
+            act_details = QAction("📋 Dettagli task", self)
+            act_details.triggered.connect(lambda: self._show_task_details(task_id))
+            menu.addAction(act_details)
+            
+            menu.addSeparator()
+            
+            act_restart = QAction("🔄 Riavvia task", self)
+            act_restart.triggered.connect(lambda: self._restart_task_with_refresh(task_id, item))
+            menu.addAction(act_restart)
+            
+            act_copy = QAction("📋 Copia ID task", self)
+            act_copy.triggered.connect(lambda: self._copy_task_id(task_id))
+            menu.addAction(act_copy)
+            
+            menu.addSeparator()
+            
+            act_delete = QAction("🗑 Elimina task", self)
+            act_delete.triggered.connect(lambda: self._delete_task_with_refresh(task_id, item))
+            menu.addAction(act_delete)
+            
+            menu.addSeparator()
+            
+            act_open = QAction("📂 Apri risultato", self)
+            act_open.triggered.connect(lambda: self._open_task_result(task_id))
+            menu.addAction(act_open)
+            
+            menu.exec(self.task_list.mapToGlobal(pos))
+        except Exception as e:
+            print(f"Errore context menu: {e}")
+
+    def _show_task_details(self, task_id):
+        """Mostra un dialog con i dettagli completi del task."""
+        try:
+            from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, 
+                                         QLabel, QPushButton, QHBoxLayout, QTextEdit)
+            import sqlite3, os, time
+            
+            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            db_path = os.path.join(base, 'tasks', 'queue.db')
+            con = sqlite3.connect(db_path)
+            cur = con.cursor()
+            cur.execute("SELECT * FROM tasks WHERE id=?", (task_id,))
+            row = cur.fetchone()
+            cols = [d[0] for d in cur.description]
+            con.close()
+            
+            if not row:
+                return
+            
+            task = dict(zip(cols, row))
+            
+            dlg = QDialog(self)
+            dlg.setWindowTitle(f"📋 Dettagli Task {task_id[:12]}")
+            dlg.resize(600, 500)
+            lay = QVBoxLayout(dlg)
+            
+            title = QLabel(f"<b>{task.get('title', '(senza titolo)')[:80]}</b>")
+            title.setStyleSheet("font-size:14px; padding:8px; background:#f0f9ff; border-radius:6px;")
+            title.setWordWrap(True)
+            lay.addWidget(title)
+            
+            form = QFormLayout()
+            form.setSpacing(6)
+            
+            def fmt_time(ts):
+                if not ts:
+                    return "—"
+                try:
+                    return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(ts)))
+                except Exception:
+                    return str(ts)
+            
+            st_color = {'done': 'green', 'running': 'orange', 'failed': 'red',
+                        'pending': 'gray'}.get(task.get('status'), 'gray')
+            form.addRow("ID:", QLabel(task.get('id', '—')))
+            form.addRow("Status:", QLabel(f"<b style='color:{st_color}'>{task.get('status', '—')}</b>"))
+            form.addRow("Type:", QLabel(task.get('type', '—')))
+            form.addRow("Source:", QLabel(task.get('source', '—')))
+            form.addRow("Attempts:", QLabel(str(task.get('attempts', 0))))
+            form.addRow("Parent:", QLabel(task.get('parent') or '—'))
+            form.addRow("Created:", QLabel(fmt_time(task.get('created_at'))))
+            form.addRow("Started:", QLabel(fmt_time(task.get('started_at'))))
+            form.addRow("Completed:", QLabel(fmt_time(task.get('completed_at'))))
+            
+            if task.get('reason'):
+                form.addRow("Reason:", QLabel(str(task.get('reason'))))
+            
+            lay.addLayout(form)
+            
+            for label, field in [("Description", 'description'), ("Result", 'result'), ("Last error", 'last_error')]:
+                val = task.get(field, '')
+                if val:
+                    color_style = ' style="color:red"' if 'error' in label.lower() else ''
+                    lay.addWidget(QLabel(f"<b{color_style}>{label}:</b>"))
+                    te = QTextEdit()
+                    te.setReadOnly(True)
+                    te.setPlainText(str(val)[:2000])
+                    if 'error' in label.lower():
+                        te.setStyleSheet("background:#fef2f2; border:1px solid #fecaca;")
+                    te.setMaximumHeight(100)
+                    lay.addWidget(te)
+            
+            btn_row = QHBoxLayout()
+            btn_row.addStretch()
+            close_btn = QPushButton("Chiudi")
+            close_btn.clicked.connect(dlg.accept)
+            btn_row.addWidget(close_btn)
+            lay.addLayout(btn_row)
+            
+            dlg.exec()
+        except Exception as e:
+            print(f"Errore show details: {e}")
+
+    def _restart_task_with_refresh(self, task_id, item):
+        """Riavvia un task e aggiorna la lista."""
+        try:
+            ok, msg = _restart_task(task_id)
+            if ok:
+                if item:
+                    item.setText(f"↻ {item.text()} [restart]")
+                    item.setStyleSheet("color: #16a34a;")
+                parent = self.parent()
+                while parent and not hasattr(parent, '_refresh_coda_card'):
+                    parent = parent.parent()
+                if parent:
+                    parent._refresh_coda_card()
+                    if hasattr(parent, '_refresh_task_list'):
+                        parent._refresh_task_list()
+        except Exception as e:
+            print(f"Errore restart: {e}")
+
+    def _delete_task_with_refresh(self, task_id, item):
+        """Elimina un task dal DB."""
+        try:
+            reply = QMessageBox.question(
+                self, "Elimina task",
+                f"Eliminare definitivamente il task {task_id[:12]}?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+            import sqlite3, os
+            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            db_path = os.path.join(base, 'tasks', 'queue.db')
+            con = sqlite3.connect(db_path)
+            cur = con.cursor()
+            cur.execute("DELETE FROM tasks WHERE id=?", (task_id,))
+            con.commit()
+            con.close()
+            parent = self.parent()
+            while parent and not hasattr(parent, '_refresh_coda_card'):
+                parent = parent.parent()
+            if parent:
+                parent._refresh_coda_card()
+                if hasattr(parent, '_refresh_task_list'):
+                    parent._refresh_task_list()
+        except Exception as e:
+            print(f"Errore delete: {e}")
+
+    def _copy_task_id(self, task_id):
+        """Copia l'ID del task negli appunti."""
+        try:
+            cb = QApplication.clipboard()
+            cb.setText(task_id)
+        except Exception as e:
+            print(f"Errore copy: {e}")
+
+    def _open_task_result(self, task_id):
+        """Apre il file risultato del task se esiste."""
+        try:
+            import sqlite3, os, subprocess
+            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            db_path = os.path.join(base, 'tasks', 'queue.db')
+            con = sqlite3.connect(db_path)
+            cur = con.cursor()
+            cur.execute("SELECT result, title FROM tasks WHERE id=?", (task_id,))
+            row = cur.fetchone()
+            con.close()
+            
+            if not row:
+                return
+            result_text, title = row
+            
+            file_patterns = []
+            if result_text:
+                file_patterns = re.findall(r'[\w/\\]+\.\w+', str(result_text))
+            
+            candidates = ['project/main.py']
+            if title:
+                try:
+                    candidates.append('project/' + title.split()[0] + '.py')
+                except Exception:
+                    pass
+            candidates.extend(file_patterns[:3])
+            
+            opened = False
+            for f in candidates:
+                full = os.path.join(base, f) if not os.path.isabs(f) else f
+                if os.path.exists(full):
+                    subprocess.Popen(['xdg-open', full])
+                    opened = True
+                    break
+            
+            if not opened:
+                QMessageBox.information(self, "Risultato",
+                    f"Nessun file trovato per il task.\n\nResult: {result_text}")
+        except Exception as e:
+            print(f"Errore open result: {e}")
 
 
 class CenterArea(QWidget):

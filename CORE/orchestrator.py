@@ -1326,7 +1326,7 @@ class Orchestrator:
                 if subtasks:
                     # Aggiungi sottotask alla coda
                     for st in subtasks:
-                        self.queue.tasks.append(st)
+                        self.queue.add(st)
                     self.queue._save()
                     # Marca il task generic come 'planned'
                     for t in self.queue.tasks:
@@ -1350,7 +1350,7 @@ class Orchestrator:
             if subtasks:
                 # Aggiungi sottotask alla coda
                 for st in subtasks:
-                    self.queue.tasks.append(st)
+                    self.queue.add(st)
                 self.queue._save()
                 # Marca il task parent come 'planned'
                 for t in self.queue.tasks:
