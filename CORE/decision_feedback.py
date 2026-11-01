@@ -19,9 +19,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
-# workspace-relative: DATABASE/decision_feedback.db
-DATABASE_DIR = Path("DATABASE")
-DEFAULT_DB_PATH = DATABASE_DIR / "decision_feedback.db"
+# workspace-relative: tasks/decision_feedback.db (insieme a queue.db)
+TASKS_DIR = Path("tasks")
+DEFAULT_DB_PATH = TASKS_DIR / "decision_feedback.db"
 
 # Constraint globale del work order: nessun prompt > 500 caratteri
 MAX_PROMPT_CHARS = 500

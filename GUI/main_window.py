@@ -50,7 +50,7 @@ from PyQt6.QtWidgets import (
     QHeaderView, QFormLayout, QSpinBox, QDoubleSpinBox, QCheckBox, QComboBox,
     QDialog, QDialogButtonBox, QMessageBox, QFileDialog, QSplitter, QGroupBox,
     QPlainTextEdit, QToolBar, QStatusBar, QListWidget, QListWidgetItem,
-    QScrollArea, QFrame, QTextBrowser, QProgressBar, QSizePolicy,
+    QScrollArea, QFrame, QTextBrowser, QProgressBar, QSizePolicy, QMenu,
 )
 
 # Import moduli del progetto
@@ -3611,6 +3611,13 @@ class MainWindow(QMainWindow):
         bar = QHBoxLayout()
         bar.setSpacing(12)
 
+        # Menu hamburger (le vecchie tab, prima nel menù "Strumenti")
+        self.btn_menu = QPushButton("☰")
+        self.btn_menu.setObjectName("hamburger")
+        self.btn_menu.setToolTip("Menu")
+        self.btn_menu.clicked.connect(self._open_hamburger)
+        bar.addWidget(self.btn_menu)
+
         self.status_dot = QLabel("○ fermi")
         self.status_dot.setProperty("data-running", "false")
         bar.addWidget(self.status_dot)
@@ -3633,6 +3640,7 @@ class MainWindow(QMainWindow):
         # Start/stop orchestratore (QProcess-based, non blocca la GUI)
         self.btn_toggle_orch = QPushButton("▶ Orchestratore")
         self.btn_toggle_orch.setObjectName("toggleOrchestrator")
+        self.btn_toggle_orch.setProperty("data-running", "false")
         self.btn_toggle_orch.setCheckable(True)
         self.btn_toggle_orch.clicked.connect(self._on_toggle_orchestrator)
         bar.addWidget(self.btn_toggle_orch)
@@ -3704,8 +3712,12 @@ class MainWindow(QMainWindow):
     # Menu "Strumenti" (le vecchie tab diventano finestre)
     # ------------------------------------------------------------------
     def _build_menu(self) -> None:
-        menu_bar = self.menuBar()
-        tools = menu_bar.addMenu("&Strumenti")
+        """Menu hamburger (☰): sostituisce il menù nativo "Strumenti".
+
+        Un menu bar nativo su Wayland/GNOME-KDE può finire nel global menu
+        (invisibile in-app); un pulsante in Top Bar è sempre visibile.
+        """
+        self._tools_menu = QMenu(self)
 
         self._tool_actions = {}
         entries = [
@@ -3720,18 +3732,27 @@ class MainWindow(QMainWindow):
             act = QAction(label, self)
             act.triggered.connect(
                 lambda _checked=False, k=key: self._open_tool_dialog(k))
-            tools.addAction(act)
+            self._tools_menu.addAction(act)
             self._tool_actions[key] = act
 
-        tools.addSeparator()
+        self._tools_menu.addSeparator()
         act_history = QAction("📋  Cronologia chat", self)
         act_history.triggered.connect(self._open_chat_history)
-        tools.addAction(act_history)
+        self._tools_menu.addAction(act_history)
 
+        self._tools_menu.addSeparator()
         act_quit = QAction("Esci", self)
         act_quit.setShortcut("Ctrl+Q")
         act_quit.triggered.connect(self.close)
-        tools.addAction(act_quit)
+        self._tools_menu.addAction(act_quit)
+
+    def _open_hamburger(self) -> None:
+        """Mostra il menu a tendina ancorato sotto il pulsante ☰."""
+        menu = getattr(self, "_tools_menu", None)
+        if menu is None:
+            return
+        btn = self.btn_menu
+        menu.exec(btn.mapToGlobal(btn.rect().bottomLeft()))
 
     def _open_tool_dialog(self, key: str) -> None:
         """Apre una vecchia 'tab' come finestra modale (lazy, riusata)."""
@@ -3822,17 +3843,13 @@ class MainWindow(QMainWindow):
     # Refresh periodico (Tastbar / coda / gate termico)
     # ------------------------------------------------------------------
     def _refresh_all(self) -> None:
-        # pallino stato orchestratore
-        if self.orchestrator.is_running():
-            self.status_dot.setText("● attivo")
-            self.status_dot.setProperty("data-running", "true")
-            self.btn_toggle_orch.setChecked(True)
-            self.btn_toggle_orch.setText("■ Ferma Orchestratore")
-        else:
-            self.status_dot.setText("○ fermi")
-            self.status_dot.setProperty("data-running", "false")
-            self.btn_toggle_orch.setChecked(False)
-            self.btn_toggle_orch.setText("▶ Orchestratore")
+        # pallino stato orchestratore + pulsante verde quando avviato
+        running = self.orchestrator.is_running()
+        self.status_dot.setText("● attivo" if running else "○ fermi")
+        self.btn_toggle_orch.setChecked(running)
+        self.btn_toggle_orch.setText(
+            "■ Ferma Orchestratore" if running else "▶ Orchestratore")
+        self._set_running_props(running)
 
         # temperatura (lettura diretta sensori, ~0 I/O)
         self._update_temp_indicators()
@@ -3858,6 +3875,18 @@ class MainWindow(QMainWindow):
 
         # coda task
         self.task_model.refresh()
+
+    def _set_running_props(self, running: bool) -> None:
+        """Aggiorna la property `data-running` (dot di stato + pulsante).
+
+        Con QSS dinamico serve unpolish+polish, altrimenti Qt non
+        ricalcola lo stile al cambio di property.
+        """
+        value = "true" if running else "false"
+        for widget in (self.status_dot, self.btn_toggle_orch):
+            widget.setProperty("data-running", value)
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
 
     # ------------------------------------------------------------------
     # Agenda: temperatura + orchestratore + tema
@@ -3942,19 +3971,22 @@ class MainWindow(QMainWindow):
     # Orchestratore (start/stop via OrchestratorProcess: QProcess)
     # ------------------------------------------------------------------
     def _on_toggle_orchestrator(self) -> None:
-        if self.orchestrator.is_running():
+        running = self.orchestrator.is_running()
+        if running:
             self.orchestrator.stop()
-            self.btn_toggle_orch.setChecked(False)
-            self.btn_toggle_orch.setText("▶ Orchestratore")
             self.status_bar.showMessage("○ Orchestratore fermato", 2000)
         else:
             if self.orchestrator.start():
-                self.btn_toggle_orch.setChecked(True)
-                self.btn_toggle_orch.setText("■ Ferma Orchestratore")
                 self.status_bar.showMessage("● Orchestratore avviato", 2000)
             else:
-                self.btn_toggle_orch.setChecked(False)
                 self.status_bar.showMessage("❌ Avvio fallito", 3000)
+        # testo/colore coerenti subito (il refresh periodico confermerà)
+        running = self.orchestrator.is_running()
+        self.btn_toggle_orch.setChecked(running)
+        self.btn_toggle_orch.setText(
+            "■ Ferma Orchestratore" if running else "▶ Orchestratore")
+        self._set_running_props(running)
+        self.status_dot.setText("● attivo" if running else "○ fermi")
 
     # ------------------------------------------------------------------
     # Tema

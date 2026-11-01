@@ -271,11 +271,18 @@ def _is_within(path: Path, root: Path) -> bool:
         return False
 
 
+# Matching case-insensitive (defence in depth): su Linux le maiuscole sono
+# differenzianti, ma blocchiamo anche varianti `.SSH` / `.Bashrc` per
+# praticità e per portabilità del sandbox su filesystem case-insensitive.
+_SENSITIVE_PARTS_CF = frozenset(p.casefold() for p in SENSITIVE_PARTS)
+_SENSITIVE_NAMES_CF = frozenset(n.casefold() for n in SENSITIVE_NAMES)
+
+
 def _has_sensitive_part(path: Path) -> bool:
     for part in path.parts:
-        if part in SENSITIVE_PARTS:
+        if part.casefold() in _SENSITIVE_PARTS_CF:
             return True
-    return path.name in SENSITIVE_NAMES
+    return path.name.casefold() in _SENSITIVE_NAMES_CF
 
 
 def _looks_like_path(token: str) -> bool:

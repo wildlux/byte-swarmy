@@ -4,13 +4,11 @@
 # Tutto ciò che è runtime, temporaneo o generato va escluso.
 # =========================================================
 
-# --- Virtualenv ---
+# --- Virtualenv / cache Python ---
 .venv/
 venv/
 env/
 ENV/
-
-# --- Python cache ---
 __pycache__/
 *.pyc
 *.pyo
@@ -23,44 +21,48 @@ htmlcov/
 .coverage
 .coverage.*
 
-# --- Stato runtime (NON versionare: può contenere task e audit sensibili) ---
+# --- Stato runtime (contiene task e audit: NON versionare) ---
 state/
 logs/
 backups/
 
-# --- Codice generato dai worker ---
-# il contenuto di project/ è "miele" prodotto dallo swarm:
-# rigenerabile, potenzialmente grande, non va su GitHub.
-# Tieni solo un .gitkeep per preservare la directory.
+# --- Coda task (runtime SQLite/JSON, non versionare) ---
+tasks/*
+!tasks/.gitkeep
+
+# --- Codice generato dai worker ("miele" dello swarm) ---
 project/*
 !project/.gitkeep
-
-# --- File temporanei e di backup ---
-*.tmp
-*.bak
-*.swp
-*.swo
-*~
-.DS_Store
-Thumbs.db
-
-# --- Backup di script locali (es. VECCHIA_sync.sh) ---
-VECCHIA_*
-*_old
-*.orig
-*.rej
+project/.git/
 
 # --- Config locale con credenziali MCP ---
 mcp_servers.json
 mcp_servers.local.json
 
-# --- File di stato locale (ridondante ma esplicito) ---
-state/orchestrator.pid
-logs/stdout.log
-logs/byte-swarmy.log
-logs/security.log
+# --- Temporanei e backup ---
+*.tmp
+*.bak
+*.bak.*
+*.bak2
+*.bak3
+*.swp
+*.swo
+*~
+*.orig
+*.rej
+*.tmp*
+fix_*.py
+fix_*.sh
+feature*_*.py
+*_patch.py
+apply_*.py
+add_*.py
+redesign_*.py
+VECCHIA_*
+*_old
+*.zip
 
-# --- Environment / secrets ---
+# --- Segreti / ambiente ---
 .env
 .env.local
 .env.*.local
@@ -68,7 +70,15 @@ logs/security.log
 *.key
 secrets.json
 
-# --- IDE ---
+# --- OS / editor / IDE ---
+.directory
+.DS_Store
+Thumbs.db
+Desktop.ini
+Trash-*
+*.kate-swp
+.README.md.kate-swp
+README_IT_*.md
 .vscode/
 .idea/
 *.code-workspace
@@ -77,66 +87,11 @@ secrets.json
 .classpath
 .settings/
 
-# --- AI agenti locali ---
+# --- AI agenti ---
 .claude/
 .cursor/
 .aider*
 .continue/
 
-# --- OS ---
-.directory
-.Trash-*
-ehthumbs.db
-Desktop.ini
-
-# --- Build artifacts locali ---
-build/
-dist/
-*.so
-*.dylib
-
-# Impedisce ai worker di rendere project/ un submodule
-project/.git/
-project/.git/
-
-# File temporanei di Kate (editor KDE)
-.README.md.kate-swp
-*.kate-swp
-README_IT_*.md
-
-# File temporanei di Kate (editor KDE)
-*.kate-swp
-.README.md.kate-swp
-README_IT_*.md
-
-# Icone derivate temporanee (tieni solo la .ico originale)
+# --- Icone derivate temporanee (tieni solo l'originale) ---
 IMG/icona-256-*.png
-
-# File temporanei di fix/patch
-fix_*.py
-*.bak.*
-*.bak2
-*.bak3
-state/last_metrics.json
-
-# File temporanei di fix/patch (non committare)
-fix_*.py
-*_patch.py
-apply_*.py
-add_*.py
-redesign_*.py
-
-# Backup locali
-*.bak
-*.bak.*
-
-# Cache Python
-__pycache__/
-*.pyc
-
-# Metriche runtime
-state/last_metrics.json
-*.bak
-*.bak.*
-state/last_metrics.json
-__pycache__/

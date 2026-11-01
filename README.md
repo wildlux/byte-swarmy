@@ -16,7 +16,7 @@
   <img alt="RAM" src="https://img.shields.io/badge/RAM-4%20GB%20min-red">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Linux-lightgrey">
   <img alt="Cloud" src="https://img.shields.io/badge/cloud-NOT%20needed-success">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-58%20pass-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-71%20pass-brightgreen">
 </p>
 
 <p align="center">
@@ -31,7 +31,7 @@
 > con streaming token in tempo reale, selezione intelligente dei modelli e
 > ottimizzazione termica adattiva (Timestral LLM Tuner).
 
-**Versione:** 0.3.0 · **Licenza:** MIT · **Piattaforma:** Linux
+**Versione:** 0.3.1 · **Licenza:** MIT · **Piattaforma:** Linux
 
 ---
 
@@ -99,7 +99,7 @@ Dettagli, modello di minaccia, rischi residui e rollback:
 Verifica della policy:
 
 ```bash
-python -m pytest tests/ -v            # 58 test: 27 security + 22 sandbox + 3 escape-gate + 6 intent
+python -m pytest tests/ -v            # 103 test: 27 security + 22 sandbox + 3 escape-gate + 6 intent + 9 execute + 7 decision-feedback + 7 correction + 6 thermal-gate + 14 repo-hygiene + 18 dotfile-security
 tail -f logs/security.log
 ```
 
@@ -123,6 +123,9 @@ dopo un riavvio.
 | **Sandbox Bwrap** | Isolamento completo dei processi worker via bubblewrap (no rete, no home, escape `/etc` bloccato). | Previene l'esecuzione di codice malevolo sul sistema host. |
 | **AST Scanner** | Gate deterministico che blocca codice Python pericoloso in `write_file`. | Ferma `eval`, `exec`, `pickle` prima del sandbox. |
 | **Anti-escape Guardrail** | Rileva artefatti di escape (`\"`, `//`, righe duplicate) nei file generati. | Previene il bug più costoso del progetto alla radice. |
+| **Pre-Flight Validation** | `CORE/decision_feedback.py`: gate deterministico + SQLite feedback + decision model opzionale. | Zero token sprecati per parametri formalmente errati. |
+| **Post-Execution Correction** | `CORE/correction.py`: prompt di correzione con path anonimizzati, max 5 frame. | Retry ≤ 3 con prompt sovrascritto, 4° fallimento → `failed_definitively`. |
+| **Thermal Gatekeeper** | `TimestralGatekeeper` con isteresi (pause ≥ 75/80, resume < 65). | Protezione termica senza falsi riavvii. |
 | **Event Sourcing** | Memoria worker come log immutabile su SQLite. | Crash recovery e audit completo delle decisioni. |
 | **State Recovery** | Ripristino contesto worker dall'event store al riavvio. | Minimizza la perdita di contesto tra crash e restart. |
 | **Exception Hardening** | Policy centralizzata per classificazione errori LLM/tool. | Retry intelligente con backoff, analisi degli errori. |
@@ -142,6 +145,8 @@ dopo un riavvio.
 | **Safety valve** | Pausa automatica per RAM, disco, temperatura CPU/GPU; shutdown pulito su SIGTERM. |
 | **Streaming token** | I token del modello appaiono in tempo reale nel Live Activity Panel (300 ms). |
 | **Model rotation** | Un solo modello in VRAM alla volta; caricamento/scaricamento esplicito. |
+| **Pre-Flight** | `decision_feedback.py`: gate deterministico su parametri + persistenza SQLite. |
+| **Correction loop** | `correction.py`: retry ≤ 3 con prompt corretto, 4° → `failed_definitively`. |
 | **Thermal optimization** | Timestral LLM Tuner adatta parametri LLM (temp, top_p, ctx, max_steps) allo stato termico. |
 | **Predictive throttling** | EMA + regressione lineare stimano "minuti alla soglia termica". |
 
@@ -203,6 +208,9 @@ Cosa puoi vedere:
 | **Worker** | Esegue il task atomico: 21 tool, ReAct loop, streaming token | Ollama |
 | **Audit Worker** | Reviewer: approva/rifiuta il lavoro del worker | Ollama |
 | **Execute Handler** | Esegue task `type=execute` (gcc/python/make) deterministicamente senza LLM | Python |
+| **Decision Validator** | Pre-flight gate + persistenza feedback SQLite (`CORE/decision_feedback.py`) | Python |
+| **Correction Loop** | Post-exeuction retry con prompt corretto (`CORE/correction.py`) | Python |
+| **Thermal Gatekeeper** | Latch isteresi CPU/GPU + polling non bloccante (`MONITORING/thermal_manager.py`) | Python |
 | **Model Selector** | Algoritmo 0–100 per scegliere il modello migliore per ruolo | Python |
 | **Benchmark Suite** | 3-test suite (code/summary/classify) con tok/s, TTFT, score | Python |
 | **Persistent Memory** | Memoria cross-task: file, errori, preferenze utente | Python (JSON) |
@@ -231,12 +239,14 @@ Cosa puoi vedere:
 │  4. DISPATCH       → leggi coda SQLite                       │
 │  5. SWARM CMD?     → handle diretto (no LLM, instantaneo)    │
 │  6. EXECUTE?       → handler deterministico (gcc/python)     │
-│  7. GENERIC?       → Decision Model scompone                 │
-│  8. COMPLEX?       → Planner scompone                        │
-│  9. EXECUTE        → Worker ReAct (6 step, streaming)        │
-│ 10. AUDIT          → auto-APPROVE se tool utile chiamato     │
-│ 11. PERSIST        → memoria, eventi, stato su disco         │
-│ 12. SLEEP          → prossimo tick                           │
+│  7. THERMAL GATE?  → Gatekeeper pause ≥ 75/80 CPU/GPU?       │
+│  8. GENERIC?       → Decision Model scompone                 │
+│  9. COMPLEX?       → Planner scompone                        │
+│ 10. EXECUTE        → Worker ReAct (6 step, streaming)        │
+│ 11. AUDIT          → auto-APPROVE se tool utile chiamato     │
+│ 12. CORRECTION?    → feedback loop (retry ≤ 3, prompt corretto)│
+│ 13. PERSIST        → memoria, eventi, stato su disco         │
+│ 14. SLEEP          → prossimo tick                           │
 │                                                              │
 └──────────────────────────────────────────────────────────────┘
 ```
@@ -397,31 +407,24 @@ Alias disponibile: `bswarm`.
 ./avvia.sh --gui
 ```
 
-**7 tab** + Quick Command Bar in cima alla coda:
+**Layout Zero-Click** (nessun QTabWidget):
 
-0. **Quick Command Bar** — scrivi in linguaggio naturale (IT/EN/ZH); l'Intent
-   Router classifica la richiesta e crea il task strutturato in coda.
-1. **Coda Task** — task pending, in esecuzione e completati. Accanto alla
-   tabella un **Live Activity Panel** mostra streaming token, step, thought,
-   tool call, metriche (tok/s, KV cache, VRAM) e `🎚️ LLM Tuned` in tempo reale
-   (300 ms).
-2. **Modelli** — selettore modelli LLM con Auto-Select intelligente, ComboBox
-   per ogni ruolo, Test button (misura tok/s), Save & Restart.
-3. **MCP Servers** — configura server MCP esterni, polling automatico e
-   discovery dei tool.
-4. **Logs** — tail in tempo reale, auto-scroll ed export.
-5. **Timestral (Termico)** — metriche live (temperatura CPU e GPU, carico,
-   frequenza, memoria), consigli operativi, predizione EMA e storico. Gli
-   indicatori CPU/GPU colorati (verde/arancio/rosso) sono anche nella toolbar.
-6. **Config** — editor bidirezionale form↔TOML con validazione live, copia
-   errore e revert automatico. Si ricarica da disco quando torni al tab.
-7. **Test & Sandbox** — esecuzione della suite (58 test), self-test del
-   sandbox e verifica dello stato di isolamento.
+- **Top Bar (fissa)**: pallino stato orchestratore (● attivo / ○ fermo), label modello attivo, temperatura CPU/GPU colorate (verde/arancio/rosso), pulsante toggle orchestatore (▶ / ■), pulsante tema (◐).
+- **Body (espandibile)**: `QSplitter` orizzontale: sinistra (peso 1) tabella coda task; destra (peso 2) log pane read-only con scrolling automatico.
+- **Bottom Bar (fissa)**: `QLineEdit` per prompt (+ Invia) → pre-flight validation via `QProcess` → `CORE/preflight_cli.py` (mai bloccante). I parametri invalidi mostrano `needs_revision` a schermo; validi accodano il task e svuotano l'input.
 
-**Toolbar**: toggle button unico Avvia/Ferma (verde/rosso), indicatori
-temperatura CPU/GPU colorati, pulsante tema (◐), pulsante Esci.
+**Menu Hamburger (☰)**: le funzioni avanzate (MCP Servers, Modelli, Config, Timestral, Logs, Test & Sandbox) sono nel menu a tendina ☰ in alto a sinistra, ogni entry apre una finestra modale riutilizzando i vecchi widget.
+La voce di stato del pulsante Orchestratore è colorata: **verde quando avviato**, rosso quando fermo (aggiornata anche al click, prima del refresh periodico).
 
-**Theme**: QSS theme system con light e dark. Toggle con `Ctrl+Shift+T`.
+**Pre-Flight Validation**: ogni prompt passa per `CORE/preflight_cli.py` che interroga `DecisionValidator`: gate deterministico (0 token LLM) + decision model opzionale. Se invalido → `needs_revision` + feedback SQLite.
+
+**Refresh automatico**: coda task aggiornata ogni 2 secondi via `TaskQueueModel` (QAbstractTableModel su SQLite). Temperature CPU/GPU e modello attivo aggiornati sullo stesso ciclo.
+
+**Theme**: QSS theme system con light e dark. Toggle con pulsante ◐ o `Ctrl+Shift+T`.
+
+**Cronistoria chat**: accessibile da ☰ → Cronologia chat, mostra gli ultimi 20 task completati.
+
+Le vecchie "7 tab" (Coda Task, Modelli, MCP Servers, Logs, Timestral, Config, Test & Sandbox) sono ora dialogo non bloccante.
 
 ### Swarm commands (istantanei, no LLM)
 
@@ -593,7 +596,8 @@ byte-swarmy/
 │   │                          ollama_client, model_selector, mcp_client,
 │   │                          persistent_memory, ast_scanner, constants,
 │   │                          execute_handler, llm_tuner, benchmark,
-│   │                          exception_handler, state_recovery
+│   │                          exception_handler, state_recovery,
+│   │                          decision_feedback, correction
 │   ├── orchestrator.py      # Orchestratore, Planner, Worker, Auditor
 │   ├── tools.py             # ToolSet: 21 tools, sandboxed execution
 │   ├── sandbox.py           # bubblewrap builder
@@ -604,6 +608,9 @@ byte-swarmy/
 │   ├── persistent_memory.py # Memoria cross-task + extract_preferences()
 │   ├── ast_scanner.py       # AST gate + anti-escape guardrail
 │   ├── execute_handler.py   # Handler deterministico per type=execute
+│   ├── decision_feedback.py # Pre-flight + feedback SQLite (T1)
+│   ├── correction.py        # Prompt di correzione post-errore (T2)
+│   ├── preflight_cli.py     # CLI per pre-flight dalla GUI (QProcess)
 │   ├── llm_tuner.py         # 4 profili termici per parametri LLM
 │   ├── benchmark.py         # Suite benchmark modelli (3 test)
 │   ├── exception_handler.py # Policy centralizzata gestione errori
@@ -625,14 +632,24 @@ byte-swarmy/
 │   ├── system_monitor.py
 │   └── lifecycle_manager.py
 ├── GUI/                     # PyQt6 Control Center
-│   ├── main_window.py       # 7 tab + toolbar + live activity
+│   ├── main_window.py       # Zero-Click layout (Top bar + splitter + Bottom bar)
 │   └── theme/               # QSS theme system (light.qss, dark.qss, theme.py)
 ├── CONFIG/                  # config.toml
-├── tests/                   # 58 test: security, sandbox, escape-gate, intent
-│   ├── test_security.py     # 27 test
-│   ├── test_sandbox.py      # 22 test (11 subtest)
-│   ├── test_escape_gate.py  # 3 test (anti-escape)
+├── tests/                   # 103 test: security, sandbox, escape-gate, intent,
+│   │                        #   execute-handler, decision-feedback, correction,
+│   │                        #   thermal-gatekeeper, repo-hygiene,
+│   │                        #   dotfile-security
+│   ├── test_security.py       # 27 test
+│   ├── test_sandbox.py        # 22 test (11 subtest)
+│   ├── test_escape_gate.py    # 3 test (anti-escape)
 │   ├── test_intent_integration.py  # 6 test
+│   ├── test_execute_handler.py     # 9 test (handler deterministico)
+│   ├── test_decision_feedback.py   # 7 test (pre-flight)
+│   ├── test_correction.py          # 7 test (feedback loop)
+│   ├── test_thermal_gatekeeper.py  # 6 test (gate termico)
+│   ├── test_repo_hygiene.py        # 14 test (igiene repo, riusabile)
+│   ├── test_dotfile_security.py    # 18 test (sicurezza dotfile)
+│   ├── test_e2e.py                 # E2E reale (skip senza Ollama)
 │   └── run_tests.py         # Runner JSON per GUI
 ├── state/                   # Stato persistente
 │   ├── timestral_history.json       # 24h campioni CPU/GPU
@@ -660,7 +677,7 @@ byte-swarmy/
 
 ## Sviluppo e test
 
-### Test suite (58 test)
+### Test suite (103 test)
 
 ```bash
 source .venv/bin/activate
@@ -677,7 +694,15 @@ Covers:
 - **3 escape-gate** — anti-escape guardrail: syntax error, C-style comment,
   duplicated lines, JSON error;
 - **6 intent** — multilingual routing IT/EN/ZH, swarm command detection,
-  localisation.
+  localisation;
+- **9 execute-handler** — parsing comandi, compilazione reale gcc, fallimento,
+  troncamento output, E2E senza LLM;
+- **7 decision-feedback** — SQLite persistenza, gate deterministico zero token,
+  decision model adapter, prompt truncation;
+- **7 correction-loop** — path sanitization, frame limit, retry count ≤ 3,
+  4° fallimento definitivo, update_prompt, set_status;
+- **6 thermal-gatekeeper** — isteresi, soglie CPU/GPU, pausa/ripresa coda,
+  idempotenza, esclusione task completati.
 
 ### Static checks
 
@@ -746,7 +771,6 @@ python -m CORE.benchmark --model qwen2.5-coder:1.5b  # solo uno
 
 Il progetto è pensato per essere esteso. Le aree più aperte (vedi `todo.md`):
 
-- UI redesign (menu hamburger, Live Activity in alto);
 - MCP E2E testing;
 - USB protocol parser e differential analysis;
 - unificazione coda GUI→SQLite (FM14).
@@ -779,7 +803,7 @@ Rilasciato sotto licenza MIT. Vedi [LICENSE](LICENSE).
 
 ---
 
-**BYTE-SWARMY v0.3.0**
+**BYTE-SWARMY v0.3.1**
 
 ```
 /ˈbaɪt ˈswɔːrmi/  ·  "BYTE SWOR-mee"

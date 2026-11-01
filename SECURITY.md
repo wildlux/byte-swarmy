@@ -33,7 +33,7 @@ umano esperto: è un generatore di comandi plausibili ma sbagliati.
 | `run_bash(cmd)` | esecuzione arbitraria con i permessi utente | `tools.py` |
 | `read_file`/`write_file` | lettura/scrittura fuori dal progetto | `tools.py` |
 | tool git | push di codice, remote malevoli, leak di credenziali | `tools.py` |
-| task MCP | input non fidato che impone campi/status | `gui.py`, `mcp_client.py` |
+| task MCP | input non fidato che impone campi/status | `main_window.py`, `mcp_client.py` |
 | ambiente ereditato | token e socket SSH visibili ai figli | `avvia.sh`, `tools.py` |
 | fork bomb / disco / CPU | denial of service locale | `tools.py`, `avvia.sh` |
 
@@ -151,7 +151,7 @@ Il timeout termina l'intero **process group** (`start_new_session=True` +
 
 ### 2.6 Task MCP = dati non fidati
 
-`gui.py::_on_mcp_task` ricostruisce il task da zero. Un server MCP non può
+`main_window.py::_on_mcp_task` ricostruisce il task da zero. Un server MCP non può
 imporre `id`, `status`, `parent`, `subtasks` o `attempts`; `title`,
 `description` e `context` hanno limiti di lunghezza e `type` è in whitelist.
 Gli URL MCP accettano solo `http://` e `https://`.
@@ -160,7 +160,15 @@ Il system prompt dei worker dichiara esplicitamente che il testo del task è
 **dato**, non istruzione: eventuali "ignora le regole precedenti" nel task
 vanno ignorati.
 
-### 2.7 Audit log
+### 2.8 Pre-flight validation subprocess
+
+`CORE/preflight_cli.py` è un entry point separato che la GUI lancia via `QProcess`
+per ogni prompt utente. Riceve il testo dalla QLineEdit, interroga
+`DecisionValidator` (gate deterministico + decision model opzionale) e stampa
+una riga JSON su stdout. Il processo è sincrono e non esegue alcun comando
+esterno: la superficie d'attacco è limitata al path del prompt (troncato a 500
+caratteri). La GUI ignora stderr e disabilita l'input finché il processo è in
+esecuzione (nessuna race condition).
 
 Ogni comando permesso (INFO), ogni blocco (CRITICAL), ogni tool disabilitato
 (WARNING) e ogni timeout (WARNING) finisce in:

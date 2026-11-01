@@ -9,14 +9,14 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.2.0-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.3.1-blue">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-yellow">
   <img alt="Ollama" src="https://img.shields.io/badge/Ollama-required-orange">
   <img alt="RAM" src="https://img.shields.io/badge/RAM-4%20GB%20min-red">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Linux-lightgrey">
   <img alt="Cloud" src="https://img.shields.io/badge/cloud-NOT%20needed-success">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-55%20pass-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-71%20pass-brightgreen">
 </p>
 
 <p align="center">
@@ -30,7 +30,7 @@
 > documentation tasks under a deterministic orchestrator, with real-time token
 > streaming and intelligent model selection.
 
-**Version:** 0.2.0 · **License:** MIT · **Platform:** Linux
+**Version:** 0.3.1 · **License:** MIT · **Platform:** Linux
 
 ---
 
@@ -69,7 +69,7 @@ Details, threat model, residual risks and rollback: **[SECURITY.md](SECURITY.md)
 Policy verification:
 
 ```bash
-python -m pytest tests/ -v            # 55 tests: 27 security + 22 sandbox + 6 intent
+python -m pytest tests/ -v            # 103 tests: 27 security + 22 sandbox + 3 escape-gate + 6 intent + 9 execute + 7 decision-feedback + 7 correction + 6 thermal-gate + 14 repo-hygiene + 18 dotfile-security
 tail -f logs/security.log
 ```
 
@@ -92,9 +92,10 @@ reboot.
 | **JSONL Logging** | Structured, immutable logs for every system action. | Full audit and enterprise traceability of AI decisions. |
 | **Bubblewrap Sandbox** | Full isolation of worker processes (no network, no home, `/etc` escape blocked). | Prevents malicious code from running on the host. |
 | **AST Scanner** | Deterministic gate that blocks dangerous Python code in `write_file`. | Stops `eval`, `exec`, `pickle` before the sandbox. |
-| **Event Sourcing** | Worker memory as an immutable SQLite log. | Crash recovery and full decision audit. |
-| **Persistent Memory** | Cross-task memory: existing files, common errors, recent tasks. | Worker doesn't recreate existing files, avoids known errors. |
-| **USB Analysis** | Passive USB traffic inspection via `usbmon`. | Safe, read-only hardware reverse engineering. |
+| **Anti-escape Guardrail** | Detects escape artifacts (`\"`, `//`, duplicate lines) in generated files. | Prevents the project's most expensive bug at the root. |
+| **Pre-Flight Validation** | `CORE/decision_feedback.py`: deterministic gate + SQLite feedback + optional decision model. | Zero tokens wasted on formally invalid parameters. |
+| **Post-Execution Correction** | `CORE/correction.py`: correction prompt with sanitised paths, max 5 frames. | Retry ≤ 3 with overwritten prompt, 4th → `failed_definitively`. |
+| **Thermal Gatekeeper** | `TimestralGatekeeper` with hysteresis (pause ≥ 75/80°C, resume < 65°C). | Thermal protection without false restarts. |
 
 ### Design principles
 
@@ -158,6 +159,8 @@ What you can see:
 | **AST Scanner** | Deterministic gate on `write_file` | Python |
 | **Event Store** | Worker memory as an immutable SQLite log | Python |
 | **Timestral** | CPU + GPU thermal monitoring and dynamic tuning | Python |
+| **Thermal Gatekeeper** | Hysteresis latch (pause ≥ 75/80, resume < 65) with non-blocking polling | Python |
+| **Decision Validator** | Pre-flight gate + SQLite feedback persistence (`CORE/decision_feedback.py`) | Python |
 | **MCP Client** | Receives tasks from external MCP servers via SSE | Python |
 | **PyQt6 GUI** | Control Center with 7 tabs | PyQt6 |
 | **CLI Launcher** | `byte-swarmy` and alias `bswarm` | Bash |
@@ -169,17 +172,20 @@ What you can see:
 ┌──────────────────────────────────────────────────────────────┐
 │  every 30 seconds (modulated by Timestral)                   │
 │                                                              │
-│  1. SAFETY CHECK   → RAM > 80%? Disk < 1 GB? → pause         │
+│  1. SAFETY CHECK   → RAM > 95%? Disk < 1 GB? → pause         │
 │  2. TIMESTRAL      → CPU/GPU temp critical? → pause          │
 │  3. MAINTENANCE    → git backup, memory compaction           │
 │  4. DISPATCH       → read SQLite queue                       │
 │  5. SWARM CMD?     → handle directly (no LLM, instant)       │
-│  6. GENERIC?       → Decision Model decomposes               │
-│  7. COMPLEX?       → Planner decomposes                      │
-│  8. EXECUTE        → Worker ReAct (6 steps, streaming)       │
-│  9. AUDIT          → auto-APPROVE if useful tool called      │
-│ 10. PERSIST        → memory, events, state to disk           │
-│ 11. SLEEP          → next tick                               │
+│  6. EXECUTE?       → deterministic handler (gcc/python)      │
+│  7. THERMAL GATE?  → Gatekeeper pause ≥ 75/80 CPU/GPU?       │
+│  8. GENERIC?       → Decision Model decomposes               │
+│  9. COMPLEX?       → Planner decomposes                      │
+│ 10. EXECUTE        → Worker ReAct (6 steps, streaming)       │
+│ 11. AUDIT          → auto-APPROVE if useful tool called      │
+│ 12. CORRECTION?    → feedback loop (retry ≤ 3, prompt fix)   │
+│ 13. PERSIST        → memory, events, state to disk           │
+│ 14. SLEEP          → next tick                               │
 │                                                              │
 └──────────────────────────────────────────────────────────────┘
 ```
@@ -338,28 +344,24 @@ Alias available: `bswarm`.
 ./avvia.sh --gui
 ```
 
-**7 tabs** + Quick Command Bar at the top of the queue:
+**Zero-Click Layout** (no QTabWidget):
 
-0. **Quick Command Bar** — type in natural language (IT/EN/ZH); the Intent
-   Router classifies the request and creates the structured task in the queue.
-1. **Coda Task** — pending, running and completed tasks. Beside the table a
-   **Live Activity Panel** shows token streaming, step, thought, tool call and
-   metrics (tok/s, KV cache, VRAM) in real time (300 ms).
-2. **Modelli** — LLM model selector with intelligent Auto-Select, ComboBox per
-   role, Test button (measures tok/s), Save & Restart.
-3. **MCP Servers** — configure external MCP servers, automatic polling and
-   tool discovery.
-4. **Logs** — real-time tail, auto-scroll and export.
-5. **Timestral (Termico)** — live metrics (CPU and GPU temperature, load,
-   frequency, memory), operational advice and history. Coloured CPU/GPU
-   indicators (green/orange/red) are also in the toolbar.
-6. **Config** — bidirectional form↔TOML editor with live validation, error
-   copy and auto-revert. Reloads from disk when you revisit the tab.
-7. **Test & Sandbox** — run the suite (55 tests), sandbox self-test and
-   isolation status check.
+- **Top Bar (fixed)**: orchestrator status dot (● active / ○ stopped), active model label, CPU/GPU temperature chips (green/orange/red), orchestrator toggle button (▶ / ■), theme button (◐).
+- **Body (expandable)**: `QSplitter` horizontal: left (stretch 1) task queue table, right (stretch 2) read-only log pane with auto-scroll.
+- **Bottom Bar (fixed)**: `QLineEdit` for prompt (+ Send) → pre-flight validation via `QProcess` → `CORE/preflight_cli.py` (never blocking). Invalid parameters show `needs_revision` on screen; valid ones queue the task and clear the input.
 
-**Toolbar**: single Start/Stop toggle button (green/red), coloured CPU/GPU
-temperature indicators, Exit button.
+**Hamburger menu (☰)**: advanced features (MCP Servers, Models, Config, Timestral, Logs, Test & Sandbox) live in the dropdown menu opened by the ☰ button at the top-left, each opening a reusable modal dialog.
+The Orchestrator button is color-coded: **green when running**, red when stopped (updated on click, not only at the periodic refresh).
+
+**Pre-Flight Validation**: every prompt goes through `CORE/preflight_cli.py` → `DecisionValidator`: deterministic gate (zero LLM tokens) + optional decision model. Invalid → `needs_revision` + SQLite feedback.
+
+**Auto-refresh**: task queue updates every 2 sec via `TaskQueueModel` (QAbstractTableModel on SQLite). CPU/GPU temps and active model refresh on the same cycle.
+
+**Theme**: QSS theme system with light and dark. Toggle with ◐ button or `Ctrl+Shift+T`.
+
+**Chat History**: accessible from Tools → Chat History, shows the last 20 completed tasks.
+
+The previous "7 tabs" (Task Queue, Models, MCP Servers, Logs, Timestral, Config, Test & Sandbox) are now reusable dialogs.
 
 ### Generic tasks
 
@@ -530,7 +532,9 @@ For sensitive data use **dedicated user + firewall**.
 byte-swarmy/
 ├── CORE/                    # Engines: orchestrator, tools, sandbox, memory,
 │   │                          ollama_client, model_selector, mcp_client,
-│   │                          persistent_memory, ast_scanner, constants
+│   │                          persistent_memory, ast_scanner, constants,
+│   │                          execute_handler, decision_feedback,
+│   │                          correction, preflight_cli
 │   ├── orchestrator.py      # Orchestrator, Planner, Worker, Auditor
 │   ├── tools.py             # ToolSet: 21 tools, sandboxed execution
 │   ├── sandbox.py           # bubblewrap builder
@@ -538,9 +542,12 @@ byte-swarmy/
 │   ├── memory_provider.py   # SQLite event sourcing
 │   ├── ollama_client.py     # ModelClient + call_streaming()
 │   ├── model_selector.py    # 0–100 algorithm per role
-│   ├── persistent_memory.py # Cross-task memory
-│   ├── ast_scanner.py       # AST gate on write_file
-│   ├── mcp_client.py        # MCP client over SSE
+│   ├── persistent_memory.py # Cross-task memory + extract_preferences()
+│   ├── ast_scanner.py       # AST gate + anti-escape guardrail
+│   ├── execute_handler.py   # Deterministic handler for type=execute
+│   ├── decision_feedback.py # Pre-flight + SQLite feedback (T1)
+│   ├── correction.py        # Post-error correction prompt (T2)
+│   ├── preflight_cli.py     # CLI for pre-flight from GUI (QProcess)
 │   └── constants.py
 ├── INTENT/                  # Multilingual router + metrics
 │   ├── router.py            # IT/EN/ZH classification (rapidfuzz)
@@ -556,12 +563,24 @@ byte-swarmy/
 │   ├── system_monitor.py
 │   └── lifecycle_manager.py
 ├── GUI/                     # PyQt6 Control Center
-│   └── main_window.py       # 7 tabs + toolbar + live activity
+│   ├── main_window.py       # Zero-Click layout (Top bar + splitter + Bottom bar)
+│   └── theme/               # QSS theme system (light.qss, dark.qss, theme.py)
 ├── CONFIG/                  # config.toml
-├── tests/                   # 55 tests: security, sandbox, intent
+├── tests/                   # 103 tests: security, sandbox, escape-gate, intent,
+│   │                        #   execute-handler, decision-feedback, correction,
+│   │                        #   thermal-gatekeeper, repo-hygiene,
+│   │                        #   dotfile-security
 │   ├── test_security.py     # 27 tests
 │   ├── test_sandbox.py      # 22 tests (11 subtests)
+│   ├── test_escape_gate.py  # 3 tests (anti-escape)
 │   ├── test_intent_integration.py  # 6 tests
+│   ├── test_execute_handler.py     # 9 tests (deterministic handler)
+│   ├── test_decision_feedback.py   # 7 tests (pre-flight)
+│   ├── test_correction.py          # 7 tests (feedback loop)
+│   ├── test_thermal_gatekeeper.py  # 6 tests (thermal gatekeeper)
+│   ├── test_repo_hygiene.py        # 14 tests (repository hygiene, reusable)
+│   ├── test_dotfile_security.py    # 18 tests (dotfile security)
+│   ├── test_e2e.py                 # real E2E (skipped without Ollama)
 │   └── run_tests.py         # JSON runner for GUI
 ├── state/                   # Persistent state
 │   ├── timestral_history.json       # 24h CPU/GPU samples
@@ -587,7 +606,7 @@ byte-swarmy/
 
 ## Development and testing
 
-### Test suite (55 tests)
+### Test suite (103 tests)
 
 ```bash
 source .venv/bin/activate
@@ -601,8 +620,18 @@ Covers:
   symlink escapes, git push/pull/remote, sanitised environment, prompt injection;
 - **22 sandbox** — bubblewrap isolation, `/etc` escape blocked, network blocked,
   write-outside-project blocked, 11 self-test subtests;
+- **3 escape-gate** — anti-escape guardrail: syntax error, C-style comment,
+  duplicated lines, JSON error;
 - **6 intent** — multilingual routing IT/EN/ZH, swarm command detection,
-  localisation.
+  localisation;
+- **9 execute-handler** — command parsing, real gcc compilation, failure,
+  output truncation, E2E without LLM;
+- **7 decision-feedback** — SQLite persistence, deterministic zero-token gate,
+  decision model adapter, prompt truncation;
+- **7 correction-loop** — path sanitisation, frame limit, retry count ≤ 3,
+  4th definitive failure, update_prompt, set_status;
+- **6 thermal-gatekeeper** — hysteresis, CPU/GPU thresholds, queue pause/resume,
+  idempotence, completed-task exclusion.
 
 ### Static checks
 
@@ -669,12 +698,9 @@ python -m CORE.model_selector --apply   # apply to config
 
 The project is designed to be extended. The most open areas (see `todo.md`):
 
-- anti-escape guardrail in `write_file`/`patch_code` (M1);
-- deterministic handler for `type=execute` (gcc + run, no LLM);
-- predictive Timestral (EMA/regression);
-- advanced persistent memory (user preferences);
-- automatic model benchmarking;
-- USB protocol parser and differential analysis.
+- MCP E2E testing;
+- USB protocol parser and differential analysis;
+- GUI→SQLite queue unification (FM14).
 
 Before proposing a change, verify it respects the project constraint:
 *"does it run on 4 GB RAM without cloud?"*
@@ -704,7 +730,7 @@ Released under the MIT license. See [LICENSE](LICENSE).
 
 ---
 
-**BYTE-SWARMY v0.2.0**
+**BYTE-SWARMY v0.3.1**
 
 ```
 /ˈbaɪt ˈswɔːrmi/  ·  "BYTE SWOR-mee"

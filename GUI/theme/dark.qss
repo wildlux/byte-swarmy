@@ -8,6 +8,11 @@ QTabBar::tab { background: transparent; color: #9aa4b5; padding: 8px 16px; borde
 QTabBar::tab:hover { color: #e6e9ef; }
 QTabBar::tab:selected { color: #e6e9ef; font-weight: 600; border-bottom: 2px solid #5b92ff; }
 QPushButton { background: #1b1f27; border: 1px solid #363d4a; border-radius: 6px; padding: 6px 12px; }
+QPushButton#hamburger { padding: 6px 10px; font-weight: 600; }
+QPushButton#toggleOrchestrator[data-running="true"] { background: #173626; color: #6fd3a1; border-color: #2aa86e; font-weight: 600; }
+QPushButton#toggleOrchestrator[data-running="true"]:hover { background: #1d4430; }
+QPushButton#toggleOrchestrator[data-running="false"] { background: #3d1b17; color: #ff9b8f; border-color: #7a3b34; }
+QPushButton#toggleOrchestrator[data-running="false"]:hover { background: #4a221c; }
 QPushButton:hover { background: #242a35; border-color: #4a5365; }
 QPushButton:pressed { background: #2b3340; }
 QPushButton:focus { border-color: #5b92ff; }
