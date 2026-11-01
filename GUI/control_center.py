@@ -1199,6 +1199,65 @@ class ConfigPanel(QFrame):
 
 
 
+def _pause_task(task_id):
+    """Mette in pausa un singolo task (status='paused')."""
+    import sqlite3, os, time
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    db_path = os.path.join(base, 'tasks', 'queue.db')
+    try:
+        con = sqlite3.connect(db_path, timeout=10.0)
+        cur = con.cursor()
+        cur.execute(
+            "UPDATE tasks SET status='paused' WHERE id=? AND status IN ('pending', 'running')",
+            (task_id,)
+        )
+        con.commit()
+        con.close()
+        return True, f"Task {task_id[:12]} in pausa"
+    except Exception as e:
+        return False, f"Errore: {e}"
+
+
+def _resume_single_task(task_id):
+    """Riprende un singolo task (status='pending')."""
+    import sqlite3, os, time
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    db_path = os.path.join(base, 'tasks', 'queue.db')
+    try:
+        con = sqlite3.connect(db_path, timeout=10.0)
+        cur = con.cursor()
+        cur.execute(
+            "UPDATE tasks SET status='pending' WHERE id=? AND status='paused'",
+            (task_id,)
+        )
+        con.commit()
+        con.close()
+        return True, f"Task {task_id[:12]} ripreso"
+    except Exception as e:
+        return False, f"Errore: {e}"
+
+
+def _stop_task(task_id):
+    """Ferma un singolo task (marca come failed con last_error='Stopped by user')."""
+    import sqlite3, os, time
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    db_path = os.path.join(base, 'tasks', 'queue.db')
+    try:
+        con = sqlite3.connect(db_path)
+        cur = con.cursor()
+        cur.execute(
+            "UPDATE tasks SET status='failed', "
+            "last_error='Stopped by user (GUI)', "
+            "completed_at=? WHERE id=?",
+            (time.time(), task_id)
+        )
+        con.commit()
+        con.close()
+        return True, f"Task {task_id[:12]} fermato"
+    except Exception as e:
+        return False, f"Errore: {e}"
+
+
 def _restart_task(task_id):
     """Riavvia un task esistente (cambia status da done/failed a pending)."""
     import sqlite3, time, os
@@ -1217,6 +1276,41 @@ def _restart_task(task_id):
         return True, f"Task {task_id[:12]} rimesso in coda"
     except Exception as e:
         return False, f"Errore: {e}"
+
+
+
+
+def _log_user_action(component, action, task_id=None, details=""):
+    """Logga le azioni utente in logs/user_actions.log."""
+    import os, time, json
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    log_path = os.path.join(base, 'logs', 'user_actions.log')
+    entry = {
+        "timestamp": time.strftime('%Y-%m-%d %H:%M:%S'),
+        "epoch": time.time(),
+        "component": component,  # "Pulsante-in-Alto_DX" o "Task-Action"
+        "action": action,        # "avviato", "fermato", "pausa", "riprendi", "stop"
+        "task_id": task_id,
+        "details": details,
+        "message": ""  # riempito sotto
+    }
+    # Costruisci messaggio leggibile
+    if component == "Pulsante-in-Alto_DX":
+        entry["message"] = f"{component} : stato attuale = {action} premuto adesso"
+    elif component == "Task-Action":
+        tid_short = (task_id or "?")[:15] if task_id else "?"
+        entry["message"] = f"Task #{tid_short} ha premuto lo stato di {action}"
+    else:
+        entry["message"] = f"{component}: {action}"
+    try:
+        with open(log_path, 'a') as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        # Stampa anche in console
+        print(f"[USER_ACTION] {entry['message']}")
+    except Exception as e:
+        print(f"Errore log user action: {e}")
+    return entry["message"]
+
 
 
 class ControlCenter(QMainWindow):
@@ -1262,6 +1356,7 @@ class ControlCenter(QMainWindow):
     def _pause_orchestrator(self):
         """Mette in pausa l'orchestratore (crea file state/pause.flag)."""
         try:
+            _log_user_action("Pulsante-in-Alto_DX", "pausa", details="Orchestratore messo in pausa")
             import os, time
             base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             pause_file = os.path.join(base, 'state', 'pause.flag')
@@ -1298,6 +1393,7 @@ class ControlCenter(QMainWindow):
     def _stop_orchestrator(self):
         """Ferma l'orchestratore."""
         try:
+            _log_user_action("Pulsante-in-Alto_DX", "fermato", details="Stop orchestratore richiesto")
             from PyQt6.QtWidgets import QMessageBox
             reply = QMessageBox.question(self, "Stop orchestratore",
                 "Fermare definitivamente l'orchestratore?",
@@ -1372,15 +1468,15 @@ class ControlCenter(QMainWindow):
         # Pulsanti Pausa/Stop orchestratore
         _spacer = QWidget()
         _spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        toolbar.addWidget(_spacer)
+        lay.addWidget(_spacer)
         self._pause_btn = QPushButton("⏸ Pausa")
         self._pause_btn.setStyleSheet("QPushButton { background:#f59e0b; color:white; border:none; padding:6px 12px; border-radius:6px; font-weight:bold; } QPushButton:hover { background:#d97706; }")
         self._pause_btn.clicked.connect(self._pause_orchestrator)
-        toolbar.addWidget(self._pause_btn)
+        lay.addWidget(self._pause_btn)
         self._stop_btn = QPushButton("⏹ Stop")
         self._stop_btn.setStyleSheet("QPushButton { background:#dc2626; color:white; border:none; padding:6px 12px; border-radius:6px; font-weight:bold; } QPushButton:hover { background:#b91c1c; }")
         self._stop_btn.clicked.connect(self._stop_orchestrator)
-        toolbar.addWidget(self._stop_btn)
+        lay.addWidget(self._stop_btn)
 
 
     def _show_credits(self):
@@ -1664,6 +1760,63 @@ class FileTreeDrawer(QFrame):
         except Exception as e:
             print(f"Errore popolamento task_list: {e}")
         lay.addWidget(self.task_list, stretch=1)
+        
+        # === Riquadro Pulsanti Orchestratore (Pausa/Stop) ===
+        orch_box = QFrame()
+        orch_box.setObjectName("orch_controls")
+        orch_box.setStyleSheet("""
+            QFrame#orch_controls {
+                background:#f9fafb;
+                border:1px solid #e0e0e0;
+                border-radius:8px;
+                margin:8px 4px;
+            }
+        """)
+        orch_lay = QVBoxLayout(orch_box)
+        orch_lay.setContentsMargins(8, 6, 8, 6)
+        orch_lay.setSpacing(4)
+        
+        orch_title = QLabel("🎛 Orchestratore")
+        orch_title.setStyleSheet("font-size:11px; font-weight:bold; color:#374151; padding:0; margin:0;")
+        orch_lay.addWidget(orch_title)
+        
+        orch_btn_row = QHBoxLayout()
+        orch_btn_row.setSpacing(6)
+        
+        self._pause_btn = QPushButton("⏸ Pausa")
+        self._pause_btn.setStyleSheet("""
+            QPushButton {
+                background:#f59e0b; color:white; border:none;
+                padding:8px 12px; border-radius:6px;
+                font-weight:bold; font-size:11px;
+            }
+            QPushButton:hover { background:#d97706; }
+            QPushButton:disabled { background:#d1d5db; }
+        """)
+        self._pause_btn.clicked.connect(self._pause_orchestrator)
+        orch_btn_row.addWidget(self._pause_btn)
+        
+        self._stop_btn = QPushButton("⏹ Stop")
+        self._stop_btn.setStyleSheet("""
+            QPushButton {
+                background:#dc2626; color:white; border:none;
+                padding:8px 12px; border-radius:6px;
+                font-weight:bold; font-size:11px;
+            }
+            QPushButton:hover { background:#b91c1c; }
+            QPushButton:disabled { background:#d1d5db; }
+        """)
+        self._stop_btn.clicked.connect(self._stop_orchestrator)
+        orch_btn_row.addWidget(self._stop_btn)
+        
+        orch_lay.addLayout(orch_btn_row)
+        
+        # Status indicator
+        self._orch_status = QLabel("● Attivo")
+        self._orch_status.setStyleSheet("font-size:10px; color:#16a34a; padding:2px 0 0 0;")
+        orch_lay.addWidget(self._orch_status)
+        
+        lay.addWidget(orch_box)
 
         act = QHBoxLayout()
         act.setContentsMargins(12, 8, 12, 8)
@@ -1751,10 +1904,36 @@ class FileTreeDrawer(QFrame):
         self._anim.start()
 
 
+    def _pause_orchestrator(self):
+        """Wrapper: delega al ControlCenter genitore."""
+        parent = self.parent()
+        while parent and not hasattr(parent, '_pause_orchestrator'):
+            parent = parent.parent()
+        if parent and parent is not self:
+            parent._pause_orchestrator()
+
+    def _resume_orchestrator(self):
+        """Wrapper: delega al ControlCenter genitore."""
+        parent = self.parent()
+        while parent and not hasattr(parent, '_resume_orchestrator'):
+            parent = parent.parent()
+        if parent and parent is not self:
+            parent._resume_orchestrator()
+
+    def _stop_orchestrator(self):
+        """Wrapper: delega al ControlCenter genitore."""
+        parent = self.parent()
+        while parent and not hasattr(parent, '_stop_orchestrator'):
+            parent = parent.parent()
+        if parent and parent is not self:
+            parent._stop_orchestrator()
+
     def _on_task_double_clicked(self, item):
         """Doppio click su task nella sidebar -> riavvia."""
         try:
             task_id = item.data(Qt.ItemDataRole.UserRole) if hasattr(item, 'data') else None
+            if task_id:
+                _log_user_action("Task-Action", "avvio", task_id=task_id, details="Doppio click - riavvio veloce")
             if not task_id:
                 # Fallback: estrai dal testo
                 m = re.search(r'task-\d+', item.text() if hasattr(item, 'text') else str(item))
@@ -1764,8 +1943,15 @@ class FileTreeDrawer(QFrame):
                     return
             ok, msg = _restart_task(task_id)
             if ok:
-                if hasattr(item, 'setText'):
-                    item.setText(f"↻ {item.text()} [restart]")
+                # Estrai il testo originale rimuovendo eventuali ↻ ... [restart] precedenti
+                if hasattr(item, 'text'):
+                    txt = item.text()
+                    # Rimuovi prefisso ↻ e suffisso [restart] se presenti
+                    if txt.startswith("↻ "):
+                        txt = txt[2:]
+                    if txt.endswith(" [restart]"):
+                        txt = txt[:-10]
+                    item.setText(f"↻ {txt} [restart]")
                 if hasattr(item, 'setStyleSheet'):
                     item.setStyleSheet("color: #16a34a;")
                 # Refresh via ControlCenter
@@ -1802,6 +1988,22 @@ class FileTreeDrawer(QFrame):
             act_restart.triggered.connect(lambda: self._restart_task_with_refresh(task_id, item))
             menu.addAction(act_restart)
             
+            # Pausa/Riprendi task (singolo)
+            cur_status = self._get_task_status(task_id)
+            if cur_status == 'paused':
+                act_resume = QAction("▶ Riprendi task", self)
+                act_resume.triggered.connect(lambda: self._resume_task_with_refresh(task_id, item))
+                menu.addAction(act_resume)
+            elif cur_status in ('pending', 'running'):
+                act_pause = QAction("⏸ Pausa task", self)
+                act_pause.triggered.connect(lambda: self._pause_task_with_refresh(task_id, item))
+                menu.addAction(act_pause)
+            
+            # Ferma task definitivamente
+            act_stop = QAction("🛑 Ferma task", self)
+            act_stop.triggered.connect(lambda: self._stop_task_with_refresh(task_id, item))
+            menu.addAction(act_stop)
+            
             act_copy = QAction("📋 Copia ID task", self)
             act_copy.triggered.connect(lambda: self._copy_task_id(task_id))
             menu.addAction(act_copy)
@@ -1821,6 +2023,40 @@ class FileTreeDrawer(QFrame):
             menu.exec(self.task_list.mapToGlobal(pos))
         except Exception as e:
             print(f"Errore context menu: {e}")
+
+    def _stop_task_with_refresh(self, task_id, item):
+        """Ferma un singolo task e aggiorna la lista."""
+        try:
+            _log_user_action("Task-Action", "stop", task_id=task_id, details="Task fermato dall'utente")
+            from PyQt6.QtWidgets import QMessageBox
+            reply = QMessageBox.question(
+                self, "Ferma task",
+                f"Fermare il task {task_id[:12]}?\n\n"
+                f"L'orchestratore continuerà a girare, ma questo task verrà marcato come fallito.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+            ok, msg = _stop_task(task_id)
+            if ok:
+                if item:
+                    txt = item.text() if hasattr(item, 'text') else ""
+                    if txt.startswith("↻ "):
+                        txt = txt[2:]
+                    if txt.endswith(" [restart]"):
+                        txt = txt[:-10]
+                    item.setText(f"🛑 {txt} [stopped]")
+                    item.setStyleSheet("color: #dc2626;")
+                # Refresh via ControlCenter
+                parent = self.parent()
+                while parent and not hasattr(parent, '_refresh_coda_card'):
+                    parent = parent.parent()
+                if parent:
+                    parent._refresh_coda_card()
+                    if hasattr(parent, '_refresh_task_list'):
+                        parent._refresh_task_list()
+        except Exception as e:
+            print(f"Errore stop task: {e}")
 
     def _show_task_details(self, task_id):
         """Mostra un dialog con i dettagli completi del task."""
@@ -1908,10 +2144,16 @@ class FileTreeDrawer(QFrame):
     def _restart_task_with_refresh(self, task_id, item):
         """Riavvia un task e aggiorna la lista."""
         try:
+            _log_user_action("Task-Action", "avvio", task_id=task_id, details="Task riavviato dall'utente")
             ok, msg = _restart_task(task_id)
             if ok:
                 if item:
-                    item.setText(f"↻ {item.text()} [restart]")
+                    txt = item.text() if hasattr(item, 'text') else ""
+                    if txt.startswith("↻ "):
+                        txt = txt[2:]
+                    if txt.endswith(" [restart]"):
+                        txt = txt[:-10]
+                    item.setText(f"↻ {txt} [restart]")
                     item.setStyleSheet("color: #16a34a;")
                 parent = self.parent()
                 while parent and not hasattr(parent, '_refresh_coda_card'):

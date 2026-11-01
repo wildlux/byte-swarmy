@@ -1335,7 +1335,7 @@ class Orchestrator:
                         self.queue.add(st)
                     self.queue._save()
                     # Marca il task generic come 'planned'
-                    for t in self.queue.tasks:
+                    for t in self.queue.list_tasks():
                         if t["id"] == task["id"]:
                             t["status"] = "planned"
                             t["subtask_ids"] = [s["id"] for s in subtasks]
@@ -1359,7 +1359,7 @@ class Orchestrator:
                     self.queue.add(st)
                 self.queue._save()
                 # Marca il task parent come 'planned'
-                for t in self.queue.tasks:
+                for t in self.queue.list_tasks():
                     if t["id"] == task["id"]:
                         t["status"] = "planned"
                         t["subtask_ids"] = [s["id"] for s in subtasks]
