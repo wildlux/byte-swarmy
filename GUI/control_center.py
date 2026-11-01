@@ -73,11 +73,11 @@ class CreditsOverlay(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("credits_overlay")
-        # Overlay più grande e con scroll area: prima era 620x520 fisso, e le
-        # card dei contributori venivano compresse a 0px dall'immagine in
-        # testa, rendendo invisibili i nomi (Paolo Lo Bello, GLM 5.2, Qwen,
-        # DeepSeek). Ora il contenuto è scrollabile e ogni card ha min-height.
-        self.setFixedSize(680, 800)
+        # Overlay a 2 colonne: a sinistra immagine + contributori,
+        # a destra le Tecnologie & Progetti Open Source in griglia 2-colonne.
+        # Prima era 620x520 fisso e le card venivano compresse a 0px
+        # (i nomi di Paolo Lo Bello, GLM 5.2, Qwen, DeepSeek sparivano).
+        self.setFixedSize(820, 620)
         self.setStyleSheet(
             "QFrame#credits_overlay { "
             "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
@@ -108,28 +108,6 @@ class CreditsOverlay(QFrame):
         lay.setContentsMargins(10, 4, 10, 4)
         lay.setSpacing(6)
 
-        # Immagine ringraziamenti
-        try:
-            import os
-            from PyQt6.QtGui import QPixmap
-            img_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'IMG', 'documentazione.jpeg')
-            if os.path.exists(img_path):
-                img_label = QLabel()
-                pix = QPixmap(img_path)
-                # Ridimensiona mantenendo aspect ratio — più piccola per far
-                # spazio ai nomi dei contributori sotto (tutti e 4 visibili).
-                pix = pix.scaledToWidth(220, Qt.TransformationMode.SmoothTransformation)
-                img_label.setPixmap(pix)
-                img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                img_label.setFixedHeight(int(pix.height()))
-                img_label.setSizePolicy(
-                    img_label.sizePolicy().horizontalPolicy(),
-                    QSizePolicy.Policy.Fixed,
-                )
-                lay.addWidget(img_label)
-        except Exception as e:
-            print(f"Errore caricamento immagine credits: {e}")
-
         # Titolo (l'ape è già nel pulsante della toolbar, evitiamo duplicato)
         title = QLabel("<b>BYTE-SWARMY</b>")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -151,12 +129,43 @@ class CreditsOverlay(QFrame):
         sep.setStyleSheet("background: #4ade80;")
         lay.addWidget(sep)
 
-        # Sezione credits
+        # ── Layout a 2 colonne: sinistra (immagine + ringraziamenti)
+        #                          e destra (tecnologie open source in griglia)
+        cols = QHBoxLayout()
+        cols.setSpacing(12)
+        cols.setContentsMargins(0, 0, 0, 0)
+
+        # ─── Colonna SINISTRA: immagine + ringraziamenti ───────────────
+        left_col = QVBoxLayout()
+        left_col.setSpacing(6)
+        left_col.setContentsMargins(0, 0, 0, 0)
+
+        # Immagine ringraziamenti (più grande ora che ha la colonna dedicata)
+        try:
+            import os
+            from PyQt6.QtGui import QPixmap
+            img_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'IMG', 'documentazione.jpeg')
+            if os.path.exists(img_path):
+                img_label = QLabel()
+                pix = QPixmap(img_path)
+                # Più grande: 380px di larghezza (prima era 220)
+                pix = pix.scaledToWidth(380, Qt.TransformationMode.SmoothTransformation)
+                img_label.setPixmap(pix)
+                img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                img_label.setFixedHeight(int(pix.height()))
+                img_label.setSizePolicy(
+                    img_label.sizePolicy().horizontalPolicy(),
+                    QSizePolicy.Policy.Fixed,
+                )
+                left_col.addWidget(img_label)
+        except Exception as e:
+            print(f"Errore caricamento immagine credits: {e}")
+
         credits_title = QLabel("✨ Ringraziamenti ✨")
         credits_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         credits_title.setStyleSheet("font-size: 15px; color: #f9e2af; font-weight: bold;")
         credits_title.setFixedHeight(22)
-        lay.addWidget(credits_title)
+        left_col.addWidget(credits_title)
 
         # Lista contributori
         contributors = [
@@ -202,17 +211,23 @@ class CreditsOverlay(QFrame):
             info_lay.addWidget(role_lbl)
 
             card_lay.addWidget(info, stretch=1)
-            lay.addWidget(card)
+            left_col.addWidget(card)
 
-        # ── Tecnologie & Progetti Open Source ──────────────────────────
-        # (coerente con la sezione "Ringraziamenti" del README.md)
+        left_col.addStretch()
+
+        # ─── Colonna DESTRA: Tecnologie & Progetti Open Source ─────────
+        right_col = QVBoxLayout()
+        right_col.setSpacing(6)
+        right_col.setContentsMargins(0, 0, 0, 0)
+
         tech_title = QLabel("🧩 Tecnologie & Progetti Open Source")
         tech_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         tech_title.setStyleSheet(
-            "font-size: 13px; color: #f9e2af; font-weight: bold; margin-top: 6px;"
+            "font-size: 13px; color: #f9e2af; font-weight: bold;"
         )
         tech_title.setFixedHeight(20)
-        lay.addWidget(tech_title)
+        tech_title.setWordWrap(True)
+        right_col.addWidget(tech_title)
 
         tech_projects = [
             ("🦙", "Ollama",     "Esecuzione locale dei modelli LLM"),
@@ -220,38 +235,63 @@ class CreditsOverlay(QFrame):
             ("🔌", "MCP",        "Model Context Protocol — distribuzione task"),
             ("📦", "bubblewrap", "Sandbox filesystem isolato"),
             ("🔎", "rapidfuzz",  "Fuzzy matching per intent e comandi"),
+            ("🌐", "SQLite",     "Coda task persistente"),
         ]
-        for icon, name, role in tech_projects:
+
+        # Griglia a 2 colonne per i tech chips
+        grid = QGridLayout()
+        grid.setSpacing(6)
+        grid.setContentsMargins(0, 0, 0, 0)
+        for idx, (icon, name, role) in enumerate(tech_projects):
             chip = QFrame()
             chip.setStyleSheet(
                 "QFrame { background: #181826; border: 1px solid #2e2e44; "
-                "border-radius: 6px; padding: 2px 8px; }"
+                "border-radius: 6px; padding: 4px 8px; }"
             )
-            chip.setMinimumHeight(32)
-            chip_lay = QHBoxLayout(chip)
-            chip_lay.setContentsMargins(6, 2, 6, 2)
-            chip_lay.setSpacing(6)
+            chip.setMinimumHeight(56)
+            chip_lay = QVBoxLayout(chip)
+            chip_lay.setContentsMargins(6, 4, 6, 4)
+            chip_lay.setSpacing(2)
+
+            # Riga icona + nome
+            top = QHBoxLayout()
+            top.setSpacing(6)
+            top.setContentsMargins(0, 0, 0, 0)
             ic = QLabel(icon)
-            ic.setStyleSheet("font-size: 14px;")
-            ic.setFixedWidth(18)
-            chip_lay.addWidget(ic)
+            ic.setStyleSheet("font-size: 16px;")
+            ic.setFixedWidth(20)
+            top.addWidget(ic)
             nm = QLabel(f"<b>{name}</b>")
             nm.setStyleSheet("font-size: 11px; color: #cdd6f4;")
-            nm.setMinimumWidth(80)
-            chip_lay.addWidget(nm)
+            nm.setWordWrap(True)
+            top.addWidget(nm, stretch=1)
+            chip_lay.addLayout(top)
+
+            # Ruolo
             rl = QLabel(role)
             rl.setStyleSheet("font-size: 9px; color: #8888a0;")
-            chip_lay.addWidget(rl, stretch=1)
-            lay.addWidget(chip)
+            rl.setWordWrap(True)
+            chip_lay.addWidget(rl)
 
-        # Messaggio finale
+            row = idx // 2
+            col = idx % 2
+            grid.addWidget(chip, row, col)
+
+        right_col.addLayout(grid)
+        right_col.addStretch()
+
+        # ── Assembla le 2 colonne ───────────────────────────────────────
+        cols.addLayout(left_col, stretch=3)
+        cols.addLayout(right_col, stretch=2)
+        lay.addLayout(cols, stretch=1)
+
+        # Messaggio finale (sotto le 2 colonne)
         final_msg = QLabel("Grazie a tutti per aver contribuito a questo progetto 🐝")
         final_msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        final_msg.setStyleSheet("font-size: 12px; color: #8888a0; font-style: italic; margin-top: 8px;")
+        final_msg.setStyleSheet("font-size: 12px; color: #8888a0; font-style: italic; margin-top: 4px;")
         final_msg.setWordWrap(True)
+        final_msg.setFixedHeight(18)
         lay.addWidget(final_msg)
-
-        lay.addStretch()
 
         scroll.setWidget(content)
         outer.addWidget(scroll, stretch=1)
@@ -1522,9 +1562,22 @@ class ControlCenter(QMainWindow):
         lay.addWidget(menu_btn)
 
         # 🐝 Ape → apre i credits (NON più il drawer)
+        # Più grande (40x40) e con font-size adeguato per evitare che
+        # l'emoji venga schiacciata/compressa verticalmente (bug segnalato).
         bee_btn = QPushButton("🐝")
-        bee_btn.setFixedSize(32, 32)
+        bee_btn.setFixedSize(40, 40)
         bee_btn.setObjectName("icon_btn")
+        # Emoji rendering: usiamo un font grande e centrato, niente padding
+        bee_btn.setStyleSheet(
+            "QPushButton#icon_btn {"
+            "  font-size: 22px;"
+            "  padding: 0;"
+            "  border: 2px solid #16a34a;"
+            "  border-radius: 8px;"
+            "  background: #ffffff;"
+            "}"
+            "QPushButton#icon_btn:hover { background: #f0fdf4; }"
+        )
         bee_btn.setToolTip("Credits & Ringraziamenti")
         bee_btn.clicked.connect(self._show_credits)
         lay.addWidget(bee_btn)
@@ -1792,8 +1845,12 @@ class ProjectTabBar(QTabBar):
     Prima era vuota: nessun tab veniva aggiunto e l'utente vedeva solo il
     pulsante della cartella accanto. Ora carica automaticamente:
       • il progetto corrente (byte-swarmy);
-      • ogni sottocartella di ``project/`` (i task prodotti dai worker).
+      • ogni sottocartella di ``project/`` (i task prodotti dai worker);
+      • un tab "+" che apre un QFileDialog per aggiungere un nuovo progetto.
     """
+
+    # Segnale emesso quando un nuovo progetto viene aggiunto via "+"
+    project_added = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -1801,18 +1858,29 @@ class ProjectTabBar(QTabBar):
         self.setTabsClosable(True)
         self.setMovable(True)
         self.setExpanding(False)
+        # Click su un tab → se è il "+", apri QFileDialog
+        self.tabBarClicked.connect(self._on_tab_clicked)
+        self.tabCloseRequested.connect(self._on_tab_close_requested)
         self._load_open_projects()
 
     def _load_open_projects(self):
-        """Popola i tab con i progetti aperti (cartelle sotto project/)."""
+        """Popola i tab con i progetti aperti (cartelle sotto project/).
+
+        Aggiunge un tab ``📁 nome`` solo se ci sono *realmente* sottocartelle
+        in ``project/``. Se ``project/`` è vuoto o contiene solo ``.gitkeep``,
+        non crea nessun tab intermedio: si passa direttamente da ``byte-swarmy``
+        al tab ``➕``.
+        """
         import os
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         projects_dir = os.path.join(base, "project")
 
-        # Tab 1 — il progetto corrente (sempre presente)
+        # Tab 1 — il progetto corrente (sempre presente, non chiudibile)
         self.addTab("🐝 byte-swarmy")
+        self._hide_close_button(0)
 
-        # Tab aggiuntivi — una tab per ogni sottocartella di project/
+        # Tab aggiuntivi — SOLO se ci sono sottocartelle reali in project/.
+        # Ignora file (come .gitkeep) e cartelle nascoste.
         if os.path.isdir(projects_dir):
             try:
                 entries = sorted(
@@ -1827,9 +1895,95 @@ class ProjectTabBar(QTabBar):
                 if self._find_tab(name) < 0:
                     self.addTab("📁 " + name)
 
+        # Tab finale — "+" per aggiungere un nuovo progetto (non chiudibile)
+        self._plus_index = self.count()
+        self.addTab("➕")
+        # Nascondi la × dal tab ➕ (ha senso: il + non si "chiude", si clicca)
+        self._hide_close_button(self._plus_index)
+
+    def _hide_close_button(self, index: int):
+        """Rimuove il pulsante di chiusura (×) da un tab specifico."""
+        try:
+            self.setTabButton(
+                index,
+                QTabBar.ButtonPosition.RightSide,
+                None,
+            )
+        except Exception:
+            # Su alcuni platform plugin il RightSide non esiste; prova LeftSide
+            try:
+                self.setTabButton(
+                    index,
+                    QTabBar.ButtonPosition.LeftSide,
+                    None,
+                )
+            except Exception:
+                pass
+
+    def _is_plus_tab(self, index: int) -> bool:
+        return index == getattr(self, "_plus_index", -1)
+
+    def _on_tab_clicked(self, index: int):
+        """Apri il QFileDialog se l'utente clicca il tab '+'."""
+        if self._is_plus_tab(index):
+            self._open_new_project_dialog()
+
+    def _on_tab_close_requested(self, index: int):
+        """Chiude un tab progetto (tranne byte-swarmy e il '+')."""
+        if self._is_plus_tab(index):
+            return  # Il "+" non si chiude
+        if index == 0:
+            return  # byte-swarmy non si chiude
+        self.removeTab(index)
+        # L'indice del "+" è sceso di 1
+        self._plus_index = self.count() - 1
+
+    def _open_new_project_dialog(self):
+        """Apre QFileDialog per scegliere una cartella da aggiungere come progetto."""
+        from PyQt6.QtWidgets import QFileDialog
+        # Directory iniziale: project/ se esiste, altrimenti home
+        import os
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        projects_dir = os.path.join(base, "project")
+        start_dir = projects_dir if os.path.isdir(projects_dir) else os.path.expanduser("~")
+
+        folder = QFileDialog.getExistingDirectory(
+            None,
+            "Apri progetto — scegli cartella",
+            start_dir,
+            QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
+        )
+        if not folder:
+            # Utente ha annullato — torna al primo tab
+            self.setCurrentIndex(0)
+            return
+
+        # Usa il nome della cartella come etichetta del tab
+        name = os.path.basename(folder.rstrip("/"))
+        if not name:
+            name = folder
+
+        # Se è già aperto, selezionalo
+        existing = self._find_tab(name)
+        if existing >= 0:
+            self.setCurrentIndex(existing)
+            return
+
+        # Aggiungi il nuovo tab PRIMA del "+" (in modo che resti sempre l'ultimo)
+        new_idx = self._plus_index
+        self.insertTab(new_idx, "📁 " + name)
+        self._plus_index = self.count() - 1
+        self.setCurrentIndex(new_idx)
+
+        # Emette segnale/opzionalmente callback: il nome della cartella aperta
+        # è disponibile per il ControlCenter (per impostare il working dir).
+        if hasattr(self, "project_added"):
+            self.project_added.emit(folder)
+
     def _find_tab(self, name: str) -> int:
         for i in range(self.count()):
-            if self.tabText(i) == name or self.tabText(i).endswith(" " + name):
+            txt = self.tabText(i)
+            if txt == name or txt.endswith(" " + name):
                 return i
         return -1
 
@@ -1843,8 +1997,11 @@ class ProjectTabBar(QTabBar):
     def add_project(self, name: str):
         """Aggiunge un progetto ai tab (se non già presente)."""
         if self._find_tab(name) < 0:
-            self.addTab("📁 " + name)
-            self.setCurrentIndex(self.count() - 1)
+            # Inserisci prima del "+"
+            new_idx = getattr(self, "_plus_index", self.count())
+            self.insertTab(new_idx, "📁 " + name)
+            self._plus_index = self.count() - 1
+            self.setCurrentIndex(new_idx)
 
 
 class FileTreeDrawer(QFrame):
@@ -1857,8 +2014,11 @@ class FileTreeDrawer(QFrame):
         lay.setContentsMargins(0, 8, 0, 8)
         lay.setSpacing(0)
 
-        header = QLabel("<b>🐝 BYTE-SWARMY</b>")
-        header.setStyleSheet("padding:8px 16px; color:#16a34a; font-size:13px;")
+        header = QLabel("<b>🐝 Archivio progetto</b>")
+        header.setObjectName("sidebar_header")
+        header.setStyleSheet(
+            "padding:8px 16px; color:#16a34a; font-size:13px;"
+        )
         lay.addWidget(header)
 
         self.tree = QTreeView()
@@ -1936,15 +2096,10 @@ class FileTreeDrawer(QFrame):
         except Exception as e:
             print(f"Errore popolamento task_list: {e}")
         lay.addWidget(self.task_list, stretch=1)
-        
-        
-        act = QHBoxLayout()
-        act.setContentsMargins(12, 8, 12, 8)
-        ref = QPushButton("🔄")
-        ref.setFixedWidth(36)
-        ref.clicked.connect(lambda: self.model.setRootPath("./"))
-        act.addWidget(ref)
-        lay.addLayout(act)
+        # NB: il pulsante "🔄" qui sotto è stato rimosso perché duplicato —
+        # c'è già il pulsante 🔄 in alto accanto a "📋 TASK" (rifa lo stesso
+        # lavoro di refresh della file tree). Lasciato solo quello in alto,
+        # che è quello visivamente atteso. Niente più pulsante in basso.
 
         self._anim = QPropertyAnimation(self, b"maximumWidth")
         self._anim.setDuration(220)
