@@ -1236,11 +1236,17 @@ class Orchestrator:
         return True
 
     def _tick(self) -> None:
-        # Check pause.flag (GUI pausa)
+        # Check pause.flag (GUI pausa) - se presente, salta TUTTI i tick
         import os
         _pause_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'state', 'pause.flag')
         if os.path.exists(_pause_file):
-            return  # Skip tick se in pausa
+            return  # Orchestratore in pausa - non processa nessun task
+        
+        # next_pending() filtra: status IN ('pending', 'retry')
+        # - 'paused' (pausa utente) NON viene mai preso
+        # - 'thermal_paused' gestito da pause_thermal/resume_thermal
+        # - 'done', 'failed', 'completed' non vengono ripresi
+        # Logica: orchestratore attivo AND task pending/retry = esecuzione
 
         """Singolo tick del loop."""
         # 0. Gatekeeper termico (T3) PRIMA di avviare qualsiasi LLM

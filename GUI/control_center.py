@@ -84,6 +84,21 @@ class CreditsOverlay(QFrame):
         )
         
         lay = QVBoxLayout(self)
+        # Immagine ringraziamenti
+        try:
+            import os
+            from PyQt6.QtGui import QPixmap
+            img_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'IMG', 'documentazione.jpeg')
+            if os.path.exists(img_path):
+                img_label = QLabel()
+                pix = QPixmap(img_path)
+                # Ridimensiona mantenendo aspect ratio
+                pix = pix.scaledToWidth(400, Qt.TransformationMode.SmoothTransformation)
+                img_label.setPixmap(pix)
+                img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                lay.addWidget(img_label)
+        except Exception as e:
+            print(f"Errore caricamento immagine credits: {e}")
         lay.setContentsMargins(30, 24, 30, 24)
         lay.setSpacing(16)
         
@@ -1356,7 +1371,7 @@ class ControlCenter(QMainWindow):
     def _pause_orchestrator(self):
         """Mette in pausa l'orchestratore (crea file state/pause.flag)."""
         try:
-            _log_user_action("Pulsante-in-Alto_DX", "pausa", details="Orchestratore messo in pausa")
+            _log_user_action("Sidebar-Orchestratore", "pausa", details="Pausa orchestratore da sidebar")
             import os, time
             base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             pause_file = os.path.join(base, 'state', 'pause.flag')
@@ -1393,7 +1408,7 @@ class ControlCenter(QMainWindow):
     def _stop_orchestrator(self):
         """Ferma l'orchestratore."""
         try:
-            _log_user_action("Pulsante-in-Alto_DX", "fermato", details="Stop orchestratore richiesto")
+            _log_user_action("Sidebar-Orchestratore", "fermato", details="Stop orchestratore da sidebar")
             from PyQt6.QtWidgets import QMessageBox
             reply = QMessageBox.question(self, "Stop orchestratore",
                 "Fermare definitivamente l'orchestratore?",
@@ -1750,74 +1765,20 @@ class FileTreeDrawer(QFrame):
                 title = t.get("title", t.get("description", "?"))[:50]
                 st = t.get("status", "?")
                 icon = {"done": "✓", "running": "▶", "pending": "○",
-                        "failed": "✗", "queued": "○"}.get(st, "?")
+                        "failed": "✗", "queued": "○",
+                        "paused": "⏸", "thermal_paused": "🌡"}.get(st, "?")
                 item = QListWidgetItem(f"{icon} {title}")
                 item.setData(Qt.ItemDataRole.UserRole, t.get("id", ""))
                 color = {"done": "#16a34a", "running": "#f59e0b",
-                         "pending": "#888", "failed": "#dc2626"}.get(st, "#888")
+                         "pending": "#888", "failed": "#dc2626",
+                         "paused": "#6b7280", "thermal_paused": "#f97316"}.get(st, "#888")
                 item.setForeground(QColor(color))
                 self.task_list.addItem(item)
         except Exception as e:
             print(f"Errore popolamento task_list: {e}")
         lay.addWidget(self.task_list, stretch=1)
         
-        # === Riquadro Pulsanti Orchestratore (Pausa/Stop) ===
-        orch_box = QFrame()
-        orch_box.setObjectName("orch_controls")
-        orch_box.setStyleSheet("""
-            QFrame#orch_controls {
-                background:#f9fafb;
-                border:1px solid #e0e0e0;
-                border-radius:8px;
-                margin:8px 4px;
-            }
-        """)
-        orch_lay = QVBoxLayout(orch_box)
-        orch_lay.setContentsMargins(8, 6, 8, 6)
-        orch_lay.setSpacing(4)
         
-        orch_title = QLabel("🎛 Orchestratore")
-        orch_title.setStyleSheet("font-size:11px; font-weight:bold; color:#374151; padding:0; margin:0;")
-        orch_lay.addWidget(orch_title)
-        
-        orch_btn_row = QHBoxLayout()
-        orch_btn_row.setSpacing(6)
-        
-        self._pause_btn = QPushButton("⏸ Pausa")
-        self._pause_btn.setStyleSheet("""
-            QPushButton {
-                background:#f59e0b; color:white; border:none;
-                padding:8px 12px; border-radius:6px;
-                font-weight:bold; font-size:11px;
-            }
-            QPushButton:hover { background:#d97706; }
-            QPushButton:disabled { background:#d1d5db; }
-        """)
-        self._pause_btn.clicked.connect(self._pause_orchestrator)
-        orch_btn_row.addWidget(self._pause_btn)
-        
-        self._stop_btn = QPushButton("⏹ Stop")
-        self._stop_btn.setStyleSheet("""
-            QPushButton {
-                background:#dc2626; color:white; border:none;
-                padding:8px 12px; border-radius:6px;
-                font-weight:bold; font-size:11px;
-            }
-            QPushButton:hover { background:#b91c1c; }
-            QPushButton:disabled { background:#d1d5db; }
-        """)
-        self._stop_btn.clicked.connect(self._stop_orchestrator)
-        orch_btn_row.addWidget(self._stop_btn)
-        
-        orch_lay.addLayout(orch_btn_row)
-        
-        # Status indicator
-        self._orch_status = QLabel("● Attivo")
-        self._orch_status.setStyleSheet("font-size:10px; color:#16a34a; padding:2px 0 0 0;")
-        orch_lay.addWidget(self._orch_status)
-        
-        lay.addWidget(orch_box)
-
         act = QHBoxLayout()
         act.setContentsMargins(12, 8, 12, 8)
         ref = QPushButton("🔄")
@@ -1964,6 +1925,67 @@ class FileTreeDrawer(QFrame):
                         parent._refresh_task_list()
         except Exception as e:
             print(f"Errore double-click task: {e}")
+
+    def _get_task_status(self, task_id):
+        """Ritorna lo status corrente di un task."""
+        try:
+            import sqlite3, os
+            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            db_path = os.path.join(base, 'tasks', 'queue.db')
+            con = sqlite3.connect(db_path, timeout=5.0)
+            cur = con.cursor()
+            cur.execute("SELECT status FROM tasks WHERE id=?", (task_id,))
+            row = cur.fetchone()
+            con.close()
+            return row[0] if row else None
+        except Exception:
+            return None
+
+    def _pause_task_with_refresh(self, task_id, item):
+        """Mette in pausa un singolo task."""
+        try:
+            _log_user_action("Task-Action", "pausa", task_id=task_id, details="Task messo in pausa dall'utente")
+            ok, msg = _pause_task(task_id)
+            if ok and item:
+                txt = item.text() if hasattr(item, 'text') else ""
+                for prefix in ["⏸ ", "▶ ", "🛑 ", "↻ "]:
+                    if txt.startswith(prefix):
+                        txt = txt[len(prefix):]
+                if " [paused]" in txt: txt = txt.replace(" [paused]", "")
+                if " [restart]" in txt: txt = txt.replace(" [restart]", "")
+                if " [stopped]" in txt: txt = txt.replace(" [stopped]", "")
+                item.setText(f"⏸ {txt} [paused]")
+                item.setStyleSheet("color: #6b7280;")
+                parent = self.parent()
+                while parent and not hasattr(parent, '_refresh_coda_card'):
+                    parent = parent.parent()
+                if parent:
+                    parent._refresh_coda_card()
+        except Exception as e:
+            print(f"Errore pause task: {e}")
+
+    def _resume_task_with_refresh(self, task_id, item):
+        """Riprende un singolo task dalla pausa."""
+        try:
+            _log_user_action("Task-Action", "avvio", task_id=task_id, details="Task riavviato dall'utente")
+            ok, msg = _resume_single_task(task_id)
+            if ok and item:
+                txt = item.text() if hasattr(item, 'text') else ""
+                for prefix in ["⏸ ", "▶ ", "🛑 ", "↻ "]:
+                    if txt.startswith(prefix):
+                        txt = txt[len(prefix):]
+                if " [paused]" in txt: txt = txt.replace(" [paused]", "")
+                if " [restart]" in txt: txt = txt.replace(" [restart]", "")
+                if " [stopped]" in txt: txt = txt.replace(" [stopped]", "")
+                item.setText(f"▶ {txt}")
+                item.setStyleSheet("color: #f59e0b;")
+                parent = self.parent()
+                while parent and not hasattr(parent, '_refresh_coda_card'):
+                    parent = parent.parent()
+                if parent:
+                    parent._refresh_coda_card()
+        except Exception as e:
+            print(f"Errore resume task: {e}")
 
     def _on_task_context_menu(self, pos):
         """Menu contestuale tasto destro su un task."""
@@ -2378,5 +2400,16 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     w = ControlCenter()
+    # Imposta icona finestra
+    import os
+    icon_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'IMG', 'icona.ico')
+    if os.path.exists(icon_path):
+        from PyQt6.QtGui import QIcon
+        w.setWindowIcon(QIcon(icon_path))
+        app.setWindowIcon(QIcon(icon_path))
+        fixes_log = "Icona finestra impostata"
+    else:
+        fixes_log = "Icona non trovata"
+
     w.show()
     sys.exit(app.exec())
