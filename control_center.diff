@@ -1,0 +1,326 @@
+--- GUI/control_center.py.bak	2026-11-01 21:31:16.069930644 +0000
++++ GUI/control_center.py	2026-11-01 21:38:06.489131895 +0000
+@@ -73,7 +73,11 @@
+     def __init__(self, parent=None):
+         super().__init__(parent)
+         self.setObjectName("credits_overlay")
+-        self.setFixedSize(620, 520)
++        # Overlay più grande e con scroll area: prima era 620x520 fisso, e le
++        # card dei contributori venivano compresse a 0px dall'immagine in
++        # testa, rendendo invisibili i nomi (Paolo Lo Bello, GLM 5.2, Qwen,
++        # DeepSeek). Ora il contenuto è scrollabile e ogni card ha min-height.
++        self.setFixedSize(680, 800)
+         self.setStyleSheet(
+             "QFrame#credits_overlay { "
+             "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+@@ -81,9 +85,29 @@
+             "  border: 2px solid #4ade80; "
+             "  border-radius: 16px; "
+             "}"
++            "QScrollArea { background: transparent; border: none; }"
++            "QScrollBar:vertical { background: #1e1e2e; width: 10px; }"
++            "QScrollBar::handle:vertical { background: #4ade80; border-radius: 5px; min-height: 30px; }"
++            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
+         )
+-        
+-        lay = QVBoxLayout(self)
++
++        # Layout esterno: scroll area (stretch) + pulsante chiudi fisso in basso
++        outer = QVBoxLayout(self)
++        outer.setContentsMargins(20, 14, 20, 14)
++        outer.setSpacing(8)
++
++        # ── Scroll area con tutto il contenuto ─────────────────────────
++        scroll = QScrollArea()
++        scroll.setWidgetResizable(True)
++        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
++        scroll.setFrameShape(QFrame.Shape.NoFrame)
++
++        content = QWidget()
++        content.setStyleSheet("background: transparent;")
++        lay = QVBoxLayout(content)
++        lay.setContentsMargins(10, 4, 10, 4)
++        lay.setSpacing(6)
++
+         # Immagine ringraziamenti
+         try:
+             import os
+@@ -92,47 +116,48 @@
+             if os.path.exists(img_path):
+                 img_label = QLabel()
+                 pix = QPixmap(img_path)
+-                # Ridimensiona mantenendo aspect ratio
+-                pix = pix.scaledToWidth(400, Qt.TransformationMode.SmoothTransformation)
++                # Ridimensiona mantenendo aspect ratio — più piccola per far
++                # spazio ai nomi dei contributori sotto (tutti e 4 visibili).
++                pix = pix.scaledToWidth(220, Qt.TransformationMode.SmoothTransformation)
+                 img_label.setPixmap(pix)
+                 img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
++                img_label.setFixedHeight(int(pix.height()))
++                img_label.setSizePolicy(
++                    img_label.sizePolicy().horizontalPolicy(),
++                    QSizePolicy.Policy.Fixed,
++                )
+                 lay.addWidget(img_label)
+         except Exception as e:
+             print(f"Errore caricamento immagine credits: {e}")
+-        lay.setContentsMargins(30, 24, 30, 24)
+-        lay.setSpacing(16)
+-        
+-        # Header con ape grande
+-        bee_header = QLabel("🐝")
+-        bee_header.setAlignment(Qt.AlignmentFlag.AlignCenter)
+-        bee_header.setStyleSheet("font-size: 64px;")
+-        lay.addWidget(bee_header)
+-        
+-        # Titolo
++
++        # Titolo (l'ape è già nel pulsante della toolbar, evitiamo duplicato)
+         title = QLabel("<b>BYTE-SWARMY</b>")
+         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+         title.setStyleSheet(
+-            "font-size: 28px; color: #4ade80; font-weight: bold;"
++            "font-size: 22px; color: #4ade80; font-weight: bold;"
+         )
++        title.setFixedHeight(28)
+         lay.addWidget(title)
+-        
++
+         subtitle = QLabel("Autonomous Multi-Agent System")
+         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+-        subtitle.setStyleSheet("font-size: 13px; color: #a0a0b0; font-style: italic;")
++        subtitle.setStyleSheet("font-size: 12px; color: #a0a0b0; font-style: italic;")
++        subtitle.setFixedHeight(16)
+         lay.addWidget(subtitle)
+-        
++
+         # Separatore
+         sep = QFrame()
+         sep.setFixedHeight(1)
+         sep.setStyleSheet("background: #4ade80;")
+         lay.addWidget(sep)
+-        
++
+         # Sezione credits
+         credits_title = QLabel("✨ Ringraziamenti ✨")
+         credits_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+-        credits_title.setStyleSheet("font-size: 16px; color: #f9e2af; font-weight: bold;")
++        credits_title.setStyleSheet("font-size: 15px; color: #f9e2af; font-weight: bold;")
++        credits_title.setFixedHeight(22)
+         lay.addWidget(credits_title)
+-        
++
+         # Lista contributori
+         contributors = [
+             ("👤", "Paolo Lo Bello", "Ideatore del progetto", "#4ade80"),
+@@ -140,47 +165,98 @@
+             ("🦙", "Qwen", "Miglioramento e ottimizzazione interfaccia grafica", "#f9e2af"),
+             ("🔍", "DeepSeek", "Analisi della sicurezza", "#f38ba8"),
+         ]
+-        
++
+         for icon, name, role, color in contributors:
+             card = QFrame()
+             card.setStyleSheet(
+                 f"QFrame {{ background: #0f0f19; border-left: 3px solid {color}; "
+-                f"border-radius: 6px; padding: 8px 12px; }}"
++                f"border-radius: 6px; padding: 4px 10px; }}"
+             )
++            # Altezza minima garantita: senza questa, il QVBoxLayout comprimeva
++            # le card a 0px quando la finestra era troppo piccola, e i nomi
++            # dei contributori (Paolo Lo Bello, GLM 5.2, Qwen, DeepSeek)
++            # sparivano completamente.
++            card.setMinimumHeight(48)
+             card_lay = QHBoxLayout(card)
+-            card_lay.setContentsMargins(10, 8, 10, 8)
+-            card_lay.setSpacing(12)
+-            
++            card_lay.setContentsMargins(8, 4, 8, 4)
++            card_lay.setSpacing(10)
++
+             icon_lbl = QLabel(icon)
+-            icon_lbl.setStyleSheet(f"font-size: 22px;")
+-            icon_lbl.setFixedWidth(32)
++            icon_lbl.setStyleSheet(f"font-size: 20px;")
++            icon_lbl.setFixedWidth(28)
++            icon_lbl.setMinimumHeight(20)
+             card_lay.addWidget(icon_lbl)
+-            
++
+             info = QWidget()
+             info_lay = QVBoxLayout(info)
+             info_lay.setContentsMargins(0, 0, 0, 0)
+-            info_lay.setSpacing(2)
+-            
++            info_lay.setSpacing(1)
++
+             name_lbl = QLabel(f"<b>{name}</b>")
+-            name_lbl.setStyleSheet(f"font-size: 14px; color: {color};")
++            name_lbl.setStyleSheet(f"font-size: 13px; color: {color};")
+             info_lay.addWidget(name_lbl)
+-            
++
+             role_lbl = QLabel(role)
+-            role_lbl.setStyleSheet("font-size: 11px; color: #c0c0d0;")
++            role_lbl.setStyleSheet("font-size: 10px; color: #c0c0d0;")
++            role_lbl.setWordWrap(True)
+             info_lay.addWidget(role_lbl)
+-            
++
+             card_lay.addWidget(info, stretch=1)
+             lay.addWidget(card)
+-        
++
++        # ── Tecnologie & Progetti Open Source ──────────────────────────
++        # (coerente con la sezione "Ringraziamenti" del README.md)
++        tech_title = QLabel("🧩 Tecnologie & Progetti Open Source")
++        tech_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
++        tech_title.setStyleSheet(
++            "font-size: 13px; color: #f9e2af; font-weight: bold; margin-top: 6px;"
++        )
++        tech_title.setFixedHeight(20)
++        lay.addWidget(tech_title)
++
++        tech_projects = [
++            ("🦙", "Ollama",     "Esecuzione locale dei modelli LLM"),
++            ("🖼️", "PyQt6",      "Framework per l'interfaccia grafica"),
++            ("🔌", "MCP",        "Model Context Protocol — distribuzione task"),
++            ("📦", "bubblewrap", "Sandbox filesystem isolato"),
++            ("🔎", "rapidfuzz",  "Fuzzy matching per intent e comandi"),
++        ]
++        for icon, name, role in tech_projects:
++            chip = QFrame()
++            chip.setStyleSheet(
++                "QFrame { background: #181826; border: 1px solid #2e2e44; "
++                "border-radius: 6px; padding: 2px 8px; }"
++            )
++            chip.setMinimumHeight(32)
++            chip_lay = QHBoxLayout(chip)
++            chip_lay.setContentsMargins(6, 2, 6, 2)
++            chip_lay.setSpacing(6)
++            ic = QLabel(icon)
++            ic.setStyleSheet("font-size: 14px;")
++            ic.setFixedWidth(18)
++            chip_lay.addWidget(ic)
++            nm = QLabel(f"<b>{name}</b>")
++            nm.setStyleSheet("font-size: 11px; color: #cdd6f4;")
++            nm.setMinimumWidth(80)
++            chip_lay.addWidget(nm)
++            rl = QLabel(role)
++            rl.setStyleSheet("font-size: 9px; color: #8888a0;")
++            chip_lay.addWidget(rl, stretch=1)
++            lay.addWidget(chip)
++
+         # Messaggio finale
+         final_msg = QLabel("Grazie a tutti per aver contribuito a questo progetto 🐝")
+         final_msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
+         final_msg.setStyleSheet("font-size: 12px; color: #8888a0; font-style: italic; margin-top: 8px;")
++        final_msg.setWordWrap(True)
+         lay.addWidget(final_msg)
+-        
++
+         lay.addStretch()
+-        
+-        # Pulsante chiudi
++
++        scroll.setWidget(content)
++        outer.addWidget(scroll, stretch=1)
++
++        # Pulsante chiudi (sempre visibile in basso, fuori dallo scroll)
+         close_btn = QPushButton("✕ Chiudi")
+         close_btn.setObjectName("credits_close_btn")
+         close_btn.setStyleSheet(
+@@ -192,6 +268,7 @@
+             "QPushButton#credits_close_btn:hover { background: #6ee7a0; }"
+         )
+         close_btn.clicked.connect(self.closed.emit)
++        outer.addWidget(close_btn)
+     
+     def showEvent(self, event):
+         """Animazione fade-in all'apertura."""
+@@ -1451,7 +1528,18 @@
+         bee_btn.setToolTip("Credits & Ringraziamenti")
+         bee_btn.clicked.connect(self._show_credits)
+         lay.addWidget(bee_btn)
+-        
++
++        # Nome del progetto accanto al logo ape (richiesto dall'utente)
++        brand_lbl = QLabel("<b>Byte SwarmY</b>")
++        brand_lbl.setObjectName("brand_label")
++        brand_lbl.setStyleSheet(
++            "QLabel#brand_label {"
++            "  color:#16a34a; font-size:14px; font-weight:bold;"
++            "  padding:0 6px 0 4px;"
++            "}"
++        )
++        lay.addWidget(brand_lbl)
++
+         # Aggiungo un nuovo bottone per il drawer (file tree)
+         files_btn = QPushButton("📁")
+         files_btn.setFixedSize(32, 32)
+@@ -1699,12 +1787,64 @@
+ 
+ 
+ class ProjectTabBar(QTabBar):
++    """Barra dei progetti aperti in alto (quella arancione/gialla).
++
++    Prima era vuota: nessun tab veniva aggiunto e l'utente vedeva solo il
++    pulsante della cartella accanto. Ora carica automaticamente:
++      • il progetto corrente (byte-swarmy);
++      • ogni sottocartella di ``project/`` (i task prodotti dai worker).
++    """
++
+     def __init__(self):
+         super().__init__()
+         self.setDrawBase(False)
+-        self.setTabsClosable(False)
++        self.setTabsClosable(True)
+         self.setMovable(True)
+         self.setExpanding(False)
++        self._load_open_projects()
++
++    def _load_open_projects(self):
++        """Popola i tab con i progetti aperti (cartelle sotto project/)."""
++        import os
++        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
++        projects_dir = os.path.join(base, "project")
++
++        # Tab 1 — il progetto corrente (sempre presente)
++        self.addTab("🐝 byte-swarmy")
++
++        # Tab aggiuntivi — una tab per ogni sottocartella di project/
++        if os.path.isdir(projects_dir):
++            try:
++                entries = sorted(
++                    e for e in os.listdir(projects_dir)
++                    if os.path.isdir(os.path.join(projects_dir, e))
++                    and not e.startswith(".")
++                )
++            except OSError:
++                entries = []
++            for name in entries:
++                # Evita duplicati
++                if self._find_tab(name) < 0:
++                    self.addTab("📁 " + name)
++
++    def _find_tab(self, name: str) -> int:
++        for i in range(self.count()):
++            if self.tabText(i) == name or self.tabText(i).endswith(" " + name):
++                return i
++        return -1
++
++    def refresh(self):
++        """Ricarica i progetti aperti (utile dopo aver creato/eliminato task)."""
++        # Rimuovi tutti i tab e ricarica
++        while self.count() > 0:
++            self.removeTab(0)
++        self._load_open_projects()
++
++    def add_project(self, name: str):
++        """Aggiunge un progetto ai tab (se non già presente)."""
++        if self._find_tab(name) < 0:
++            self.addTab("📁 " + name)
++            self.setCurrentIndex(self.count() - 1)
+ 
+ 
+ class FileTreeDrawer(QFrame):
