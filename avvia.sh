@@ -194,7 +194,7 @@ case "${1:-all}" in
         show_banner
         echo
         echo "🎨 Avvio solo GUI..."
-        exec python -m GUI.main_window
+        exec python -m GUI.control_center
         ;;
     --orch)
         show_banner
@@ -216,7 +216,7 @@ case "${1:-all}" in
         echo "   (chiudi la GUI con X — l'orchestratore continua in background)"
         echo
         # Avvia GUI in foreground
-        python -m GUI.main_window
+        python -m GUI.control_center
         # Quando la GUI chiude
         echo
         echo "GUI chiusa. Orchestratore ancora attivo in background."
