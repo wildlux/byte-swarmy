@@ -192,7 +192,6 @@ class CreditsOverlay(QFrame):
             "QPushButton#credits_close_btn:hover { background: #6ee7a0; }"
         )
         close_btn.clicked.connect(self.closed.emit)
-        lay.addWidget(close_btn)
     
     def showEvent(self, event):
         """Animazione fade-in all'apertura."""
@@ -1748,9 +1747,29 @@ class FileTreeDrawer(QFrame):
         sep.setStyleSheet("background:#e0e0e0; margin:8px 12px;")
         lay.addWidget(sep)
 
-        task_header = QLabel("<b>📋 TASK</b>")
-        task_header.setStyleSheet("padding:4px 16px; color:#2563eb; font-size:12px;")
-        lay.addWidget(task_header)
+        # Layout header TASK con pulsante refresh
+        task_header_row = QHBoxLayout()
+        task_header_row.setContentsMargins(0, 0, 0, 0)
+        task_header_row.setSpacing(4)
+        task_header_lbl = QLabel("<b>📋 TASK</b>")
+        task_header_lbl.setStyleSheet("font-size:11px; font-weight:bold; color:#374151; padding:0; margin:0;")
+        task_header_row.addWidget(task_header_lbl)
+        task_header_row.addStretch()
+        
+        # Pulsante riavvio forzato (refresh lista)
+        task_refresh_btn = QPushButton("🔄")
+        task_refresh_btn.setFixedSize(20, 20)
+        task_refresh_btn.setToolTip("Aggiorna lista task")
+        task_refresh_btn.setStyleSheet("""
+            QPushButton {
+                background:transparent; border:none;
+                font-size:13px; padding:0;
+            }
+            QPushButton:hover { background:#e5e7eb; border-radius:3px; }
+        """)
+        task_refresh_btn.clicked.connect(self._force_refresh_tasks)
+        task_header_row.addWidget(task_refresh_btn)
+        lay.addLayout(task_header_row)
 
         self.task_list = QListWidget()
         self.task_list.setObjectName("task_list")
@@ -1785,10 +1804,6 @@ class FileTreeDrawer(QFrame):
         ref.setFixedWidth(36)
         ref.clicked.connect(lambda: self.model.setRootPath("./"))
         act.addWidget(ref)
-        close = QPushButton("✕ Chiudi")
-        close.setStyleSheet("color:#dc2626;")
-        close.clicked.connect(self.toggle)
-        act.addWidget(close, stretch=1)
         lay.addLayout(act)
 
         self._anim = QPropertyAnimation(self, b"maximumWidth")
@@ -1914,7 +1929,7 @@ class FileTreeDrawer(QFrame):
                         txt = txt[:-10]
                     item.setText(f"↻ {txt} [restart]")
                 if hasattr(item, 'setStyleSheet'):
-                    item.setStyleSheet("color: #16a34a;")
+                    item.setForeground(QColor("#16a34a"))
                 # Refresh via ControlCenter
                 parent = self.parent()
                 while parent and not hasattr(parent, '_refresh_coda_card'):
@@ -1925,6 +1940,72 @@ class FileTreeDrawer(QFrame):
                         parent._refresh_task_list()
         except Exception as e:
             print(f"Errore double-click task: {e}")
+
+    def _force_refresh_tasks(self):
+        """Forza il refresh della lista task dal DB."""
+        try:
+            _log_user_action("Sidebar-Refresh", "refresh", details="Refresh manuale lista task")
+            if hasattr(self, 'task_list'):
+                self.task_list.clear()
+                try:
+                    from GUI import gui_backend as gb
+                    from PyQt6.QtGui import QColor
+                    tasks = gb.get_tasks()
+                    for t in tasks:
+                        title = t.get("title", t.get("description", "?"))[:50]
+                        st = t.get("status", "?")
+                        icon = {"done": "✓", "running": "▶", "pending": "○",
+                                "failed": "✗", "queued": "○",
+                                "paused": "⏸", "thermal_paused": "🌡"}.get(st, "?")
+                        item = QListWidgetItem(f"{icon} {title}")
+                        item.setData(Qt.ItemDataRole.UserRole, t.get("id", ""))
+                        color = {"done": "#16a34a", "running": "#f59e0b",
+                                 "pending": "#888", "failed": "#dc2626",
+                                 "paused": "#6b7280", "thermal_paused": "#f97316"}.get(st, "#888")
+                        item.setForeground(QColor(color))
+                        self.task_list.addItem(item)
+                except Exception as e:
+                    print(f"Errore refresh task: {e}")
+            parent = self.parent()
+            while parent and not hasattr(parent, '_refresh_coda_card'):
+                parent = parent.parent()
+            if parent:
+                parent._refresh_coda_card()
+        except Exception as e:
+            print(f"Errore force refresh: {e}")
+
+    def _force_refresh_tasks(self):
+        """Forza il refresh della lista task dal DB."""
+        try:
+            _log_user_action("Sidebar-Refresh", "refresh", details="Refresh manuale lista task")
+            if hasattr(self, 'task_list'):
+                self.task_list.clear()
+                try:
+                    from GUI import gui_backend as gb
+                    from PyQt6.QtGui import QColor
+                    tasks = gb.get_tasks()
+                    for t in tasks:
+                        title = t.get("title", t.get("description", "?"))[:50]
+                        st = t.get("status", "?")
+                        icon = {"done": "✓", "running": "▶", "pending": "○",
+                                "failed": "✗", "queued": "○",
+                                "paused": "⏸", "thermal_paused": "🌡"}.get(st, "?")
+                        item = QListWidgetItem(f"{icon} {title}")
+                        item.setData(Qt.ItemDataRole.UserRole, t.get("id", ""))
+                        color = {"done": "#16a34a", "running": "#f59e0b",
+                                 "pending": "#888", "failed": "#dc2626",
+                                 "paused": "#6b7280", "thermal_paused": "#f97316"}.get(st, "#888")
+                        item.setForeground(QColor(color))
+                        self.task_list.addItem(item)
+                except Exception as e:
+                    print(f"Errore refresh task: {e}")
+            parent = self.parent()
+            while parent and not hasattr(parent, '_refresh_coda_card'):
+                parent = parent.parent()
+            if parent:
+                parent._refresh_coda_card()
+        except Exception as e:
+            print(f"Errore force refresh: {e}")
 
     def _get_task_status(self, task_id):
         """Ritorna lo status corrente di un task."""
@@ -1955,7 +2036,7 @@ class FileTreeDrawer(QFrame):
                 if " [restart]" in txt: txt = txt.replace(" [restart]", "")
                 if " [stopped]" in txt: txt = txt.replace(" [stopped]", "")
                 item.setText(f"⏸ {txt} [paused]")
-                item.setStyleSheet("color: #6b7280;")
+                item.setForeground(QColor("#6b7280"))
                 parent = self.parent()
                 while parent and not hasattr(parent, '_refresh_coda_card'):
                     parent = parent.parent()
@@ -1978,7 +2059,7 @@ class FileTreeDrawer(QFrame):
                 if " [restart]" in txt: txt = txt.replace(" [restart]", "")
                 if " [stopped]" in txt: txt = txt.replace(" [stopped]", "")
                 item.setText(f"▶ {txt}")
-                item.setStyleSheet("color: #f59e0b;")
+                item.setForeground(QColor("#f59e0b"))
                 parent = self.parent()
                 while parent and not hasattr(parent, '_refresh_coda_card'):
                     parent = parent.parent()
@@ -2068,7 +2149,7 @@ class FileTreeDrawer(QFrame):
                     if txt.endswith(" [restart]"):
                         txt = txt[:-10]
                     item.setText(f"🛑 {txt} [stopped]")
-                    item.setStyleSheet("color: #dc2626;")
+                    item.setForeground(QColor("#dc2626"))
                 # Refresh via ControlCenter
                 parent = self.parent()
                 while parent and not hasattr(parent, '_refresh_coda_card'):
@@ -2176,7 +2257,7 @@ class FileTreeDrawer(QFrame):
                     if txt.endswith(" [restart]"):
                         txt = txt[:-10]
                     item.setText(f"↻ {txt} [restart]")
-                    item.setStyleSheet("color: #16a34a;")
+                    item.setForeground(QColor("#16a34a"))
                 parent = self.parent()
                 while parent and not hasattr(parent, '_refresh_coda_card'):
                     parent = parent.parent()
