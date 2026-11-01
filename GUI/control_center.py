@@ -1197,6 +1197,28 @@ class ConfigPanel(QFrame):
 
 
 
+
+
+def _restart_task(task_id):
+    """Riavvia un task esistente (cambia status da done/failed a pending)."""
+    import sqlite3, time, os
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    db_path = os.path.join(base, 'tasks', 'queue.db')
+    try:
+        con = sqlite3.connect(db_path)
+        cur = con.cursor()
+        cur.execute(
+            "UPDATE tasks SET status='pending', attempts=0, last_error=NULL, "
+            "started_at=NULL, completed_at=NULL WHERE id=?",
+            (task_id,)
+        )
+        con.commit()
+        con.close()
+        return True, f"Task {task_id[:12]} rimesso in coda"
+    except Exception as e:
+        return False, f"Errore: {e}"
+
+
 class ControlCenter(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -1237,6 +1259,66 @@ class ControlCenter(QMainWindow):
         self._editor_overlay = None
         self._editor_docked = None
         self._credits_overlay = None
+    def _pause_orchestrator(self):
+        """Mette in pausa l'orchestratore (crea file state/pause.flag)."""
+        try:
+            import os, time
+            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            pause_file = os.path.join(base, 'state', 'pause.flag')
+            with open(pause_file, 'w') as f:
+                f.write(str(time.time()))
+            if hasattr(self, '_pause_btn'):
+                self._pause_btn.setText("▶ Riprendi")
+                self._pause_btn.setStyleSheet("QPushButton { background:#16a34a; color:white; border:none; padding:6px 12px; border-radius:6px; font-weight:bold; }")
+                try: self._pause_btn.clicked.disconnect()
+                except Exception: pass
+                self._pause_btn.clicked.connect(self._resume_orchestrator)
+            self.statusBar().showMessage("⏸ Orchestratore in pausa", 3000)
+        except Exception as e:
+            print(f"Errore pausa: {e}")
+
+    def _resume_orchestrator(self):
+        """Riprende l'orchestratore."""
+        try:
+            import os
+            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            pause_file = os.path.join(base, 'state', 'pause.flag')
+            if os.path.exists(pause_file):
+                os.remove(pause_file)
+            if hasattr(self, '_pause_btn'):
+                self._pause_btn.setText("⏸ Pausa")
+                self._pause_btn.setStyleSheet("QPushButton { background:#f59e0b; color:white; border:none; padding:6px 12px; border-radius:6px; font-weight:bold; }")
+                try: self._pause_btn.clicked.disconnect()
+                except Exception: pass
+                self._pause_btn.clicked.connect(self._pause_orchestrator)
+            self.statusBar().showMessage("▶ Orchestratore ripreso", 3000)
+        except Exception as e:
+            print(f"Errore resume: {e}")
+
+    def _stop_orchestrator(self):
+        """Ferma l'orchestratore."""
+        try:
+            from PyQt6.QtWidgets import QMessageBox
+            reply = QMessageBox.question(self, "Stop orchestratore",
+                "Fermare definitivamente l'orchestratore?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+            import os, signal
+            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            pid_file = os.path.join(base, 'state', 'orchestrator.pid')
+            if os.path.exists(pid_file):
+                pid = int(open(pid_file).read().strip())
+                try:
+                    os.kill(pid, signal.SIGTERM)
+                    self.statusBar().showMessage(f"⏹ Orchestratore fermato", 5000)
+                    if hasattr(self, '_pause_btn'): self._pause_btn.setEnabled(False)
+                    if hasattr(self, '_stop_btn'): self._stop_btn.setEnabled(False)
+                except ProcessLookupError:
+                    self.statusBar().showMessage("Processo già terminato", 3000)
+        except Exception as e:
+            print(f"Errore stop: {e}")
+
 
     def _build_toolbar(self):
         bar = QFrame()
@@ -1287,6 +1369,20 @@ class ControlCenter(QMainWindow):
 
         return bar
     
+        # Pulsanti Pausa/Stop orchestratore
+        _spacer = QWidget()
+        _spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        toolbar.addWidget(_spacer)
+        self._pause_btn = QPushButton("⏸ Pausa")
+        self._pause_btn.setStyleSheet("QPushButton { background:#f59e0b; color:white; border:none; padding:6px 12px; border-radius:6px; font-weight:bold; } QPushButton:hover { background:#d97706; }")
+        self._pause_btn.clicked.connect(self._pause_orchestrator)
+        toolbar.addWidget(self._pause_btn)
+        self._stop_btn = QPushButton("⏹ Stop")
+        self._stop_btn.setStyleSheet("QPushButton { background:#dc2626; color:white; border:none; padding:6px 12px; border-radius:6px; font-weight:bold; } QPushButton:hover { background:#b91c1c; }")
+        self._stop_btn.clicked.connect(self._stop_orchestrator)
+        toolbar.addWidget(self._stop_btn)
+
+
     def _show_credits(self):
         """Mostra l'overlay dei ringraziamenti."""
         if self._credits_overlay:

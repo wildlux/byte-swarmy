@@ -1236,6 +1236,12 @@ class Orchestrator:
         return True
 
     def _tick(self) -> None:
+        # Check pause.flag (GUI pausa)
+        import os
+        _pause_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'state', 'pause.flag')
+        if os.path.exists(_pause_file):
+            return  # Skip tick se in pausa
+
         """Singolo tick del loop."""
         # 0. Gatekeeper termico (T3) PRIMA di avviare qualsiasi LLM
         if not self._thermal_gate_pass():
