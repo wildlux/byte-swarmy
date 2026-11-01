@@ -27,16 +27,21 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import (
     QColor, QCursor, QFont, QIcon, QPixmap, QPalette, QAction,
-    QBrush, QPainter, QPen
+    QBrush, QPainter, QPen, QDesktopServices
 )
 from PyQt6.QtCore import (
-    Qt, QPropertyAnimation, QEasingCurve, pyqtSignal, QDir, QTimer, 
+    Qt, QPropertyAnimation, QEasingCurve, pyqtSignal, QDir, QTimer,
+    QUrl,
 )
 
 from GUI.gui_backend import (
     get_cpu_temp, get_gpu_temp, get_metrics, get_tasks, get_logs,
     add_task_to_db
 )
+from GUI import settings_store
+from GUI.settings_panel import SettingsPanel
+from GUI.actors_panel import ActorsPanel
+from GUI.task_scheduler_panel import TaskSchedulerPanel
 
 # QFileSystemModel fallback (posizione varia tra versioni PyQt6)
 try:
@@ -78,6 +83,19 @@ class CreditsOverlay(QFrame):
         # Prima era 620x520 fisso e le card venivano compresse a 0px
         # (i nomi di Paolo Lo Bello, GLM 5.2, Qwen, DeepSeek sparivano).
         self.setFixedSize(820, 620)
+        # Forza il tema scuro: anche se l'app principale è in tema chiaro,
+        # l'overlay dei credits resta scuro (richiesta utente).
+        # setAttribute SheetStile eredita dal parent solo se non si
+        # setta uno stylesheet esplicito — lo setto su tutto il frame.
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setAutoFillBackground(True)
+        # Palette scura come fallback
+        pal = self.palette()
+        pal.setColor(QPalette.ColorRole.Window, QColor("#1e1e2e"))
+        pal.setColor(QPalette.ColorRole.Base, QColor("#1e1e2e"))
+        pal.setColor(QPalette.ColorRole.Text, QColor("#cdd6f4"))
+        pal.setColor(QPalette.ColorRole.WindowText, QColor("#cdd6f4"))
+        self.setPalette(pal)
         self.setStyleSheet(
             "QFrame#credits_overlay { "
             "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
@@ -85,10 +103,12 @@ class CreditsOverlay(QFrame):
             "  border: 2px solid #4ade80; "
             "  border-radius: 16px; "
             "}"
+            "QLabel { color: #cdd6f4; background: transparent; }"
             "QScrollArea { background: transparent; border: none; }"
             "QScrollBar:vertical { background: #1e1e2e; width: 10px; }"
             "QScrollBar::handle:vertical { background: #4ade80; border-radius: 5px; min-height: 30px; }"
             "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
+            "QPushButton { color: #cdd6f4; }"
         )
 
         # Layout esterno: scroll area (stretch) + pulsante chiudi fisso in basso
@@ -296,6 +316,73 @@ class CreditsOverlay(QFrame):
         scroll.setWidget(content)
         outer.addWidget(scroll, stretch=1)
 
+        # ── Footer fisso (sempre visibile, fuori dallo scroll) ──────────
+        # Contiene: link GitHub + link PayPal + pulsante Chiudi
+        footer = QVBoxLayout()
+        footer.setSpacing(8)
+        footer.setContentsMargins(0, 4, 0, 0)
+
+        # ── Link: GitHub + PayPal (supporta il progetto) ───────────────
+        # Riga con due pulsanti affiancati per il repo GitHub e le donazioni
+        # PayPal. Click → apre il browser di sistema con QDesktopServices.
+        links_row = QHBoxLayout()
+        links_row.setSpacing(10)
+        links_row.setContentsMargins(0, 0, 0, 0)
+        links_row.addStretch()
+
+        # Pulsante GitHub (link al repository)
+        github_btn = QPushButton("🐙 GitHub: byte-swarmy")
+        github_btn.setObjectName("credits_link_github")
+        github_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        github_btn.setToolTip("Apri https://github.com/wildlux/byte-swarmy nel browser")
+        github_btn.setStyleSheet(
+            "QPushButton#credits_link_github {"
+            "  background: #24292e; color: #ffffff;"
+            "  border: 1px solid #444c56; border-radius: 6px;"
+            "  padding: 8px 14px; font-size: 11px; font-weight: bold;"
+            "}"
+            "QPushButton#credits_link_github:hover {"
+            "  background: #2d333b; border-color: #58a6ff;"
+            "}"
+        )
+        github_btn.clicked.connect(
+            lambda: QDesktopServices.openUrl(
+                QUrl("https://github.com/wildlux/byte-swarmy")
+            )
+        )
+        links_row.addWidget(github_btn)
+
+        # Pulsante PayPal (donazioni — supporta il software)
+        paypal_btn = QPushButton("💛 Supporta con PayPal")
+        paypal_btn.setObjectName("credits_link_paypal")
+        paypal_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        paypal_btn.setToolTip(
+            "Apri la pagina PayPal per donare e supportare lo sviluppo"
+        )
+        paypal_btn.setStyleSheet(
+            "QPushButton#credits_link_paypal {"
+            "  background: #ffc439; color: #003087;"
+            "  border: 1px solid #003087; border-radius: 6px;"
+            "  padding: 8px 14px; font-size: 11px; font-weight: bold;"
+            "}"
+            "QPushButton#credits_link_paypal:hover {"
+            "  background: #ffb422; border-color: #001f5f;"
+            "}"
+        )
+        paypal_btn.clicked.connect(
+            lambda: QDesktopServices.openUrl(
+                QUrl(
+                    "https://www.paypal.com/cgi-bin/webscr?"
+                    "cmd=_donations&business=wildlux%40gmail.com"
+                    "&item_name=Prismalux&currency_code=EUR&source=url"
+                )
+            )
+        )
+        links_row.addWidget(paypal_btn)
+
+        links_row.addStretch()
+        footer.addLayout(links_row)
+
         # Pulsante chiudi (sempre visibile in basso, fuori dallo scroll)
         close_btn = QPushButton("✕ Chiudi")
         close_btn.setObjectName("credits_close_btn")
@@ -308,7 +395,9 @@ class CreditsOverlay(QFrame):
             "QPushButton#credits_close_btn:hover { background: #6ee7a0; }"
         )
         close_btn.clicked.connect(self.closed.emit)
-        outer.addWidget(close_btn)
+        footer.addWidget(close_btn)
+
+        outer.addLayout(footer)
     
     def showEvent(self, event):
         """Animazione fade-in all'apertura."""
@@ -418,8 +507,107 @@ class DevicePanel(QFrame):
             self.git_btn.setToolTip(f"Salva su {', '.join(names)}")
     
     def _do_git_save(self):
-        names = [r[0] for r in self.git_remotes]
-        print(f"[GIT] Salvataggio su: {', '.join(names)}")
+        """Salva (push) su tutti i remote Git configurati.
+
+        Implementazione reale:
+          1. legge i remote salvati in CONFIG/settings.json (SettingsPanel)
+          2. per ogni remote, inietta il token nell'URL (https://oauth2:TOKEN@...)
+          3. fa `git add -A` + `git commit -m "Auto-sync ..."` + `git push REMOTE BRANCH`
+          4. logga i risultati su stdout
+        Se non ci sono remote configurati nel settings store, usa i remote
+        git locali (rilevati con `git remote -v`) come fallback.
+        """
+        import time
+        from GUI import settings_store as ss
+
+        # 1) Leggi i remote configurati dall'utente nel SettingsPanel
+        configured = ss.get_git_remotes()
+        # 2) Se vuoti, fallback ai remote git locali (vecchio comportamento)
+        if not configured:
+            names = [r[0] for r in self.git_remotes]
+            print(f"[GIT] Nessun remote configurato in settings. Uso i remote locali: {', '.join(names)}")
+            for rtype, name in self.git_remotes:
+                self._git_push_one(name, None, branch=None)
+            return
+
+        # 3) Push su ogni remote configurato
+        print(f"[GIT] Salvataggio su {len(configured)} remote configurati:")
+        for r in configured:
+            name = r.get("name", "?")
+            url = r.get("url", "")
+            token = r.get("token", "")
+            print(f"  • {name} ({r.get('type', 'git')}): {url}")
+            self._git_push_one(name, url, token=token)
+
+    def _git_push_one(self, remote_name: str, url: str | None, token: str = "", branch: str | None = None):
+        """Esegue git add + commit + push su un singolo remote.
+
+        Se ``url`` è None, usa il remote locale già configurato in .git/config.
+        Se ``token`` è presente, lo inietta nell'URL per il push (https only).
+        """
+        import os, subprocess, time
+
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        ts = time.strftime("%Y-%m-%d %H:%M:%S")
+        commit_msg = f"Auto-sync {ts}"
+
+        try:
+            # 1) git add -A
+            r_add = subprocess.run(
+                ["git", "add", "-A"],
+                cwd=base_dir, capture_output=True, text=True, timeout=30,
+            )
+            if r_add.returncode != 0:
+                print(f"[GIT:{remote_name}] git add fallito: {r_add.stderr.strip()}")
+                # continuiamo comunque al commit/push
+
+            # 2) git commit -m "Auto-sync ..." (ok anche se nothing to commit)
+            r_commit = subprocess.run(
+                ["git", "commit", "-m", commit_msg],
+                cwd=base_dir, capture_output=True, text=True, timeout=30,
+            )
+            if r_commit.returncode != 0 and "nothing to commit" not in r_commit.stdout.lower():
+                print(f"[GIT:{remote_name}] commit: {r_commit.stdout.strip() or r_commit.stderr.strip()}")
+
+            # 3) Determina branch corrente (default main)
+            if branch is None:
+                r_branch = subprocess.run(
+                    ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                    cwd=base_dir, capture_output=True, text=True, timeout=5,
+                )
+                branch = r_branch.stdout.strip() or "main"
+
+            # 4) Se url + token forniti, inietta il token per il push
+            push_url = None
+            if url and token and url.startswith("https://"):
+                push_url = url.replace("https://", f"https://oauth2:{token}@")
+            elif url and token and url.startswith("http://"):
+                push_url = url.replace("http://", f"http://oauth2:{token}@")
+
+            if push_url:
+                # Push diretto usando URL con token
+                r_push = subprocess.run(
+                    ["git", "push", push_url, branch],
+                    cwd=base_dir, capture_output=True, text=True, timeout=120,
+                )
+            else:
+                # Push usando il remote locale già configurato
+                r_push = subprocess.run(
+                    ["git", "push", remote_name, branch],
+                    cwd=base_dir, capture_output=True, text=True, timeout=120,
+                )
+
+            if r_push.returncode == 0:
+                print(f"[GIT:{remote_name}] ✓ push OK ({branch})")
+            else:
+                err = r_push.stderr.strip() or r_push.stdout.strip()
+                print(f"[GIT:{remote_name}] ✗ push fallito: {err}")
+        except subprocess.TimeoutExpired:
+            print(f"[GIT:{remote_name}] ✗ timeout")
+        except FileNotFoundError:
+            print(f"[GIT:{remote_name}] ✗ git non trovato")
+        except Exception as e:
+            print(f"[GIT:{remote_name}] ✗ errore: {e}")
     
     def _device_row(self, name, color, model_name):
         row = QFrame()
@@ -758,17 +946,46 @@ class CodeExplorer(QFrame):
         head = QHBoxLayout()
         head.addWidget(QLabel("<b>🎮 Code Explorer</b>"))
         head.addStretch()
-        
+
+        # Pulsanti zoom in/out e reset pan — prima esistevano ma non erano
+        # collegati a nessuna funzione (artefatti visivi). Ora funzionano.
         zoom_in = QPushButton("+")
         zoom_in.setFixedSize(26, 26)
-        zoom_in.setToolTip("Zoom in")
+        zoom_in.setObjectName("code_zoom_in")
+        zoom_in.setToolTip("Zoom in (ingrandisci grafo)")
+        zoom_in.setStyleSheet(
+            "QPushButton#code_zoom_in { font-size:14px; font-weight:bold; "
+            "background:#e8e8ec; border:1px solid #d0d0d0; border-radius:4px; }"
+            "QPushButton#code_zoom_in:hover { background:#d0d0d0; }"
+        )
+        zoom_in.clicked.connect(self._zoom_in)
         head.addWidget(zoom_in)
-        
+
         zoom_out = QPushButton("-")
         zoom_out.setFixedSize(26, 26)
-        zoom_out.setToolTip("Zoom out")
+        zoom_out.setObjectName("code_zoom_out")
+        zoom_out.setToolTip("Zoom out (riduci grafo)")
+        zoom_out.setStyleSheet(
+            "QPushButton#code_zoom_out { font-size:14px; font-weight:bold; "
+            "background:#e8e8ec; border:1px solid #d0d0d0; border-radius:4px; }"
+            "QPushButton#code_zoom_out:hover { background:#d0d0d0; }"
+        )
+        zoom_out.clicked.connect(self._zoom_out)
         head.addWidget(zoom_out)
-        
+
+        # Pulsante reset zoom (pan/fit) — resetta la vista al grafo intero
+        reset_btn = QPushButton("⟳")
+        reset_btn.setFixedSize(26, 26)
+        reset_btn.setObjectName("code_zoom_reset")
+        reset_btn.setToolTip("Reset vista (fit grafo)")
+        reset_btn.setStyleSheet(
+            "QPushButton#code_zoom_reset { font-size:13px; "
+            "background:#e8e8ec; border:1px solid #d0d0d0; border-radius:4px; }"
+            "QPushButton#code_zoom_reset:hover { background:#d0d0d0; }"
+        )
+        reset_btn.clicked.connect(self._reset_view)
+        head.addWidget(reset_btn)
+
         lay.addLayout(head)
         
         self.file_label = QLabel("Nessun file caricato")
@@ -807,7 +1024,22 @@ class CodeExplorer(QFrame):
         text.setStyleSheet("font-size:10px; color:#666;")
         lay.addWidget(text)
         return widget
-    
+
+    # ── Zoom / pan handlers ────────────────────────────────────────────
+    def _zoom_in(self):
+        """Ingrandisce il grafo del 20% (zoom in)."""
+        self.view.scale(1.2, 1.2)
+
+    def _zoom_out(self):
+        """Riduce il grafo del 20% (zoom out)."""
+        self.view.scale(1 / 1.2, 1 / 1.2)
+
+    def _reset_view(self):
+        """Reset zoom/pan: fit del grafo nell'area visibile."""
+        self.view.resetTransform()
+        if self.scene.items():
+            self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
     def load_file(self, file_path):
         self.file_label.setText(os.path.basename(file_path))
         self.nodes = []
@@ -1449,7 +1681,12 @@ class ControlCenter(QMainWindow):
         super().__init__()
         self.setWindowTitle("BYTE-SWARMY · Control Center")
         self.resize(1450, 900)
-        self.setStyleSheet(self._light_theme())
+        # Tema: legge da CONFIG/settings.json (default: dark)
+        saved_theme = settings_store.get_theme()
+        if saved_theme == "dark":
+            self.setStyleSheet(self._dark_theme())
+        else:
+            self.setStyleSheet(self._light_theme())
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -1593,13 +1830,10 @@ class ControlCenter(QMainWindow):
         )
         lay.addWidget(brand_lbl)
 
-        # Aggiungo un nuovo bottone per il drawer (file tree)
-        files_btn = QPushButton("📁")
-        files_btn.setFixedSize(32, 32)
-        files_btn.setObjectName("icon_btn")
-        files_btn.setToolTip("File & Task")
-        files_btn.clicked.connect(self.drawer.toggle)
-        lay.addWidget(files_btn)
+        # NOTA: il pulsante cartella gialla 📁 qui è stato rimosso su
+        # richiesta dell'utente — era ridondante (la sidebar con "Archivio
+        # progetto" e i tab in alto coprono già la navigazione file).
+        # Per aprire/chiudere il drawer resta il menu ☰ in alto a sinistra.
 
         sep1 = QFrame()
         sep1.setFixedWidth(1)
@@ -1608,6 +1842,16 @@ class ControlCenter(QMainWindow):
 
         self.project_tabs = ProjectTabBar()
         self.project_tabs.setCurrentIndex(0)
+        # Quando si cambia tab, la sidebar 'Archivio progetto' si aggiorna
+        # alla cartella del progetto appena selezionato.
+        self.project_tabs.current_project_changed.connect(
+            self.drawer.set_current_folder
+        )
+        # Forza emissione iniziale per il tab corrente (all'avvio il
+        # currentChanged non scatta se setCurrentIndex(0) non cambia indice)
+        initial_path = self.project_tabs._path_for_tab(0) if self.project_tabs.count() > 0 else None
+        if initial_path:
+            self.drawer.set_current_folder(initial_path)
         lay.addWidget(self.project_tabs, stretch=1)
 
         sep2 = QFrame()
@@ -1830,12 +2074,73 @@ class ControlCenter(QMainWindow):
         QTabBar::tab {
             background:#e8e8ec; color:#555; border:1px solid #d0d0d0;
             border-bottom:none; border-top-left-radius:6px; border-top-right-radius:6px;
-            padding:6px 14px; margin-right:2px; font-size:12px;
+            padding:10px 16px; margin-right:2px; font-size:12px;
+            min-height: 22px;
         }
         QTabBar::tab:selected {
             background:#ffffff; color:#16a34a; border-bottom:2px solid #16a34a; font-weight:bold;
         }
         QTabBar::tab:hover { background:#f0f0f0; }
+        """
+
+    def _dark_theme(self):
+        """Tema scuro per l'app principale (alternativa al light theme).
+
+        Attivato da SettingsPanel quando l'utente sceglie 'Scuro' — viene
+        salvato in CONFIG/settings.json e applicato al riavvio.
+        """
+        return """
+        QMainWindow { background:#1e1e2e; color:#cdd6f4; }
+        QFrame#toolbar   { background:#181825; border-bottom:1px solid #313244; }
+        QFrame#command_bar { background:#181825; border-top:1px solid #313244; }
+        QPushButton {
+            background:#313244; color:#cdd6f4; border:none;
+            padding:6px 12px; border-radius:6px; font-size:12px;
+        }
+        QPushButton:hover { background:#45475a; }
+        QPushButton#icon_btn { background:transparent; font-size:18px; color:#cdd6f4; }
+        QPushButton#icon_btn:hover { background:#313244; }
+        QPushButton#primary_btn { background:#16a34a; color:white; font-weight:bold; }
+        QPushButton#primary_btn:hover { background:#15803d; }
+        QLineEdit {
+            background:#313244; color:#cdd6f4; border:1px solid #45475a;
+            padding:8px 12px; border-radius:6px; font-size:13px;
+        }
+        QLineEdit:focus { border-color:#4ade80; }
+        QTextEdit, QPlainTextEdit {
+            background:#11111b; color:#cdd6f4; border:1px solid #313244;
+            font-family:'JetBrains Mono','Consolas',monospace; font-size:11px;
+        }
+        QLabel { color:#cdd6f4; }
+        QTreeView {
+            background:#11111b; color:#cdd6f4; border:none;
+            font-size:12px; padding:4px;
+        }
+        QTreeView::item:hover { background:#313244; }
+        QTreeView::item:selected { background:#45475a; color:#cdd6f4; }
+        QHeaderView::section { background:#181825; color:#a6adc8; border:none; padding:4px; }
+        QTabBar::tab {
+            background:#313244; color:#a6adc8; border:1px solid #45475a;
+            border-bottom:none; border-top-left-radius:6px; border-top-right-radius:6px;
+            padding:10px 16px; margin-right:2px; font-size:12px;
+            min-height: 22px;
+        }
+        QTabBar::tab:selected {
+            background:#1e1e2e; color:#4ade80; border-bottom:2px solid #4ade80; font-weight:bold;
+        }
+        QTabBar::tab:hover { background:#45475a; }
+        QScrollArea { background:#1e1e2e; border:none; }
+        QScrollBar:vertical { background:#1e1e2e; width:10px; }
+        QScrollBar::handle:vertical { background:#313244; border-radius:5px; min-height:30px; }
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height:0; }
+        QGroupBox {
+            background:#181825; border:1px solid #313244; border-radius:8px;
+            margin-top:14px; padding-top:8px; color:#cdd6f4; font-weight:bold;
+        }
+        QGroupBox::title { subcontrol-origin: margin; left:14px; padding:0 6px; color:#4ade80; }
+        QComboBox { background:#313244; color:#cdd6f4; border:1px solid #45475a; padding:6px 10px; border-radius:6px; font-size:12px; }
+        QComboBox:hover { border-color:#4ade80; }
+        QComboBox QAbstractItemView { background:#313244; color:#cdd6f4; selection-background-color:#45475a; }
         """
 
 
@@ -1851,6 +2156,8 @@ class ProjectTabBar(QTabBar):
 
     # Segnale emesso quando un nuovo progetto viene aggiunto via "+"
     project_added = pyqtSignal(str)
+    # Emette il path (assoluto) della cartella quando si seleziona un tab
+    current_project_changed = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -1861,26 +2168,24 @@ class ProjectTabBar(QTabBar):
         # Click su un tab → se è il "+", apri QFileDialog
         self.tabBarClicked.connect(self._on_tab_clicked)
         self.tabCloseRequested.connect(self._on_tab_close_requested)
+        # Cambio tab → emetti current_project_changed con path della cartella
+        self.currentChanged.connect(self._on_current_changed)
         self._load_open_projects()
 
     def _load_open_projects(self):
         """Popola i tab con i progetti aperti (cartelle sotto project/).
 
-        Aggiunge un tab ``📁 nome`` solo se ci sono *realmente* sottocartelle
-        in ``project/``. Se ``project/`` è vuoto o contiene solo ``.gitkeep``,
-        non crea nessun tab intermedio: si passa direttamente da ``byte-swarmy``
-        al tab ``➕``.
+        Carica **solo** le sottocartelle reali di ``project/`` come tab —
+        niente più tab hardcoded "🐝 byte-swarmy" (la cartella root non è un
+        progetto caricabile, l'utente lo ha confermato). Se ``project/`` è
+        vuoto, si parte direttamente dal tab ``➕``.
         """
         import os
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         projects_dir = os.path.join(base, "project")
 
-        # Tab 1 — il progetto corrente (sempre presente, non chiudibile)
-        self.addTab("🐝 byte-swarmy")
-        self._hide_close_button(0)
-
-        # Tab aggiuntivi — SOLO se ci sono sottocartelle reali in project/.
-        # Ignora file (come .gitkeep) e cartelle nascoste.
+        # Tab intermedi — SOLO sottocartelle reali di project/.
+        # Ignora file (come .gitkeep, main.py) e cartelle nascoste.
         if os.path.isdir(projects_dir):
             try:
                 entries = sorted(
@@ -1891,15 +2196,20 @@ class ProjectTabBar(QTabBar):
             except OSError:
                 entries = []
             for name in entries:
-                # Evita duplicati
                 if self._find_tab(name) < 0:
                     self.addTab("📁 " + name)
 
-        # Tab finale — "+" per aggiungere un nuovo progetto (non chiudibile)
+        # Tab finale — "+" per aggiungere un nuovo progetto (non chiudibile).
+        # Se non ci sono progetti reali, il ➕ è l'unico tab oltre a nessuno.
         self._plus_index = self.count()
         self.addTab("➕")
         # Nascondi la × dal tab ➕ (ha senso: il + non si "chiude", si clicca)
         self._hide_close_button(self._plus_index)
+        # Seleziona il primo tab reale (se esiste), altrimenti il ➕
+        if self.count() > 1:
+            self.setCurrentIndex(0)
+        else:
+            self.setCurrentIndex(self._plus_index)
 
     def _hide_close_button(self, index: int):
         """Rimuove il pulsante di chiusura (×) da un tab specifico."""
@@ -1928,15 +2238,59 @@ class ProjectTabBar(QTabBar):
         if self._is_plus_tab(index):
             self._open_new_project_dialog()
 
+    def _on_current_changed(self, index: int):
+        """Emette current_project_changed quando l'utente cambia tab.
+
+        La sidebar 'Archivio progetto' ascolta questo segnale per aggiornare
+        il file tree alla cartella del progetto appena selezionato.
+        """
+        if self._is_plus_tab(index):
+            # Il "+" non ha una cartella associata — non emettere
+            return
+        path = self._path_for_tab(index)
+        if path:
+            self.current_project_changed.emit(path)
+
+    def _path_for_tab(self, index: int) -> str:
+        """Ricostruisce il path assoluto della cartella associata al tab.
+
+        Per i tab ``📁 name`` corrisponde a ``project/name``, ma potrebbe
+        anche essere un path assoluto salvato dal QFileDialog (in tal caso
+        cerchiamo in ``_tab_paths``).
+        """
+        import os
+        if index < 0 or index >= self.count():
+            return ""
+        text = self.tabText(index)
+        # Salva/recupera path espliciti per tab aperti via QFileDialog
+        if not hasattr(self, "_tab_paths"):
+            self._tab_paths = {}
+        if index in self._tab_paths:
+            return self._tab_paths[index]
+        # Tab del tipo "📁 name" → project/name
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        projects_dir = os.path.join(base, "project")
+        if text.startswith("📁 "):
+            name = text[2:]
+            candidate = os.path.join(projects_dir, name)
+            if os.path.isdir(candidate):
+                return candidate
+            # Se name contiene path separatori (cartella esterna)
+            if os.path.isdir(name):
+                return name
+        return ""
+
     def _on_tab_close_requested(self, index: int):
-        """Chiude un tab progetto (tranne byte-swarmy e il '+')."""
+        """Chiude un tab progetto (qualsuale tab reale tranne il '+')."""
         if self._is_plus_tab(index):
             return  # Il "+" non si chiude
-        if index == 0:
-            return  # byte-swarmy non si chiude
+        # Tutti i tab 📁 ... sono chiudibili (nessun tab hardcoded protetto)
         self.removeTab(index)
         # L'indice del "+" è sceso di 1
         self._plus_index = self.count() - 1
+        # Se non ci sono più tab reali, sposta la selezione sul ➕
+        if self.count() == 1:
+            self.setCurrentIndex(0)
 
     def _open_new_project_dialog(self):
         """Apre QFileDialog per scegliere una cartella da aggiungere come progetto."""
@@ -1973,6 +2327,10 @@ class ProjectTabBar(QTabBar):
         new_idx = self._plus_index
         self.insertTab(new_idx, "📁 " + name)
         self._plus_index = self.count() - 1
+        # Salva il path assoluto del nuovo tab per poter aggiornare la sidebar
+        if not hasattr(self, "_tab_paths"):
+            self._tab_paths = {}
+        self._tab_paths[new_idx] = folder
         self.setCurrentIndex(new_idx)
 
         # Emette segnale/opzionalmente callback: il nome della cartella aperta
@@ -2014,12 +2372,23 @@ class FileTreeDrawer(QFrame):
         lay.setContentsMargins(0, 8, 0, 8)
         lay.setSpacing(0)
 
-        header = QLabel("<b>🐝 Archivio progetto</b>")
-        header.setObjectName("sidebar_header")
-        header.setStyleSheet(
+        # Header dinamico: mostra "📁 Archivio progetto" + path corrente
+        self.header = QLabel("<b>📁 Archivio progetto</b>")
+        self.header.setObjectName("sidebar_header")
+        self.header.setStyleSheet(
             "padding:8px 16px; color:#16a34a; font-size:13px;"
         )
-        lay.addWidget(header)
+        lay.addWidget(self.header)
+
+        # Sotto-titolo: path della cartella corrente (si aggiorna col tab)
+        self.path_label = QLabel("byte-swarmy/")
+        self.path_label.setObjectName("sidebar_path")
+        self.path_label.setStyleSheet(
+            "padding:0 16px 4px 16px; color:#666; font-size:10px; "
+            "font-family:'JetBrains Mono','Consolas',monospace;"
+        )
+        self.path_label.setWordWrap(True)
+        lay.addWidget(self.path_label)
 
         self.tree = QTreeView()
         self.tree.setAlternatingRowColors(True)
@@ -2106,6 +2475,34 @@ class FileTreeDrawer(QFrame):
         self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         self._open = True
         self.main_win = parent
+
+    def set_current_folder(self, folder_path: str):
+        """Aggiorna il file tree per puntare alla cartella del progetto aperto.
+
+        Chiamato quando l'utente cambia tab in ProjectTabBar: la sidebar
+        'Archivio progetto' deve riflettere la cartella su cui si sta
+        lavorando (es. project/sourceCode/ quando si seleziona il tab
+        'sourceCode', o la root del repo quando si seleziona byte-swarmy).
+        """
+        import os
+        if not folder_path or not os.path.isdir(folder_path):
+            return
+        # Aggiorna root del QFileSystemModel + rootIndex del QTreeView
+        self.model.setRootPath(folder_path)
+        self.tree.setRootIndex(self.model.index(folder_path))
+        # Aggiorna il sottotitolo con il path
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        try:
+            rel = os.path.relpath(folder_path, base)
+        except ValueError:
+            rel = folder_path
+        # Mostra path relativo con / finale per chiarezza
+        display = rel.replace(os.sep, "/")
+        if not display.endswith("/"):
+            display += "/"
+        self.path_label.setText(display)
+        # Scrolla in cima
+        self.tree.scrollToTop()
 
     def _on_tree_click(self, index):
         path = self.model.filePath(index)
@@ -2663,7 +3060,7 @@ class CenterArea(QWidget):
         main_lay.setContentsMargins(16, 16, 16, 16)
         main_lay.setSpacing(12)
         
-        self.logs_section = CollapsibleSection("Logs CI/CD", icon="📜")
+        self.logs_section = CollapsibleSection("Logs CI/CD & Clean Code", icon="📜")
         self.log_viewer = CategorizedLogViewer()
         self.logs_section.add_widget(self.log_viewer)
         main_lay.addWidget(self.logs_section)
@@ -2690,15 +3087,35 @@ class CenterArea(QWidget):
         cards_container = QWidget()
         cards_container.setLayout(cards_grid)
         self.plancia_section.add_widget(cards_container)
-        
+
+        # ── Riga Code Explorer + Backup Code - Git logs (affiancati) ────
+        # Prima erano in verticale (troppo larghi, sprecavano spazio).
+        # Ora sono affiancati in orizzontale con QSplitter: Code Explorer
+        # a sinistra, "Backup Code - Git logs" a destra.
+        from PyQt6.QtWidgets import QSplitter
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setStyleSheet(
+            "QSplitter::handle { background:#e0e0e0; }"
+            "QSplitter::handle:horizontal { width: 4px; }"
+        )
+
         self.code_explorer = CodeExplorer()
         self.code_explorer.setFixedHeight(350)
-        self.plancia_section.add_widget(self.code_explorer)
-        
+        splitter.addWidget(self.code_explorer)
+
         self.backup_logs = BackupCodeLogs()
-        self.backup_logs.setFixedHeight(250)
-        self.plancia_section.add_widget(self.backup_logs)
-        
+        self.backup_logs.setFixedHeight(350)
+        # Rinomina il titolo in "Backup Code - Git logs" (richiesta utente)
+        # BackupCodeLogs ha un proprio header; vediamo come si chiama ora
+        splitter.addWidget(self.backup_logs)
+
+        # Code Explorer 60% | Backup Code 40% (in fase di editing pesa di più)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 2)
+        splitter.setSizes([600, 400])
+
+        self.plancia_section.add_widget(splitter)
+
         main_lay.addWidget(self.plancia_section)
         
         main_scroll.setWidget(main_widget)
@@ -2706,14 +3123,20 @@ class CenterArea(QWidget):
         
         self.detail_stack = QStackedWidget()
         self.panel_pages = {}
-        for key, title, content in [
-            ("coda", "📋 Coda Task", "3 task in coda · 1 in esecuzione · 1 completato\n\n• refactoring.py [ok]\n• analyze_usb.py [run]\n• new_feature.py [queued]"),
-            ("modelli", "🤖 Modelli", "Modelli Ollama caricati:\n\n• qwen2.5-coder:1.5b (active)\n• llama3:8b\n• mistral:7b\n• phi3:mini\n\nVRAM usata: 2.1G / 4G"),
-            ("config", "⚙️ Impostazioni", "Configurazione BYTE-SWARMY:\n\n• security: enabled (ALWAYS-ON)\n• MAX_STEPS: 6\n• num_ctx: 3072\n• num_predict: 512\n• tick_interval: 30s\n\nFile: CONFIG/config.toml"),
-        ]:
-            page = self._build_panel_page(title, content, key)
-            self.panel_pages[key] = page
-            self.detail_stack.addWidget(page)
+        # Pannello "coda" → TaskSchedulerPanel (Code Task con orari)
+        scheduler_page = self._build_scheduler_page()
+        self.panel_pages["coda"] = scheduler_page
+        self.detail_stack.addWidget(scheduler_page)
+
+        # Pannello "modelli" → ActorsPanel (3 attori: LLM + Decision + Timestral)
+        actors_page = self._build_actors_page()
+        self.panel_pages["modelli"] = actors_page
+        self.detail_stack.addWidget(actors_page)
+
+        # Pannello "config" → SettingsPanel interattivo (tema, lingua, Git)
+        config_page = self._build_config_page()
+        self.panel_pages["config"] = config_page
+        self.detail_stack.addWidget(config_page)
         
         self.main_stack.addWidget(self.detail_stack)
         
@@ -2758,7 +3181,63 @@ class CenterArea(QWidget):
         )
         lay.addWidget(body, stretch=1)
         return page
-    
+
+    def _build_config_page(self):
+        """Costruisce il pannello Impostazioni interattivo.
+
+        Sostituisce il vecchio testo statico con un SettingsPanel vero:
+        - scelta tema (chiaro/scuro) applicato live
+        - scelta lingua (it/en) con tooltip "Work in progress"
+        - gestione remote Git (GitHub/GitLab/Git) con token, per push automatico
+        """
+        page = SettingsPanel()
+        # Quando il tema cambia, applichiamo live all'app + credits
+        page.theme_changed.connect(self._apply_theme_live)
+        return page
+
+    def _build_actors_page(self):
+        """Costruisce il pannello Modelli → Attori (LLM, Decision, Timestral).
+
+        Sostituisce il vecchio testo statico "Modelli Ollama caricati: ..."
+        con un ActorsPanel interattivo dove l'utente può scegliere i modelli
+        per ciascuno dei 3 attori e impostare i parametri del Timestral
+        (soglie termiche, tok/s minimo, durata pausa, ecc.).
+        La configurazione è salvata in CONFIG/actors.json.
+        """
+        page = ActorsPanel()
+        return page
+
+    def _build_scheduler_page(self):
+        """Costruisce il pannello 'Coda Task' → TaskSchedulerPanel.
+
+        Sostituisce il vecchio testo statico "3 task in coda ..." con un
+        TaskSchedulerPanel interattivo dove l'utente può schedulare
+        compiti (Code Task) a orari previsti: uno-shot a una data/ora,
+        ricorrenti (ogni N secondi), oppure giornalieri alle HH:MM.
+        La schedulazione è salvata in CONFIG/scheduled_tasks.json.
+        """
+        page = TaskSchedulerPanel()
+        return page
+
+    def _apply_theme_live(self, theme: str):
+        """Applica il tema (chiaro/scuro) all'app principale.
+
+        Nota: questo metodo è dentro CenterArea, ma il tema stylesheet va
+        applicato al ControlCenter (il parent, accessibile via
+        ``self.main_win``), perché è lì che sono definiti _light_theme()
+        e _dark_theme(). Il tema dei credits overlay è già gestito in
+        CreditsOverlay.__init__ in base a settings_store.get_theme().
+        """
+        # self = CenterArea; self.main_win = ControlCenter (QMainWindow)
+        main = getattr(self, "main_win", None)
+        if main is None:
+            print("[tema] main_win non disponibile, salto applicazione live")
+            return
+        if theme == "dark":
+            main.setStyleSheet(main._dark_theme())
+        else:
+            main.setStyleSheet(main._light_theme())
+
     def attach_editor_column(self, editor_widget):
         if self._editor_column:
             self._editor_column.deleteLater()
