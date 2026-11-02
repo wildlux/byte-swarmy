@@ -2284,19 +2284,19 @@ class ControlCenter(QMainWindow):
         QTabBar::tab {
             background:#e8e8ec; color:#555; border:1px solid #d0d0d0;
             border-bottom:none; border-top-left-radius:6px; border-top-right-radius:6px;
-            /* padding-right ridotto (16px invece di 28px) così la × è più
-               vicina al testo del nome cartella, non staccata verso destra. */
-            padding:10px 16px 10px 16px; margin-right:2px; font-size:12px;
+            /* padding-right 30px: lascia spazio per la × con 15px a sinistra
+               (tra testo e ×) + 15px a destra (tra × e bordo destro del tab). */
+            padding:10px 30px 10px 16px; margin-right:2px; font-size:12px;
             min-height: 22px;
         }
-        /* Close button (×) dei tab: attaccato al testo del nome, non al bordo.
-           - padding-left ridotto (2px) per stare vicino al testo
-           - margin-right ampio (10px) per staccare dal bordo destro del tab
-           - subcontrol-position: right → left sposta la × verso il testo */
+        /* Close button (×) dei tab: 15px dal testo (sinistra) + 15px dal
+           bordo destro (destra). subcontrol-position: right posiziona la ×
+           sul lato destro del tab; margin-left spinge la × verso sinistra
+           (cioè verso il testo) creando i 15px di margine destro. */
         QTabBar::close-button {
-            subcontrol-position: left;
-            padding: 0 0 0 2px;
-            margin: 0 8px 0 0;
+            subcontrol-position: right;
+            padding: 0;
+            margin: 0 15px 0 15px;
         }
         QTabBar::close-button:hover {
             background: #fee2e2;
@@ -2347,16 +2347,15 @@ class ControlCenter(QMainWindow):
         QTabBar::tab {
             background:#313244; color:#a6adc8; border:1px solid #45475a;
             border-bottom:none; border-top-left-radius:6px; border-top-right-radius:6px;
-            /* padding-right ridotto (16px invece di 28px) così la × è più
-               vicina al testo del nome cartella, non staccata verso destra. */
-            padding:10px 16px 10px 16px; margin-right:2px; font-size:12px;
+            /* padding-right 30px: 15px a sinistra della × + 15px a destra. */
+            padding:10px 30px 10px 16px; margin-right:2px; font-size:12px;
             min-height: 22px;
         }
-        /* Close button (×) dei tab: attaccato al testo del nome, non al bordo. */
+        /* Close button (×): 15px dal testo + 15px dal bordo destro. */
         QTabBar::close-button {
-            subcontrol-position: left;
-            padding: 0 0 0 2px;
-            margin: 0 8px 0 0;
+            subcontrol-position: right;
+            padding: 0;
+            margin: 0 15px 0 15px;
         }
         QTabBar::close-button:hover {
             background: #7f1d1d;
@@ -2445,7 +2444,12 @@ class ProjectTabBar(QTabBar):
                 entries = []
             for name in entries:
                 if self._find_tab(name) < 0:
-                    self.addTab("📁 " + name)
+                    idx = self.addTab("📁 " + name)
+                    # Sostituisci la × di default con un QPushButton custom
+                    # che ha 15px di margine sinistro (dal testo) e 15px di
+                    # margine destro (dal bordo). Il CSS di QTabBar::close-button
+                    # è notoriamente buggy in Qt, setTabButton è affidabile.
+                    self._install_custom_close_button(idx)
 
         # Tab finale — "+" per aggiungere un nuovo progetto (non chiudibile).
         # Se non ci sono progetti reali, il ➕ è l'unico tab oltre a nessuno.
@@ -2458,6 +2462,54 @@ class ProjectTabBar(QTabBar):
             self.setCurrentIndex(0)
         else:
             self.setCurrentIndex(self._plus_index)
+
+    def _install_custom_close_button(self, index: int):
+        """Installa un QPushButton personalizzato come close-button del tab.
+
+        A differenza del close-button di default di Qt (che ignora i margini
+        del CSS), questo widget ha controllo pixel-perfect:
+          - 15px di margine sinistro (tra testo e ×)
+          - 15px di margine destro (tra × e bordo del tab)
+        Il click emette tabCloseRequested come il button di default.
+        """
+        # Larghezza totale: 15px sx + 16px (× icona) + 15px dx = 46px.
+        # setFixedSize deve includere i margins, altrimenti Qt li ritaglia.
+        btn = QPushButton("✕")
+        btn.setFixedSize(46, 24)
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.setToolTip("Chiudi questo progetto")
+        # setContentsMargins funziona SEMPRE (a differenza del CSS close-button):
+        # 15px a sinistra (tra testo e ×) + 15px a destra (tra × e bordo).
+        btn.setContentsMargins(15, 0, 15, 0)
+        btn.setStyleSheet(
+            "QPushButton {"
+            "  background:transparent; border:none; color:#888;"
+            "  font-size:13px; font-weight:bold; padding:0;"
+            "  margin:0;"
+            "}"
+            "QPushButton:hover {"
+            "  background:#fee2e2; color:#dc2626; border-radius:3px;"
+            "}"
+        )
+        # Click sul pulsante → emetti tabCloseRequested per l'index giusto.
+        # Usiamo una lambda con default arg per catturare l'index al momento
+        # della creazione (sennò cambia se i tab vengono riordinati).
+        btn.clicked.connect(lambda _, idx=index: self.tabCloseRequested.emit(idx))
+        try:
+            self.setTabButton(
+                index,
+                QTabBar.ButtonPosition.RightSide,
+                btn,
+            )
+        except Exception:
+            try:
+                self.setTabButton(
+                    index,
+                    QTabBar.ButtonPosition.LeftSide,
+                    btn,
+                )
+            except Exception:
+                pass
 
     def _hide_close_button(self, index: int):
         """Rimuove il pulsante di chiusura (×) da un tab specifico."""
@@ -2575,6 +2627,8 @@ class ProjectTabBar(QTabBar):
         new_idx = self._plus_index
         self.insertTab(new_idx, "📁 " + name)
         self._plus_index = self.count() - 1
+        # Installa il close-button custom (15px dx + 15px sx) sul nuovo tab
+        self._install_custom_close_button(new_idx)
         # Salva il path assoluto del nuovo tab per poter aggiornare la sidebar
         if not hasattr(self, "_tab_paths"):
             self._tab_paths = {}
