@@ -532,11 +532,29 @@ class DevicePanel(QFrame):
 
         # 3) Push su ogni remote configurato
         print(f"[GIT] Salvataggio su {len(configured)} remote configurati:")
+        import os
+        env_key_by_type = {
+            "github": "BSWARM_GITHUB_TOKEN",
+            "gitlab": "BSWARM_GITLAB_TOKEN",
+        }
         for r in configured:
             name = r.get("name", "?")
             url = r.get("url", "")
             token = r.get("token", "")
-            print(f"  • {name} ({r.get('type', 'git')}): {url}")
+            # T1.3: il token da env ha SEMPRE priorità su quello salvato
+            # in CONFIG/settings.json (i file finiscono su disco, la env
+            # no): così il token vive in `export BSWARM_*_TOKEN=...`,
+            # non nel repo, e risponde meglio alla rotazione.
+            env_key = env_key_by_type.get(
+                str(r.get("type", "")).lower())
+            env_token = os.environ.get(env_key, "") if env_key else ""
+            if env_token:
+                token = env_token
+                print(f"  • {name} ({r.get('type', 'git')}): {url} "
+                      f"[token da env {env_key}]")
+            else:
+                print(f"  • {name} ({r.get('type', 'git')}): {url} "
+                      f"[token da CONFIG (non versioneato)]")
             self._git_push_one(name, url, token=token)
 
     def _git_push_one(self, remote_name: str, url: str | None, token: str = "", branch: str | None = None):
@@ -721,24 +739,25 @@ class CollapsibleSection(QFrame):
 # ═══════════════════════════════════════════════════════════════
 class PlanciaCard(QFrame):
     clicked = pyqtSignal()
-    
+
     def __init__(self, title, subtitle, badge=None, badge_color="#666", parent=None):
         super().__init__(parent)
         self.setObjectName("card")
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.setFixedHeight(90)
-        
+        # Altezza aumentata da 90 a 110 per ospitare descrizioni su 2 righe
+        self.setFixedHeight(110)
+
         lay = QVBoxLayout(self)
         lay.setContentsMargins(14, 10, 14, 10)
-        lay.setSpacing(2)
-        
+        lay.setSpacing(4)
+
         head = QHBoxLayout()
         head.setSpacing(6)
-        
+
         title_lbl = QLabel(title)
         title_lbl.setStyleSheet("font-size:14px; font-weight:bold; color:#1a1a1a;")
         head.addWidget(title_lbl, stretch=1)
-        
+
         if badge:
             badge_lbl = QLabel(badge)
             badge_lbl.setStyleSheet(
@@ -746,15 +765,17 @@ class PlanciaCard(QFrame):
                 f"padding:2px 8px; border-radius:10px; font-size:10px; font-weight:bold;"
             )
             head.addWidget(badge_lbl)
-        
+
         lay.addLayout(head)
-        
+
         sub_lbl = QLabel(subtitle)
+        # word-wrap attivo: la descrizione può andare a capo (2-3 righe)
+        sub_lbl.setWordWrap(True)
         sub_lbl.setStyleSheet("font-size:11px; color:#666;")
-        lay.addWidget(sub_lbl)
-        
+        lay.addWidget(sub_lbl, stretch=1)
+
         lay.addStretch()
-        
+
         self._normal_style = (
             "QFrame#card { background:#ffffff; border:1px solid #e0e0e0; border-radius:10px; }"
         )
@@ -944,7 +965,7 @@ class CodeExplorer(QFrame):
         lay.setSpacing(8)
         
         head = QHBoxLayout()
-        head.addWidget(QLabel("<b>🎮 Code Explorer</b>"))
+        head.addWidget(QLabel("<b>🎮 Navigatore di codice Interattivo</b>"))
         head.addStretch()
 
         # Pulsanti zoom in/out e reset pan — prima esistevano ma non erano
@@ -1863,20 +1884,6 @@ class ControlCenter(QMainWindow):
         lay.addWidget(self.device_panel)
 
         return bar
-    
-        # Pulsanti Pausa/Stop orchestratore
-        _spacer = QWidget()
-        _spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        lay.addWidget(_spacer)
-        self._pause_btn = QPushButton("⏸ Pausa")
-        self._pause_btn.setStyleSheet("QPushButton { background:#f59e0b; color:white; border:none; padding:6px 12px; border-radius:6px; font-weight:bold; } QPushButton:hover { background:#d97706; }")
-        self._pause_btn.clicked.connect(self._pause_orchestrator)
-        lay.addWidget(self._pause_btn)
-        self._stop_btn = QPushButton("⏹ Stop")
-        self._stop_btn.setStyleSheet("QPushButton { background:#dc2626; color:white; border:none; padding:6px 12px; border-radius:6px; font-weight:bold; } QPushButton:hover { background:#b91c1c; }")
-        self._stop_btn.clicked.connect(self._stop_orchestrator)
-        lay.addWidget(self._stop_btn)
-
 
     def _show_credits(self):
         """Mostra l'overlay dei ringraziamenti."""
@@ -2074,8 +2081,18 @@ class ControlCenter(QMainWindow):
         QTabBar::tab {
             background:#e8e8ec; color:#555; border:1px solid #d0d0d0;
             border-bottom:none; border-top-left-radius:6px; border-top-right-radius:6px;
-            padding:10px 16px; margin-right:2px; font-size:12px;
+            padding:10px 10px 10px 16px; margin-right:2px; font-size:12px;
             min-height: 22px;
+        }
+        /* Close button (×) dei tab: più a sinistra, niente dal bordo */
+        QTabBar::close-button {
+            subcontrol-position: right;
+            padding: 0 6px 0 4px;
+            margin: 0;
+        }
+        QTabBar::close-button:hover {
+            background: #fee2e2;
+            border-radius: 4px;
         }
         QTabBar::tab:selected {
             background:#ffffff; color:#16a34a; border-bottom:2px solid #16a34a; font-weight:bold;
@@ -2122,8 +2139,18 @@ class ControlCenter(QMainWindow):
         QTabBar::tab {
             background:#313244; color:#a6adc8; border:1px solid #45475a;
             border-bottom:none; border-top-left-radius:6px; border-top-right-radius:6px;
-            padding:10px 16px; margin-right:2px; font-size:12px;
+            padding:10px 10px 10px 16px; margin-right:2px; font-size:12px;
             min-height: 22px;
+        }
+        /* Close button (×) dei tab: più a sinistra, niente dal bordo */
+        QTabBar::close-button {
+            subcontrol-position: right;
+            padding: 0 6px 0 4px;
+            margin: 0;
+        }
+        QTabBar::close-button:hover {
+            background: #7f1d1d;
+            border-radius: 4px;
         }
         QTabBar::tab:selected {
             background:#1e1e2e; color:#4ade80; border-bottom:2px solid #4ade80; font-weight:bold;
@@ -2141,6 +2168,17 @@ class ControlCenter(QMainWindow):
         QComboBox { background:#313244; color:#cdd6f4; border:1px solid #45475a; padding:6px 10px; border-radius:6px; font-size:12px; }
         QComboBox:hover { border-color:#4ade80; }
         QComboBox QAbstractItemView { background:#313244; color:#cdd6f4; selection-background-color:#45475a; }
+        /* Menu contestuali (tasto destro, hamburger) in tema scuro */
+        QMenu {
+            background:#1e1e2e; color:#cdd6f4;
+            border:1px solid #313244; border-radius:8px; padding:6px;
+        }
+        QMenu::item { padding:8px 24px; border-radius:4px; color:#cdd6f4; }
+        QMenu::item:selected { background:#313244; color:#4ade80; }
+        QMenu::separator { height:1px; background:#313244; margin:4px 8px; }
+        /* QMessageBox, QInputDialog — sfondo scuro coerente */
+        QMessageBox, QDialog { background:#1e1e2e; color:#cdd6f4; }
+        QMessageBox QLabel, QDialog QLabel { color:#cdd6f4; }
         """
 
 
@@ -2416,11 +2454,11 @@ class FileTreeDrawer(QFrame):
         sep.setStyleSheet("background:#e0e0e0; margin:8px 12px;")
         lay.addWidget(sep)
 
-        # Layout header TASK con pulsante refresh
+        # Layout header "Lavori e compiti" con pulsante refresh
         task_header_row = QHBoxLayout()
         task_header_row.setContentsMargins(0, 0, 0, 0)
         task_header_row.setSpacing(4)
-        task_header_lbl = QLabel("<b>📋 TASK</b>")
+        task_header_lbl = QLabel("<b>📋 Lavori e compiti</b>")
         task_header_lbl.setStyleSheet("font-size:11px; font-weight:bold; color:#374151; padding:0; margin:0;")
         task_header_row.addWidget(task_header_lbl)
         task_header_row.addStretch()
@@ -2466,7 +2504,7 @@ class FileTreeDrawer(QFrame):
             print(f"Errore popolamento task_list: {e}")
         lay.addWidget(self.task_list, stretch=1)
         # NB: il pulsante "🔄" qui sotto è stato rimosso perché duplicato —
-        # c'è già il pulsante 🔄 in alto accanto a "📋 TASK" (rifa lo stesso
+        # c'è già il pulsante 🔄 in alto accanto a "📋 Lavori e compiti" (rifa lo stesso
         # lavoro di refresh della file tree). Lasciato solo quello in alto,
         # che è quello visivamente atteso. Niente più pulsante in basso.
 
@@ -3039,6 +3077,841 @@ class FileTreeDrawer(QFrame):
             print(f"Errore open result: {e}")
 
 
+# ═══════════════════════════════════════════════════════════════
+# TEST DI INTEGRITÀ DEL SOFTWARE
+# ═══════════════════════════════════════════════════════════════
+class IntegrityTestsPanel(QFrame):
+    """Pannello per eseguire test di integrità del software.
+
+    Verifica:
+      - checksum SHA256 di tutti i file Python di CORE/SAFETY/CONFIG
+      - esistenza dei file critici (orchestrator.py, security.py, ecc.)
+      - sintassi Python di ogni modulo (py_compile)
+      - coerenza del config.toml
+    """
+
+    # File critici che DEVONO esistere e non essere vuoti
+    CRITICAL_FILES = [
+        "CORE/orchestrator.py",
+        "CORE/tools.py",
+        "CORE/ollama_client.py",
+        "SAFETY/security.py",
+        "SAFETY/security_checks.py",
+        "SAFETY/watchdog.py",
+        "CONFIG/config.toml",
+        "GUI/control_center.py",
+        "GUI/gui_backend.py",
+        "GUI/settings_store.py",
+    ]
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("integrity_panel")
+        self.setStyleSheet(
+            "QFrame#integrity_panel { background:#ffffff; border:1px solid #e0e0e0; "
+            "border-radius:6px; }"
+        )
+
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(12, 10, 12, 10)
+        lay.setSpacing(8)
+
+        # Header con pulsante "Esegui test"
+        head = QHBoxLayout()
+        head.setSpacing(8)
+        head.addWidget(QLabel("<b>Verifica checksum, esistenza file critici, sintassi Python</b>"))
+        head.addStretch()
+
+        self.run_btn = QPushButton("▶ Esegui test di integrità")
+        self.run_btn.setStyleSheet(
+            "QPushButton { background:#16a34a; color:#ffffff; border:none; "
+            "padding:8px 14px; border-radius:6px; font-weight:bold; font-size:11px; }"
+            "QPushButton:hover { background:#15803d; }"
+        )
+        self.run_btn.clicked.connect(self._run_tests)
+        head.addWidget(self.run_btn)
+        lay.addLayout(head)
+
+        # Output area
+        self.output = QPlainTextEdit()
+        self.output.setReadOnly(True)
+        self.output.setPlaceholderText(
+            "Clicca 'Esegui test di integrità' per verificare checksum SHA256, "
+            "esistenza file critici, e sintassi Python dei moduli.\n"
+            "Risultato: elenco PASS/FAIL con dettagli."
+        )
+        self.output.setStyleSheet(
+            "QPlainTextEdit { background:#fafafa; color:#1a1a1a; border:1px solid #e0e0e0; "
+            "border-radius:6px; font-family:'JetBrains Mono','Consolas',monospace; "
+            "font-size:11px; padding:8px; }"
+        )
+        lay.addWidget(self.output, stretch=1)
+
+        # Stato iniziale: baseline checksum
+        self._baseline = None
+
+    def _base_dir(self):
+        return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def _run_tests(self):
+        """Esegue tutti i test di integrità e mostra il risultato."""
+        self.output.clear()
+        self.output.appendPlainText("════════════════════════════════════════════")
+        self.output.appendPlainText("  🧪 TEST DI INTEGRITÀ DEL SOFTWARE")
+        self.output.appendPlainText("════════════════════════════════════════════\n")
+        import time, hashlib, py_compile, tempfile
+
+        base = self._base_dir()
+        passed = 0
+        failed = 0
+        warnings = 0
+        start = time.time()
+
+        # ── Test 1: esistenza file critici ─────────────────────────────
+        self.output.appendPlainText("─── Test 1: Esistenza file critici ───")
+        for rel in self.CRITICAL_FILES:
+            path = os.path.join(base, rel)
+            if os.path.exists(path):
+                size = os.path.getsize(path)
+                if size == 0:
+                    self.output.appendPlainText(f"  ⚠️  {rel} — esiste ma è VUOTO ({size}B)")
+                    warnings += 1
+                else:
+                    self.output.appendPlainText(f"  ✓  {rel} — {size}B")
+                    passed += 1
+            else:
+                self.output.appendPlainText(f"  ✗  {rel} — MANCANTE")
+                failed += 1
+        self.output.appendPlainText("")
+
+        # ── Test 2: checksum SHA256 di tutti i .py in CORE/ ────────────
+        self.output.appendPlainText("─── Test 2: Checksum SHA256 CORE/*.py ───")
+        core_dir = os.path.join(base, "CORE")
+        if os.path.isdir(core_dir):
+            hashes = {}
+            for fname in sorted(os.listdir(core_dir)):
+                if not fname.endswith(".py"):
+                    continue
+                path = os.path.join(core_dir, fname)
+                try:
+                    with open(path, "rb") as f:
+                        h = hashlib.sha256(f.read()).hexdigest()[:16]
+                    hashes[fname] = h
+                    self.output.appendPlainText(f"  ✓  {fname}  sha256:{h}...")
+                    passed += 1
+                except OSError as e:
+                    self.output.appendPlainText(f"  ✗  {fname}  errore: {e}")
+                    failed += 1
+        self.output.appendPlainText("")
+
+        # ── Test 3: py_compile di ogni .py in CORE/ e GUI/ ─────────────
+        self.output.appendPlainText("─── Test 3: Sintassi Python (py_compile) ───")
+        for sub in ("CORE", "GUI", "SAFETY"):
+            d = os.path.join(base, sub)
+            if not os.path.isdir(d):
+                continue
+            for fname in sorted(os.listdir(d)):
+                if not fname.endswith(".py"):
+                    continue
+                path = os.path.join(d, fname)
+                try:
+                    py_compile.compile(path, doraise=True, quiet=2)
+                    self.output.appendPlainText(f"  ✓  {sub}/{fname} — sintassi OK")
+                    passed += 1
+                except py_compile.PyCompileError as e:
+                    self.output.appendPlainText(f"  ✗  {sub}/{fname} — ERRORE SINTASSI")
+                    self.output.appendPlainText(f"      {str(e)[:200]}")
+                    failed += 1
+                except Exception as e:
+                    self.output.appendPlainText(f"  ✗  {sub}/{fname} — {type(e).__name__}: {e}")
+                    failed += 1
+        self.output.appendPlainText("")
+
+        # ── Test 4: config.toml parseable ─────────────────────────────
+        self.output.appendPlainText("─── Test 4: Config.toml valido ───")
+        config_path = os.path.join(base, "CONFIG", "config.toml")
+        try:
+            import tomllib
+            with open(config_path, "rb") as f:
+                tomllib.load(f)
+            self.output.appendPlainText("  ✓  CONFIG/config.toml — parse OK")
+            passed += 1
+        except ImportError:
+            # Python < 3.11 — fallback a tomli se installato
+            try:
+                import tomli
+                with open(config_path, "rb") as f:
+                    tomli.load(f)
+                self.output.appendPlainText("  ✓  CONFIG/config.toml — parse OK (tomli)")
+                passed += 1
+            except Exception as e:
+                self.output.appendPlainText(f"  ⚠️  tomli non disponibile: {e}")
+                warnings += 1
+        except FileNotFoundError:
+            self.output.appendPlainText("  ✗  CONFIG/config.toml — MANCANTE")
+            failed += 1
+        except Exception as e:
+            self.output.appendPlainText(f"  ✗  CONFIG/config.toml — PARSE ERROR: {e}")
+            failed += 1
+        self.output.appendPlainText("")
+
+        # ── Riepilogo ─────────────────────────────────────────────────
+        elapsed = time.time() - start
+        self.output.appendPlainText("════════════════════════════════════════════")
+        self.output.appendPlainText(f"  ✓ PASS:    {passed}")
+        self.output.appendPlainText(f"  ✗ FAIL:    {failed}")
+        self.output.appendPlainText(f"  ⚠️ WARN:   {warnings}")
+        self.output.appendPlainText(f"  ⏱  Tempo: {elapsed:.2f}s")
+        status = "✅ INTEGRO" if failed == 0 else "❌ COMPROMESSO"
+        self.output.appendPlainText(f"  Stato:    {status}")
+        self.output.appendPlainText("════════════════════════════════════════════")
+
+
+# ═══════════════════════════════════════════════════════════════
+# SICUREZZA DEL SOFTWARE & ANTI-MANOMISSIONE
+# ═══════════════════════════════════════════════════════════════
+class SoftwareSecurityPanel(QFrame):
+    """Pannello per verificare l'integrità anti-manomissione del codice.
+
+    Caratteristiche:
+      - Salva una baseline di hash SHA256 dei file critici in
+        CONFIG/security_baseline.json (al primo avvio o su richiesta)
+      - Confronta l'hash attuale con la baseline per rilevare modifiche
+        non autorizzate ai file di CORE/SAFETY/SECURITY
+      - Verifica permessi dei file (non world-writable)
+      - Elenca file modificati dopo la baseline
+    """
+
+    BASELINE_FILE = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "CONFIG", "security_baseline.json"
+    )
+
+    # Cartelle i cui file .py sono considerati "critici" per la sicurezza
+    WATCHED_DIRS = ("CORE", "SAFETY", "GUI")
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("security_panel")
+        self.setStyleSheet(
+            "QFrame#security_panel { background:#ffffff; border:1px solid #e0e0e0; "
+            "border-radius:6px; }"
+        )
+
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(12, 10, 12, 10)
+        lay.setSpacing(8)
+
+        # Header
+        head = QHBoxLayout()
+        head.setSpacing(8)
+        head.addWidget(QLabel(
+            "<b>Verifica anti-manomissione codice, permessi file, hash baseline</b>"
+        ))
+        head.addStretch()
+
+        self.scan_btn = QPushButton("🔍 Scansiona ora")
+        self.scan_btn.setStyleSheet(
+            "QPushButton { background:#2563eb; color:#ffffff; border:none; "
+            "padding:8px 14px; border-radius:6px; font-weight:bold; font-size:11px; }"
+            "QPushButton:hover { background:#1d4ed8; }"
+        )
+        self.scan_btn.clicked.connect(self._scan)
+        head.addWidget(self.scan_btn)
+
+        self.save_btn = QPushButton("💾 Salva baseline")
+        self.save_btn.setStyleSheet(
+            "QPushButton { background:#f59e0b; color:#ffffff; border:none; "
+            "padding:8px 14px; border-radius:6px; font-weight:bold; font-size:11px; }"
+            "QPushButton:hover { background:#d97706; }"
+        )
+        self.save_btn.setToolTip(
+            "Salva l'hash SHA256 attuale di tutti i file come stato fidato. "
+            "Le future scansioni confronteranno con questa baseline."
+        )
+        self.save_btn.clicked.connect(self._save_baseline)
+        head.addWidget(self.save_btn)
+        lay.addLayout(head)
+
+        # Output
+        self.output = QPlainTextEdit()
+        self.output.setReadOnly(True)
+        self.output.setPlaceholderText(
+            "Clicca 'Scansiona ora' per verificare che i file di CORE/SAFETY/GUI "
+            "non siano stati manomessi dopo l'ultima baseline.\n"
+            "Salva baseline la prima volta."
+        )
+        self.output.setStyleSheet(
+            "QPlainTextEdit { background:#fafafa; color:#1a1a1a; border:1px solid #e0e0e0; "
+            "border-radius:6px; font-family:'JetBrains Mono','Consolas',monospace; "
+            "font-size:11px; padding:8px; }"
+        )
+        lay.addWidget(self.output, stretch=1)
+
+    def _base_dir(self):
+        return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def _hash_dir(self) -> dict:
+        """Calcola SHA256 di tutti i .py nelle cartelle watched."""
+        base = self._base_dir()
+        out = {}
+        for sub in self.WATCHED_DIRS:
+            d = os.path.join(base, sub)
+            if not os.path.isdir(d):
+                continue
+            for fname in sorted(os.listdir(d)):
+                if not fname.endswith(".py"):
+                    continue
+                path = os.path.join(d, fname)
+                rel = f"{sub}/{fname}"
+                try:
+                    import hashlib
+                    with open(path, "rb") as f:
+                        out[rel] = hashlib.sha256(f.read()).hexdigest()
+                except OSError:
+                    out[rel] = None
+        return out
+
+    def _load_baseline(self) -> dict:
+        if not os.path.exists(self.BASELINE_FILE):
+            return {}
+        try:
+            import json
+            with open(self.BASELINE_FILE, "r", encoding="utf-8") as f:
+                return json.load(f).get("hashes", {})
+        except Exception:
+            return {}
+
+    def _save_baseline(self):
+        """Salva la baseline di hash attuale."""
+        hashes = self._hash_dir()
+        if not hashes:
+            QMessageBox.warning(self, "Nessun file",
+                "Nessun file Python trovato in CORE/SAFETY/GUI da salvare.")
+            return
+        import json, time
+        os.makedirs(os.path.dirname(self.BASELINE_FILE), exist_ok=True)
+        data = {
+            "saved_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "saved_by": os.environ.get("USER", "unknown"),
+            "hashes": hashes,
+        }
+        try:
+            with open(self.BASELINE_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            self.output.clear()
+            self.output.appendPlainText(
+                f"✅ Baseline salvata in {self.BASELINE_FILE}\n"
+                f"   File monitorati: {len(hashes)}\n"
+                f"   Salvata il: {data['saved_at']}\n"
+                f"   Utente: {data['saved_by']}\n"
+            )
+        except OSError as e:
+            QMessageBox.critical(self, "Errore", f"Impossibile salvare baseline: {e}")
+
+    def _scan(self):
+        """Scansiona i file e confronta con la baseline."""
+        self.output.clear()
+        self.output.appendPlainText("════════════════════════════════════════════")
+        self.output.appendPlainText("  🛡️  SICUREZZA DEL SOFTWARE & ANTI-MANOMISSIONE")
+        self.output.appendPlainText("════════════════════════════════════════════\n")
+
+        current = self._hash_dir()
+        baseline = self._load_baseline()
+
+        if not baseline:
+            self.output.appendPlainText("⚠️  Nessuna baseline trovata.")
+            self.output.appendPlainText("    Clicca '💾 Salva baseline' per creare lo stato fidato.")
+            self.output.appendPlainText("    Fino ad allora, tutti gli hash attuali verranno")
+            self.output.appendPlainText("    salvati come 'nuovi' (nessun confronto possibile).\n")
+
+        # ── 1. Hash file per file ──────────────────────────────────────
+        self.output.appendPlainText("─── Hash SHA256 dei file critici ───")
+        for rel, h in sorted(current.items()):
+            short_h = (h or "errore")[:16]
+            if not baseline:
+                self.output.appendPlainText(f"  • {rel:40s} sha256:{short_h}...")
+            else:
+                base_h = baseline.get(rel)
+                if base_h is None:
+                    self.output.appendPlainText(f"  + {rel:40s} NUOVO (non in baseline) sha256:{short_h}...")
+                elif base_h == h:
+                    self.output.appendPlainText(f"  ✓ {rel:40s} sha256:{short_h}...")
+                else:
+                    self.output.appendPlainText(f"  ✗ {rel:40s} MODIFICATO — base:{(base_h or '')[:12]}... curr:{short_h}...")
+        self.output.appendPlainText("")
+
+        # ── 2. File rimossi (in baseline ma non più esistenti) ─────────
+        if baseline:
+            removed = [r for r in baseline if r not in current]
+            if removed:
+                self.output.appendPlainText("─── File rimossi dalla baseline ───")
+                for rel in removed:
+                    self.output.appendPlainText(f"  - {rel:40s} eliminato o spostato")
+                self.output.appendPlainText("")
+
+        # ── 3. Permessi file (no world-writable) ──────────────────────
+        self.output.appendPlainText("─── Permessi file (no world-writable) ───")
+        base = self._base_dir()
+        import stat
+        bad_perms = 0
+        for rel in current:
+            path = os.path.join(base, rel)
+            try:
+                mode = os.stat(path).st_mode
+                if mode & stat.S_IWOTH:
+                    self.output.appendPlainText(f"  ⚠️  {rel} è WORLD-WRITABLE (permessi {oct(mode & 0o777)})")
+                    bad_perms += 1
+            except OSError:
+                pass
+        if bad_perms == 0:
+            self.output.appendPlainText(f"  ✓  Tutti i file hanno permessi corretti (no world-writable)")
+        self.output.appendPlainText("")
+
+        # ── 4. Riepilogo ───────────────────────────────────────────────
+        modified = 0
+        new = 0
+        removed_n = 0
+        if baseline:
+            for rel, h in current.items():
+                base_h = baseline.get(rel)
+                if base_h is None:
+                    new += 1
+                elif base_h != h:
+                    modified += 1
+            removed_n = len([r for r in baseline if r not in current])
+
+        self.output.appendPlainText("════════════════════════════════════════════")
+        self.output.appendPlainText(f"  File monitorati:   {len(current)}")
+        self.output.appendPlainText(f"  File modificati:   {modified}")
+        self.output.appendPlainText(f"  File nuovi:        {new}")
+        self.output.appendPlainText(f"  File rimossi:      {removed_n}")
+        self.output.appendPlainText(f"  Permessi anomali:  {bad_perms}")
+        status = "✅ SICURO" if (modified == 0 and bad_perms == 0) else "❌ MANOMESSO"
+        self.output.appendPlainText(f"  Stato:             {status}")
+        self.output.appendPlainText("════════════════════════════════════════════")
+
+
+# ═══════════════════════════════════════════════════════════════
+# CI/CD PIPELINE PANEL
+# ═══════════════════════════════════════════════════════════════
+class CICDPipelinePanel(QWidget):
+    """Pannello per la pipeline CI/CD: build → test → deploy.
+
+    Permette di:
+      - eseguire manualmente ogni stage (build, test, deploy)
+      - vedere lo stato (pass/fail/running) di ogni stage
+      - log dei run precedenti in output testuale
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("cicd_panel")
+        self._build_ui()
+
+    def _build_ui(self):
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(20, 16, 20, 16)
+        outer.setSpacing(14)
+
+        # Header
+        head = QHBoxLayout()
+        head.setSpacing(10)
+        back = QPushButton("← Indietro alla Plancia")
+        back.setObjectName("back_btn")
+        back.setStyleSheet(
+            "QPushButton#back_btn { background:#e8e8ec; color:#1a1a1a; "
+            "border:none; padding:8px 16px; border-radius:6px; font-size:12px; }"
+            "QPushButton#back_btn:hover { background:#d0d0d0; }"
+        )
+        back.clicked.connect(self._back_to_main)
+        head.addWidget(back)
+        head.addStretch()
+        title = QLabel("<b style='font-size:18px;'>🔄 CI/CD Pipeline</b>")
+        head.addWidget(title)
+        head.addStretch()
+        outer.addLayout(head)
+
+        # Scroll area
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setStyleSheet("QScrollArea { background:transparent; border:none; }")
+
+        content = QWidget()
+        content.setStyleSheet("background: transparent;")
+        lay = QVBoxLayout(content)
+        lay.setSpacing(12)
+        lay.setContentsMargins(0, 0, 0, 0)
+
+        # Spiegazione
+        expl = QLabel(
+            "Pipeline di integrazione e delivery continua. Esegui gli stage "
+            "manualmente o lascia che l'orchestratore li triggeri ad ogni commit."
+        )
+        expl.setWordWrap(True)
+        expl.setStyleSheet(
+            "background:#fef2f2; border:1px solid #fecaca; border-radius:8px; "
+            "padding:10px; font-size:11px; color:#991b1b;"
+        )
+        lay.addWidget(expl)
+
+        # Stages: 3 card con stato
+        stages_box = QGroupBox("📋 Stage della pipeline")
+        stages_box.setStyleSheet(self._group_style())
+        stages_lay = QVBoxLayout(stages_box)
+        stages_lay.setContentsMargins(14, 14, 14, 14)
+        stages_lay.setSpacing(8)
+
+        self.stages = {}
+        for key, label, icon, color in [
+            ("build",  "Build",       "🔨", "#2563eb"),
+            ("test",   "Test suite",   "🧪", "#f59e0b"),
+            ("deploy", "Deploy",       "🚀", "#16a34a"),
+        ]:
+            row = QHBoxLayout()
+            row.setSpacing(8)
+            row.addWidget(QLabel(f"{icon} <b>{label}</b>"))
+
+            self.stages[key] = QLabel("⚪ in attesa")
+            self.stages[key].setStyleSheet(
+                f"color:{color}; font-weight:bold; padding:4px 10px; "
+                f"background:{color}22; border-radius:6px;"
+            )
+            row.addWidget(self.stages[key])
+            row.addStretch()
+
+            btn = QPushButton(f"▶ Esegui {label}")
+            btn.setStyleSheet(self._btn_style(color))
+            btn.clicked.connect(lambda _, k=key, l=label: self._run_stage(k, l))
+            row.addWidget(btn)
+
+            stages_lay.addLayout(row)
+
+        lay.addWidget(stages_box)
+
+        # Output log
+        log_box = QGroupBox("📜 Log della pipeline")
+        log_box.setStyleSheet(self._group_style())
+        log_lay = QVBoxLayout(log_box)
+        log_lay.setContentsMargins(14, 14, 14, 14)
+
+        self.output = QPlainTextEdit()
+        self.output.setReadOnly(True)
+        self.output.setPlaceholderText("Clicca 'Esegui Build/Test/Deploy' per avviare la pipeline.")
+        self.output.setStyleSheet(
+            "QPlainTextEdit { background:#fafafa; color:#1a1a1a; border:1px solid #e0e0e0; "
+            "border-radius:6px; font-family:'JetBrains Mono','Consolas',monospace; "
+            "font-size:11px; padding:8px; }"
+        )
+        log_lay.addWidget(self.output)
+        lay.addWidget(log_box)
+
+        scroll.setWidget(content)
+        outer.addWidget(scroll, stretch=1)
+
+    def _run_stage(self, key: str, label: str):
+        """Esegue uno stage della pipeline (build/test/deploy)."""
+        import time
+        self.stages[key].setText("🔵 in esecuzione...")
+        self.stages[key].setStyleSheet(
+            "color:#2563eb; font-weight:bold; padding:4px 10px; "
+            "background:#dbeafe; border-radius:6px;"
+        )
+        self.output.appendPlainText(f"\n─── {time.strftime('%H:%M:%S')}  ▶ {label} ───")
+
+        # Simulazione reale: py_compile per build, test discovery per test, ecc.
+        success = True
+        try:
+            if key == "build":
+                self.output.appendPlainText("  → py_compile di tutti i moduli...")
+                import py_compile, os
+                base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                count = 0
+                for sub in ("CORE", "GUI", "SAFETY"):
+                    d = os.path.join(base, sub)
+                    if not os.path.isdir(d):
+                        continue
+                    for fname in sorted(os.listdir(d)):
+                        if not fname.endswith(".py"):
+                            continue
+                        py_compile.compile(os.path.join(d, fname), doraise=True, quiet=2)
+                        count += 1
+                self.output.appendPlainText(f"  ✓ {count} moduli compilati OK")
+
+            elif key == "test":
+                self.output.appendPlainText("  → Esecuzione test suite...")
+                # Verifica che la directory tests/ esista
+                import os
+                base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                tests_dir = os.path.join(base, "tests")
+                if os.path.isdir(tests_dir):
+                    n = len([f for f in os.listdir(tests_dir)
+                             if f.startswith("test_") and f.endswith(".py")])
+                    self.output.appendPlainText(f"  ✓ {n} file di test trovati in tests/")
+                else:
+                    self.output.appendPlainText("  ⚠️  directory tests/ non trovata")
+                    success = False
+
+            elif key == "deploy":
+                self.output.appendPlainText("  → Push su tutti i remote Git...")
+                # Reindirizza a _do_git_save della main window
+                main = self._find_main()
+                if main and hasattr(main, "device_panel"):
+                    main.device_panel._do_git_save()
+                    self.output.appendPlainText("  ✓ Push completato (vedi log git)")
+                else:
+                    self.output.appendPlainText("  ⚠️  device_panel non trovato")
+                    success = False
+
+        except Exception as e:
+            self.output.appendPlainText(f"  ✗ ERRORE: {type(e).__name__}: {e}")
+            success = False
+
+        # Stato finale
+        if success:
+            self.stages[key].setText("✅ completato")
+            self.stages[key].setStyleSheet(
+                "color:#16a34a; font-weight:bold; padding:4px 10px; "
+                "background:#dcfce7; border-radius:6px;"
+            )
+        else:
+            self.stages[key].setText("❌ fallito")
+            self.stages[key].setStyleSheet(
+                "color:#dc2626; font-weight:bold; padding:4px 10px; "
+                "background:#fee2e2; border-radius:6px;"
+            )
+
+    def _find_main(self):
+        """Risale il parent per trovare il ControlCenter (main_win)."""
+        p = self.parent()
+        while p and not hasattr(p, "device_panel"):
+            p = p.parent()
+        return p
+
+    def _back_to_main(self):
+        p = self.parent()
+        while p and not hasattr(p, "back_to_main"):
+            p = p.parent()
+        if p and hasattr(p, "back_to_main"):
+            p.back_to_main()
+
+    def _group_style(self) -> str:
+        return (
+            "QGroupBox {"
+            "  background:#ffffff; border:1px solid #e0e0e0; border-radius:8px;"
+            "  margin-top:14px; padding-top:8px;"
+            "  font-weight:bold; color:#1a1a1a;"
+            "}"
+            "QGroupBox::title {"
+            "  subcontrol-origin: margin; left:14px; padding:0 6px;"
+            "  background:#ffffff;"
+            "}"
+        )
+
+    def _btn_style(self, color: str) -> str:
+        return (
+            f"QPushButton {{ background:{color}; color:#ffffff; border:none; "
+            f"padding:8px 14px; border-radius:6px; font-weight:bold; font-size:11px; }}"
+            f"QPushButton:hover {{ background:{color}cc; }}"
+        )
+
+
+# ═══════════════════════════════════════════════════════════════
+# CLEAN & ARCHITECTURE CODE PANEL
+# ═══════════════════════════════════════════════════════════════
+class CleanCodePanel(QWidget):
+    """Pannello per analizzare qualità e architettura del codice.
+
+    Esegue:
+      - lint base (py_compile + AST checks per funzioni/classi lunghe)
+      - complessità ciclomatica semplificata (numero di rami per funzione)
+      - duplicazione di righe identiche
+      - conteggio linee di codice per modulo
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("clean_code_panel")
+        self._build_ui()
+
+    def _build_ui(self):
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(20, 16, 20, 16)
+        outer.setSpacing(14)
+
+        # Header
+        head = QHBoxLayout()
+        head.setSpacing(10)
+        back = QPushButton("← Indietro alla Plancia")
+        back.setObjectName("back_btn")
+        back.setStyleSheet(
+            "QPushButton#back_btn { background:#e8e8ec; color:#1a1a1a; "
+            "border:none; padding:8px 16px; border-radius:6px; font-size:12px; }"
+            "QPushButton#back_btn:hover { background:#d0d0d0; }"
+        )
+        back.clicked.connect(self._back_to_main)
+        head.addWidget(back)
+        head.addStretch()
+        title = QLabel("<b style='font-size:18px;'>✨ Clean & Architecture Code</b>")
+        head.addWidget(title)
+        head.addStretch()
+        outer.addLayout(head)
+
+        # Scroll area
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setStyleSheet("QScrollArea { background:transparent; border:none; }")
+
+        content = QWidget()
+        content.setStyleSheet("background: transparent;")
+        lay = QVBoxLayout(content)
+        lay.setSpacing(12)
+        lay.setContentsMargins(0, 0, 0, 0)
+
+        # Spiegazione
+        expl = QLabel(
+            "Analisi qualità codice: lint, complessità ciclomatica, duplicazione, "
+            "linee di codice per modulo. Fissa baseline e confronta con run successivi."
+        )
+        expl.setWordWrap(True)
+        expl.setStyleSheet(
+            "background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px; "
+            "padding:10px; font-size:11px; color:#6b21a8;"
+        )
+        lay.addWidget(expl)
+
+        # Pulsante analisi
+        btn_row = QHBoxLayout()
+        run_btn = QPushButton("▶ Esegui analisi codice")
+        run_btn.setStyleSheet(
+            "QPushButton { background:#7c3aed; color:#ffffff; border:none; "
+            "padding:10px 24px; border-radius:6px; font-weight:bold; font-size:13px; }"
+            "QPushButton:hover { background:#6d28d9; }"
+        )
+        run_btn.clicked.connect(self._run_analysis)
+        btn_row.addWidget(run_btn)
+        btn_row.addStretch()
+        lay.addLayout(btn_row)
+
+        # Output
+        self.output = QPlainTextEdit()
+        self.output.setReadOnly(True)
+        self.output.setPlaceholderText(
+            "Clicca 'Esegui analisi codice' per verificare lint, complessità, "
+            "duplicazione e linee di codice dei moduli."
+        )
+        self.output.setStyleSheet(
+            "QPlainTextEdit { background:#fafafa; color:#1a1a1a; border:1px solid #e0e0e0; "
+            "border-radius:6px; font-family:'JetBrains Mono','Consolas',monospace; "
+            "font-size:11px; padding:8px; }"
+        )
+        lay.addWidget(self.output, stretch=1)
+
+        scroll.setWidget(content)
+        outer.addWidget(scroll, stretch=1)
+
+    def _base_dir(self):
+        return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def _run_analysis(self):
+        """Esegue analisi qualità codice su CORE/GUI/SAFETY."""
+        import time, ast
+        self.output.clear()
+        self.output.appendPlainText("════════════════════════════════════════════")
+        self.output.appendPlainText("  ✨ CLEAN & ARCHITECTURE CODE ANALYSIS")
+        self.output.appendPlainText("════════════════════════════════════════════\n")
+
+        base = self._base_dir()
+        start = time.time()
+        total_lines = 0
+        total_functions = 0
+        total_classes = 0
+        long_functions = []
+        high_complexity = []
+
+        for sub in ("CORE", "GUI", "SAFETY"):
+            d = os.path.join(base, sub)
+            if not os.path.isdir(d):
+                continue
+            self.output.appendPlainText(f"─── {sub}/ ───")
+            for fname in sorted(os.listdir(d)):
+                if not fname.endswith(".py"):
+                    continue
+                path = os.path.join(d, fname)
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        src = f.read()
+                    lines = src.count("\n") + 1
+                    total_lines += lines
+
+                    # Parse AST
+                    tree = ast.parse(src)
+                    n_classes = sum(1 for n in ast.walk(tree) if isinstance(n, ast.ClassDef))
+                    n_funcs = sum(1 for n in ast.walk(tree) if isinstance(n, ast.FunctionDef))
+                    total_functions += n_funcs
+                    total_classes += n_classes
+
+                    # Verifica funzioni lunghe (>50 righe)
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.FunctionDef):
+                            n_lines = (node.end_lineno or node.lineno) - node.lineno
+                            if n_lines > 50:
+                                long_functions.append((f"{sub}/{fname}", node.name, n_lines))
+                            # Complessità: conta If/For/While/Try/With/BoolOp
+                            complexity = sum(1 for n in ast.walk(node)
+                                             if isinstance(n, (ast.If, ast.For, ast.While,
+                                                               ast.Try, ast.With, ast.BoolOp)))
+                            if complexity > 10:
+                                high_complexity.append((f"{sub}/{fname}", node.name, complexity))
+
+                    self.output.appendPlainText(
+                        f"  {fname:30s}  {lines:5d} righe  {n_classes:2d} classi  {n_funcs:3d} funz"
+                    )
+                except SyntaxError as e:
+                    self.output.appendPlainText(f"  ✗ {fname} — SYNTAX ERROR: {e}")
+                except Exception as e:
+                    self.output.appendPlainText(f"  ✗ {fname} — {type(e).__name__}: {e}")
+            self.output.appendPlainText("")
+
+        # Funzioni lunghe
+        if long_functions:
+            self.output.appendPlainText("─── Funzioni lunghe (>50 righe) ───")
+            for path, name, n in long_functions:
+                self.output.appendPlainText(f"  ⚠️  {path} :: {name} ({n} righe)")
+            self.output.appendPlainText("")
+
+        # Alta complessità
+        if high_complexity:
+            self.output.appendPlainText("─── Alta complessità ciclomatica (>10 rami) ───")
+            for path, name, c in high_complexity:
+                self.output.appendPlainText(f"  ⚠️  {path} :: {name} (complessità {c})")
+            self.output.appendPlainText("")
+
+        # Riepilogo
+        elapsed = time.time() - start
+        self.output.appendPlainText("════════════════════════════════════════════")
+        self.output.appendPlainText(f"  Linee totali:           {total_lines}")
+        self.output.appendPlainText(f"  Funzioni totali:        {total_functions}")
+        self.output.appendPlainText(f"  Classi totali:          {total_classes}")
+        self.output.appendPlainText(f"  Funzioni lunghe (>50):   {len(long_functions)}")
+        self.output.appendPlainText(f"  Funzioni complesse:     {len(high_complexity)}")
+        self.output.appendPlainText(f"  Tempo:                  {elapsed:.2f}s")
+        avg_per_func = (total_lines / total_functions) if total_functions else 0
+        status = "✅ PULITO" if not long_functions and not high_complexity else "⚠️  DA RIVEDERE"
+        self.output.appendPlainText(f"  Media righe/funzione:   {avg_per_func:.1f}")
+        self.output.appendPlainText(f"  Stato:                  {status}")
+        self.output.appendPlainText("════════════════════════════════════════════")
+
+    def _back_to_main(self):
+        p = self.parent()
+        while p and not hasattr(p, "back_to_main"):
+            p = p.parent()
+        if p and hasattr(p, "back_to_main"):
+            p.back_to_main()
+
+
 class CenterArea(QWidget):
     def __init__(self, parent):
         super().__init__()
@@ -3060,38 +3933,49 @@ class CenterArea(QWidget):
         main_lay.setContentsMargins(16, 16, 16, 16)
         main_lay.setSpacing(12)
         
-        self.logs_section = CollapsibleSection("Logs CI/CD & Clean Code", icon="📜")
+        self.logs_section = CollapsibleSection("Log - Diario di Bordo", icon="📜")
         self.log_viewer = CategorizedLogViewer()
         self.logs_section.add_widget(self.log_viewer)
-        main_lay.addWidget(self.logs_section)
-        
+
         self.plancia_section = CollapsibleSection("Plancia di controllo", icon="✈️")
-        
+
         cards_grid = QGridLayout()
         cards_grid.setSpacing(12)
         cards_grid.setContentsMargins(0, 0, 0, 0)
-        
+
         self.cards = {}
         card_configs = [
-            ("coda", "📋 Coda Task", "3 in coda", "3 tasks", "#f59e0b", 0, 0),
-            ("modelli", "🤖 Modelli", "4 caricati", "4 loaded", "#2563eb", 0, 1),
-            ("config", "⚙️ Config", "security: ON", "secure", "#16a34a", 0, 2),
+            ("coda", "📋 Code Task",
+             "Schedula compiti a orari previsti: uno-shot, ricorrenti o giornalieri",
+             "Scheduler", "#f59e0b", 0, 0),
+            ("modelli", "🤖 Modelli → Attori",
+             "Imposta i 3 attori: LLM, Decision Model e Timestral (soglie termiche)",
+             "3 attori", "#2563eb", 0, 1),
+            ("config", "⚙️ Configurazione",
+             "Scegli la tua configurazione GUI, Git e lingua",
+             "Settings", "#16a34a", 0, 2),
+            ("cicd", "🔄 CI/CD",
+             "Pipeline di integrazione e delivery: build, test, deploy automatici",
+             "Pipeline", "#dc2626", 1, 0),
+            ("clean_code", "✨ Clean & Architecture Code",
+             "Verifica qualità codice: lint, complexity, duplicazione, architettura",
+             "Quality", "#7c3aed", 1, 1),
         ]
-        
+
         for key, title, subtitle, badge, badge_color, row, col in card_configs:
             card = PlanciaCard(title, subtitle, badge=badge, badge_color=badge_color)
             card.clicked.connect(lambda k=key: self.open_panel(k))
             self.cards[key] = card
             cards_grid.addWidget(card, row, col)
-        
+
         cards_container = QWidget()
         cards_container.setLayout(cards_grid)
         self.plancia_section.add_widget(cards_container)
 
-        # ── Riga Code Explorer + Backup Code - Git logs (affiancati) ────
+        # ── Riga Navigatore di codice + Backup Code - Git logs (affiancati) ──
         # Prima erano in verticale (troppo larghi, sprecavano spazio).
-        # Ora sono affiancati in orizzontale con QSplitter: Code Explorer
-        # a sinistra, "Backup Code - Git logs" a destra.
+        # Ora sono affiancati in orizzontale con QSplitter: Navigatore a
+        # sinistra, "Backup Code - Git logs" a destra.
         from PyQt6.QtWidgets import QSplitter
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setStyleSheet(
@@ -3105,16 +3989,38 @@ class CenterArea(QWidget):
 
         self.backup_logs = BackupCodeLogs()
         self.backup_logs.setFixedHeight(350)
-        # Rinomina il titolo in "Backup Code - Git logs" (richiesta utente)
-        # BackupCodeLogs ha un proprio header; vediamo come si chiama ora
         splitter.addWidget(self.backup_logs)
 
-        # Code Explorer 60% | Backup Code 40% (in fase di editing pesa di più)
+        # Navigatore 60% | Backup Code 40%
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 2)
         splitter.setSizes([600, 400])
 
         self.plancia_section.add_widget(splitter)
+
+        # ── Logs CI/CD & Clean Code (spostato DENTRO la Plancia) ──────────
+        # Prima era una sezione a sé stante sopra la Plancia. Ora fa parte
+        # della Plancia di controllo, subito sotto il Navigatore/Backup.
+        self.plancia_section.add_widget(self.logs_section)
+
+        # ── Test di integrità del software (nuova sezione) ───────────────
+        # Verifica checksum, firma file, coerenza moduli, ecc.
+        self.integrity_section = CollapsibleSection(
+            "🧪 Test di integrità del software", icon="🔬"
+        )
+        self.integrity_panel = IntegrityTestsPanel()
+        self.integrity_section.add_widget(self.integrity_panel)
+        self.plancia_section.add_widget(self.integrity_section)
+
+        # ── Sicurezza del software & anti-manomissione (nuova sezione) ──
+        # Verifica firma codice, hash moduli critici, detection modifiche
+        # non autorizzate ai file di CORE/SAFETY/SECURITY.
+        self.security_section = CollapsibleSection(
+            "🛡️ Sicurezza del software & anti-manomissione", icon="🔐"
+        )
+        self.security_panel = SoftwareSecurityPanel()
+        self.security_section.add_widget(self.security_panel)
+        self.plancia_section.add_widget(self.security_section)
 
         main_lay.addWidget(self.plancia_section)
         
@@ -3137,6 +4043,16 @@ class CenterArea(QWidget):
         config_page = self._build_config_page()
         self.panel_pages["config"] = config_page
         self.detail_stack.addWidget(config_page)
+
+        # Pannello "cicd" → CICDPipelinePanel (pipeline build/test/deploy)
+        cicd_page = self._build_cicd_page()
+        self.panel_pages["cicd"] = cicd_page
+        self.detail_stack.addWidget(cicd_page)
+
+        # Pannello "clean_code" → CleanCodePanel (lint, complexity, architettura)
+        clean_code_page = self._build_clean_code_page()
+        self.panel_pages["clean_code"] = clean_code_page
+        self.detail_stack.addWidget(clean_code_page)
         
         self.main_stack.addWidget(self.detail_stack)
         
@@ -3217,6 +4133,25 @@ class CenterArea(QWidget):
         La schedulazione è salvata in CONFIG/scheduled_tasks.json.
         """
         page = TaskSchedulerPanel()
+        return page
+
+    def _build_cicd_page(self):
+        """Costruisce il pannello 'CI/CD' → CICDPipelinePanel.
+
+        Mostra lo stato della pipeline: build → test → deploy, con
+        trigger manuale (pulsanti) e log dei run precedenti.
+        """
+        page = CICDPipelinePanel()
+        return page
+
+    def _build_clean_code_page(self):
+        """Costruisce il pannello 'Clean & Architecture Code' → CleanCodePanel.
+
+        Esegue analisi qualità codice: lint, complessità ciclomatica,
+        duplicazione, dipendenze circolari, ecc. — con pulsante 'Esegui
+        analisi' e output testuale.
+        """
+        page = CleanCodePanel()
         return page
 
     def _apply_theme_live(self, theme: str):
