@@ -1,0 +1,117 @@
+# =========================================================
+# BYTE-SWARMY .gitignore
+# Regola: solo codice sorgente e documentazione nel repo.
+# Tutto ciò che è runtime, temporaneo o generato va escluso.
+# =========================================================
+
+# --- Virtualenv / cache Python ---
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# --- Stato runtime (contiene task e audit: NON versionare) ---
+state/
+logs/
+backups/
+
+# --- Coda task (runtime SQLite/JSON, non versionare) ---
+tasks/*
+!tasks/.gitkeep
+
+# --- Codice generato dai worker ("miele" dello swarm) ---
+project/*
+!project/.gitkeep
+project/.git/
+
+# --- Config locale con credenziali MCP ---
+mcp_servers.json
+mcp_servers.local.json
+
+# --- Temporanei e backup ---
+*.tmp
+*.bak
+*.bak.*
+*.bak2
+*.bak3
+*.swp
+*.swo
+*~
+*.orig
+*.rej
+*.tmp*
+fix_*.py
+fix_*.sh
+feature*_*.py
+*_patch.py
+apply_*.py
+add_*.py
+redesign_*.py
+VECCHIA_*
+*_old
+*.zip
+
+# --- Segreti / ambiente ---
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets.json
+
+# --- OS / editor / IDE ---
+.directory
+.DS_Store
+Thumbs.db
+Desktop.ini
+Trash-*
+*.kate-swp
+.README.md.kate-swp
+README_IT_*.md
+.vscode/
+.idea/
+*.code-workspace
+*.iml
+.project
+.classpath
+.settings/
+
+# --- AI agenti ---
+.claude/
+.cursor/
+.aider*
+.continue/
+
+# --- Icone derivate temporanee (tieni solo l'originale) ---
+IMG/icona-256-*.png
+
+# --- Pannelli GUI: file JSON di stato/locale (NON versionare) ---
+# Questi file contengono preferenze utente e TOKEN Git in chiaro.
+# Devono stare solo sul filesystem locale, mai su GitHub.
+CONFIG/settings.json
+CONFIG/actors.json
+CONFIG/scheduled_tasks.json
+CONFIG/git_settings.json
+CONFIG/security_baseline.json
+CONFIG/*.local.json
+
+# --- Screenshot di debug/test generati dalla GUI (NON versionare) ---
+# Tieni solo le immagini originali della cartella IMG/ e IMG/SCHERMATE/.
+# Escludi qualsiasi PNG/JPEG creato in root durante il debug.
+/*.png
+/*.jpeg
+/*.jpg
+/*.webp
+!IMG/**
+!IMG/SCHERMATE/**

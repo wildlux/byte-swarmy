@@ -1197,6 +1197,38 @@ class Orchestrator:
         if interval:
             self.timestral.SAMPLE_INTERVAL = max(5, int(float(interval)))
 
+        # ── H5: Strategia hardware + pesi modelli (Round 3) ────────────
+        # Legge da CONFIG/settings.json (hardware_strategy) e da
+        # CONFIG/actors.json (weights di llm/decision_model/timestral).
+        # Poi decide dove mandare ogni modello:
+        #   - gpu+cpu:   LLM → GPU,  Decision+Timestral → CPU (parallelo)
+        #   - gpu_only:  LLM → GPU,  Decision → GPU,  Timestral → CPU (sempre)
+        #   - cpu_only:  tutto su CPU
+        #   - cpu_then_gpu: default CPU, switcha a GPU se CPU > 90% (overload)
+        # Il Timestral è SEMPRE su CPU (force_cpu=True, gatekeeper reattivo).
+        try:
+            from GUI.settings_store import get_hardware_strategy, is_gpu_available
+            self.hardware_strategy = get_hardware_strategy()
+            self.gpu_available = is_gpu_available()
+        except ImportError:
+            # GUI non disponibile (es. test in CI) → fallback safe
+            self.hardware_strategy = "cpu_only"
+            self.gpu_available = False
+        # Pesi modelli da actors.json
+        self.actor_weights = {
+            "llm": actors_ts.get("weight", "medium") if "weight" in actors_ts else
+                   self._load_actor_weight("llm", "medium"),
+            "decision_model": self._load_actor_weight("decision_model", "light"),
+            "timestral": "light",  # H4: sempre light
+        }
+        # H4: force_cpu del Timestral — sempre True (gatekeeper in RAM su CPU)
+        self.timestral_force_cpu = True
+        self.log.info(
+            "[hardware] strategy=%s gpu_available=%s weights=%s timestral_force_cpu=%s",
+            self.hardware_strategy, self.gpu_available,
+            self.actor_weights, self.timestral_force_cpu,
+        )
+
         # Scheduler GUI (T2.3): thread background, ogni tick legge
         # CONFIG/scheduled_tasks.json e inietta i task scaduti in coda.
         self.scheduler = SchedulerWorker(self.queue, logger=self.log)
@@ -1248,6 +1280,70 @@ class Orchestrator:
 
         # Cleanup
         self._shutdown()
+
+    def _load_actor_weight(self, actor: str, default: str = "medium") -> str:
+        """H5: legge il peso di un attore da CONFIG/actors.json.
+
+        Ritorna "light" | "medium" | "heavy". Per il Timestral è sempre
+        "light" (H4: gatekeeper in RAM su CPU).
+        """
+        try:
+            from GUI.actors_panel import load_actors
+            a = load_actors()
+            return a.get(actor, {}).get("weight", default)
+        except (ImportError, Exception):
+            return default
+
+    def _resolve_actor_target(self, actor: str) -> str:
+        """H5: decide dove mandare il modello di un attore (CPU o GPU).
+
+        Regole (in base a self.hardware_strategy):
+          - cpu_only:  tutto → "cpu"
+          - gpu_only:  LLM/Decision → "gpu", Timestral → "cpu" (H4)
+          - gpu+cpu:   LLM → "gpu", Decision → "cpu", Timestral → "cpu"
+          - cpu_then_gpu: default "cpu"; se CPU overload → "gpu" per LLM
+            (overload: gestito da _check_resources, qui semplificato)
+        """
+        # H4: Timestral SEMPRE su CPU
+        if actor == "timestral":
+            return "cpu"
+        # Se GPU non disponibile, tutto su CPU
+        if not self.gpu_available:
+            return "cpu"
+        # CPU only: tutto su CPU
+        if self.hardware_strategy == "cpu_only":
+            return "cpu"
+        # GPU only: LLM e Decision su GPU
+        if self.hardware_strategy == "gpu_only":
+            return "gpu"
+        # GPU+CPU: LLM su GPU, Decision su CPU (parallelo, più efficiente)
+        if self.hardware_strategy == "gpu+cpu":
+            return "gpu" if actor == "llm" else "cpu"
+        # CPU→GPU: default CPU, switcha a GPU se CPU overload
+        if self.hardware_strategy == "cpu_then_gpu":
+            # Verifica overload CPU (ultimo sample)
+            sample = getattr(self.timestral, "last_sample", None) if self.timestral else None
+            if sample and getattr(sample, "cpu_load", 0) > 0.9 and actor == "llm":
+                return "gpu"
+            return "cpu"
+        # Fallback safe
+        return "cpu"
+
+    def _resolve_actor_model(self, actor: str) -> str:
+        """H5: ritorna il modello Ollama da usare per un attore, tenendo
+        conto del peso (light/medium/heavy) e della strategia hardware.
+
+        Per ora ritorna il modello salvato in actors.json per quell'attore
+        (configurato dal pannello ActorsPanel). In futuro può applicare
+        weight_default_model() per auto-sostituire in base al peso.
+        """
+        try:
+            from GUI.actors_panel import load_actors
+            a = load_actors()
+            return a.get(actor, {}).get("model", "qwen2.5:1.5b")
+        except (ImportError, Exception):
+            # Fallback al modello di default
+            return "qwen2.5:1.5b"
 
     def _thermal_gate_pass(self) -> bool:
         """Gatekeeper termico T3 (non bloccante, polling a ogni tick).

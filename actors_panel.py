@@ -40,6 +40,37 @@ OLLAMA_MODELS = [
     "deepseek-coder:1.3b",
 ]
 
+# H3: Pesi modelli per ogni attore (light/medium/heavy).
+# L'utente sceglie il "peso" per ogni attore; il sistema propone un modello
+# di default appropriato per quel peso. Il Timestral ha solo "light" perché
+# DEVE restare leggero (gira in RAM su CPU, mai su GPU).
+ACTOR_WEIGHTS = ("light", "medium", "heavy")
+
+# Mapping peso → modello consigliato (per ogni attore)
+WEIGHT_DEFAULT_MODELS = {
+    "llm": {
+        "light":  "qwen2.5:1.5b",       # ~1GB RAM, per task semplici
+        "medium": "qwen2.5:3b",         # ~2GB RAM, bilanciato
+        "heavy":  "llama3:8b",         # ~5GB VRAM, per task complessi
+    },
+    "decision_model": {
+        "light":  "qwen2.5:1.5b",       # veloce, per decisioni semplici
+        "medium": "qwen2.5:3b",        # bilanciato, ragionamento medio
+        "heavy":  "qwen2.5:7b",        # ragionamento complesso
+    },
+    "timestral": {
+        # Timestral: SOLO light — gatekeeper in RAM su CPU (H4)
+        "light":  "qwen2.5:0.5b",      # ~500MB RAM, polling leggero
+        "medium": "qwen2.5:0.5b",      # forzato a light
+        "heavy":  "qwen2.5:0.5b",      # forzato a light
+    },
+}
+
+
+def weight_default_model(actor: str, weight: str) -> str:
+    """Ritorna il modello di default per (actor, weight)."""
+    return WEIGHT_DEFAULT_MODELS.get(actor, {}).get(weight, "qwen2.5:1.5b")
+
 
 def ollama_list_models(timeout: float = 3.0) -> list:
     """T2.4 — Modelli Ollama INSTALLATI reali (prima colonna di `ollama
@@ -63,18 +94,30 @@ def ollama_list_models(timeout: float = 3.0) -> list:
 DEFAULTS = {
     "llm": {
         "model": "qwen2.5:1.5b",
+        # H3: peso del modello (light/medium/heavy). Cambiando il peso,
+        # il sistema propone un modello di default appropriato.
+        "weight": "medium",
         "temperature": 0.1,
         "num_ctx": 2048,
         "num_predict": 256,
     },
     "decision_model": {
         "model": "qwen2.5:1.5b",
+        # H3: peso del decision model (light per pianificazione semplice,
+        # heavy per ragionamento complesso).
+        "weight": "light",
         "temperature": 0.4,
         "num_ctx": 3072,
         "num_predict": 512,
     },
     "timestral": {
         "enabled": True,
+        # H3+H4: peso del Timestral — SOLO "light" accettato, sempre in
+        # RAM su CPU. Forzato dal sistema (gli altri pesi sono ignorati).
+        "weight": "light",
+        # H4: force_cpu=True — il Timestral NON usa mai la GPU. Sempre
+        # in RAM su CPU per restare reattivo anche sotto sforzo.
+        "force_cpu": True,
         # Soglia temperatura CPU oltre la quale scatta la pausa termica (°C)
         "cpu_temp_threshold": 80,
         # Soglia temperatura GPU
@@ -211,6 +254,18 @@ class ActorsPanel(QWidget):
         form.setSpacing(10)
         form.setContentsMargins(14, 14, 14, 14)
 
+        # H3: peso del modello (light/medium/heavy) — cambiandolo propone
+        # un modello di default appropriato (via weight_default_model).
+        self.llm_weight = QComboBox()
+        self.llm_weight.addItem("🪶 Light — piccolo, veloce, poca RAM", "light")
+        self.llm_weight.addItem("⚖️ Medium — bilanciato", "medium")
+        self.llm_weight.addItem("🏋️ Heavy — potente, più VRAM/RAM", "heavy")
+        self.llm_weight.currentIndexChanged.connect(
+            lambda _: self._apply_weight("llm", self.llm_weight.currentData())
+        )
+        self.llm_weight.setStyleSheet(self._combo_style())
+        form.addRow("Peso:", self.llm_weight)
+
         self.llm_model = QComboBox()
         self.llm_model.setEditable(True)
         # T2.4: prima i modelli installati (ollama list), fallback a lista statica
@@ -246,6 +301,17 @@ class ActorsPanel(QWidget):
         form = QFormLayout(box)
         form.setSpacing(10)
         form.setContentsMargins(14, 14, 14, 14)
+
+        # H3: peso del Decision Model
+        self.dec_weight = QComboBox()
+        self.dec_weight.addItem("🪶 Light — decisioni semplici, veloce", "light")
+        self.dec_weight.addItem("⚖️ Medium — ragionamento bilanciato", "medium")
+        self.dec_weight.addItem("🏋️ Heavy — ragionamento complesso", "heavy")
+        self.dec_weight.currentIndexChanged.connect(
+            lambda _: self._apply_weight("decision_model", self.dec_weight.currentData())
+        )
+        self.dec_weight.setStyleSheet(self._combo_style())
+        form.addRow("Peso:", self.dec_weight)
 
         self.dec_model = QComboBox()
         self.dec_model.setEditable(True)
@@ -293,6 +359,20 @@ class ActorsPanel(QWidget):
         self.ts_enabled = QCheckBox("Abilita Timestral (monitoraggio termico attivo)")
         self.ts_enabled.setStyleSheet("font-size:12px; font-weight:bold;")
         outer.addWidget(self.ts_enabled)
+
+        # H3+H4: nota sul Timestral — sempre light + force_cpu (RAM su CPU)
+        ts_note = QLabel(
+            "🔒 <b>Timestral sempre LIGHT</b> — gatekeeper in RAM su CPU, "
+            "mai su GPU. Deve restare reattivo anche sotto sforzo, quindi "
+            "non carichiamo modelli pesanti. Il peso è fisso a 'light' e "
+            "<code>force_cpu=True</code> è bloccato (vedi CONFIG/actors.json)."
+        )
+        ts_note.setWordWrap(True)
+        ts_note.setStyleSheet(
+            "background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px; "
+            "padding:8px; font-size:10px; color:#0c4a6e;"
+        )
+        outer.addWidget(ts_note)
 
         form = QFormLayout()
         form.setSpacing(8)
@@ -424,11 +504,22 @@ class ActorsPanel(QWidget):
     def _reload_from_store(self):
         a = load_actors()
         # LLM
+        # H3: weight combo (con fallback a "medium" se mancante)
+        llm_w = a["llm"].get("weight", "medium")
+        for i in range(self.llm_weight.count()):
+            if self.llm_weight.itemData(i) == llm_w:
+                self.llm_weight.setCurrentIndex(i)
+                break
         self.llm_model.setEditText(a["llm"]["model"])
         self.llm_temp.setValue(a["llm"]["temperature"])
         self.llm_ctx.setValue(a["llm"]["num_ctx"])
         self.llm_predict.setValue(a["llm"]["num_predict"])
         # Decision
+        dec_w = a["decision_model"].get("weight", "light")
+        for i in range(self.dec_weight.count()):
+            if self.dec_weight.itemData(i) == dec_w:
+                self.dec_weight.setCurrentIndex(i)
+                break
         self.dec_model.setEditText(a["decision_model"]["model"])
         self.dec_temp.setValue(a["decision_model"]["temperature"])
         self.dec_ctx.setValue(a["decision_model"]["num_ctx"])
@@ -446,22 +537,54 @@ class ActorsPanel(QWidget):
         self.ts_check_only_if_gpu.setChecked(t["check_only_if_gpu"])
         self.ts_pause_decision_too.setChecked(t["pause_decision_model_too"])
 
+    def _apply_weight(self, actor: str, weight: str):
+        """H3: quando l'utente cambia il peso di un attore, propone il
+        modello di default appropriato (se il modello attuale è il default
+        del vecchio peso, lo sostituisce; altrimenti lascia stare).
+
+        Timestral: forzato a "light" (H4) — ignorato se l'utente prova a
+        cambiarlo da UI (non c'è combo).
+        """
+        if weight not in ACTOR_WEIGHTS:
+            return
+        # Per il Timestral non c'è UI di peso — è sempre light
+        if actor == "llm":
+            current_model = self.llm_model.currentText()
+            # Se il modello attuale è uno dei default di un altro peso,
+            # sostituiscilo con il default del nuovo peso
+            for w in ACTOR_WEIGHTS:
+                if current_model == weight_default_model("llm", w):
+                    self.llm_model.setEditText(weight_default_model("llm", weight))
+                    return
+            # Se l'utente aveva un modello custom, non toccare — solo hint
+        elif actor == "decision_model":
+            current_model = self.dec_model.currentText()
+            for w in ACTOR_WEIGHTS:
+                if current_model == weight_default_model("decision_model", w):
+                    self.dec_model.setEditText(weight_default_model("decision_model", weight))
+                    return
+
     def _on_save(self):
         a = {
             "llm": {
                 "model": self.llm_model.currentText(),
+                "weight": self.llm_weight.currentData(),
                 "temperature": self.llm_temp.value(),
                 "num_ctx": self.llm_ctx.value(),
                 "num_predict": self.llm_predict.value(),
             },
             "decision_model": {
                 "model": self.dec_model.currentText(),
+                "weight": self.dec_weight.currentData(),
                 "temperature": self.dec_temp.value(),
                 "num_ctx": self.dec_ctx.value(),
                 "num_predict": self.dec_predict.value(),
             },
             "timestral": {
                 "enabled": self.ts_enabled.isChecked(),
+                # H3+H4: Timestral sempre light + force_cpu (cablato)
+                "weight": "light",
+                "force_cpu": True,
                 "cpu_temp_threshold": self.ts_cpu_threshold.value(),
                 "gpu_temp_threshold": self.ts_gpu_threshold.value(),
                 "resume_temp_threshold": self.ts_resume_threshold.value(),
