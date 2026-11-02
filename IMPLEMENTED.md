@@ -271,3 +271,86 @@ MCP E2E testing, USB protocol parser, USB differential analysis, dedicated user 
   - `tests/test_scheduler.py` (logica one-shot/interval/daily senza
     thread reale — solo logica pura)
 
+## 📋 Completati (spostati da todo.md) — Round 1 + Round 2 (2026-11-02)
+
+### 🟢 Round 1 — Igiene repo + UX (post attacco principale)
+
+- [x] **B1+B2+B3+B4 Igiene repo** — `.gitignore` aggiornato con:
+  `CONFIG/*.json` (settings, actors, scheduled_tasks, git_settings,
+  security_baseline), `/*.png` `/*.jpeg` `/*.jpg` (solo root, IMG/
+  preservata), `*.bak *.orig *.swp *~`. Script `scripts/clean_repo.sh`
+  per `git rm --cached` automatico + commit "chore: clean repo".
+- [x] **C1 Conferma push** — `_do_git_save` apre dialog "Conferma push
+  Git" con lista dei remote + operazioni che verranno eseguite (git add
+  -A + commit + push). Default button: No. Annulla → nessun push.
+- [x] **C2 Riepilogo errori push** — dopo il loop sui remote:
+  - 0 errori → `QMessageBox.information` "✅ Push completato"
+  - parziali → `QMessageBox.warning` "Push parziale: N/M OK"
+  - tutti falliti → `QMessageBox.critical` "Push fallito su tutti"
+  `_git_push_one` ritorna `None` (successo) o stringa (errore).
+- [x] **Test test_push_dialogs.py** — 8 test (C1+C2): conferma Yes/No,
+  riepilogo 0/parziali/tutti errori, `_git_push_one` successo/fallimento/
+  timeout. 8/8 passano.
+
+### 🟢 Round 2 — Timestral completo (post Round 1)
+
+I 4 parametri residui del pannello Attori/Timestral, ora davvero cablati.
+
+- [x] **A1 RESUME_TEMP da actors.json** — `TimestralGatekeeper.resume_temp`
+  ora legge `resume_temp_threshold` da `CONFIG/actors.json` (con fallback
+  a `config.toml`, poi a default 65). Prima era hardcoded a 65; ora se
+  l'utente imposta 70 dal pannello, riprende a 70 (coerente). Nuovo campo
+  `resume_temp_threshold` aggiunto a `DEFAULTS["timestral"]` + input UI
+  "Soglia RIPRESA (isteresi)" in `ActorsPanel._build_timestral_section`.
+- [x] **A2 min_tokens_per_sec nel gatekeeper** — `TimestralGatekeeper`
+  accetta `min_tokens_per_sec` (default 0 = disattivato). `check()` ora
+  accetta `tok_per_sec: float | None` opzionale; se configurato e sotto
+  soglia, latcha pausa con motivo "throughput X.X t/s < Y.Y min".
+  Isteresi sulla ripresa: serve sia temp < resume_temp che tps >= min.
+  `_thermal_gate_pass` passa `tok_per_sec` dal sample (o advice).
+  Backward compat: chiamate vecchie `check(cpu, gpu)` continuano a
+  funzionare.
+- [x] **A3 check_only_if_gpu nel manager** — `_thermal_gate_pass` legge
+  `check_only_if_gpu` da `actors.json` (con fallback a False). Se True
+  e `gpu_temp == 0` (GPU non rilevata), il gate termico è sospeso
+  (degradato, non blocca). Logga una volta sola il cambio di stato.
+- [x] **A4 pause_decision_model_too nell'orchestratore** —
+  `_thermal_gate_pass` legge `pause_decision_model_too` (default True).
+  Se True e il gate scatta, chiama `generic_planner.set_paused(True)`;
+  al riprendere (resume), chiama `set_paused(False)`. Backward compat:
+  se il planner non ha `set_paused`, eccezione silenziosa.
+- [x] **Test test_timestral_full.py** — 19 test (A1:4, A2:5, A3:4, A4:5,
+  backward compat:1) — tutti passano. Verificano: gatekeeper con override
+  resume_temp, isteresi throughput, bypass GPU-only, persistenza
+  `pause_decision_model_too` in actors.json, backward compat vecchia API.
+
+### 🐝 Sessione GUI Control Center (post v0.5.1) — completati in chat
+
+- [x] Credits overlay 2 colonne + tema scuro forzato + link GitHub/PayPal
+- [x] Brand "Byte SwarmY" accanto al logo ape in toolbar
+- [x] Tab progetti aperti con pulsante ➕ (QFileDialog)
+- [x] Sidebar "Archivio progetto" dinamica (path del tab corrente)
+- [x] Tab byte-swarmy hardcoded rimosso (solo cartelle reali)
+- [x] Pulsante cartella gialla 📁 rimosso dalla toolbar
+- [x] Code Explorer zoom +/- e reset ⟳ cablati (prima erano artefatti)
+- [x] Splitter Code Explorer / Backup Code (era verticale, troppo largo)
+- [x] Tab più alti (padding 10px 16px + min-height 22px)
+- [x] Pannello Impostazioni interattivo (sostituisce testo statico)
+- [x] Pannello Modelli → Attori (LLM + Decision Model + Timestral)
+- [x] Pannello Coda Task → Code Task Scheduler (uno-shot/ricorrente/giornaliero)
+- [x] Card plancia rinominate con descrizioni esplicative (Code Task,
+  Modelli → Attori, Configurazione)
+- [x] Menu contestuali (QMenu, QMessageBox) in tema scuro
+- [x] `_do_git_save` reale: `git add + commit + push` con token iniettato
+- [x] "Code Explorer" → "Navigatore di codice Interattivo"
+- [x] Sidebar "TASK" → "Lavori e compiti"
+- [x] "Logs CI/CD & Clean Code" spostato DENTRO la Plancia di controllo
+- [x] Sezione "🧪 Test di integrità del software" in Plancia (IntegrityTestsPanel)
+- [x] Sezione "🛡️ Sicurezza del software & anti-manomissione" in Plancia
+  (SoftwareSecurityPanel con baseline hash SHA256 + check permessi)
+- [x] × (close button) dei tab spostata più a sinistra (padding + QTabBar::close-button)
+- [x] Card "🔄 CI/CD" in Plancia → CICDPipelinePanel (build/test/deploy reali)
+- [x] Card "✨ Clean & Architecture Code" in Plancia → CleanCodePanel
+  (analisi AST: funzioni lunghe, complessità ciclomatica, LOC)
+- [x] "Logs CI/CD & Clean Code" → "Log - Diario di Bordo"
+
