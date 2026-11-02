@@ -2,6 +2,28 @@
 
 This file tracks every significant feature, fix, and architectural change implemented in the system. It serves as a historical record to keep the main READMEs clean and focused on usage.
 
+## 🔐 Sprint Sicurezza + Igiene (2026-11-02)
+- [x] **T1.1+T1.2 Token preclusi da git**: `CONFIG/settings.json` untracked
+  (`git rm --cached`, il file su remote non conteneva segreti: nessuna
+  rotazione necessaria) e `CONFIG/{settings,actors,scheduled_tasks,git_settings,security_baseline}.json`
+  aggiunti a `.gitignore` — gli auto-sync `./sync.sh` non li committeranno più.
+- [x] **T1.3 Token via env vars**: in `GUI/control_center.py::_do_git_save`
+  la env `BSWARM_GITHUB_TOKEN`/`BSWARM_GITLAB_TOKEN` ha **sempre priorità**
+  sul token salvato su disco; README aggiornato con le istruzioni `export`.
+- [x] **R3 Duplicati**: rimossi dalla root le copie stale dei pannelli GUI
+  (`control_center.py`, `actors_panel.py`, `settings_panel.py`,
+  `settings_store.py`, `task_scheduler_panel.py`, `control_center.diff`) —
+  le versioni live sono in `GUI/` (`avvia.sh` lancia `GUI.control_center`);
+  rimossi PNG di screenshot generati (`*_after/before.png`) e `GUI/_archivio_test/TEST_GUI_QT_{10,11}.py`
+  identici a `TEST_GUI_SEPARATA/`; rimossi junk risussi `GUI/fix_remaining.py`,
+  `GUI/main_window_old.py.bak`. Igiene test: 14/14 OK.
+- [x] **T3.1 Codice morto toolbar**: rimossi i pulsanti Pausa/Stop
+  mai-generati dopo `return bar` in `GUI/control_center.py` (le versioni
+  vive sono già cablate a riga ~1777).
+- [x] **Tool `travasa_todo.py`**: sposta automaticamente le voci `- [x]`
+  di `todo.md` in `IMPLEMENTED.md` (sezione "Completati (spostati da
+  todo.md)", dedup, `--dry-run`, `<dir>` per test su fixture). Igiene.
+
 ## 🛡️ Core Security & Sandbox
 - [x] **Rule 0 Implementation**: Security policy moved to the tool layer; cannot be disabled via config or prompts.
 - [x] **Unprivileged Sandbox**: Integrated `bubblewrap` to isolate filesystem, network, and PID namespaces.
@@ -118,3 +140,80 @@ This file tracks every significant feature, fix, and architectural change implem
 
 ## 🔓 Open follow-ups
 MCP E2E testing, USB protocol parser, USB differential analysis, dedicated user `byteswarmy`, usbmon/tshark automation, unification of GUI→SQLite queue (FM14). Elenco aggiornato in `todo.md`.
+
+## 📋 Completati (spostati da todo.md) — 2026-11-02
+
+- [x] **T1.1 .gitignore** — Aggiungere `CONFIG/settings.json`,
+  `CONFIG/actors.json`, `CONFIG/scheduled_tasks.json`, `CONFIG/git_settings.json`,
+  `CONFIG/security_baseline.json`
+  al `.gitignore`. Verifica: `git status` non mostra più questi file.
+
+- [x] **T1.2 Audit git log** — Verifica che i file sopra non siano già stati
+  committati. Comando: `git log --all --oneline -- CONFIG/settings.json
+  CONFIG/actors.json`. Se trovati: `git rm --cached CONFIG/settings.json
+  && git commit -m "remove leaked settings"`. Eventualmente ruota i token
+  già esposti.
+
+- [x] **T1.3 Token Git in env vars** — Leggere i token da
+  `os.environ.get("BSWARM_GITHUB_TOKEN", "")` (e `BSWARM_GITLAB_TOKEN`)
+  in `_git_push_one`; fallback a `CONFIG/settings.json` se la env var
+  non esiste (backward compat). Aggiornare README con istruzioni `export`.
+
+- [x] **T3.1 Codice morto toolbar** — Cancellare righe ~1811-1822 di
+  `GUI/control_center.py` (codice dopo `return bar` — i pulsanti Pausa/Stop
+  orchestratore non vengono mai creati). Oppure spostarle sopra il `return`
+  se si vogliono davvero i pulsanti Pausa/Stop in toolbar.
+
+- [x] **R3.** Verificare funzionalità duplicate se un file supera ~500 righe.
+
+- [x] Credits overlay 2 colonne + tema scuro forzato + link GitHub/PayPal
+
+- [x] Brand "Byte SwarmY" accanto al logo ape in toolbar
+
+- [x] Tab progetti aperti con pulsante ➕ (QFileDialog)
+
+- [x] Sidebar "Archivio progetto" dinamica (path del tab corrente)
+
+- [x] Tab byte-swarmy hardcoded rimosso (solo cartelle reali)
+
+- [x] Pulsante cartella gialla 📁 rimosso dalla toolbar
+
+- [x] Code Explorer zoom +/- e reset ⟳ cablati (prima erano artefatti)
+
+- [x] Splitter Code Explorer / Backup Code (era verticale, troppo largo)
+
+- [x] Tab più alti (padding 10px 16px + min-height 22px)
+
+- [x] Pannello Impostazioni interattivo (sostituisce testo statico)
+
+- [x] Pannello Modelli → Attori (LLM + Decision Model + Timestral)
+
+- [x] Pannello Coda Task → Code Task Scheduler (uno-shot/ricorrente/giornaliero)
+
+- [x] Card plancia rinominate con descrizioni esplicative (Code Task,
+  Modelli → Attori, Configurazione)
+
+- [x] Menu contestuali (QMenu, QMessageBox) in tema scuro
+
+- [x] `_do_git_save` reale: `git add + commit + push` con token iniettato
+
+- [x] "Code Explorer" → "Navigatore di codice Interattivo"
+
+- [x] Sidebar "TASK" → "Lavori e compiti"
+
+- [x] "Logs CI/CD & Clean Code" spostato DENTRO la Plancia di controllo
+
+- [x] Sezione "🧪 Test di integrità del software" in Plancia (IntegrityTestsPanel)
+
+- [x] Sezione "🛡️ Sicurezza del software & anti-manomissione" in Plancia
+      (SoftwareSecurityPanel con baseline hash SHA256 + check permessi)
+
+- [x] × (close button) dei tab spostata più a sinistra (padding + QTabBar::close-button)
+
+- [x] Card "🔄 CI/CD" in Plancia → CICDPipelinePanel (build/test/deploy reali)
+
+- [x] Card "✨ Clean & Architecture Code" in Plancia → CleanCodePanel
+      (analisi AST: funzioni lunghe, complessità ciclomatica, LOC)
+
+- [x] "Logs CI/CD & Clean Code" → "Log - Diario di Bordo"
+

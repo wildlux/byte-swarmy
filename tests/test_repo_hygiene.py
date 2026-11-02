@@ -41,7 +41,7 @@ _KNOWN_JUNK = (
     "intents.json",                       # la vera è INTENT/intents.json
     "https:⁄⁄github.com⁄wildlux⁄byte-swarmy.desktop",  # filename corrotto
     "DATABASE",                           # unita in tasks/
-    "GUI/control_center.py", "GUI/dark.qss", "GUI/light.qss",
+    "GUI/dark.qss", "GUI/light.qss",
     "GUI/integrate_theme.py", "GUI/feature_m1_anti_escape.py",
     "GUI/feature_m1_anti_escape (1).py",
     "GUI/tasks", "GUI/logs", "GUI/backups", "GUI/state", "GUI/project",

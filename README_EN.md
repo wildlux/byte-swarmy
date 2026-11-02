@@ -359,6 +359,15 @@ The Orchestrator button is color-coded: **green when running**, red when stopped
 
 **Theme**: QSS theme system with light and dark. Toggle with ◐ button or `Ctrl+Shift+T`.
 
+**Git tokens via environment**: tokens for pushes from the app (Settings panel → GitHub/GitLab remotes) are exported to the env first:
+
+```bash
+export BSWARM_GITHUB_TOKEN="ghp_…"   # remotes of type "github"
+export BSWARM_GITLAB_TOKEN="glpat-…"  # remotes of type "gitlab"
+```
+
+The env var takes **priority** over any token saved in `CONFIG/settings.json`; `CONFIG/settings.json`, `actors.json`, `scheduled_tasks.json`, … are gitignored and never committed by auto-sync.
+
 **Chat History**: accessible from Tools → Chat History, shows the last 20 completed tasks.
 
 The previous "7 tabs" (Task Queue, Models, MCP Servers, Logs, Timestral, Config, Test & Sandbox) are now reusable dialogs.

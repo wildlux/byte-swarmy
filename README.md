@@ -422,6 +422,15 @@ La voce di stato del pulsante Orchestratore è colorata: **verde quando avviato*
 
 **Theme**: QSS theme system con light e dark. Toggle con pulsante ◐ o `Ctrl+Shift+T`.
 
+**Token Git via environment**: i token per il push dall'app (pannello Impostazioni → remote GitHub/GitLab) vanno nella env precedentemente `export`:
+
+```bash
+export BSWARM_GITHUB_TOKEN="ghp_…"   # remote type "github"
+export BSWARM_GITLAB_TOKEN="glpat-…"  # remote type "gitlab"
+```
+
+La env var ha **priorità** su qualunque token salvato in `CONFIG/settings.json`. I file `CONFIG/settings.json`, `actors.json`, `scheduled_tasks.json`, … sono in `.gitignore` e non finiscono nei commit (`./sync.sh`/auto-sync li esclude).
+
 **Cronistoria chat**: accessibile da ☰ → Cronologia chat, mostra gli ultimi 20 task completati.
 
 Le vecchie "7 tab" (Coda Task, Modelli, MCP Servers, Logs, Timestral, Config, Test & Sandbox) sono ora dialogo non bloccante.
