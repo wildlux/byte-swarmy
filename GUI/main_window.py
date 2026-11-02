@@ -4312,7 +4312,43 @@ def main():
     if not TASKS_FILE.exists():
         save_tasks([])
 
-    # 5. Mostra la finestra
+    # 5. Gestione graceful di Ctrl+C (SIGINT)
+    # Senza questo handler, Qt crasha con core dump quando riceve SIGINT
+    # perché il signal arriva nel mezzo del ciclo eventi C++ e non dà modo
+    # a Python/Qt di chiudere gracefully (file JSON potrebbero restare aperti,
+    # SQLite lockato, PID file orfano). Con questo handler:
+    #   - SIGINT → QApplication.quit() → closeEvent su tutte le finestre
+    #   - Qt salva stato, rilascia lock, chiude thread, exit code 0
+    #   - Secondo Ctrl+C entro 2s → fallback a sys.exit(130) (default Unix)
+    import signal
+    _sigint_count = [0]
+
+    def _sigint_handler(signum, frame):
+        _sigint_count[0] += 1
+        if _sigint_count[0] == 1:
+            # Primo Ctrl+C: chiudi gracefully
+            print("\n⚠️  Ctrl+C ricevuto — chiusura graceful della GUI...")
+            print("   (premi di nuovo Ctrl+C per forzare l'uscita)")
+            try:
+                app.quit()
+            except Exception:
+                sys.exit(130)
+        else:
+            # Secondo Ctrl+C: forza
+            print("\n⚡ Uscita forzata")
+            sys.exit(130)
+
+    signal.signal(signal.SIGINT, _sigint_handler)
+
+    # Necessario per far sì che Qt processi i signal Python durante il ciclo eventi.
+    # Senza questo timer, il SIGINT verrebbe intercettato solo alla prossima
+    # azione GUI (click, keypress), non immediatamente.
+    from PyQt6.QtCore import QTimer
+    _sigint_timer = QTimer()
+    _sigint_timer.start(200)  # controlla i signal ogni 200ms
+    _sigint_timer.timeout.connect(lambda: None)  # no-op, basta che il loop giri
+
+    # 6. Mostra la finestra
     window = MainWindow()
     window.show()
     sys.exit(app.exec())

@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import (
     QComboBox, QLineEdit, QMessageBox, QInputDialog, QScrollArea,
     QSizePolicy, QGroupBox, QFormLayout, QCheckBox, QPlainTextEdit,
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QUrl, QThread, pyqtSignal as Signal
+from PyQt6.QtCore import Qt, pyqtSignal, QUrl, QThread, QObject, pyqtSignal as Signal
 from PyQt6.QtGui import QDesktopServices
 
 from GUI import settings_store
@@ -123,6 +123,42 @@ class SettingsPanel(QWidget):
         head.addStretch()
         outer.addLayout(head)
 
+        # ── Barra di ricerca impostazioni ─────────────────────────────
+        # Filtra le sezioni in tempo reale mentre l'utente digita.
+        # Matcha su titolo della sezione + tutto il testo contenuto
+        # (label, pulsanti, placeholder, descrizioni).
+        search_row = QHBoxLayout()
+        search_row.setSpacing(8)
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText(
+            "🔍 Cerca nelle impostazioni…  (es. \"tema\", \"git\", \"audit\", \"gpu\")"
+        )
+        self.search_input.setStyleSheet(
+            "QLineEdit { background:#ffffff; color:#1a1a1a; "
+            "border:1px solid #d0d0d0; padding:10px 14px; border-radius:8px; "
+            "font-size:13px; }"
+            "QLineEdit:focus { border-color:#16a34a; }"
+        )
+        self.search_input.textChanged.connect(self._on_search)
+        search_row.addWidget(self.search_input, stretch=1)
+
+        self.search_clear_btn = QPushButton("✕")
+        self.search_clear_btn.setFixedSize(36, 36)
+        self.search_clear_btn.setToolTip("Cancella ricerca")
+        self.search_clear_btn.setStyleSheet(
+            "QPushButton { background:#e8e8ec; color:#666; border:none; "
+            "border-radius:6px; font-size:14px; font-weight:bold; }"
+            "QPushButton:hover { background:#d0d0d0; color:#1a1a1a; }"
+        )
+        self.search_clear_btn.clicked.connect(self._clear_search)
+        search_row.addWidget(self.search_clear_btn)
+        outer.addLayout(search_row)
+
+        # Contatore risultati (es. "4 di 5 sezioni visibili")
+        self.search_count = QLabel("")
+        self.search_count.setStyleSheet("color:#888; font-size:11px; padding:0 4px;")
+        outer.addWidget(self.search_count)
+
         # Scroll area per il contenuto (in caso di molti remote)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -135,19 +171,104 @@ class SettingsPanel(QWidget):
         lay.setSpacing(12)
         lay.setContentsMargins(0, 0, 0, 0)
 
-        # ── Sezione Tema ──────────────────────────────────────────────
-        lay.addWidget(self._build_theme_section())
-        # ── Sezione Lingua ─────────────────────────────────────────────
-        lay.addWidget(self._build_language_section())
-        # ── Sezione Strategia Hardware (H1) ────────────────────────────
-        lay.addWidget(self._build_hardware_section())
-        # ── Sezione Git remotes ───────────────────────────────────────
-        lay.addWidget(self._build_git_section())
-        # ── Sezione Audit del software ────────────────────────────────
-        lay.addWidget(self._build_audit_section())
+        # ── Sezioni impostazioni ──────────────────────────────────────
+        # Ogni sezione viene registrata in self._sections per consentire
+        # il filtraggio tramite la barra di ricerca.
+        self._sections: list[tuple[str, QGroupBox]] = []
+
+        def _add_section(name: str, widget: QGroupBox):
+            lay.addWidget(widget)
+            self._sections.append((name, widget))
+
+        _add_section("tema", self._build_theme_section())
+        _add_section("lingua", self._build_language_section())
+        _add_section("hardware", self._build_hardware_section())
+        _add_section("git", self._build_git_section())
+        _add_section("audit", self._build_audit_section())
+
+        # Stretch finale per tenere le sezioni in alto
+        lay.addStretch()
 
         scroll.setWidget(content)
         outer.addWidget(scroll, stretch=1)
+
+        # Stato iniziale: tutte le sezioni visibili
+        self._update_search_count(len(self._sections), len(self._sections))
+
+    # ──────────────────────────────────────────────────────────────────
+    # Ricerca nelle impostazioni
+    # ──────────────────────────────────────────────────────────────────
+    def _on_search(self, text: str):
+        """Filtra le sezioni in base al testo cercato.
+
+        Match case-insensitive su:
+          - nome interno della sezione (tema, lingua, hardware, git, audit)
+          - titolo della QGroupBox (es. '🎨 Tema interfaccia')
+          - tutto il testo contenuto: label, pulsanti, placeholder, tooltip
+        """
+        query = text.strip().lower()
+        if not query:
+            # Reset: mostra tutte
+            for _name, section in self._sections:
+                section.show()
+            self._update_search_count(len(self._sections), len(self._sections))
+            return
+
+        visible = 0
+        for name, section in self._sections:
+            if self._section_matches(name, section, query):
+                section.show()
+                visible += 1
+            else:
+                section.hide()
+
+        self._update_search_count(visible, len(self._sections))
+
+    def _section_matches(self, name: str, section: QGroupBox, query: str) -> bool:
+        """True se la sezione contiene il termine cercato."""
+        # 1. Match sul nome interno
+        if query in name.lower():
+            return True
+        # 2. Match sul titolo della QGroupBox
+        if query in section.title().lower():
+            return True
+        # 3. Match su tutto il testo contenuto nei child widget
+        haystack_parts: list[str] = [name.lower(), section.title().lower()]
+        from PyQt6.QtWidgets import QLabel, QPushButton, QLineEdit, QComboBox, QCheckBox
+        for child in section.findChildren(QObject):
+            # Cerca in tutti i widget che hanno proprietà testuali
+            if isinstance(child, QLabel):
+                haystack_parts.append(child.text().lower())
+            elif isinstance(child, QPushButton):
+                haystack_parts.append(child.text().lower())
+                tip = child.toolTip()
+                if tip:
+                    haystack_parts.append(tip.lower())
+            elif isinstance(child, QLineEdit):
+                ph = child.placeholderText()
+                if ph:
+                    haystack_parts.append(ph.lower())
+            elif isinstance(child, QComboBox):
+                for i in range(child.count()):
+                    haystack_parts.append(child.itemText(i).lower())
+            elif isinstance(child, QCheckBox):
+                haystack_parts.append(child.text().lower())
+        haystack = " ".join(haystack_parts)
+        return query in haystack
+
+    def _clear_search(self):
+        """Cancella la ricerca e mostra tutte le sezioni."""
+        self.search_input.clear()
+        self.search_input.setFocus()
+
+    def _update_search_count(self, visible: int, total: int):
+        """Aggiorna l'etichetta del contatore risultati."""
+        if visible == total:
+            self.search_count.setText(f"{total} sezioni")
+        else:
+            self.search_count.setText(
+                f"<b style='color:#2563eb;'>{visible}</b> di {total} sezioni visibili"
+            )
 
     def _build_theme_section(self) -> QFrame:
         """Sezione per scegliere il tema (chiaro/scuro)."""
