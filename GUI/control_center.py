@@ -511,13 +511,15 @@ class DevicePanel(QFrame):
 
         Implementazione reale:
           1. legge i remote salvati in CONFIG/settings.json (SettingsPanel)
-          2. per ogni remote, inietta il token nell'URL (https://oauth2:TOKEN@...)
-          3. fa `git add -A` + `git commit -m "Auto-sync ..."` + `git push REMOTE BRANCH`
-          4. logga i risultati su stdout
+          2. **C1**: apre dialog di conferma con lista dei remote
+          3. per ogni remote, inietta il token nell'URL (https://oauth2:TOKEN@...)
+          4. fa `git add -A` + `git commit -m "Auto-sync ..."` + `git push REMOTE BRANCH`
+          5. **C2**: raccoglie gli errori e mostra dialog di riepilogo
+
         Se non ci sono remote configurati nel settings store, usa i remote
         git locali (rilevati con `git remote -v`) come fallback.
         """
-        import time
+        import time, os
         from GUI import settings_store as ss
 
         # 1) Leggi i remote configurati dall'utente nel SettingsPanel
@@ -526,13 +528,28 @@ class DevicePanel(QFrame):
         if not configured:
             names = [r[0] for r in self.git_remotes]
             print(f"[GIT] Nessun remote configurato in settings. Uso i remote locali: {', '.join(names)}")
+            # C1: conferma anche per il fallback ai remote locali
+            ok = self._confirm_push(
+                title="Salvataggio su Git (remote locali)",
+                remote_list=[(n, "(remote git locale)", r) for r, n in self.git_remotes],
+            )
+            if not ok:
+                return
+            errors = []
             for rtype, name in self.git_remotes:
-                self._git_push_one(name, None, branch=None)
+                err = self._git_push_one(name, None, branch=None)
+                if err:
+                    errors.append((name, err))
+            # C2: dialog di riepilogo
+            self._show_push_summary(
+                total=len(self.git_remotes),
+                errors=errors,
+                remote_list=[(n, "(remote git locale)") for r, n in self.git_remotes],
+            )
             return
 
-        # 3) Push su ogni remote configurato
-        print(f"[GIT] Salvataggio su {len(configured)} remote configurati:")
-        import os
+        # 3) **C1**: dialog di conferma con lista dei remote
+        remote_list_for_dialog = []
         env_key_by_type = {
             "github": "BSWARM_GITHUB_TOKEN",
             "gitlab": "BSWARM_GITLAB_TOKEN",
@@ -540,28 +557,124 @@ class DevicePanel(QFrame):
         for r in configured:
             name = r.get("name", "?")
             url = r.get("url", "")
+            rtype = r.get("type", "git")
+            env_key = env_key_by_type.get(str(rtype).lower())
+            env_token = os.environ.get(env_key, "") if env_key else ""
+            source = f"env {env_key}" if env_token else "CONFIG/settings.json"
+            remote_list_for_dialog.append((name, url, source))
+
+        ok = self._confirm_push(
+            title=f"Salvataggio su {len(configured)} remote Git",
+            remote_list=remote_list_for_dialog,
+        )
+        if not ok:
+            print("[GIT] Push annullato dall'utente.")
+            return
+
+        # 4) Push su ogni remote + raccoglie errori per C2
+        print(f"[GIT] Salvataggio su {len(configured)} remote configurati:")
+        errors = []
+        for r in configured:
+            name = r.get("name", "?")
+            url = r.get("url", "")
             token = r.get("token", "")
+            rtype = r.get("type", "git")
             # T1.3: il token da env ha SEMPRE priorità su quello salvato
-            # in CONFIG/settings.json (i file finiscono su disco, la env
-            # no): così il token vive in `export BSWARM_*_TOKEN=...`,
-            # non nel repo, e risponde meglio alla rotazione.
-            env_key = env_key_by_type.get(
-                str(r.get("type", "")).lower())
+            env_key = env_key_by_type.get(str(rtype).lower())
             env_token = os.environ.get(env_key, "") if env_key else ""
             if env_token:
                 token = env_token
-                print(f"  • {name} ({r.get('type', 'git')}): {url} "
-                      f"[token da env {env_key}]")
+                print(f"  • {name} ({rtype}): {url} [token da env {env_key}]")
             else:
-                print(f"  • {name} ({r.get('type', 'git')}): {url} "
-                      f"[token da CONFIG (non versioneato)]")
-            self._git_push_one(name, url, token=token)
+                print(f"  • {name} ({rtype}): {url} [token da CONFIG]")
+            err = self._git_push_one(name, url, token=token)
+            if err:
+                errors.append((name, err))
+
+        # 5) **C2**: dialog di riepilogo
+        self._show_push_summary(
+            total=len(configured),
+            errors=errors,
+            remote_list=[(n, u) for n, u, _ in remote_list_for_dialog],
+        )
+
+    def _confirm_push(self, title: str, remote_list) -> bool:
+        """C1: dialog di conferma prima del push. Ritorna True se l'utente
+        conferma, False se annulla.
+
+        ``remote_list`` è una lista di tuple:
+          - (name, url, source) — per i remote da CONFIG
+          - (name, url, type) — per i remote git locali (compat)
+        """
+        from PyQt6.QtWidgets import QMessageBox
+        lines = ["Questa operazione farà:"]
+        lines.append("  • git add -A  (tutte le modifiche)")
+        lines.append("  • git commit -m \"Auto-sync YYYY-MM-DD HH:MM:SS\"")
+        lines.append("  • git push REMOTE BRANCH  (su tutti i remote sotto)")
+        lines.append("")
+        lines.append(f"Remote ({len(remote_list)}):")
+        for entry in remote_list:
+            if len(entry) == 3:
+                name, url, info = entry
+            else:
+                name, url = entry
+                info = ""
+            icon = "🐙" if "github" in str(info).lower() or "github" in url else (
+                "🦊" if "gitlab" in url else "📂"
+            )
+            line = f"  {icon} {name} — {url}"
+            if info and info not in ("github", "gitlab", "git"):
+                line += f"  [token: {info}]"
+            lines.append(line)
+        lines.append("")
+        lines.append("Vuoi continuare?")
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Conferma push Git")
+        msg.setIcon(QMessageBox.Icon.Question)
+        msg.setText("\n".join(lines))
+        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        msg.setDefaultButton(QMessageBox.StandardButton.No)
+        return msg.exec() == QMessageBox.StandardButton.Yes
+
+    def _show_push_summary(self, total: int, errors, remote_list):
+        """C2: dialog di riepilogo dopo il push.
+
+        - Se 0 errori: dialog informativo "✅ Push completato"
+        - Se alcuni errori: dialog di warning con elenco errori
+        - Se tutti falliti: dialog critical
+        """
+        from PyQt6.QtWidgets import QMessageBox
+        success = total - len(errors)
+        if not errors:
+            QMessageBox.information(
+                self,
+                "Push completato",
+                f"✅ Push completato con successo su tutti i {total} remote.\n\n"
+                + "\n".join(f"  ✓ {n} — {u}" for n, u in remote_list),
+            )
+            return
+        if success == 0:
+            icon = QMessageBox.Icon.Critical
+            title = "Push fallito su tutti i remote"
+            head = f"❌ Tutti i {total} push sono falliti:\n\n"
+        else:
+            icon = QMessageBox.Icon.Warning
+            title = f"Push parziale: {success}/{total} OK"
+            head = (f"⚠️ {success}/{total} remote OK, {len(errors)} falliti:\n\n")
+        body = head + "\n".join(f"  ✗ {n}: {e[:200]}" for n, e in errors)
+        msg = QMessageBox(self)
+        msg.setWindowTitle(title)
+        msg.setIcon(icon)
+        msg.setText(body)
+        msg.exec()
 
     def _git_push_one(self, remote_name: str, url: str | None, token: str = "", branch: str | None = None):
         """Esegue git add + commit + push su un singolo remote.
 
         Se ``url`` è None, usa il remote locale già configurato in .git/config.
         Se ``token`` è presente, lo inietta nell'URL per il push (https only).
+
+        Ritorna: ``None`` se tutto OK, oppure una stringa con l'errore.
         """
         import os, subprocess, time
 
@@ -576,8 +689,9 @@ class DevicePanel(QFrame):
                 cwd=base_dir, capture_output=True, text=True, timeout=30,
             )
             if r_add.returncode != 0:
-                print(f"[GIT:{remote_name}] git add fallito: {r_add.stderr.strip()}")
-                # continuiamo comunque al commit/push
+                err = f"git add fallito: {r_add.stderr.strip()}"
+                print(f"[GIT:{remote_name}] {err}")
+                return err
 
             # 2) git commit -m "Auto-sync ..." (ok anche se nothing to commit)
             r_commit = subprocess.run(
@@ -585,7 +699,9 @@ class DevicePanel(QFrame):
                 cwd=base_dir, capture_output=True, text=True, timeout=30,
             )
             if r_commit.returncode != 0 and "nothing to commit" not in r_commit.stdout.lower():
-                print(f"[GIT:{remote_name}] commit: {r_commit.stdout.strip() or r_commit.stderr.strip()}")
+                # "nothing to commit" non è un errore: push OK anche senza modifiche
+                err = f"commit: {r_commit.stdout.strip() or r_commit.stderr.strip()}"
+                print(f"[GIT:{remote_name}] {err}")
 
             # 3) Determina branch corrente (default main)
             if branch is None:
@@ -617,16 +733,25 @@ class DevicePanel(QFrame):
 
             if r_push.returncode == 0:
                 print(f"[GIT:{remote_name}] ✓ push OK ({branch})")
+                return None  # success
             else:
                 err = r_push.stderr.strip() or r_push.stdout.strip()
                 print(f"[GIT:{remote_name}] ✗ push fallito: {err}")
+                return err
+
         except subprocess.TimeoutExpired:
-            print(f"[GIT:{remote_name}] ✗ timeout")
+            err = "timeout (push > 120s)"
+            print(f"[GIT:{remote_name}] ✗ {err}")
+            return err
         except FileNotFoundError:
-            print(f"[GIT:{remote_name}] ✗ git non trovato")
+            err = "git non trovato (subprocess)"
+            print(f"[GIT:{remote_name}] ✗ {err}")
+            return err
         except Exception as e:
-            print(f"[GIT:{remote_name}] ✗ errore: {e}")
-    
+            err = f"{type(e).__name__}: {e}"
+            print(f"[GIT:{remote_name}] ✗ {err}")
+            return err
+
     def _device_row(self, name, color, model_name):
         row = QFrame()
         row.setObjectName(f"{name.lower()}_row")
@@ -1884,6 +2009,20 @@ class ControlCenter(QMainWindow):
         lay.addWidget(self.device_panel)
 
         return bar
+    
+        # Pulsanti Pausa/Stop orchestratore
+        _spacer = QWidget()
+        _spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        lay.addWidget(_spacer)
+        self._pause_btn = QPushButton("⏸ Pausa")
+        self._pause_btn.setStyleSheet("QPushButton { background:#f59e0b; color:white; border:none; padding:6px 12px; border-radius:6px; font-weight:bold; } QPushButton:hover { background:#d97706; }")
+        self._pause_btn.clicked.connect(self._pause_orchestrator)
+        lay.addWidget(self._pause_btn)
+        self._stop_btn = QPushButton("⏹ Stop")
+        self._stop_btn.setStyleSheet("QPushButton { background:#dc2626; color:white; border:none; padding:6px 12px; border-radius:6px; font-weight:bold; } QPushButton:hover { background:#b91c1c; }")
+        self._stop_btn.clicked.connect(self._stop_orchestrator)
+        lay.addWidget(self._stop_btn)
+
 
     def _show_credits(self):
         """Mostra l'overlay dei ringraziamenti."""
