@@ -1,0 +1,337 @@
+diff --git a/GUI/control_center.py b/GUI/control_center.py
+index 15e36f8..d0298c3 100644
+--- a/GUI/control_center.py
++++ b/GUI/control_center.py
+@@ -890,13 +890,16 @@ class PlanciaCard(QFrame):
+         super().__init__(parent)
+         self.setObjectName("card")
+         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+-        # Altezza aumentata da 90 a 110 per ospitare descrizioni su 2 righe
++        # Altezza fissa uniforme per tutte le card: 110px bastano per
++        # titolo + 2 righe di descrizione (word-wrap tronca al bisogno).
+         self.setFixedHeight(110)
+-        # Larghezza: la card deve riempire tutta la cella della grid,
+-        # indipendentemente dalla lunghezza del titolo. Così tutte le card
+-        # risultano larghezza uniforme (a parità di colonna stretch=1).
++        # Size policy Expanding orizzontale: la card RIEMPIE la cella della
++        # grid, qualunque sia la lunghezza del titolo. Nessun MinimumWidth
++        # (sennò invalidate il ColumnStretch e le colonne diventano disuguali).
+         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+-        self.setMinimumWidth(200)
++        # MinimumWidth molto basso: lascia che la grid restringa la card
++        # fino a 120px senza forzare la colonna a essere più larga.
++        self.setMinimumWidth(120)
+ 
+         lay = QVBoxLayout(self)
+         lay.setContentsMargins(14, 10, 14, 10)
+@@ -907,6 +910,11 @@ class PlanciaCard(QFrame):
+ 
+         title_lbl = QLabel(title)
+         title_lbl.setStyleSheet("font-size:14px; font-weight:bold; color:#1a1a1a;")
++        # Il titolo NON deve espandere orizzontalmente né forzare la larghezza
++        # minima della card. word-wrap attivo così i titoli lunghi vanno a capo
++        # invece di allargare la card.
++        title_lbl.setWordWrap(True)
++        title_lbl.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+         head.addWidget(title_lbl, stretch=1)
+ 
+         if badge:
+@@ -915,14 +923,18 @@ class PlanciaCard(QFrame):
+                 f"background:{badge_color}22; color:{badge_color}; "
+                 f"padding:2px 8px; border-radius:10px; font-size:10px; font-weight:bold;"
+             )
++            # Il badge non deve espandere né forzare la larghezza
++            badge_lbl.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred)
+             head.addWidget(badge_lbl)
+ 
+         lay.addLayout(head)
+ 
+         sub_lbl = QLabel(subtitle)
+-        # word-wrap attivo: la descrizione può andare a capo (2-3 righe)
++        # word-wrap attivo: la descrizione va a capo ma NON espande la card
++        # (l'altezza è fissata a 110px e il testo in eccesso viene troncato).
+         sub_lbl.setWordWrap(True)
+         sub_lbl.setStyleSheet("font-size:11px; color:#666;")
++        sub_lbl.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+         lay.addWidget(sub_lbl, stretch=1)
+ 
+         lay.addStretch()
+@@ -4083,6 +4095,10 @@ class CleanCodePanel(QWidget):
+ class CenterArea(QWidget):
+     def __init__(self, parent):
+         super().__init__()
++        # Import locale: QSizePolicy serve sia per le PlanciaCard che per
++        # i content delle CollapsibleSection. Importato qui una sola volta
++        # per evitare UnboundLocalError quando usato prima dell'import.
++        from PyQt6.QtWidgets import QSizePolicy
+         self.main_win = parent
+         self._editor_column = None
+         
+@@ -4110,11 +4126,16 @@ class CenterArea(QWidget):
+         cards_grid = QGridLayout()
+         cards_grid.setSpacing(12)
+         cards_grid.setContentsMargins(0, 0, 0, 0)
+-        # Colonne a larghezza uniforme: ogni colonna si allarga equally
+-        # indipendentemente dalla lunghezza del titolo/sottotitolo.
++        # Colonne a larghezza STRETTAMENTE uniforme: stretch=1 su tutte e 3.
++        # Le card hanno MinimumWidth=120 e SizePolicy=Expanding, quindi la
++        # grid distribuisce lo spazio in modo identico tra le colonne.
+         cards_grid.setColumnStretch(0, 1)
+         cards_grid.setColumnStretch(1, 1)
+         cards_grid.setColumnStretch(2, 1)
++        # Rige a altezza uniforme (tutte le card hanno fixedHeight=110,
++        # ma lo row stretch assicura che la grid non deformi le righe).
++        cards_grid.setRowStretch(0, 0)
++        cards_grid.setRowStretch(1, 0)
+ 
+         self.cards = {}
+         card_configs = [
+@@ -4143,11 +4164,14 @@ class CenterArea(QWidget):
+ 
+         cards_container = QWidget()
+         cards_container.setLayout(cards_grid)
++        # Il container deve riempire tutta la larghezza disponibile della
++        # plancia_section, così le 3 colonne hanno spazio uniforme.
++        cards_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+         self.plancia_section.add_widget(cards_container)
+ 
+-        # ── Separatore visivo tra le card (menù da cliccare) e le sezioni
+-        # collassabili (menù che si aprono). Serve a rendere chiaro che si
+-        # tratta di due gruppi distinti e coerenti nello stile.
++        # ── Separatore visivo tra le card (menù da cliccare) e gli strumenti
++        # di analisi. Serve a rendere chiaro che si tratta di due gruppi
++        # distinti ma coerenti nello stile.
+         tools_label = QLabel("🧰 Strumenti di analisi")
+         tools_label.setStyleSheet(
+             "color:#888; font-size:11px; font-weight:bold; "
+@@ -4155,11 +4179,11 @@ class CenterArea(QWidget):
+         )
+         self.plancia_section.add_widget(tools_label)
+ 
+-        # ── 5 sezioni collassabili con comportamento accordion ─────────
+-        # Comportamento accordion: quando una sezione viene espansa, tutte
+-        # le altre si collassano automaticamente. In questo modo l'utente
+-        # vede SOLO il menù scelto (una sezione aperta alla volta), non tutti
+-        # i menù aperti insieme nella stessa schermata.
++        # ── 5 strumenti di analisi come PlanciaCard cliccabili ─────────
++        # Le 5 sezioni (già CollapsibleSection) sono ora rettangoli uniformi
++        # allo stesso stile delle 5 card sopra (Code Task, Modelli, ecc.):
++        # al click aprono il pannello corrispondente nel detail_stack,
++        # esattamente come CI/CD e Clean Code.
+         #
+         # Struttura:
+         #   1) 🎮 Navigatore di codice Interattivo (CodeExplorer)
+@@ -4167,8 +4191,6 @@ class CenterArea(QWidget):
+         #   3) 📜 Log - Diario di Bordo (CategorizedLogViewer)
+         #   4) 🧪 Test di integrità del software (IntegrityTestsPanel)
+         #   5) 🛡️ Sicurezza del software & anti-manomissione (SoftwareSecurityPanel)
+-        # Il content interno di ogni sezione è forzato a 300px di altezza.
+-        from PyQt6.QtWidgets import QSizePolicy
+         UNIFORM_CONTENT_HEIGHT = 300  # altezza del content interno (300px fisse)
+ 
+         def _force_content_size(widget):
+@@ -4178,62 +4200,57 @@ class CenterArea(QWidget):
+             widget.setMaximumHeight(UNIFORM_CONTENT_HEIGHT)
+             widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+ 
+-        # ── 1) 🎮 Navigatore di codice Interattivo ──────────────────────
++        # ── Istanzia i 5 widget (verranno messi nel detail_stack) ──────
+         self.code_explorer = CodeExplorer()
+         _force_content_size(self.code_explorer)
+-        self.code_explorer_section = CollapsibleSection(
+-            "🎮 Navigatore di codice Interattivo", icon="📂"
+-        )
+-        self.code_explorer_section.add_widget(self.code_explorer)
+-        self.plancia_section.add_widget(self.code_explorer_section)
+-
+-        # ── 2) 💾 Backup Code — Git Logs ──────────────────────────────
+-        # La sezione contiene i tab GitHub/GitLab/Git (BackupCodeLogs).
+-        # I tab sono visibili SOLO quando la sezione è espansa, come CI/CD.
+         self.backup_logs = BackupCodeLogs()
+         _force_content_size(self.backup_logs)
+-        self.backup_section = CollapsibleSection(
+-            "💾 Backup Code — Git Logs", icon="📁"
+-        )
+-        self.backup_section.add_widget(self.backup_logs)
+-        self.plancia_section.add_widget(self.backup_section)
+-
+-        # ── 3) 📜 Log - Diario di Bordo ────────────────────────────────
++        # log_viewer è già stato creato sopra (riga ~4106), lo riusiamo
+         _force_content_size(self.log_viewer)
+-        self.plancia_section.add_widget(self.logs_section)
+-
+-        # ── 4) 🧪 Test di integrità del software ──────────────────────
+-        self.integrity_section = CollapsibleSection(
+-            "🧪 Test di integrità del software", icon="🔬"
+-        )
+         self.integrity_panel = IntegrityTestsPanel()
+         _force_content_size(self.integrity_panel)
+-        self.integrity_section.add_widget(self.integrity_panel)
+-        self.plancia_section.add_widget(self.integrity_section)
+-
+-        # ── 5) 🛡️ Sicurezza del software & anti-manomissione ──────────
+-        self.security_section = CollapsibleSection(
+-            "🛡️ Sicurezza del software & anti-manomissione", icon="🔐"
+-        )
+         self.security_panel = SoftwareSecurityPanel()
+         _force_content_size(self.security_panel)
+-        self.security_section.add_widget(self.security_panel)
+-        self.plancia_section.add_widget(self.security_section)
+-
+-        # ── Accordion: una sola sezione aperta alla volta ─────────────
+-        # Tutte le sezioni partono COLlassate: l'utente vede solo gli header
+-        # (come un "menù da cliccare"). Quando clicca un header, si espande
+-        # SOLO quella e le altre si chiudono.
+-        self._accordion_sections = [
+-            self.code_explorer_section,
+-            self.backup_section,
+-            self.logs_section,
+-            self.integrity_section,
+-            self.security_section,
++
++        # ── Grid 3x2 per i 5 strumenti (stesso stile delle card sopra) ─
++        tools_grid = QGridLayout()
++        tools_grid.setSpacing(12)
++        tools_grid.setContentsMargins(0, 0, 0, 0)
++        tools_grid.setColumnStretch(0, 1)
++        tools_grid.setColumnStretch(1, 1)
++        tools_grid.setColumnStretch(2, 1)
++        tools_grid.setRowStretch(0, 0)
++        tools_grid.setRowStretch(1, 0)
++
++        self.tools_cards = {}
++        tool_card_configs = [
++            ("code_explorer", "🎮 Navigatore di codice",
++             "Esplora classi, funzioni e variabili del progetto con grafo interattivo",
++             "Explorer", "#0891b2", 0, 0),
++            ("backup_logs", "💾 Backup Code — Git Logs",
++             "Log dei push su GitHub, GitLab e Git generici con stato pipeline CI",
++             "Backup", "#475569", 0, 1),
++            ("logs", "📜 Log — Diario di Bordo",
++             "Cronologia eventi del sistema: info, debug, success ed errori",
++             "Logs", "#ca8a04", 0, 2),
++            ("integrity", "🧪 Test di integrità",
++             "Verifica checksum e integrità dei file critici del software",
++             "Tests", "#0d9488", 1, 0),
++            ("security", "🛡️ Sicurezza & anti-manomissione",
++             "Scansioni di sicurezza, rilevamento manomissioni e hardening",
++             "Security", "#b91c1c", 1, 1),
+         ]
+-        for section in self._accordion_sections:
+-            section.set_expanded(False)
+-            section.toggled.connect(self._on_accordion_toggled)
++
++        for key, title, subtitle, badge, badge_color, row, col in tool_card_configs:
++            card = PlanciaCard(title, subtitle, badge=badge, badge_color=badge_color)
++            card.clicked.connect(lambda k=key: self.open_panel(k))
++            self.tools_cards[key] = card
++            tools_grid.addWidget(card, row, col)
++
++        tools_container = QWidget()
++        tools_container.setLayout(tools_grid)
++        tools_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
++        self.plancia_section.add_widget(tools_container)
+ 
+         main_lay.addWidget(self.plancia_section)
+         
+@@ -4266,6 +4283,36 @@ class CenterArea(QWidget):
+         clean_code_page = self._build_clean_code_page()
+         self.panel_pages["clean_code"] = clean_code_page
+         self.detail_stack.addWidget(clean_code_page)
++
++        # ── 5 pannelli strumenti di analisi ────────────────────────────
++        # Ognuno dei 5 widget istanziati sopra viene avvolto in una pagina
++        # con header "← Indietro alla Plancia" + titolo, poi aggiunto al
++        # detail_stack. La key deve combaciare con quella usata nelle
++        # PlanciaCard della tools_grid (vedi tool_card_configs sopra).
++        self.panel_pages["code_explorer"] = self._wrap_in_panel_page(
++            "🎮 Navigatore di codice Interattivo", self.code_explorer
++        )
++        self.detail_stack.addWidget(self.panel_pages["code_explorer"])
++
++        self.panel_pages["backup_logs"] = self._wrap_in_panel_page(
++            "💾 Backup Code — Git Logs", self.backup_logs
++        )
++        self.detail_stack.addWidget(self.panel_pages["backup_logs"])
++
++        self.panel_pages["logs"] = self._wrap_in_panel_page(
++            "📜 Log — Diario di Bordo", self.log_viewer
++        )
++        self.detail_stack.addWidget(self.panel_pages["logs"])
++
++        self.panel_pages["integrity"] = self._wrap_in_panel_page(
++            "🧪 Test di integrità del software", self.integrity_panel
++        )
++        self.detail_stack.addWidget(self.panel_pages["integrity"])
++
++        self.panel_pages["security"] = self._wrap_in_panel_page(
++            "🛡️ Sicurezza del software & anti-manomissione", self.security_panel
++        )
++        self.detail_stack.addWidget(self.panel_pages["security"])
+         
+         self.main_stack.addWidget(self.detail_stack)
+         
+@@ -4279,23 +4326,49 @@ class CenterArea(QWidget):
+     def back_to_main(self):
+         self.main_stack.setCurrentIndex(0)
+ 
+-    def _on_accordion_toggled(self, expanded: bool):
+-        """Comportamento accordion sulle 5 sezioni collassabili.
++    def _wrap_in_panel_page(self, title: str, widget: QWidget) -> QWidget:
++        """Avvolge un widget in una pagina con header "← Indietro" + titolo.
+ 
+-        Quando una sezione viene espansa manualmente dall'utente, tutte le
+-        altre si collassano automaticamente. In questo modo nella schermata
+-        resta visibile SOLO il menù scelto (una sezione aperta alla volta),
+-        non tutti i menù aperti insieme.
++        Pattern comune per tutti i pannelli del detail_stack: header con
++        pulsante Indietro + titolo, poi il widget content che riempie lo
++        spazio restante. Stesso stile di CICDPipelinePanel, CleanCodePanel
++        e SettingsPanel.
++        """
++        page = QWidget()
++        lay = QVBoxLayout(page)
++        lay.setContentsMargins(20, 16, 20, 16)
++        lay.setSpacing(14)
+ 
+-        Se l'utente collassa una sezione (expanded=False), non facciamo nulla:
+-        le altre restano nello stato in cui sono.
++        # Header: pulsante Indietro + titolo
++        head = QHBoxLayout()
++        head.setSpacing(10)
++        back = QPushButton("← Indietro alla Plancia")
++        back.setObjectName("back_btn")
++        back.setStyleSheet(
++            "QPushButton#back_btn { background:#e8e8ec; color:#1a1a1a; "
++            "border:none; padding:8px 16px; border-radius:6px; font-size:12px; }"
++            "QPushButton#back_btn:hover { background:#d0d0d0; }"
++        )
++        back.clicked.connect(self.back_to_main)
++        head.addWidget(back)
++        head.addStretch()
++        title_lbl = QLabel(f"<b style='font-size:18px;'>{title}</b>")
++        head.addWidget(title_lbl)
++        head.addStretch()
++        lay.addLayout(head)
++
++        # Content: il widget vero e proprio (già dimensionato a 300px)
++        lay.addWidget(widget, stretch=1)
++        return page
++
++    def _on_accordion_toggled(self, expanded: bool):
++        """[DEPRECATO] Comportamento accordion sulle vecchie sezioni collassabili.
++
++        Mantenuto per backward compatibility: le 5 sezioni sono state
++        sostituite da PlanciaCard cliccabili, ma se qualche riferimento
++        esterno chiama ancora questo metodo non crasha (no-op).
+         """
+-        if not expanded:
+-            return
+-        sender = self.sender()
+-        for section in getattr(self, "_accordion_sections", []):
+-            if section is not sender and section._expanded:
+-                section.set_expanded(False)
++        return
+     
+     def _build_panel_page(self, title, content, key):
+         page = QWidget()
