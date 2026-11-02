@@ -1,0 +1,21 @@
+cd ~/Desktop/byte-swarmy
+
+# 1. Copia i file nuovi
+cp /path/download/test_monthly_audit.py tests/
+cp /path/download/audit_mensile.sh scripts/
+cp /path/download/scheduler_worker.py CORE/
+cp /path/download/control_center.py GUI/
+cp /path/download/byte-swarm.sh .
+cp /path/download/avvia.sh .
+cp /path/download/ferma.sh .
+
+chmod +x byte-swarm.sh avvia.sh ferma.sh scripts/audit_mensile.sh
+
+# 2. Esegui tutti i test per verificare
+python tests/test_monthly_audit.py     # audit mensile
+python tests/test_scheduler.py          # scheduler (20 test)
+python tests/test_repo_hygiene.py       # igiene repo
+
+# 3. Fai il commit
+git add -A
+git commit -m "GUI uniformity + cleanup + monthly audit system"

@@ -72,6 +72,7 @@ Comandi:
   status            Mostra stato ed esci
   gui               Solo GUI (orchestratore già attivo o no)
   orch              Solo orchestratore in background
+  audit             Esegue l'audit mensile del software (report HTML+JSON in logs/audit/)
   setup             Forza esecuzione setup.sh (check + install dipendenze)
   help              Mostra questo aiuto
 
@@ -83,6 +84,8 @@ Esempi:
   ./byte-swarm.sh stop              # ferma orchestratore
   ./byte-swarm.sh restart           # riavvia orchestratore
   ./byte-swarm.sh gui               # solo GUI (no orchestratore in background)
+  ./byte-swarm.sh audit             # audit mensile (variabili, codice morto, porte, tunnel)
+  ./byte-swarm.sh audit --json      # solo JSON su stdout
 EOF
 }
 
@@ -328,6 +331,13 @@ case "$cmd" in
         ;;
     setup)
         SETUP_FORCE=1 ensure_env
+        ;;
+    audit)
+        show_banner
+        echo
+        echo "🔍 Audit mensile del software..."
+        echo
+        exec "$SCRIPT_DIR/scripts/audit_mensile.sh" "$@"
         ;;
     help)
         show_banner

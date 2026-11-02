@@ -7,6 +7,8 @@ BYTE-SWARMY: ..." con un pannello vero che permette di:
 - scegliere la lingua (italiano / inglese) — Work in progress
 - configurare i remote Git (GitHub, GitLab, Git) con token e URL,
   usati dal pulsante floppy 💾 per il push automatico su tutti i remote
+- eseguire l'audit mensile del software (variabili inutilizzate, codice
+  morto, porte esposte, reverse proxy) con report HTML in logs/audit/
 """
 import os
 import subprocess
@@ -15,12 +17,71 @@ from typing import Optional
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
     QComboBox, QLineEdit, QMessageBox, QInputDialog, QScrollArea,
-    QSizePolicy, QGroupBox, QFormLayout, QCheckBox,
+    QSizePolicy, QGroupBox, QFormLayout, QCheckBox, QPlainTextEdit,
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QUrl
+from PyQt6.QtCore import Qt, pyqtSignal, QUrl, QThread, pyqtSignal as Signal
 from PyQt6.QtGui import QDesktopServices
 
 from GUI import settings_store
+
+
+# ═══════════════════════════════════════════════════════════════
+# Worker thread per l'audit (non blocca la GUI)
+# ═══════════════════════════════════════════════════════════════
+
+class AuditWorker(QThread):
+    """Esegue l'audit mensile in background.
+
+    Lancia tests/test_monthly_audit.py --json in un subprocess, parsifica
+    il JSON risultante e emette segnali per aggiornare la GUI in tempo
+    reale. Non blocca mai il thread principale della GUI.
+    """
+    progress = Signal(str)        # messaggio di stato (es. "Avvio audit...")
+    finished_ok = Signal(dict)    # report dict (summary + findings)
+    failed = Signal(str)          # messaggio di errore
+
+    def __init__(self, root_dir: str, parent=None):
+        super().__init__(parent)
+        self.root_dir = root_dir
+        self._proc: Optional[subprocess.Popen] = None
+
+    def run(self):
+        try:
+            self.progress.emit("🔍 Avvio audit mensile in background...")
+            import sys as _sys
+            cmd = [_sys.executable, "tests/test_monthly_audit.py", "--json"]
+            self._proc = subprocess.Popen(
+                cmd,
+                cwd=self.root_dir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            stdout, stderr = self._proc.communicate(timeout=120)
+            if self._proc.returncode != 0 and not stdout.strip():
+                self.failed.emit(f"Audit fallito (exit {self._proc.returncode}):\n{stderr[:500]}")
+                return
+            # Parse JSON
+            import json
+            try:
+                report = json.loads(stdout)
+            except json.JSONDecodeError as e:
+                self.failed.emit(f"Risposta non valida dal test:\n{stdout[:300]}\n\nErrore: {e}")
+                return
+            self.progress.emit("✓ Audit completato")
+            self.finished_ok.emit(report)
+        except subprocess.TimeoutExpired:
+            self.failed.emit("Audit timeout (>120s). Possibile loop infinito.")
+        except FileNotFoundError:
+            self.failed.emit("Python non trovato. Verifica l'installazione.")
+        except Exception as e:
+            self.failed.emit(f"Errore inatteso: {e}")
+
+    def cancel(self):
+        """Cancella l'audit (se in corso)."""
+        if self._proc and self._proc.poll() is None:
+            self._proc.kill()
+        self.requestInterruption()
 
 
 class SettingsPanel(QWidget):
@@ -32,6 +93,7 @@ class SettingsPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("settings_panel")
+        self._audit_worker: Optional[AuditWorker] = None
         self._build_ui()
         self._reload_from_store()
 
@@ -81,6 +143,8 @@ class SettingsPanel(QWidget):
         lay.addWidget(self._build_hardware_section())
         # ── Sezione Git remotes ───────────────────────────────────────
         lay.addWidget(self._build_git_section())
+        # ── Sezione Audit del software ────────────────────────────────
+        lay.addWidget(self._build_audit_section())
 
         scroll.setWidget(content)
         outer.addWidget(scroll, stretch=1)
@@ -283,6 +347,207 @@ class SettingsPanel(QWidget):
         outer.addLayout(self.git_list_container)
 
         return box
+
+    def _build_audit_section(self) -> QFrame:
+        """Sezione per eseguire l'audit mensile del software.
+
+        Pulsante 'Esegui audit ora' lancia tests/test_monthly_audit.py in
+        background (QThread, non blocca la GUI). Mostra i risultati in
+        un area di testo + summary con critical/warning/total. Pulsante
+        'Apri report HTML' apre il browser su logs/audit/latest.html.
+        """
+        box = QGroupBox("🔍 Audit del software")
+        box.setStyleSheet(self._group_style())
+        outer = QVBoxLayout(box)
+        outer.setSpacing(8)
+        outer.setContentsMargins(14, 14, 14, 14)
+
+        # Spiegazione
+        expl = QLabel(
+            "Esegue l'audit mensile del software: variabili inutilizzate, "
+            "codice morto, porte/endpoint esposti, superficie reverse proxy "
+            "(ngrok, cloudflared, ssh -R, docker -p, ecc.), import banditi "
+            "e integrità dei file critici. Il report HTML viene salvato in "
+            "<code>logs/audit/</code>."
+        )
+        expl.setWordWrap(True)
+        expl.setStyleSheet("color:#555; font-size:11px;")
+        outer.addWidget(expl)
+
+        # Riga pulsanti
+        btns_row = QHBoxLayout()
+        btns_row.setSpacing(8)
+
+        self.audit_run_btn = QPushButton("🔍 Esegui audit ora")
+        self.audit_run_btn.setStyleSheet(self._primary_btn_style())
+        self.audit_run_btn.clicked.connect(self._on_run_audit)
+        btns_row.addWidget(self.audit_run_btn)
+
+        self.audit_open_btn = QPushButton("📂 Apri report HTML")
+        self.audit_open_btn.setStyleSheet(self._secondary_btn_style())
+        self.audit_open_btn.clicked.connect(self._on_open_audit_report)
+        btns_row.addWidget(self.audit_open_btn)
+
+        btns_row.addStretch()
+        outer.addLayout(btns_row)
+
+        # Status label (cambia durante l'esecuzione)
+        self.audit_status = QLabel("Pronto. Clicca 'Esegui audit ora' per iniziare.")
+        self.audit_status.setStyleSheet("color:#666; font-size:11px; font-style:italic;")
+        self.audit_status.setWordWrap(True)
+        outer.addWidget(self.audit_status)
+
+        # Summary cards (Critical / Warning / Total)
+        self.audit_summary = QLabel("")
+        self.audit_summary.setStyleSheet(
+            "background:#f8f9fa; border:1px solid #e0e0e0; border-radius:6px; "
+            "padding:10px; font-size:12px; color:#333;"
+        )
+        self.audit_summary.setWordWrap(True)
+        outer.addWidget(self.audit_summary)
+
+        # Area risultati dettagliati (ultimi 20 finding)
+        self.audit_output = QPlainTextEdit()
+        self.audit_output.setReadOnly(True)
+        self.audit_output.setMaximumHeight(180)
+        self.audit_output.setStyleSheet(
+            "QPlainTextEdit { background:#fafafa; color:#1a1a1a; "
+            "border:1px solid #e0e0e0; border-radius:6px; padding:8px; "
+            "font-family:'JetBrains Mono','Consolas',monospace; font-size:11px; }"
+        )
+        self.audit_output.setPlaceholderText(
+            "I risultati dettagliati dell'audit appariranno qui dopo l'esecuzione..."
+        )
+        outer.addWidget(self.audit_output)
+
+        return box
+
+    # ──────────────────────────────────────────────────────────────────
+    # Audit handlers
+    # ──────────────────────────────────────────────────────────────────
+    def _on_run_audit(self):
+        """Lancia l'audit in background (QThread, non blocca la GUI)."""
+        if self._audit_worker and self._audit_worker.isRunning():
+            QMessageBox.information(self, "Audit in corso",
+                                    "Un audit è già in esecuzione. Attendi il completamento.")
+            return
+        # Determina la root del progetto (2 livelli sopra GUI/)
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if not os.path.isfile(os.path.join(base, "tests", "test_monthly_audit.py")):
+            QMessageBox.warning(self, "File mancante",
+                                "tests/test_monthly_audit.py non trovato. "
+                                "Verifica che il file esista nel repo.")
+            return
+        # Disabilita il pulsante e resetta l'output
+        self.audit_run_btn.setEnabled(False)
+        self.audit_run_btn.setText("⏳ Audit in corso...")
+        self.audit_status.setText("Avvio audit in background...")
+        self.audit_status.setStyleSheet("color:#2563eb; font-size:11px; font-weight:bold;")
+        self.audit_output.clear()
+
+        # Crea e connetta il worker
+        self._audit_worker = AuditWorker(base, parent=self)
+        self._audit_worker.progress.connect(self._on_audit_progress)
+        self._audit_worker.finished_ok.connect(self._on_audit_finished)
+        self._audit_worker.failed.connect(self._on_audit_failed)
+        self._audit_worker.start()
+
+    def _on_audit_progress(self, msg: str):
+        """Aggiorna lo status durante l'esecuzione."""
+        self.audit_status.setText(msg)
+
+    def _on_audit_finished(self, report: dict):
+        """Mostra i risultati quando l'audit finisce con successo."""
+        self.audit_run_btn.setEnabled(True)
+        self.audit_run_btn.setText("🔍 Esegui audit ora")
+
+        s = report.get("summary", {})
+        total = s.get("total", 0)
+        critical = s.get("critical", 0)
+        warning = s.get("warning", 0)
+        info = s.get("info", 0)
+        passed = s.get("passed", False)
+
+        # Status
+        if passed:
+            self.audit_status.setText("✓ AUDIT PASS — 0 problemi critical")
+            self.audit_status.setStyleSheet("color:#16a34a; font-size:12px; font-weight:bold;")
+        else:
+            self.audit_status.setText(f"✗ AUDIT FAIL — {critical} problemi critical")
+            self.audit_status.setStyleSheet("color:#dc2626; font-size:12px; font-weight:bold;")
+
+        # Summary con badge colorati
+        crit_color = "#dc2626" if critical else "#16a34a"
+        self.audit_summary.setText(
+            f"<table cellpadding='4' style='font-size:13px;'>"
+            f"<tr><td><b>Totale finding:</b></td><td>{total}</td></tr>"
+            f"<tr><td><b style='color:{crit_color};'>Critical:</b></td>"
+            f"<td style='color:{crit_color}; font-weight:bold;'>{critical}</td></tr>"
+            f"<tr><td><b style='color:#f59e0b;'>Warning:</b></td>"
+            f"<td style='color:#f59e0b;'>{warning}</td></tr>"
+            f"<tr><td><b style='color:#3b82f6;'>Info:</b></td>"
+            f"<td style='color:#3b82f6;'>{info}</td></tr>"
+            f"</table>"
+        )
+
+        # Output dettagliato: primi 20 finding
+        findings = report.get("findings", [])
+        lines = []
+        for f in findings[:20]:
+            sev = f.get("severity", "info").upper()
+            loc = f"{f.get('file', '?')}:{f.get('line', 0)}"
+            msg = f.get("message", "")[:120]
+            lines.append(f"[{sev:8s}] {loc:50s} {msg}")
+        if len(findings) > 20:
+            lines.append(f"... e altri {len(findings) - 20} finding (vedi report HTML)")
+        self.audit_output.setPlainText("\n".join(lines) if lines else "(nessun finding)")
+
+        # Salva il report HTML su disco (così 'Apri report' funziona)
+        try:
+            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            audit_dir = os.path.join(base, "logs", "audit")
+            os.makedirs(audit_dir, exist_ok=True)
+            from datetime import datetime
+            ts = datetime.now().strftime("%Y-%m-%d")
+            html_path = os.path.join(audit_dir, f"{ts}_audit.html")
+            # Genera anche l'HTML: richiama il modulo con --html
+            import sys as _sys
+            subprocess.run(
+                [_sys.executable, "tests/test_monthly_audit.py", "--html", html_path, "--no-text"],
+                cwd=base, capture_output=True, timeout=30
+            )
+            # Aggiorna symlink latest.html
+            latest = os.path.join(audit_dir, "latest.html")
+            try:
+                if os.path.islink(latest) or os.path.exists(latest):
+                    os.remove(latest)
+                os.symlink(os.path.basename(html_path), latest)
+            except OSError:
+                pass  # su alcuni FS i symlink non funzionano
+            self.audit_status.setText(
+                self.audit_status.text() + f"  |  Report: {html_path}"
+            )
+        except Exception as e:
+            # Non bloccare se la generazione HTML fallisce
+            pass
+
+    def _on_audit_failed(self, msg: str):
+        """Mostra l'errore se l'audit fallisce."""
+        self.audit_run_btn.setEnabled(True)
+        self.audit_run_btn.setText("🔍 Esegui audit ora")
+        self.audit_status.setText("✗ Audit fallito")
+        self.audit_status.setStyleSheet("color:#dc2626; font-size:12px; font-weight:bold;")
+        self.audit_output.setPlainText(msg)
+
+    def _on_open_audit_report(self):
+        """Apre il browser sul report HTML più recente."""
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        latest = os.path.join(base, "logs", "audit", "latest.html")
+        if not os.path.exists(latest):
+            QMessageBox.information(self, "Nessun report",
+                                    "Nessun report HTML trovato. Esegui prima un audit.")
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(latest))
 
     # ──────────────────────────────────────────────────────────────────
     # Stili
