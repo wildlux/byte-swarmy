@@ -51,7 +51,10 @@ from SAFETY.security_checks import check_isolation, apply_safe_mode
 from CORE.execute_handler import handle_execute_task
 from CORE.decision_feedback import DecisionValidator
 from CORE.correction import build_correction_prompt
-from MONITORING.thermal_manager import TimestralManager, TimestralGatekeeper, PAUSE_CPU, PAUSE_GPU, RESUME_TEMP
+from MONITORING.thermal_manager import (TimestralManager, TimestralGatekeeper,
+                                        load_timestral_overrides,
+                                        PAUSE_CPU, PAUSE_GPU, RESUME_TEMP)
+from CORE.scheduler_worker import SchedulerWorker
 
 
 # ====================================================================
@@ -1149,13 +1152,34 @@ class Orchestrator:
             except Exception as e:
                 self.log.warning(f"Timestral failed: {e}")
 
-        # Gatekeeper termico (work order T3): LED CPU 75 / GPU 80 -> resume 65
+        # Gatekeeper termico: priorità CONFIG/actors.json (T2.2, pannello
+        # Attori della GUI) > config.toml [thermal] > default work order T3
         thermal_cfg = self.config.get("thermal", {})
+        actors_ts = load_timestral_overrides()
+        pause_cpu = float(actors_ts.get(
+            "cpu_temp_threshold",
+            thermal_cfg.get("pause_cpu", PAUSE_CPU)))
+        pause_gpu = float(actors_ts.get(
+            "gpu_temp_threshold",
+            thermal_cfg.get("pause_gpu", PAUSE_GPU)))
         self.thermal_gate = TimestralGatekeeper(
-            pause_cpu=float(thermal_cfg.get("pause_cpu", PAUSE_CPU)),
-            pause_gpu=float(thermal_cfg.get("pause_gpu", PAUSE_GPU)),
+            pause_cpu=pause_cpu,
+            pause_gpu=pause_gpu,
             resume_temp=float(thermal_cfg.get("resume_temp", RESUME_TEMP)),
         )
+        if actors_ts:
+            self.log.info(
+                "[timestral] attori override: pause_cpu=%.0f pause_gpu=%.0f",
+                pause_cpu, pause_gpu)
+        # intervallo di campionamento configurabile dal pannello Attori
+        interval = actors_ts.get("monitor_interval_sec")
+        if interval:
+            self.timestral.SAMPLE_INTERVAL = max(5, int(float(interval)))
+
+        # Scheduler GUI (T2.3): thread background, ogni tick legge
+        # CONFIG/scheduled_tasks.json e inietta i task scaduti in coda.
+        self.scheduler = SchedulerWorker(self.queue, logger=self.log)
+        self.scheduler.start()
         
         self.monitor = SystemMonitor(self.config, self.log, self.timestral)
         self.dispatcher = TaskDispatcher(self.queue, self.planner, self.generic_planner, self.models, self.tools, self.log)
@@ -1766,6 +1790,9 @@ class Orchestrator:
         self.running = False
 
     def _shutdown(self) -> None:
+        self.log.info("stopping scheduler...")
+        if getattr(self, "scheduler", None):
+            self.scheduler.stop()   # Event.set: non usa join aggressivo
         self.log.info("stopping timestral...")
         if self.timestral:
             self.timestral.stop()

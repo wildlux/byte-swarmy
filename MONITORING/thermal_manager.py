@@ -121,6 +121,38 @@ class TimestralGatekeeper:
         return self.paused
 
 
+# --------------------------------------------------------------------
+# T2.2 — Override da CONFIG/actors.json (pannello Attori della GUI)
+# --------------------------------------------------------------------
+
+def load_timestral_overrides(actors_path=None) -> dict:
+    """Legge la sezione 'timestral' di CONFIG/actors.json (salvata dal
+    pannello Attori della GUI). Ritorna {} se il file non esiste o è
+    malformato — fail-open verso i parametri di config.toml.
+
+    Il pannello salva:
+        enabled (bool) non gestito qui (il gate resta attivo): chi lo
+            disabilita temporà thermal.enabled in config.toml;
+        cpu_temp_threshold (float, °C)  → pause_cpu del gatekeeper;
+        gpu_temp_threshold (float, °C)  → pause_gpu del gatekeeper;
+        thermal_pause_seconds (float, s) → durata pausa consigliata;
+        monitor_interval_sec (float, s) → SAMPLE_INTERVAL del manager;
+        min_tokens_per_sec, check_only_if_gpu, pause_decision_model_too:
+            campi del pannello, in attesa di wiring (TODO T3.x).
+    """
+    import json
+    from pathlib import Path as _P
+    p = _P(actors_path) if actors_path else (
+        _P(__file__).resolve().parent.parent / "CONFIG" / "actors.json")
+    try:
+        with open(p, encoding="utf-8") as f:
+            data = json.load(f)
+        ts = data.get("timestral", {}) if isinstance(data, dict) else {}
+        return ts if isinstance(ts, dict) else {}
+    except Exception:
+        return {}
+
+
 # ====================================================================
 # TimestralManager
 # ====================================================================

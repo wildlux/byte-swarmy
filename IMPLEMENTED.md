@@ -3,6 +3,29 @@
 This file tracks every significant feature, fix, and architectural change implemented in the system. It serves as a historical record to keep the main READMEs clean and focused on usage.
 
 ## 🔐 Sprint Sicurezza + Igiene (2026-11-02)
+- [x] **T2.2 Cabla Timestral su Attori**: `MONITORING/thermal_manager.py`
+  nuovo helper `load_timestral_overrides()` (legge la sezione `timestral`
+  di `CONFIG/actors.json`, fail-open `{}`); `CORE/orchestrator.py` — le
+  soglie del `TimestralGatekeeper` sono ora `actors.json > config.toml >
+  default T3`, con log "[timestral] attori override" se presenti;
+  `SAMPLE_INTERVAL` configurabile dal pannello (min 5s).
+- [x] **T2.3 Scheduler Worker**: nuovo `CORE/scheduler_worker.py` —
+  `SchedulerLogic` (pura, tempo fake per test: oneshot `datetime`,
+  `interval_sec` via `last_run`, daily "HH:MM" con `last_run_date`
+  anti-doppio-scatto-in-giornata) + `SchedulerWorker` (thread daemonico,
+  stop cooperativo via `Event.wait` — mai `time.sleep`); tick 60s legge
+  `CONFIG/scheduled_tasks.json`, inietta nella `TaskQueue` (source
+  "scheduler") e aggiorna `last_run`/`last_run_date`/`done` in JSON.
+  Il thread parte in `Orchestrator.__init__` e si ferma in `_shutdown()`.
+- [x] **T2.4 Modelli Ollama reali in combo**: `GUI/actors_panel.py` niente
+  più lista statica: `ollama_list_models()` (`ollama list`, prima colonna,
+  timeout 3s, fallback `[]`) + fallback su `OLLAMA_MODELS` se vuota;
+  verificato offscreen: la combo mostra i 6 modelli installati reali.
+- [x] **T3.6 Test scheduler/settings/attori**: `tests/test_scheduler.py`
+  (20 test: matching oneshot/interval/daily con tempo fake, doppio-run
+  bloccato sul file JSON), `tests/test_settings_store.py` (6: default
+  senza remote, I/O su tmp, JSON corrotto fail-open, no leak token),
+  `tests/test_actors_panel.py` (6 offscreen). Igiene 14/14 OK.
 - [x] **T1.1+T1.2 Token preclusi da git**: `CONFIG/settings.json` untracked
   (`git rm --cached`, il file su remote non conteneva segreti: nessuna
   rotazione necessaria) e `CONFIG/{settings,actors,scheduled_tasks,git_settings,security_baseline}.json`
@@ -216,4 +239,35 @@ MCP E2E testing, USB protocol parser, USB differential analysis, dedicated user 
       (analisi AST: funzioni lunghe, complessità ciclomatica, LOC)
 
 - [x] "Logs CI/CD & Clean Code" → "Log - Diario di Bordo"
+- [x] **T2.2 Cabla Timestral** — Leggere `CONFIG/actors.json` in
+  `MONITORING/thermal_manager.py`. Se esiste, fare override dei parametri
+  di `CONFIG/config.toml` (soglie CPU/GPU, tok/s min, durata pausa, ecc.).
+  Test: cambia soglia 80→70, riavvia orchestratore, verifica nei log
+  termici che il valore nuovo è applicato.
+
+- [x] **T2.3 `CORE/scheduler_worker.py`** — Creare un thread che parte
+  dall'orchestratore e gira in background. Ogni 60s legge
+  `CONFIG/scheduled_tasks.json`:
+  - oneshot: se `datetime <= now`, inietta task in `tasks/queue.db` e
+    segna `done=true`
+  - interval: se `last_run + interval <= now`, inietta + aggiorna
+    `last_run`
+  - daily: se `time == HH:MM` e `last_run_date != today`, inietta +
+    aggiorna
+  - Aggiungere campi `last_run` e `done` nel JSON
+  - Test: schedula task "fra 30 secondi", verifica che finisca nel DB.
+
+- [x] **T2.4 Modelli Ollama reali nella combo** — In `GUI/actors_panel.py`
+  sostituire la lista statica `OLLAMA_MODELS` con una chiamata
+  `subprocess.run(["ollama", "list"])`. Parser della prima colonna
+  dell'output. Fallback alla lista hardcoded se `ollama` non esiste o
+  fallisce. Test: esegui con `ollama list` che restituisce 3 modelli →
+  vedi 3 voci nella combo (più eventuali extra che hai installato).
+
+- [x] **T3.6 Test automatizzati nuovi moduli** — Aggiungere a
+  `tests/run_tests.py`:
+  - `tests/test_settings_store.py` (save/load/migration)
+  - `tests/test_actors_panel.py` (3 attori + parametri validi)
+  - `tests/test_scheduler.py` (logica one-shot/interval/daily senza
+    thread reale — solo logica pura)
 

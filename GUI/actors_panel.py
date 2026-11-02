@@ -40,6 +40,26 @@ OLLAMA_MODELS = [
     "deepseek-coder:1.3b",
 ]
 
+
+def ollama_list_models(timeout: float = 3.0) -> list:
+    """T2.4 — Modelli Ollama INSTALLATI reali (prima colonna di `ollama
+    list`). Fallback a [] se `ollama` non esiste o fallisce — il chiamante
+    usa OLLAMA_MODELS come lista di backup."""
+    import subprocess
+    try:
+        r = subprocess.run(["ollama", "list"],
+                           capture_output=True, text=True, timeout=timeout)
+        if r.returncode != 0:
+            return []
+        models = []
+        for line in r.stdout.splitlines()[1:]:   # la 1a riga è l'header
+            name = line.split()[0] if line.split() else ""
+            if name:
+                models.append(name)
+        return models
+    except Exception:
+        return []
+
 DEFAULTS = {
     "llm": {
         "model": "qwen2.5:1.5b",
@@ -189,7 +209,9 @@ class ActorsPanel(QWidget):
 
         self.llm_model = QComboBox()
         self.llm_model.setEditable(True)
-        self.llm_model.addItems(OLLAMA_MODELS)
+        # T2.4: prima i modelli installati (ollama list), fallback a lista statica
+        installed = ollama_list_models() or OLLAMA_MODELS
+        self.llm_model.addItems(installed)
         self.llm_model.setStyleSheet(self._combo_style())
         form.addRow("Modello:", self.llm_model)
 
@@ -223,7 +245,7 @@ class ActorsPanel(QWidget):
 
         self.dec_model = QComboBox()
         self.dec_model.setEditable(True)
-        self.dec_model.addItems(OLLAMA_MODELS)
+        self.dec_model.addItems(ollama_list_models() or OLLAMA_MODELS)
         self.dec_model.setStyleSheet(self._combo_style())
         form.addRow("Modello:", self.dec_model)
 
