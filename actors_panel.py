@@ -233,6 +233,9 @@ class ActorsPanel(QWidget):
         lay.addWidget(self._build_llm_section())
         lay.addWidget(self._build_decision_section())
         lay.addWidget(self._build_timestral_section())
+        # Spostato dal "Log - Diario di Bordo": sezione Ollama status per
+        # verificare che Ollama sia installato e funzionante sul PC.
+        lay.addWidget(self._build_ollama_status_section())
 
         # Pulsante Salva in fondo
         save_btn = QPushButton("💾 Salva configurazione attori")
@@ -463,6 +466,157 @@ class ActorsPanel(QWidget):
         outer.addWidget(hint)
 
         return box
+
+    def _build_ollama_status_section(self) -> QGroupBox:
+        """Sezione '🦙 Ollama status' — verificare se Ollama è installato e
+        funzionante sul PC. Spostato dal 'Log - Diario di Bordo' (che ora
+        contiene solo il diario ByteSwarm).
+
+        Mostra:
+          - Stato installazione (✓ trovato / ✗ mancante)
+          - Versione di Ollama
+          - Modelli installati (numero)
+          - Pulsante "🔄 Aggiorna" per rieseguire il check
+          - Pulsante "🦙 Apri cartella Ollama" (se trovato)
+        """
+        import shutil, subprocess
+
+        box = QGroupBox("🦙 Ollama — stato del runtime")
+        box.setStyleSheet(self._group_style())
+        outer = QVBoxLayout(box)
+        outer.setSpacing(8)
+        outer.setContentsMargins(14, 14, 14, 14)
+
+        # Riga stato + pulsanti
+        head = QHBoxLayout()
+        head.setSpacing(8)
+
+        # Stato Ollama
+        ollama_path = shutil.which("ollama")
+        self._ollama_status_label = QLabel()
+        self._ollama_status_label.setStyleSheet(
+            "font-size:11px; font-weight:bold; padding:6px 12px; border-radius:6px;"
+        )
+        head.addWidget(self._ollama_status_label)
+        head.addStretch()
+
+        # Pulsante refresh
+        refresh_btn = QPushButton("🔄 Aggiorna")
+        refresh_btn.setStyleSheet(
+            "QPushButton { background:#2563eb; color:#ffffff; border:none; "
+            "padding:6px 14px; border-radius:6px; font-weight:bold; font-size:11px; }"
+            "QPushButton:hover { background:#1d4ed8; }"
+        )
+        refresh_btn.clicked.connect(self._refresh_ollama_status)
+        head.addWidget(refresh_btn)
+
+        # Pulsante apri cartella Ollama (solo se trovato)
+        self._open_ollama_btn = QPushButton("📂 Apri cartella Ollama")
+        self._open_ollama_btn.setStyleSheet(
+            "QPushButton { background:#e8e8ec; color:#1a1a1a; border:1px solid #d0d0d0; "
+            "padding:6px 14px; border-radius:6px; font-size:11px; }"
+            "QPushButton:hover { background:#d0d0d0; }"
+        )
+        self._open_ollama_btn.clicked.connect(self._open_ollama_folder)
+        head.addWidget(self._open_ollama_btn)
+        outer.addLayout(head)
+
+        # Dettagli (versione + numero modelli + primo modello)
+        self._ollama_details = QLabel()
+        self._ollama_details.setStyleSheet(
+            "font-size:11px; color:#555; padding:4px 8px;"
+        )
+        self._ollama_details.setWordWrap(True)
+        outer.addWidget(self._ollama_details)
+
+        # Esegui check iniziale
+        self._refresh_ollama_status()
+
+        return box
+
+    def _refresh_ollama_status(self):
+        """Esegue il check di Ollama: esiste? versione? modelli installati?"""
+        import shutil, subprocess
+
+        ollama_path = shutil.which("ollama")
+        if not ollama_path:
+            self._ollama_status_label.setText("❌ Ollama NON installato")
+            self._ollama_status_label.setStyleSheet(
+                "color:#dc2626; background:#fee2e2; font-size:11px; "
+                "font-weight:bold; padding:6px 12px; border-radius:6px;"
+            )
+            self._ollama_details.setText(
+                "Installa Ollama da https://ollama.com/download per usare i "
+                "modelli LLM locali. Senza Ollama, gli attori LLM e Decision "
+                "Model non funzioneranno."
+            )
+            self._open_ollama_btn.setVisible(False)
+            return
+
+        # Ollama trovato: recupera versione + modelli
+        try:
+            r_ver = subprocess.run(
+                [ollama_path, "--version"],
+                capture_output=True, text=True, timeout=3,
+            )
+            version = r_ver.stdout.strip() or r_ver.stderr.strip() or "?"
+            # Spesso la versione è in stderr ("ollama version is 0.5.7")
+            if "version" in version.lower():
+                # Estrai la parte dopo "version is"
+                import re
+                m = re.search(r"version is\s+([\d.]+)", version, re.I)
+                if m:
+                    version = m.group(1)
+        except Exception:
+            version = "?"
+
+        try:
+            models = ollama_list_models(timeout=3)
+        except Exception:
+            models = []
+
+        self._ollama_status_label.setText(f"✅ Ollama installato (v{version})")
+        self._ollama_status_label.setStyleSheet(
+            "color:#16a34a; background:#dcfce7; font-size:11px; "
+            "font-weight:bold; padding:6px 12px; border-radius:6px;"
+        )
+        if models:
+            self._ollama_details.setText(
+                f"Modelli installati: {len(models)}\n"
+                f"Primi: {', '.join(models[:5])}"
+            )
+        else:
+            self._ollama_details.setText(
+                "Nessun modello installato. Esegui: ollama pull qwen2.5:1.5b "
+                "per scaricare un modello leggero."
+            )
+
+        # Determina cartella Ollama (default ~/.ollama)
+        home = os.path.expanduser("~")
+        ollama_dir = os.path.join(home, ".ollama")
+        self._open_ollama_btn.setVisible(os.path.isdir(ollama_dir))
+        self._ollama_dir = ollama_dir
+
+    def _open_ollama_folder(self):
+        """Apre la cartella ~/.ollama nel file manager del sistema."""
+        import subprocess, shutil
+        ollama_dir = getattr(self, "_ollama_dir", None)
+        if not ollama_dir or not os.path.isdir(ollama_dir):
+            return
+        try:
+            # Linux: xdg-open; macOS: open; Windows: explorer
+            if shutil.which("xdg-open"):
+                subprocess.Popen(["xdg-open", ollama_dir])
+            elif shutil.which("open"):
+                subprocess.Popen(["open", ollama_dir])
+            else:
+                # Fallback: stampa il path
+                self._ollama_details.setText(
+                    f"Cartella Ollama: {ollama_dir}\n"
+                    f"(apri manualmente con il tuo file manager)"
+                )
+        except Exception as e:
+            self._ollama_details.setText(f"Errore apertura cartella: {e}")
 
     # ──────────────────────────────────────────────────────────────────
     # Stili (riutilizzo gli stessi del SettingsPanel)

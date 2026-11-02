@@ -798,6 +798,9 @@ class DevicePanel(QFrame):
 # SEZIONE COLLABILE
 # ═══════════════════════════════════════════════════════════════
 class CollapsibleSection(QFrame):
+    # Segnale emesso quando lo stato cambia (per sincronizzare più sezioni)
+    toggled = pyqtSignal(bool)
+
     def __init__(self, title, icon="📁", parent=None):
         super().__init__(parent)
         self.setObjectName("collapsible_section")
@@ -845,6 +848,7 @@ class CollapsibleSection(QFrame):
         lay.addWidget(self.content)
         
         self._expanded = True
+        self._sync_silent = False  # True quando il cambio è programmatico (no signal)
     
     def _on_toggle(self):
         self._expanded = not self._expanded
@@ -854,6 +858,20 @@ class CollapsibleSection(QFrame):
         else:
             self.content.hide()
             self.toggle_btn.setText("▸")
+        # Emetti segnale solo se il cambio è manuale (non da sync)
+        if not self._sync_silent:
+            self.toggled.emit(self._expanded)
+    
+    def set_expanded(self, expanded: bool):
+        """Cambia lo stato programmaticamente (per sincronizzazione).
+        Non emette il segnale toggled (evita loop)."""
+        if self._expanded == expanded:
+            return
+        self._sync_silent = True
+        try:
+            self._on_toggle()
+        finally:
+            self._sync_silent = False
     
     def add_widget(self, widget):
         self.content_lay.addWidget(widget)
@@ -931,15 +949,17 @@ class CategorizedLogViewer(QFrame):
             "QFrame#log_viewer { background:#ffffff; border:1px solid #e0e0e0; "
             "border-radius:6px; }"
         )
-        
+
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
-        
+
+        # Fix: la scheda "🦙 Ollama" è stata spostata nel pannello Modelli → Attori
+        # (per verificare se Ollama funziona su quel PC). Qui resta solo la
+        # scheda "🐝 ByteSwarm GUI" — il diario di bordo del sistema.
         self.tab_bar = QTabBar()
         self.tab_bar.setExpanding(False)
         self.tab_bar.setMovable(False)
-        self.tab_bar.addTab("🦙 Ollama")
         self.tab_bar.addTab("🐝 ByteSwarm GUI")
         self.tab_bar.setStyleSheet(
             "QTabBar::tab { background:#f0f0f0; color:#555; border:1px solid #d0d0d0; "
@@ -951,12 +971,13 @@ class CategorizedLogViewer(QFrame):
         )
         self.tab_bar.currentChanged.connect(self._on_tab_changed)
         lay.addWidget(self.tab_bar)
-        
+
         self.log_stack = QStackedWidget()
         self.logs = {}
-        categories = ["ollama", "byteswarm"]
-        colors = {"ollama": "#a6e3a1", "byteswarm": "#f9e2af"}
-        
+        # Solo "byteswarm" ora (ollama è nel pannello Modelli → Attori)
+        categories = ["byteswarm"]
+        colors = {"byteswarm": "#f9e2af"}
+
         for cat in categories:
             log_widget = QTextEdit()
             log_widget.setReadOnly(True)
@@ -969,7 +990,7 @@ class CategorizedLogViewer(QFrame):
             log_widget.setPlainText(sample)
             self.logs[cat] = log_widget
             self.log_stack.addWidget(log_widget)
-        
+
         lay.addWidget(self.log_stack, stretch=1)
     
     def _get_sample_log(self, category, color):
@@ -2220,14 +2241,14 @@ class ControlCenter(QMainWindow):
         QTabBar::tab {
             background:#e8e8ec; color:#555; border:1px solid #d0d0d0;
             border-bottom:none; border-top-left-radius:6px; border-top-right-radius:6px;
-            padding:10px 10px 10px 16px; margin-right:2px; font-size:12px;
+            padding:10px 28px 10px 16px; margin-right:2px; font-size:12px;
             min-height: 22px;
         }
-        /* Close button (×) dei tab: più a sinistra, niente dal bordo */
+        /* Close button (×) dei tab: staccato dal bordo destro (12px di margine) */
         QTabBar::close-button {
             subcontrol-position: right;
-            padding: 0 6px 0 4px;
-            margin: 0;
+            padding: 0 12px 0 4px;
+            margin: 0 6px 0 0;
         }
         QTabBar::close-button:hover {
             background: #fee2e2;
@@ -2278,14 +2299,14 @@ class ControlCenter(QMainWindow):
         QTabBar::tab {
             background:#313244; color:#a6adc8; border:1px solid #45475a;
             border-bottom:none; border-top-left-radius:6px; border-top-right-radius:6px;
-            padding:10px 10px 10px 16px; margin-right:2px; font-size:12px;
+            padding:10px 28px 10px 16px; margin-right:2px; font-size:12px;
             min-height: 22px;
         }
-        /* Close button (×) dei tab: più a sinistra, niente dal bordo */
+        /* Close button (×) dei tab: staccato dal bordo destro (12px di margine) */
         QTabBar::close-button {
             subcontrol-position: right;
-            padding: 0 6px 0 4px;
-            margin: 0;
+            padding: 0 12px 0 4px;
+            margin: 0 6px 0 0;
         }
         QTabBar::close-button:hover {
             background: #7f1d1d;
@@ -4111,53 +4132,66 @@ class CenterArea(QWidget):
         cards_container.setLayout(cards_grid)
         self.plancia_section.add_widget(cards_container)
 
-        # ── Riga Navigatore di codice + Backup Code - Git logs (affiancati) ──
-        # Prima erano in verticale (troppo larghi, sprecavano spazio).
-        # Ora sono affiancati in orizzontale con QSplitter: Navigatore a
-        # sinistra, "Backup Code - Git logs" a destra.
-        from PyQt6.QtWidgets import QSplitter
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setStyleSheet(
-            "QSplitter::handle { background:#e0e0e0; }"
-            "QSplitter::handle:horizontal { width: 4px; }"
-        )
+        # ── 5 sezioni separate, indipendenti, dimensioni fisse ──────────
+        # (Rollback del tentativo di sincronizzazione v3: era peggio.)
+        # Struttura finale:
+        #   1) 🎮 Navigatore di codice Interattivo (CodeExplorer)
+        #   2) 💾 Backup Code — Git Logs (BackupCodeLogs)
+        #   3) 📜 Log - Diario di Bordo (CategorizedLogViewer)
+        #   4) 🧪 Test di integrità del software (IntegrityTestsPanel)
+        #   5) 🛡️ Sicurezza del software & anti-manomissione (SoftwareSecurityPanel)
+        # Ogni sezione è una CollapsibleSection indipendente (collassa/espandi
+        # solo quella, NON influenza le altre). Il content interno di ogni
+        # sezione è forzato a 300px di altezza + 100% larghezza.
+        from PyQt6.QtWidgets import QSizePolicy
+        UNIFORM_CONTENT_HEIGHT = 300  # altezza del content interno (300px fisse)
 
+        def _force_content_size(widget):
+            """Forza altezza 300px + larghezza 100% su un widget (content)."""
+            widget.setFixedHeight(UNIFORM_CONTENT_HEIGHT)
+            widget.setMinimumHeight(UNIFORM_CONTENT_HEIGHT)
+            widget.setMaximumHeight(UNIFORM_CONTENT_HEIGHT)
+            widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        # ── 1) 🎮 Navigatore di codice Interattivo ──────────────────────
         self.code_explorer = CodeExplorer()
-        self.code_explorer.setFixedHeight(350)
-        splitter.addWidget(self.code_explorer)
+        _force_content_size(self.code_explorer)
+        self.code_explorer_section = CollapsibleSection(
+            "🎮 Navigatore di codice Interattivo", icon="📂"
+        )
+        self.code_explorer_section.add_widget(self.code_explorer)
+        self.plancia_section.add_widget(self.code_explorer_section)
 
+        # ── 2) 💾 Backup Code — Git Logs ──────────────────────────────
+        # La sezione contiene i tab GitHub/GitLab/Git (BackupCodeLogs).
+        # I tab sono visibili SOLO quando la sezione è espansa, come CI/CD.
         self.backup_logs = BackupCodeLogs()
-        self.backup_logs.setFixedHeight(350)
-        splitter.addWidget(self.backup_logs)
+        _force_content_size(self.backup_logs)
+        self.backup_section = CollapsibleSection(
+            "💾 Backup Code — Git Logs", icon="📁"
+        )
+        self.backup_section.add_widget(self.backup_logs)
+        self.plancia_section.add_widget(self.backup_section)
 
-        # Navigatore 60% | Backup Code 40%
-        splitter.setStretchFactor(0, 3)
-        splitter.setStretchFactor(1, 2)
-        splitter.setSizes([600, 400])
-
-        self.plancia_section.add_widget(splitter)
-
-        # ── Logs CI/CD & Clean Code (spostato DENTRO la Plancia) ──────────
-        # Prima era una sezione a sé stante sopra la Plancia. Ora fa parte
-        # della Plancia di controllo, subito sotto il Navigatore/Backup.
+        # ── 3) 📜 Log - Diario di Bordo ────────────────────────────────
+        _force_content_size(self.log_viewer)
         self.plancia_section.add_widget(self.logs_section)
 
-        # ── Test di integrità del software (nuova sezione) ───────────────
-        # Verifica checksum, firma file, coerenza moduli, ecc.
+        # ── 4) 🧪 Test di integrità del software ──────────────────────
         self.integrity_section = CollapsibleSection(
             "🧪 Test di integrità del software", icon="🔬"
         )
         self.integrity_panel = IntegrityTestsPanel()
+        _force_content_size(self.integrity_panel)
         self.integrity_section.add_widget(self.integrity_panel)
         self.plancia_section.add_widget(self.integrity_section)
 
-        # ── Sicurezza del software & anti-manomissione (nuova sezione) ──
-        # Verifica firma codice, hash moduli critici, detection modifiche
-        # non autorizzate ai file di CORE/SAFETY/SECURITY.
+        # ── 5) 🛡️ Sicurezza del software & anti-manomissione ──────────
         self.security_section = CollapsibleSection(
             "🛡️ Sicurezza del software & anti-manomissione", icon="🔐"
         )
         self.security_panel = SoftwareSecurityPanel()
+        _force_content_size(self.security_panel)
         self.security_section.add_widget(self.security_panel)
         self.plancia_section.add_widget(self.security_section)
 
