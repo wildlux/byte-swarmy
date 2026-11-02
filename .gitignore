@@ -39,15 +39,6 @@ project/.git/
 mcp_servers.json
 mcp_servers.local.json
 
-# --- CONFIG runtime della GUI (settings, attori, scheduler, token git) ---
-# config.toml resta versionato (nessun segreto); gli altri file possono
-# contenere token Git/chiave API: mai su GitHub.
-CONFIG/settings.json
-CONFIG/actors.json
-CONFIG/scheduled_tasks.json
-CONFIG/git_settings.json
-CONFIG/security_baseline.json
-
 # --- Temporanei e backup ---
 *.tmp
 *.bak
@@ -104,3 +95,23 @@ README_IT_*.md
 
 # --- Icone derivate temporanee (tieni solo l'originale) ---
 IMG/icona-256-*.png
+
+# --- Pannelli GUI: file JSON di stato/locale (NON versionare) ---
+# Questi file contengono preferenze utente e TOKEN Git in chiaro.
+# Devono stare solo sul filesystem locale, mai su GitHub.
+CONFIG/settings.json
+CONFIG/actors.json
+CONFIG/scheduled_tasks.json
+CONFIG/git_settings.json
+CONFIG/security_baseline.json
+CONFIG/*.local.json
+
+# --- Screenshot di debug/test generati dalla GUI (NON versionare) ---
+# Tieni solo le immagini originali della cartella IMG/ e IMG/SCHERMATE/.
+# Escludi qualsiasi PNG/JPEG creato in root durante il debug.
+/*.png
+/*.jpeg
+/*.jpg
+/*.webp
+!IMG/**
+!IMG/SCHERMATE/**
