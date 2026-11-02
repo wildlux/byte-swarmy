@@ -15,7 +15,7 @@ from typing import Optional
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
     QComboBox, QLineEdit, QMessageBox, QInputDialog, QScrollArea,
-    QSizePolicy, QGroupBox, QFormLayout,
+    QSizePolicy, QGroupBox, QFormLayout, QCheckBox,
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QUrl
 from PyQt6.QtGui import QDesktopServices
@@ -77,6 +77,8 @@ class SettingsPanel(QWidget):
         lay.addWidget(self._build_theme_section())
         # ── Sezione Lingua ─────────────────────────────────────────────
         lay.addWidget(self._build_language_section())
+        # ── Sezione Strategia Hardware (H1) ────────────────────────────
+        lay.addWidget(self._build_hardware_section())
         # ── Sezione Git remotes ───────────────────────────────────────
         lay.addWidget(self._build_git_section())
 
@@ -128,6 +130,86 @@ class SettingsPanel(QWidget):
         wip.setWordWrap(True)
         form.addRow("", wip)
         return box
+
+    def _build_hardware_section(self) -> QFrame:
+        """H1: Sezione Strategia Hardware — bilanciamento CPU/GPU.
+
+        4 modalità:
+          - gpu+cpu: LLM su GPU, Decision+Timestral su CPU (potenza massima)
+          - gpu_only: tutto su GPU
+          - cpu_only: tutto su CPU
+          - cpu_then_gpu: CPU default, fallback GPU se overload (archi vecchie)
+        """
+        box = QGroupBox("⚡ Strategia Hardware")
+        box.setStyleSheet(self._group_style())
+        form = QFormLayout(box)
+        form.setSpacing(10)
+        form.setContentsMargins(14, 14, 14, 14)
+
+        # Rileva GPU (status)
+        from GUI.settings_store import is_gpu_available, get_effective_strategy_description
+        gpu_present = is_gpu_available()
+        gpu_status_lbl = QLabel(
+            f"{'✅ GPU rilevata' if gpu_present else '❌ GPU non rilevata (solo CPU disponibile)'}"
+        )
+        gpu_status_lbl.setStyleSheet(
+            f"color:{'#16a34a' if gpu_present else '#dc2626'}; "
+            f"font-weight:bold; font-size:11px;"
+        )
+        form.addRow("Stato GPU:", gpu_status_lbl)
+
+        # Combo strategia
+        self.hw_combo = QComboBox()
+        self.hw_combo.addItem("🚀 GPU+CPU — potenza massima (LLM su GPU, Decision su CPU)", "gpu+cpu")
+        self.hw_combo.addItem("🎮 Solo GPU — tutto su GPU", "gpu_only")
+        self.hw_combo.addItem("🖥️ Solo CPU — tutto su CPU", "cpu_only")
+        self.hw_combo.addItem("🔄 CPU→GPU — default CPU, fallback GPU se overload", "cpu_then_gpu")
+        # Disabilita opzioni GPU se non presente
+        if not gpu_present:
+            for i in range(self.hw_combo.count()):
+                if self.hw_combo.itemData(i) in ("gpu+cpu", "gpu_only"):
+                    item = self.hw_combo.model().item(i)
+                    item.setEnabled(False)
+                    item.setToolTip("GPU non rilevata — opzione non disponibile")
+        self.hw_combo.currentIndexChanged.connect(self._on_hw_changed)
+        self.hw_combo.setStyleSheet(self._combo_style())
+        form.addRow("Strategia:", self.hw_combo)
+
+        # Hint dinamico (descrizione della strategia selezionata)
+        self.hw_hint = QLabel()
+        self.hw_hint.setWordWrap(True)
+        self.hw_hint.setStyleSheet("color:#666; font-size:10px; font-style:italic;")
+        self._update_hw_hint()
+        form.addRow("", self.hw_hint)
+
+        # Checkbox auto-detect
+        self.hw_auto_detect = QCheckBox(
+            "Rileva GPU automaticamente all'avvio (sovrascrive se non scelta esplicita)"
+        )
+        self.hw_auto_detect.setStyleSheet("font-size:11px;")
+        form.addRow("", self.hw_auto_detect)
+
+        return box
+
+    def _update_hw_hint(self):
+        """Aggiorna il testo descrittivo sotto la combo hardware."""
+        from GUI.settings_store import get_effective_strategy_description
+        if hasattr(self, "hw_combo"):
+            strategy = self.hw_combo.currentData()
+            self.hw_hint.setText(get_effective_strategy_description(strategy))
+
+    def _on_hw_changed(self, _idx: int):
+        """H1: quando cambia strategia hardware, salva + aggiorna hint."""
+        from GUI import settings_store as ss
+        strategy = self.hw_combo.currentData()
+        ss.set_hardware_strategy(strategy, user_set=True)
+        # Salva anche lo stato dell'auto-detect checkbox
+        if hasattr(self, "hw_auto_detect"):
+            s = ss.load_settings()
+            s["detect_gpu_at_startup"] = self.hw_auto_detect.isChecked()
+            s["user_set_hardware_strategy"] = True
+            ss.save_settings(s)
+        self._update_hw_hint()
 
     def _build_git_section(self) -> QFrame:
         """Sezione per configurare i remote Git (GitHub/GitLab/Git) + token."""
@@ -270,6 +352,19 @@ class SettingsPanel(QWidget):
         lang = s.get("language", "it")
         idx = 0 if lang == "it" else 1
         self.lang_combo.setCurrentIndex(idx)
+        # H1: Strategia hardware
+        hw = s.get("hardware_strategy", "cpu_only")
+        # Trova l'index della strategia nella combo
+        for i in range(self.hw_combo.count()):
+            if self.hw_combo.itemData(i) == hw:
+                # Solo se l'item è abilitato (GPU può essere disabilitata)
+                item = self.hw_combo.model().item(i)
+                if item.isEnabled():
+                    self.hw_combo.setCurrentIndex(i)
+                break
+        # H1: auto-detect checkbox
+        self.hw_auto_detect.setChecked(s.get("detect_gpu_at_startup", True))
+        self._update_hw_hint()
         # Git remotes
         self._refresh_git_list()
 

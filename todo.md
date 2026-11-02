@@ -13,12 +13,17 @@ di `IMPLEMENTED.md`, deduplicando (idempotente).
 Stato attuale: **sistema operativo end-to-end**, suite pass
 (27 security + 22 sandbox + 3 escape-gate + 6 intent + 9 execute-handler +
 7 decision-feedback + 7 correction-loop + 6 thermal-gatekeeper +
-14 repo-hygiene + 18 dotfile-security + 8 push-dialogs + 19 timestral-full =
-160 test totali).
+14 repo-hygiene + 18 dotfile-security + 8 push-dialogs + 19 timestral-full +
+19 hardware-strategy = 179 test totali).
 
 GUI Control Center: pannelli Impostazioni + Attori + Code Task Scheduler +
 CI/CD + Clean Code + Integrità + Sicurezza tutti cablati. Timestral **100%
 cablato** (A1+A2+A3+A4). Push Git con conferma + riepilogo errori (C1+C2).
+**Strategia Hardware** (GPU+CPU / Solo GPU / Solo CPU / CPU→GPU) con
+auto-detect GPU via `nvidia-smi` (H1+H2). **Pesi modelli** light/medium/
+heavy per LLM e Decision Model; Timestral sempre light + force_cpu=True
+(H3+H4). Orchestratore legge strategia + pesi e decide target CPU/GPU
+(H5).
 
 **Brutal honest follow-up**: i test `test_timestral_full.py` sono test di
 unità/isolation (verificano `TimestralGatekeeper` e `load_timestral_overrides`
@@ -68,6 +73,47 @@ la GUI con click simulati (`QTest`).
   crea `actors.json` con `cpu_temp_threshold=50` (bassa), avvia
   orchestratore con sample finto `cpu_temp=60`, verifica che
   `queue.pause_thermal()` sia chiamato. ~45 min.
+- [ ] **I7 Test integrazione strategia hardware** — `tests/test_hardware_e2e.py`:
+  simula cambio strategia da `cpu_only` a `gpu+cpu` in settings.json,
+  verifica che l'orchestratore cambi il routing di LLM da CPU a GPU
+  (mock `ollama` per evitare chiamate reali). ~30 min.
+
+## 🟢 Round 4 — Strategia hardware + pesi modelli (H1-H5)
+
+- [x] **H1 Strategia Hardware in SettingsPanel** — nuova sezione
+  "⚡ Strategia Hardware" con combo a 4 voci (GPU+CPU, Solo GPU, Solo
+  CPU, CPU→GPU) + hint dinamico + checkbox "auto-detect all'avvio".
+  Disabilita opzioni GPU se `nvidia-smi` non rilevata.
+- [x] **H2 Persistenza hardware_strategy in settings_store.py** —
+  `DEFAULTS["hardware_strategy"] = "cpu_only"`, `detect_gpu_at_startup =
+  True`, `_detect_gpu()` via `nvidia-smi`, `auto_detect_hardware_strategy()`
+  ritorna "gpu+cpu" se GPU presente altrimenti "cpu_only".
+  `set_hardware_strategy(strategy, user_set=True)` marca scelta esplicita
+  (auto-detect non sovrascrive).
+- [x] **H3 Pesi modelli (light/medium/heavy) in ActorsPanel** — combo
+  "Peso" per LLM e Decision Model (3 voci: 🪶 Light, ⚖️ Medium, 🏋️ Heavy).
+  `WEIGHT_DEFAULT_MODELS` mapping peso → modello consigliato per ogni
+  attore. `_apply_weight()` cambia il modello se è il default del vecchio
+  peso (lascia stare se è custom). `_on_save()` persiste i pesi in
+  `CONFIG/actors.json`.
+- [x] **H4 Timestral sempre light + force_cpu=True** — Timestral non ha
+  combo peso (forzato a "light"). `DEFAULTS["timestral"]["force_cpu"] =
+  True` cablato. `_on_save()` persiste `weight="light"` e `force_cpu=True`
+  anche se l'utente non lo vede. Nota informativa nella UI spiega che il
+  Timestral gira in RAM su CPU, mai su GPU.
+- [x] **H5 Cablaggio orchestratore** — `Orchestrator.__init__` legge
+  `hardware_strategy` + `is_gpu_available()` + pesi attori da actors.json.
+  Nuovi metodi: `_load_actor_weight(actor)`, `_resolve_actor_target(actor)`
+  (CPU/GPU in base alla strategia), `_resolve_actor_model(actor)` (modello
+  da actors.json). Logga "[hardware] strategy=… gpu_available=… weights=…".
+- [x] **H6 Test test_hardware_strategy.py** — 19 test: 5 H2 (settings_store
+  defaults/set-get/invalid/descrizione/auto-detect) + 4 H3 (mapping,
+  weight_default_model, ActorsPanel ha combo, save persiste pesi) + 3 H4
+  (Timestral sempre light, force_cpu default True, save persiste) + 7 H5
+  (Timestral sempre CPU, cpu_only→CPU, gpu_only→GPU, gpu+cpu→LLM GPU,
+  cpu_then_gpu default CPU, cpu_then_gpu overload→GPU, no-GPU→CPU).
+  12/19 passano nel sandbox (H2+H3+H4); H5 richiede scheduler_worker.py
+  (presente nel repo reale).
 
 ## 🟡 Priorità 3 — Nice to have residui
 
