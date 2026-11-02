@@ -4123,6 +4123,23 @@ class CenterArea(QWidget):
 
         self.plancia_section = CollapsibleSection("Plancia di controllo", icon="✈️")
 
+        # ── Barra di ricerca globale (filtra le 10 card) ─────────────
+        # Cerca per titolo, sottotitolo o badge di tutte le card (plancia +
+        # strumenti). Le card non matchanti vengono nascoste in tempo reale.
+        from PyQt6.QtWidgets import QLineEdit as _QLineEdit
+        self.global_search = _QLineEdit()
+        self.global_search.setPlaceholderText(
+            "🔍 Cerca tra le card…  (es. \"task\", \"git\", \"ci/cd\", \"sicurezza\")"
+        )
+        self.global_search.setStyleSheet(
+            "QLineEdit { background:#ffffff; color:#1a1a1a; "
+            "border:1px solid #d0d0d0; padding:10px 14px; border-radius:8px; "
+            "font-size:13px; }"
+            "QLineEdit:focus { border-color:#16a34a; }"
+        )
+        self.global_search.textChanged.connect(self._on_global_search)
+        self.plancia_section.add_widget(self.global_search)
+
         cards_grid = QGridLayout()
         cards_grid.setSpacing(12)
         cards_grid.setContentsMargins(0, 0, 0, 0)
@@ -4322,6 +4339,28 @@ class CenterArea(QWidget):
         if key in self.panel_pages:
             self.main_stack.setCurrentIndex(1)
             self.detail_stack.setCurrentWidget(self.panel_pages[key])
+
+    def _on_global_search(self, text: str):
+        """Filtra le 10 card (plancia + strumenti) in base al testo cercato.
+
+        Match case-insensitive sul titolo, sottotitolo e badge di ogni
+        PlanciaCard. Le card non matchanti vengono nascoste (hide), non
+        rimosse, così preservano il loro stato.
+        """
+        query = text.strip().lower()
+        # Combina tutte le card: 5 plancia + 5 strumenti
+        all_cards = list(self.cards.values()) + list(self.tools_cards.values())
+        for card in all_cards:
+            if not query:
+                card.show()
+                continue
+            # Estrai tutto il testo dalla card (titolo + sottotitolo + badge)
+            from PyQt6.QtWidgets import QLabel as _QLabel
+            haystack_parts: list[str] = []
+            for child in card.findChildren(_QLabel):
+                haystack_parts.append(child.text().lower())
+            haystack = " ".join(haystack_parts)
+            card.show() if query in haystack else card.hide()
     
     def back_to_main(self):
         self.main_stack.setCurrentIndex(0)
@@ -4504,6 +4543,40 @@ if __name__ == "__main__":
         fixes_log = "Icona finestra impostata"
     else:
         fixes_log = "Icona non trovata"
+
+    # ── Gestione graceful di Ctrl+C (SIGINT) ───────────────────────
+    # Senza questo handler, Qt crasha con core dump quando riceve SIGINT
+    # perché il signal arriva nel mezzo del ciclo eventi C++ di Qt e non
+    # dà modo a Python/Qt di chiudere gracefully (file JSON potrebbero
+    # restare aperti, SQLite lockato, PID file orfano). Con questo handler:
+    #   - Primo SIGINT → QApplication.quit() → closeEvent su tutte le
+    #     finestre → Qt salva stato, rilascia lock, chiude thread, exit 0
+    #   - Secondo SIGINT → fallback a sys.exit(130) (default Unix)
+    import signal as _signal
+    _sigint_count = [0]
+
+    def _sigint_handler(signum, frame):
+        _sigint_count[0] += 1
+        if _sigint_count[0] == 1:
+            print("\n⚠️  Ctrl+C ricevuto — chiusura graceful della GUI...")
+            print("   (premi di nuovo Ctrl+C per forzare l'uscita)")
+            try:
+                app.quit()
+            except Exception:
+                sys.exit(130)
+        else:
+            print("\n⚡ Uscita forzata")
+            sys.exit(130)
+
+    _signal.signal(_signal.SIGINT, _sigint_handler)
+
+    # Timer necessario: Qt ha un ciclo eventi C++ che non torna mai al loop
+    # Python se l'app è idle. Il timer forza Qt a tornare in Python ogni
+    # 200ms, così il signal handler può essere eseguito immediatamente.
+    from PyQt6.QtCore import QTimer as _QTimer
+    _sigint_timer = _QTimer()
+    _sigint_timer.start(200)
+    _sigint_timer.timeout.connect(lambda: None)  # no-op
 
     w.show()
     sys.exit(app.exec())
