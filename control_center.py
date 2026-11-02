@@ -2139,7 +2139,24 @@ class ControlCenter(QMainWindow):
         metrics = get_metrics()
         self._tok_s = metrics.get("tokens_per_sec", 0) if metrics else 0
 
+        # ── Aggiorna i nomi dei modelli da CONFIG/actors.json ─────────
+        # CPU mostra il modello LLM (o decision_model se LLM non impostato),
+        # GPU mostra il decision_model quando la GPU è disponibile, oppure
+        # "(CPU only)" se non c'è GPU — niente più trattino "—" ambiguo.
+        try:
+            from GUI.actors_panel import load_actors
+            from GUI.settings_store import is_gpu_available
+            actors = load_actors()
+            llm_model = actors.get("llm", {}).get("model", "") or "—"
+            dm_model = actors.get("decision_model", {}).get("model", "") or "—"
+            gpu_present = is_gpu_available()
+        except Exception:
+            llm_model = "qwen2.5:1.5b"  # fallback hardcoded
+            dm_model = "—"
+            gpu_present = False
+
         cpu = self.device_panel.cpu_box
+        cpu._model.setText(llm_model)
         cpu._temp.setText(f"{self._cpu_temp:.0f}°C")
         cpu._tok.setText(f"{self._tok_s:.0f}t/s")
         cpu._kv.setText(self._kv)
@@ -2147,6 +2164,12 @@ class ControlCenter(QMainWindow):
         cpu._bus.setText(f"{self._freq}M")
 
         gpu = self.device_panel.gpu_box
+        # GPU: mostra il decision_model se la GPU c'è, altrimenti "(CPU only)"
+        # così l'utente capisce subito perché la riga GPU ha un valore diverso.
+        if gpu_present:
+            gpu._model.setText(dm_model if dm_model != "—" else "(no model)")
+        else:
+            gpu._model.setText("(CPU only)")
         gpu._temp.setText(f"{self._gpu_temp:.0f}°C")
 
     def _build_command_bar(self):
@@ -2261,14 +2284,19 @@ class ControlCenter(QMainWindow):
         QTabBar::tab {
             background:#e8e8ec; color:#555; border:1px solid #d0d0d0;
             border-bottom:none; border-top-left-radius:6px; border-top-right-radius:6px;
-            padding:10px 28px 10px 16px; margin-right:2px; font-size:12px;
+            /* padding-right ridotto (16px invece di 28px) così la × è più
+               vicina al testo del nome cartella, non staccata verso destra. */
+            padding:10px 16px 10px 16px; margin-right:2px; font-size:12px;
             min-height: 22px;
         }
-        /* Close button (×) dei tab: staccato dal bordo destro (12px di margine) */
+        /* Close button (×) dei tab: attaccato al testo del nome, non al bordo.
+           - padding-left ridotto (2px) per stare vicino al testo
+           - margin-right ampio (10px) per staccare dal bordo destro del tab
+           - subcontrol-position: right → left sposta la × verso il testo */
         QTabBar::close-button {
-            subcontrol-position: right;
-            padding: 0 12px 0 4px;
-            margin: 0 6px 0 0;
+            subcontrol-position: left;
+            padding: 0 0 0 2px;
+            margin: 0 8px 0 0;
         }
         QTabBar::close-button:hover {
             background: #fee2e2;
@@ -2319,14 +2347,16 @@ class ControlCenter(QMainWindow):
         QTabBar::tab {
             background:#313244; color:#a6adc8; border:1px solid #45475a;
             border-bottom:none; border-top-left-radius:6px; border-top-right-radius:6px;
-            padding:10px 28px 10px 16px; margin-right:2px; font-size:12px;
+            /* padding-right ridotto (16px invece di 28px) così la × è più
+               vicina al testo del nome cartella, non staccata verso destra. */
+            padding:10px 16px 10px 16px; margin-right:2px; font-size:12px;
             min-height: 22px;
         }
-        /* Close button (×) dei tab: staccato dal bordo destro (12px di margine) */
+        /* Close button (×) dei tab: attaccato al testo del nome, non al bordo. */
         QTabBar::close-button {
-            subcontrol-position: right;
-            padding: 0 12px 0 4px;
-            margin: 0 6px 0 0;
+            subcontrol-position: left;
+            padding: 0 0 0 2px;
+            margin: 0 8px 0 0;
         }
         QTabBar::close-button:hover {
             background: #7f1d1d;
@@ -3312,6 +3342,14 @@ class IntegrityTestsPanel(QFrame):
         head.addWidget(self.run_btn)
         lay.addLayout(head)
 
+        # ── Barra di ricerca nel contenuto ────────────────────────────
+        from GUI.search_bar import SearchBar
+        self.search_bar = SearchBar(
+            None, parent=self,  # target viene impostato dopo la creazione di output
+            placeholder="🔍 Cerca nei risultati…  (Enter = successivo, Shift+Enter = precedente)"
+        )
+        lay.addWidget(self.search_bar)
+
         # Output area
         self.output = QPlainTextEdit()
         self.output.setReadOnly(True)
@@ -3325,6 +3363,8 @@ class IntegrityTestsPanel(QFrame):
             "border-radius:6px; font-family:'JetBrains Mono','Consolas',monospace; "
             "font-size:11px; padding:8px; }"
         )
+        # Collega la search bar al target (ora che self.output esiste)
+        self.search_bar.target = self.output
         lay.addWidget(self.output, stretch=1)
 
         # Stato iniziale: baseline checksum
@@ -3513,6 +3553,14 @@ class SoftwareSecurityPanel(QFrame):
         head.addWidget(self.save_btn)
         lay.addLayout(head)
 
+        # ── Barra di ricerca nel contenuto ────────────────────────────
+        from GUI.search_bar import SearchBar
+        self.search_bar = SearchBar(
+            None, parent=self,
+            placeholder="🔍 Cerca nei risultati…  (Enter = successivo, Shift+Enter = precedente)"
+        )
+        lay.addWidget(self.search_bar)
+
         # Output
         self.output = QPlainTextEdit()
         self.output.setReadOnly(True)
@@ -3526,6 +3574,7 @@ class SoftwareSecurityPanel(QFrame):
             "border-radius:6px; font-family:'JetBrains Mono','Consolas',monospace; "
             "font-size:11px; padding:8px; }"
         )
+        self.search_bar.target = self.output
         lay.addWidget(self.output, stretch=1)
 
     def _base_dir(self):
@@ -3776,6 +3825,14 @@ class CICDPipelinePanel(QWidget):
         log_lay = QVBoxLayout(log_box)
         log_lay.setContentsMargins(14, 14, 14, 14)
 
+        # ── Barra di ricerca nel log ──────────────────────────────────
+        from GUI.search_bar import SearchBar
+        self.search_bar = SearchBar(
+            None, parent=self,
+            placeholder="🔍 Cerca nel log…  (Enter = successivo, Shift+Enter = precedente)"
+        )
+        log_lay.addWidget(self.search_bar)
+
         self.output = QPlainTextEdit()
         self.output.setReadOnly(True)
         self.output.setPlaceholderText("Clicca 'Esegui Build/Test/Deploy' per avviare la pipeline.")
@@ -3784,6 +3841,7 @@ class CICDPipelinePanel(QWidget):
             "border-radius:6px; font-family:'JetBrains Mono','Consolas',monospace; "
             "font-size:11px; padding:8px; }"
         )
+        self.search_bar.target = self.output
         log_lay.addWidget(self.output)
         lay.addWidget(log_box)
 
@@ -3975,6 +4033,14 @@ class CleanCodePanel(QWidget):
         btn_row.addStretch()
         lay.addLayout(btn_row)
 
+        # ── Barra di ricerca nei risultati ────────────────────────────
+        from GUI.search_bar import SearchBar
+        self.search_bar = SearchBar(
+            None, parent=self,
+            placeholder="🔍 Cerca nei risultati…  (Enter = successivo, Shift+Enter = precedente)"
+        )
+        lay.addWidget(self.search_bar)
+
         # Output
         self.output = QPlainTextEdit()
         self.output.setReadOnly(True)
@@ -3987,6 +4053,7 @@ class CleanCodePanel(QWidget):
             "border-radius:6px; font-family:'JetBrains Mono','Consolas',monospace; "
             "font-size:11px; padding:8px; }"
         )
+        self.search_bar.target = self.output
         lay.addWidget(self.output, stretch=1)
 
         scroll.setWidget(content)
