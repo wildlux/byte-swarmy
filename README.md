@@ -99,7 +99,7 @@ Dettagli, modello di minaccia, rischi residui e rollback:
 Verifica della policy:
 
 ```bash
-python -m pytest tests/ -v            # 103 test: 27 security + 22 sandbox + 3 escape-gate + 6 intent + 9 execute + 7 decision-feedback + 7 correction + 6 thermal-gate + 14 repo-hygiene + 18 dotfile-security
+python -m pytest tests/ -v            # 135 test: 27 security + 22 sandbox + 3 escape-gate + 6 intent + 9 execute + 7 decision-feedback + 7 correction + 6 thermal-gate + 14 repo-hygiene + 18 dotfile-security
 tail -f logs/security.log
 ```
 
@@ -644,7 +644,7 @@ byte-swarmy/
 │   ├── main_window.py       # Zero-Click layout (Top bar + splitter + Bottom bar)
 │   └── theme/               # QSS theme system (light.qss, dark.qss, theme.py)
 ├── CONFIG/                  # config.toml
-├── tests/                   # 103 test: security, sandbox, escape-gate, intent,
+├── tests/                   # 135 test: security, sandbox, escape-gate, intent,
 │   │                        #   execute-handler, decision-feedback, correction,
 │   │                        #   thermal-gatekeeper, repo-hygiene,
 │   │                        #   dotfile-security
@@ -657,6 +657,9 @@ byte-swarmy/
 │   ├── test_correction.py          # 7 test (feedback loop)
 │   ├── test_thermal_gatekeeper.py  # 6 test (gate termico)
 │   ├── test_repo_hygiene.py        # 14 test (igiene repo, riusabile)
+│   ├── test_scheduler.py           # 20 test (logica scheduler, T2.3)
+│   ├── test_settings_store.py      # 6 test (settings GUI)
+│   ├── test_actors_panel.py        # 6 test (pannello Attori, offscreen)
 │   ├── test_dotfile_security.py    # 18 test (sicurezza dotfile)
 │   ├── test_e2e.py                 # E2E reale (skip senza Ollama)
 │   └── run_tests.py         # Runner JSON per GUI
@@ -686,7 +689,7 @@ byte-swarmy/
 
 ## Sviluppo e test
 
-### Test suite (103 test)
+### Test suite (135 test)
 
 ```bash
 source .venv/bin/activate

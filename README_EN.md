@@ -69,7 +69,7 @@ Details, threat model, residual risks and rollback: **[SECURITY.md](SECURITY.md)
 Policy verification:
 
 ```bash
-python -m pytest tests/ -v            # 103 tests: 27 security + 22 sandbox + 3 escape-gate + 6 intent + 9 execute + 7 decision-feedback + 7 correction + 6 thermal-gate + 14 repo-hygiene + 18 dotfile-security
+python -m pytest tests/ -v            # 135 tests: 27 security + 22 sandbox + 3 escape-gate + 6 intent + 9 execute + 7 decision-feedback + 7 correction + 6 thermal-gate + 14 repo-hygiene + 18 dotfile-security
 tail -f logs/security.log
 ```
 
@@ -575,7 +575,7 @@ byte-swarmy/
 │   ├── main_window.py       # Zero-Click layout (Top bar + splitter + Bottom bar)
 │   └── theme/               # QSS theme system (light.qss, dark.qss, theme.py)
 ├── CONFIG/                  # config.toml
-├── tests/                   # 103 tests: security, sandbox, escape-gate, intent,
+├── tests/                   # 135 tests: security, sandbox, escape-gate, intent,
 │   │                        #   execute-handler, decision-feedback, correction,
 │   │                        #   thermal-gatekeeper, repo-hygiene,
 │   │                        #   dotfile-security
@@ -588,6 +588,9 @@ byte-swarmy/
 │   ├── test_correction.py          # 7 tests (feedback loop)
 │   ├── test_thermal_gatekeeper.py  # 6 tests (thermal gatekeeper)
 │   ├── test_repo_hygiene.py        # 14 tests (repository hygiene, reusable)
+│   ├── test_scheduler.py           # 20 tests (scheduler logic, T2.3)
+│   ├── test_settings_store.py      # 6 tests (GUI settings)
+│   ├── test_actors_panel.py        # 6 tests (Actors panel, offscreen)
 │   ├── test_dotfile_security.py    # 18 tests (dotfile security)
 │   ├── test_e2e.py                 # real E2E (skipped without Ollama)
 │   └── run_tests.py         # JSON runner for GUI
@@ -615,7 +618,7 @@ byte-swarmy/
 
 ## Development and testing
 
-### Test suite (103 tests)
+### Test suite (135 tests)
 
 ```bash
 source .venv/bin/activate
