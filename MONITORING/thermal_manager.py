@@ -88,26 +88,45 @@ def thermal_should_pause(cpu_temp: float, gpu_temp: float = 0.0) -> bool:
 class TimestralGatekeeper:
     """Gate termico con isteresi, consultabile a polling (non bloccante).
 
-    - l' latch `paused` si DRIVE True se cpu >= 75.0 o gpu >= 80.0;
-    - si richiude SOLO quando max(cpu,gpu) < 65.0 (isteresi: intorno alle
-      soglie non ci sono oscillazioni di stato);
+    - l' latch `paused` si DRIVE True se cpu >= pause_cpu o gpu >= pause_gpu;
+    - si richiude SOLO quando max(cpu,gpu) < resume_temp (isteresi: intorno
+      alle soglie non ci sono oscillazioni di stato);
+    - A2: latcha `paused=True` anche se tok/s < min_tokens_per_sec
+      (se > 0);
     - non fa mai I/O né sleep: chi lo consulta passa i valori di temperatura.
     """
 
     def __init__(self, pause_cpu: float = PAUSE_CPU,
                  pause_gpu: float = PAUSE_GPU,
-                 resume_temp: float = RESUME_TEMP):
+                 resume_temp: float = RESUME_TEMP,
+                 min_tokens_per_sec: float = 0.0):
         self.pause_cpu = float(pause_cpu)
         self.pause_gpu = float(pause_gpu)
         self.resume_temp = float(resume_temp)
+        # A2: soglia tok/s minima (0 = disattivato)
+        self.min_tokens_per_sec = float(min_tokens_per_sec or 0.0)
         self.paused = False
         self.pause_reason = ""
 
-    def check(self, cpu_temp: float, gpu_temp: float = 0.0) -> bool:
-        """Aggiorna e ritorna lo stato latch (True = in pausa termica)."""
+    def check(self, cpu_temp: float, gpu_temp: float = 0.0,
+              tok_per_sec: float | None = None) -> bool:
+        """Aggiorna e ritorna lo stato latch (True = in pausa termica).
+
+        ``tok_per_sec`` è opzionale (A2): se fornito e sotto la soglia
+        ``min_tokens_per_sec > 0``, latcha pausa con motivo "throughput".
+        """
         cpu = float(cpu_temp or 0.0)
         gpu = float(gpu_temp or 0.0)
         if not self.paused:
+            # A2: check throughput prima della temperatura (se configurato)
+            if tok_per_sec is not None and self.min_tokens_per_sec > 0:
+                if float(tok_per_sec) < self.min_tokens_per_sec:
+                    self.paused = True
+                    self.pause_reason = (
+                        f"throughput {float(tok_per_sec):.1f} t/s "
+                        f"< {self.min_tokens_per_sec:.1f} min"
+                    )
+                    return self.paused
             if cpu >= self.pause_cpu or gpu >= self.pause_gpu:
                 self.paused = True
                 self.pause_reason = (
@@ -115,7 +134,14 @@ class TimestralGatekeeper:
                     f"GPU {gpu:.1f}C (soglia {self.pause_gpu:.0f})"
                 )
         else:
-            if max(cpu, gpu) < self.resume_temp:
+            # Ripresa: SOLO se entrambi i gate sono soddisfatti
+            # - temperatura sotto resume_temp
+            # - se throughput era la causa, ora è sopra la soglia
+            temp_ok = max(cpu, gpu) < self.resume_temp
+            tps_ok = True
+            if tok_per_sec is not None and self.min_tokens_per_sec > 0:
+                tps_ok = float(tok_per_sec) >= self.min_tokens_per_sec
+            if temp_ok and tps_ok:
                 self.paused = False
                 self.pause_reason = ""
         return self.paused
@@ -130,15 +156,17 @@ def load_timestral_overrides(actors_path=None) -> dict:
     pannello Attori della GUI). Ritorna {} se il file non esiste o è
     malformato — fail-open verso i parametri di config.toml.
 
-    Il pannello salva:
-        enabled (bool) non gestito qui (il gate resta attivo): chi lo
-            disabilita temporà thermal.enabled in config.toml;
-        cpu_temp_threshold (float, °C)  → pause_cpu del gatekeeper;
-        gpu_temp_threshold (float, °C)  → pause_gpu del gatekeeper;
+    Campi cablati (Round 2 — A1/A2/A3/A4):
+        cpu_temp_threshold (float, °C) → pause_cpu del gatekeeper;
+        gpu_temp_threshold (float, °C) → pause_gpu del gatekeeper;
+        resume_temp_threshold (float, °C) → resume_temp del gatekeeper (A1);
+        min_tokens_per_sec (float, t/s) → pausa se throughput sotto soglia (A2);
+        check_only_if_gpu (bool) → i controlli scattano solo se GPU presente (A3);
+        pause_decision_model_too (bool) → pausa anche del decision model (A4);
         thermal_pause_seconds (float, s) → durata pausa consigliata;
         monitor_interval_sec (float, s) → SAMPLE_INTERVAL del manager;
-        min_tokens_per_sec, check_only_if_gpu, pause_decision_model_too:
-            campi del pannello, in attesa di wiring (TODO T3.x).
+        enabled (bool) non gestito qui (il gate resta attivo): chi lo
+            disabilita temporà thermal.enabled in config.toml.
     """
     import json
     from pathlib import Path as _P

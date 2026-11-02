@@ -1162,15 +1162,36 @@ class Orchestrator:
         pause_gpu = float(actors_ts.get(
             "gpu_temp_threshold",
             thermal_cfg.get("pause_gpu", PAUSE_GPU)))
+        # A1: resume_temp da actors.json (con fallback a config.toml, poi
+        # default 65). Prima era hardcoded, ora se l'utente imposta 70 dal
+        # pannello Attori, riprende a 70 (coerente con la soglia di pausa).
+        resume_temp = float(actors_ts.get(
+            "resume_temp_threshold",
+            thermal_cfg.get("resume_temp", RESUME_TEMP)))
+        # A2: soglia tok/s minima — se sotto, il gatekeeper scatta pausa
+        min_tps = float(actors_ts.get(
+            "min_tokens_per_sec",
+            thermal_cfg.get("min_tokens_per_sec", 0.0)))
+        # A3: se True, i controlli termici scattano solo se GPU presente
+        self.check_only_if_gpu = bool(actors_ts.get(
+            "check_only_if_gpu",
+            thermal_cfg.get("check_only_if_gpu", False)))
+        # A4: se True, durante pausa termica anche il decision model si ferma
+        self.pause_decision_model_too = bool(actors_ts.get(
+            "pause_decision_model_too",
+            thermal_cfg.get("pause_decision_model_too", True)))
         self.thermal_gate = TimestralGatekeeper(
             pause_cpu=pause_cpu,
             pause_gpu=pause_gpu,
-            resume_temp=float(thermal_cfg.get("resume_temp", RESUME_TEMP)),
+            resume_temp=resume_temp,
+            min_tokens_per_sec=min_tps,
         )
         if actors_ts:
             self.log.info(
-                "[timestral] attori override: pause_cpu=%.0f pause_gpu=%.0f",
-                pause_cpu, pause_gpu)
+                "[timestral] attori override: pause_cpu=%.0f pause_gpu=%.0f "
+                "resume=%.0f min_tps=%.1f check_only_if_gpu=%s pause_dm=%s",
+                pause_cpu, pause_gpu, resume_temp, min_tps,
+                self.check_only_if_gpu, self.pause_decision_model_too)
         # intervallo di campionamento configurabile dal pannello Attori
         interval = actors_ts.get("monitor_interval_sec")
         if interval:
@@ -1234,6 +1255,11 @@ class Orchestrator:
         False = tick sospeso: i task in attesa sono messi in
         'thermal_paused' e verrano riaccodati automaticamente appena la
         temperatura scende sotto la soglia di ripresa.
+
+        A3: se ``check_only_if_gpu=True`` e GPU non rilevata (gpu_temp==0),
+        il gate termico è sospeso (degradato, non blocca).
+        A4: se ``pause_decision_model_too=True`` e il gate scatta, anche
+        il decision model viene fermato (task generic non pianificati).
         """
         sample = (getattr(self.timestral, "last_sample", None)
                   if self.timestral else None)
@@ -1241,14 +1267,46 @@ class Orchestrator:
             # sensori assenti/disabilitati: nessun gate (degradato, non blocca)
             return True
 
+        cpu_temp = sample.cpu_temp_max
+        gpu_temp = getattr(sample, "gpu_temp", 0.0)
+
+        # A3: se l'utente ha flaggato "scatta controlli SOLO se GPU presente"
+        # e GPU non rilevata (gpu_temp == 0), bypassa il gate termico.
+        if self.check_only_if_gpu and gpu_temp == 0.0:
+            # Logga una volta sola per cambio di stato (semi-debug)
+            if not getattr(self, "_no_gpu_logged", False):
+                self.log.info(
+                    "[thermal-gate] GPU non rilevata, controllo termico "
+                    "sospeso (check_only_if_gpu=True)"
+                )
+                self._no_gpu_logged = True
+            return True
+        else:
+            self._no_gpu_logged = False
+
+        # A2: passa tok/s se disponibile (altrimenti None = skip check tps)
+        tok_per_sec = getattr(sample, "tokens_per_sec", None)
+        if tok_per_sec is None:
+            # Fallback: se il sample non ha tokens_per_sec, prova advice
+            advice = self.timestral.get_advice() if self.timestral else None
+            tok_per_sec = getattr(advice, "tokens_per_sec", None) if advice else None
+
         paused = self.thermal_gate.check(
-            sample.cpu_temp_max, getattr(sample, "gpu_temp", 0.0)
+            cpu_temp, gpu_temp, tok_per_sec=tok_per_sec,
         )
         if paused:
             self.queue.pause_thermal()
             self.log.warning(
                 f"[thermal-gate] PAUSA TERMICA: {self.thermal_gate.pause_reason}"
             )
+            # A4: se pause_decision_model_too, ferma anche il planner
+            if self.pause_decision_model_too and hasattr(self, "planner"):
+                # Marca in pausa anche il generic_planner se attivo
+                if hasattr(self, "generic_planner") and self.generic_planner:
+                    try:
+                        self.generic_planner.set_paused(True)
+                    except Exception:
+                        pass  # backward compat se non ha set_paused
             return False
 
         resumed = self.queue.resume_thermal()
@@ -1257,6 +1315,12 @@ class Orchestrator:
                 f"[thermal-gate] ripresa (<{self.thermal_gate.resume_temp:.0f}C): "
                 f"{resumed} task riaccodati"
             )
+            # A4: riprendi anche il decision model
+            if self.pause_decision_model_too and hasattr(self, "generic_planner") and self.generic_planner:
+                try:
+                    self.generic_planner.set_paused(False)
+                except Exception:
+                    pass
         return True
 
     def _tick(self) -> None:

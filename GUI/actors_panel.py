@@ -79,14 +79,18 @@ DEFAULTS = {
         "cpu_temp_threshold": 80,
         # Soglia temperatura GPU
         "gpu_temp_threshold": 75,
-        # Tok/s minimo: se sotto, riduci contesto o switch modello
+        # A1: soglia di ripresa (°C) — il gate si riapre solo sotto questa
+        # temperatura. Default 65; deve essere <= pause_cpu per evitare
+        # oscillazioni. Cablato in TimestralGatekeeper.resume_temp.
+        "resume_temp_threshold": 65,
+        # Tok/s minimo: se sotto, riduci contesto o switch modello (A2)
         "min_tokens_per_sec": 5.0,
         # Secondi di pausa quando si supera la soglia termica
         "thermal_pause_seconds": 30,
-        # Se True, scatta il controllo SOLO se GPU presente
+        # Se True, scatta il controllo SOLO se GPU presente (A3)
         "check_only_if_gpu": False,
         # Se True, quando scatta la pausa termica anche il decision model
-        # viene messo in pausa (altrimenti continua a pianificare)
+        # viene messo in pausa (altrimenti continua a pianificare) (A4)
         "pause_decision_model_too": True,
         # Intervallo di monitoraggio (secondi)
         "monitor_interval_sec": 30,
@@ -311,6 +315,18 @@ class ActorsPanel(QWidget):
         )
         form.addRow("Soglia GPU (pausa termica):", self.ts_gpu_threshold)
 
+        # A1: soglia di ripresa — il gate si riapre solo sotto questa temperatura.
+        # Deve essere <= Soglia CPU per evitare oscillazioni (isteresi).
+        self.ts_resume_threshold = QSpinBox()
+        self.ts_resume_threshold.setRange(30, 95)
+        self.ts_resume_threshold.setSuffix(" °C")
+        self.ts_resume_threshold.setStyleSheet(self._spin_style())
+        self.ts_resume_threshold.setToolTip(
+            "Soglia di RIPRESA: il gate si riapre solo quando la temperatura "
+            "scende sotto questo valore. Deve essere <= Soglia CPU (isteresi)."
+        )
+        form.addRow("Soglia RIPRESA (isteresi):", self.ts_resume_threshold)
+
         self.ts_min_tps = QDoubleSpinBox()
         self.ts_min_tps.setRange(0.1, 100.0)
         self.ts_min_tps.setSingleStep(0.5)
@@ -422,6 +438,8 @@ class ActorsPanel(QWidget):
         self.ts_enabled.setChecked(t["enabled"])
         self.ts_cpu_threshold.setValue(t["cpu_temp_threshold"])
         self.ts_gpu_threshold.setValue(t["gpu_temp_threshold"])
+        # A1: resume_temp_threshold (con fallback a 65 se mancante in file vecchi)
+        self.ts_resume_threshold.setValue(t.get("resume_temp_threshold", 65))
         self.ts_min_tps.setValue(t["min_tokens_per_sec"])
         self.ts_pause_sec.setValue(t["thermal_pause_seconds"])
         self.ts_interval.setValue(t["monitor_interval_sec"])
@@ -446,6 +464,7 @@ class ActorsPanel(QWidget):
                 "enabled": self.ts_enabled.isChecked(),
                 "cpu_temp_threshold": self.ts_cpu_threshold.value(),
                 "gpu_temp_threshold": self.ts_gpu_threshold.value(),
+                "resume_temp_threshold": self.ts_resume_threshold.value(),
                 "min_tokens_per_sec": self.ts_min_tps.value(),
                 "thermal_pause_seconds": self.ts_pause_sec.value(),
                 "check_only_if_gpu": self.ts_check_only_if_gpu.isChecked(),
