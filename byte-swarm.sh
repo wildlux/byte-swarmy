@@ -246,26 +246,27 @@ stop_orchestrator() {
 # === FUNZIONI STATO ===
 
 show_status() {
-    echo
+    # Status compatto su 1 riga: stato + PID + conteggio task
+    local pid="" status_str="fermato" task_str=""
     if is_orchestrator_running; then
-        echo "● Orchestratore ATTIVO (PID $(cat "$PID_FILE" 2>/dev/null))"
-    else
-        echo "○ Orchestratore fermato"
+        pid=$(cat "$PID_FILE" 2>/dev/null)
+        status_str="attivo (PID $pid)"
     fi
-    echo
     if [ -f "tasks/queue.json" ]; then
-        python -c "
+        task_str=$(python3 -c "
 import json
 from collections import Counter
-with open('tasks/queue.json') as f:
-    tasks = json.load(f)
-stats = Counter(t['status'] for t in tasks)
-print(f'Coda task: {len(tasks)} totali')
-for k, v in sorted(stats.items()):
-    print(f'  {k}: {v}')
-" 2>/dev/null
+try:
+    with open('tasks/queue.json') as f:
+        tasks = json.load(f)
+    stats = Counter(t['status'] for t in tasks)
+    parts = [f'{k}:{v}' for k, v in sorted(stats.items())]
+    print(f' — {len(tasks)} task (' + ', '.join(parts) + ')')
+except Exception:
+    pass
+" 2>/dev/null)
     fi
-    echo
+    echo "● Orchestratore $status_str$task_str"
 }
 
 # === MAIN ===
