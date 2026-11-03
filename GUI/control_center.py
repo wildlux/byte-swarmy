@@ -2139,24 +2139,35 @@ class ControlCenter(QMainWindow):
         metrics = get_metrics()
         self._tok_s = metrics.get("tokens_per_sec", 0) if metrics else 0
 
-        # ── Aggiorna i nomi dei modelli da CONFIG/actors.json ─────────
-        # CPU mostra il modello LLM (o decision_model se LLM non impostato),
-        # GPU mostra il decision_model quando la GPU è disponibile, oppure
-        # "(CPU only)" se non c'è GPU — niente più trattino "—" ambiguo.
-        try:
-            from GUI.actors_panel import load_actors
-            from GUI.settings_store import is_gpu_available
-            actors = load_actors()
-            llm_model = actors.get("llm", {}).get("model", "") or "—"
-            dm_model = actors.get("decision_model", {}).get("model", "") or "—"
-            gpu_present = is_gpu_available()
-        except Exception:
-            llm_model = "qwen2.5:1.5b"  # fallback hardcoded
-            dm_model = "—"
-            gpu_present = False
+        # ── Posizione REALE dei modelli (da `ollama ps`) ─────────────
+        # Non mostriamo più l'etichetta dell'attore (LLM/Decision) ma
+        # DOVE sta effettivamente girando il modello in questo momento:
+        #   - 100% GPU  → modello su GPU
+        #   - 100% CPU  → modello su CPU
+        #   - 80%/20%   → offload parziale
+        # Se nessun modello è caricato, mostriamo "(idle)".
+        running = self._get_ollama_running_models()
+        # running: dict {model_name: {"cpu": int, "gpu": int}}
+        # Cerca il modello con uso percentuale più alto per riga
+        cpu_model_str = "(idle)"
+        gpu_model_str = "(idle)"
+        for name, info in running.items():
+            cpu_pct = info.get("cpu", 0)
+            gpu_pct = info.get("gpu", 0)
+            if gpu_pct >= 90:
+                # Modello principalmente su GPU
+                gpu_model_str = f"{name} ({gpu_pct}%GPU)"
+            elif cpu_pct >= 90:
+                # Modello principalmente su CPU
+                cpu_model_str = f"{name} ({cpu_pct}%CPU)"
+            elif cpu_pct > 0 and gpu_pct > 0:
+                # Offload parziale: mostra su entrambe le righe
+                cpu_model_str = f"{name} ({cpu_pct}%CPU)"
+                gpu_model_str = f"{name} ({gpu_pct}%GPU)"
+            # Se solo un modello è attivo e sta su GPU, la riga CPU resta (idle)
 
         cpu = self.device_panel.cpu_box
-        cpu._model.setText(llm_model)
+        cpu._model.setText(cpu_model_str)
         cpu._temp.setText(f"{self._cpu_temp:.0f}°C")
         cpu._tok.setText(f"{self._tok_s:.0f}t/s")
         cpu._kv.setText(self._kv)
@@ -2164,13 +2175,72 @@ class ControlCenter(QMainWindow):
         cpu._bus.setText(f"{self._freq}M")
 
         gpu = self.device_panel.gpu_box
-        # GPU: mostra il decision_model se la GPU c'è, altrimenti "(CPU only)"
-        # così l'utente capisce subito perché la riga GPU ha un valore diverso.
-        if gpu_present:
-            gpu._model.setText(dm_model if dm_model != "—" else "(no model)")
-        else:
-            gpu._model.setText("(CPU only)")
+        gpu._model.setText(gpu_model_str)
         gpu._temp.setText(f"{self._gpu_temp:.0f}°C")
+
+    def _get_ollama_running_models(self) -> dict:
+        """Esegue `ollama ps` e ritorna un dict {model_name: {"cpu": pct, "gpu": pct}}.
+
+        Esempio output ollama ps:
+            NAME              SIZE    PROCESSOR           ...
+            qwen2.5:1.5b      986 MB  100% GPU            ...
+            qwen2.5:7b        4.7 GB  80% CPU / 20% GPU   ...
+
+        Ritorno:
+            {"qwen2.5:1.5b": {"cpu": 0, "gpu": 100},
+             "qwen2.5:7b":   {"cpu": 80, "gpu": 20}}
+
+        Se ollama non è disponibile o nessun modello è caricato, ritorna {}.
+        """
+        try:
+            import subprocess as _sp
+            result = _sp.run(
+                ["ollama", "ps"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode != 0 or not result.stdout.strip():
+                return {}
+            lines = result.stdout.strip().split("\n")
+            if len(lines) < 2:
+                return {}  # solo header, nessun modello
+            # Trova l'indice della colonna PROCESSOR dall'header
+            header = lines[0].upper()
+            proc_idx = header.find("PROCESSOR")
+            name_idx = 0  # NAME è sempre la prima colonna
+            if proc_idx < 0:
+                return {}  # formato inatteso
+            running = {}
+            for line in lines[1:]:
+                if not line.strip():
+                    continue
+                # Estrai nome modello (primi caratteri fino al primo spazio multiplo)
+                parts = line.split(None, 1)
+                if not parts:
+                    continue
+                name = parts[0]
+                # Estrai la colonna PROCESSOR
+                if len(line) > proc_idx:
+                    proc_str = line[proc_idx:].strip()
+                else:
+                    proc_str = ""
+                # Parsifica "100% GPU" o "80% CPU / 20% GPU"
+                cpu_pct = 0
+                gpu_pct = 0
+                import re
+                for match in re.finditer(r'(\d+)%\s*(CPU|GPU)', proc_str, re.IGNORECASE):
+                    pct = int(match.group(1))
+                    kind = match.group(2).upper()
+                    if kind == "CPU":
+                        cpu_pct = pct
+                    elif kind == "GPU":
+                        gpu_pct = pct
+                if cpu_pct > 0 or gpu_pct > 0:
+                    running[name] = {"cpu": cpu_pct, "gpu": gpu_pct}
+            return running
+        except FileNotFoundError:
+            return {}  # ollama non installato
+        except Exception:
+            return {}  # timeout, parse error, ecc.
 
     def _build_command_bar(self):
         bar = QFrame()
