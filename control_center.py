@@ -83,33 +83,16 @@ class CreditsOverlay(QFrame):
         # Prima era 620x520 fisso e le card venivano compresse a 0px
         # (i nomi di Paolo Lo Bello, GLM 5.2, Qwen, DeepSeek sparivano).
         self.setFixedSize(820, 620)
-        # Forza il tema scuro: anche se l'app principale è in tema chiaro,
-        # l'overlay dei credits resta scuro (richiesta utente).
-        # setAttribute SheetStile eredita dal parent solo se non si
-        # setta uno stylesheet esplicito — lo setto su tutto il frame.
+        # Il tema (chiaro/scuro) viene letto da settings_store e applicato
+        # dinamicamente. Per cambiare tema live: apply_theme("light"|"dark").
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setAutoFillBackground(True)
-        # Palette scura come fallback
-        pal = self.palette()
-        pal.setColor(QPalette.ColorRole.Window, QColor("#1e1e2e"))
-        pal.setColor(QPalette.ColorRole.Base, QColor("#1e1e2e"))
-        pal.setColor(QPalette.ColorRole.Text, QColor("#cdd6f4"))
-        pal.setColor(QPalette.ColorRole.WindowText, QColor("#cdd6f4"))
-        self.setPalette(pal)
-        self.setStyleSheet(
-            "QFrame#credits_overlay { "
-            "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
-            "    stop:0 #1e1e2e, stop:0.5 #2a2a3c, stop:1 #1e1e2e); "
-            "  border: 2px solid #4ade80; "
-            "  border-radius: 16px; "
-            "}"
-            "QLabel { color: #cdd6f4; background: transparent; }"
-            "QScrollArea { background: transparent; border: none; }"
-            "QScrollBar:vertical { background: #1e1e2e; width: 10px; }"
-            "QScrollBar::handle:vertical { background: #4ade80; border-radius: 5px; min-height: 30px; }"
-            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
-            "QPushButton { color: #cdd6f4; }"
-        )
+        # Leggi tema corrente (default scuro per backward compat)
+        try:
+            from GUI import settings_store as _ss
+            self._theme = _ss.get_theme()
+        except Exception:
+            self._theme = "dark"
 
         # Layout esterno: scroll area (stretch) + pulsante chiudi fisso in basso
         outer = QVBoxLayout(self)
@@ -398,7 +381,65 @@ class CreditsOverlay(QFrame):
         footer.addWidget(close_btn)
 
         outer.addLayout(footer)
-    
+
+        # Applica il tema iniziale (chiaro/scuro) letto da settings_store
+        self.apply_theme(self._theme)
+
+    # ──────────────────────────────────────────────────────────────────
+    # Tema dinamico (chiaro/scuro)
+    # ──────────────────────────────────────────────────────────────────
+    def apply_theme(self, theme: str):
+        """Applica il tema chiaro o scuro al CreditsOverlay.
+
+        Chiamato all'init e quando l'utente cambia tema dal SettingsPanel
+        (vedi ControlCenter._apply_theme_live → credits.apply_theme).
+        """
+        self._theme = theme
+        if theme == "light":
+            # Tema chiaro: sfondo bianco/grigio chiaro, testo scuro, accento verde
+            pal = self.palette()
+            pal.setColor(QPalette.ColorRole.Window, QColor("#f8f9fa"))
+            pal.setColor(QPalette.ColorRole.Base, QColor("#ffffff"))
+            pal.setColor(QPalette.ColorRole.Text, QColor("#1a1a1a"))
+            pal.setColor(QPalette.ColorRole.WindowText, QColor("#1a1a1a"))
+            self.setPalette(pal)
+            self.setStyleSheet(
+                "QFrame#credits_overlay { "
+                "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+                "    stop:0 #ffffff, stop:0.5 #f0f9ff, stop:1 #ffffff); "
+                "  border: 2px solid #16a34a; "
+                "  border-radius: 16px; "
+                "}"
+                "QLabel { color: #1a1a1a; background: transparent; }"
+                "QScrollArea { background: transparent; border: none; }"
+                "QScrollBar:vertical { background: #f8f9fa; width: 10px; }"
+                "QScrollBar::handle:vertical { background: #16a34a; border-radius: 5px; min-height: 30px; }"
+                "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
+                "QPushButton { color: #1a1a1a; }"
+            )
+        else:
+            # Tema scuro: sfondo navy, testo chiaro, accento verde brillante
+            pal = self.palette()
+            pal.setColor(QPalette.ColorRole.Window, QColor("#1e1e2e"))
+            pal.setColor(QPalette.ColorRole.Base, QColor("#1e1e2e"))
+            pal.setColor(QPalette.ColorRole.Text, QColor("#cdd6f4"))
+            pal.setColor(QPalette.ColorRole.WindowText, QColor("#cdd6f4"))
+            self.setPalette(pal)
+            self.setStyleSheet(
+                "QFrame#credits_overlay { "
+                "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+                "    stop:0 #1e1e2e, stop:0.5 #2a2a3c, stop:1 #1e1e2e); "
+                "  border: 2px solid #4ade80; "
+                "  border-radius: 16px; "
+                "}"
+                "QLabel { color: #cdd6f4; background: transparent; }"
+                "QScrollArea { background: transparent; border: none; }"
+                "QScrollBar:vertical { background: #1e1e2e; width: 10px; }"
+                "QScrollBar::handle:vertical { background: #4ade80; border-radius: 5px; min-height: 30px; }"
+                "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
+                "QPushButton { color: #cdd6f4; }"
+            )
+
     def showEvent(self, event):
         """Animazione fade-in all'apertura."""
         super().showEvent(event)
@@ -4706,13 +4747,13 @@ class CenterArea(QWidget):
         return page
 
     def _apply_theme_live(self, theme: str):
-        """Applica il tema (chiaro/scuro) all'app principale.
+        """Applica il tema (chiaro/scuro) all'app principale + credits overlay.
 
         Nota: questo metodo è dentro CenterArea, ma il tema stylesheet va
         applicato al ControlCenter (il parent, accessibile via
         ``self.main_win``), perché è lì che sono definiti _light_theme()
-        e _dark_theme(). Il tema dei credits overlay è già gestito in
-        CreditsOverlay.__init__ in base a settings_store.get_theme().
+        e _dark_theme(). Il tema dei credits overlay viene applicato
+        chiamando credits.apply_theme(theme) se l'overlay è aperto.
         """
         # self = CenterArea; self.main_win = ControlCenter (QMainWindow)
         main = getattr(self, "main_win", None)
@@ -4723,6 +4764,12 @@ class CenterArea(QWidget):
             main.setStyleSheet(main._dark_theme())
         else:
             main.setStyleSheet(main._light_theme())
+        # Applica il tema anche al credits overlay se è aperto
+        if hasattr(main, "_credits_overlay") and main._credits_overlay is not None:
+            try:
+                main._credits_overlay.apply_theme(theme)
+            except Exception as e:
+                print(f"[tema] credits overlay apply_theme fallito: {e}")
 
     def attach_editor_column(self, editor_widget):
         if self._editor_column:
