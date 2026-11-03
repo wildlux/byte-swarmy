@@ -10,7 +10,9 @@ tomli-w>=1.0
 rapidfuzz>=3.0
 
 # MCP (Model Context Protocol) - client per ricevere task da server esterni
-mcp>=1.0.0
+mcp>=1.0.0,<2
+# NB: mcp 2.x cambia API (FastMCP→MCPServer, handler style): CORE/mcp_client.py
+# e CORE/example_mcp_server.py sono scritti per la 1.x → pin <2.
 httpx>=0.27
 httpx-sse>=0.4
 

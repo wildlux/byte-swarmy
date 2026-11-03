@@ -80,40 +80,6 @@ la GUI con click simulati (`QTest`).
 
 ## 🟢 Round 4 — Strategia hardware + pesi modelli (H1-H5)
 
-- [x] **H1 Strategia Hardware in SettingsPanel** — nuova sezione
-  "⚡ Strategia Hardware" con combo a 4 voci (GPU+CPU, Solo GPU, Solo
-  CPU, CPU→GPU) + hint dinamico + checkbox "auto-detect all'avvio".
-  Disabilita opzioni GPU se `nvidia-smi` non rilevata.
-- [x] **H2 Persistenza hardware_strategy in settings_store.py** —
-  `DEFAULTS["hardware_strategy"] = "cpu_only"`, `detect_gpu_at_startup =
-  True`, `_detect_gpu()` via `nvidia-smi`, `auto_detect_hardware_strategy()`
-  ritorna "gpu+cpu" se GPU presente altrimenti "cpu_only".
-  `set_hardware_strategy(strategy, user_set=True)` marca scelta esplicita
-  (auto-detect non sovrascrive).
-- [x] **H3 Pesi modelli (light/medium/heavy) in ActorsPanel** — combo
-  "Peso" per LLM e Decision Model (3 voci: 🪶 Light, ⚖️ Medium, 🏋️ Heavy).
-  `WEIGHT_DEFAULT_MODELS` mapping peso → modello consigliato per ogni
-  attore. `_apply_weight()` cambia il modello se è il default del vecchio
-  peso (lascia stare se è custom). `_on_save()` persiste i pesi in
-  `CONFIG/actors.json`.
-- [x] **H4 Timestral sempre light + force_cpu=True** — Timestral non ha
-  combo peso (forzato a "light"). `DEFAULTS["timestral"]["force_cpu"] =
-  True` cablato. `_on_save()` persiste `weight="light"` e `force_cpu=True`
-  anche se l'utente non lo vede. Nota informativa nella UI spiega che il
-  Timestral gira in RAM su CPU, mai su GPU.
-- [x] **H5 Cablaggio orchestratore** — `Orchestrator.__init__` legge
-  `hardware_strategy` + `is_gpu_available()` + pesi attori da actors.json.
-  Nuovi metodi: `_load_actor_weight(actor)`, `_resolve_actor_target(actor)`
-  (CPU/GPU in base alla strategia), `_resolve_actor_model(actor)` (modello
-  da actors.json). Logga "[hardware] strategy=… gpu_available=… weights=…".
-- [x] **H6 Test test_hardware_strategy.py** — 19 test: 5 H2 (settings_store
-  defaults/set-get/invalid/descrizione/auto-detect) + 4 H3 (mapping,
-  weight_default_model, ActorsPanel ha combo, save persiste pesi) + 3 H4
-  (Timestral sempre light, force_cpu default True, save persiste) + 7 H5
-  (Timestral sempre CPU, cpu_only→CPU, gpu_only→GPU, gpu+cpu→LLM GPU,
-  cpu_then_gpu default CPU, cpu_then_gpu overload→GPU, no-GPU→CPU).
-  12/19 passano nel sandbox (H2+H3+H4); H5 richiede scheduler_worker.py
-  (presente nel repo reale).
 
 ## 🟡 Priorità 3 — Nice to have residui
 
@@ -146,15 +112,10 @@ la GUI con click simulati (`QTest`).
 
 ## 🔌 Priorità bassa (USB e MCP)
 
-- [ ] **9.7 MCP E2E** — Collaudo completo.
-- [ ] **M10. USB Protocol Parser** — Traduzione descrittori/endpoint/payload.
-- [ ] **M11. USB Differential Analysis** — Confronto automatico tra catture.
 - [ ] **M8. Utente dedicato `byteswarmy`** — Richiede sudo.
-- [ ] **M9. usbmon/tshark ambiente** — Automatizzare installazione.
 
 ## 🧹 Igiene continua
 
-- [ ] **R1.** `py_compile` + boot reale sotto watchdog per modifiche strutturali.
 - [ ] **R2.** Test di interazione reale per i gate di sicurezza.
 - [ ] **R3.** Verificare funzionalità duplicate se un file supera ~500 righe.
 - [ ] **FM14** — Unificare la coda GUI→SQLite in sola lettura.

@@ -390,4 +390,45 @@ I 4 parametri residui del pannello Attori/Timestral, ora davvero cablati.
   cpu_then_gpu default CPU, cpu_then_gpu overload→GPU, no-GPU→CPU).
   12/19 passano nel sandbox (H2+H3+H4); H5 richiede scheduler_worker.py
   (presente nel repo reale).
+- [x] **9.7 MCP E2E** — Collaudo completo pipeline MCP reale (server
+  di esempio + client). 4 test in `tests/test_mcp_e2e.py`: discovery
+  tools via SSE, consegna outbox via callback, errori gestiti (porta
+  morta → status "error" senza crash), idempotenza una-tantum
+  (`get_pending_tasks` svuota la outbox). Dipendenze: pin
+  `mcp>=1.0.0,<2` in `requirements_gui.txt` (2.x cambia API:
+  FastMCP→MCPServer).
+
+- [x] **M10. USB Protocol Parser** — `CORE/usb_protocol.py`: puro
+  (zero dipendenze/I-O). `decode_setup` (spec USB 2.0 §9.3: recipient
+  bits 4..0, type bits 6..5, direction D7), `describe_setup`,
+  `parse_lsusb_descriptors` (regex tolleranti su output `lsusb -v`),
+  `describe_event`, `summarize` (stats per dir/ep/tipo/setup). 16 test
+  in `tests/test_usb_protocol.py` con catture fabbricate.
+
+- [x] **M11. USB Differential Analysis** — `CORE/usb_differential.py`:
+  `diff_captures` (endpoint nuovi/scomparsi, cambio tipo, request
+  vendor/class nuove, salti frequenza x5+, payload medio x2) +
+  `explain_diff` + punteggio di rischio (HIGH = request vendor/class
+  nuove; MEDIUM = nuovi interrupt/bulk, salti, crescita payload) +
+  mini-CLI `python -m CORE.usb_differential a.json b.json`. 10 test in
+  `tests/test_usb_differential.py`.
+
+- [x] **M9. usbmon/tshark ambiente** — `setup-usbmon.sh` (modprobe
+  usbmon, install tshark, gruppo+udev rule `/dev/usbmon*` 0660, install
+  helper in /usr/local/bin) e `usbmon-capture.sh` (cattura per bus,
+  chmod 600 — payload HID sensibili mai versionati). Sintassi verificata;
+  esecuzione richiede sudo (lasciata all'utente).
+
+- [x] **R1.** `py_compile` + boot reale: py_compile ok su tutto l'albero
+  live (esclusi `TEST_GUI_SEPARATA/` e `GUI/_archivio_test/`, archivi
+  one-shot con SyntaxError preesistenti); boot `python -m CORE.orchestrator
+  CONFIG/config.toml` con SIGINT — scheduler attivo nei log, Timestral
+  sampling live, shutdown graceful; fix deprecation `utcnow()` →
+  `now(timezone.utc)` in `CORE/orchestrator.py`.
+
+- [x] **Guardie E2E** (`tests/test_e2e.py`) — skip esplicito quando
+  l'orchestratore è in pausa (`state/pause.flag`) o non attivo (pid
+  stantio): prima i 3 test live andavano in timeout cieco
+  (120s+60s+120s). Suite definitiva: 170 test totali (167 offline verdi
+  + 3 E2E live).
 

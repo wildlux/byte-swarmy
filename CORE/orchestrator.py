@@ -86,7 +86,8 @@ def setup_logger(config) -> logging.Logger:
     class JSONLFormatter(logging.Formatter):
         def format(self, record):
             log_record = {
-                "timestamp": datetime.datetime.utcnow().isoformat(),
+                "timestamp": datetime.datetime.now(
+                    datetime.timezone.utc).isoformat(),
                 "level": record.levelname,
                 "name": record.name,
                 "message": record.getMessage(),

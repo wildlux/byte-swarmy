@@ -30,9 +30,8 @@ import sys
 import tempfile
 import time
 import unittest
-import urllib.request
 
-ROOT = Path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 try:
@@ -71,7 +70,7 @@ class TestMcpEndToEnd(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp = tempfile.mkdtemp(prefix="bswarm-mcp-")
-        cls.outbox = os.path.join(cls.tmp, "outbox.json")
+        cls.outbox = os.path.join(cls.tmp, "example_mcp_outbox.json")
         cls.port = int(os.environ.get("BSWARM_TEST_MCP_PORT", _free_port()))
         env = dict(os.environ,
                    MCP_HOST="127.0.0.1",
@@ -155,12 +154,7 @@ class TestMcpEndToEnd(unittest.TestCase):
     # ------------------------------------------------------------------
     def test_bad_url_marks_error_without_crash(self):
         mc = self._client("http://127.0.0.1:1/sse")   # porta garantita morta
-        try:
-            with self.assertNoLogs("mcp", level="CRITICAL"):
-                pass
-        except Exception:
-            pass  # assertNoLogs API diffper py-version: opzionale
-        mc._poll_one(mc.servers["example"])   # metodo interno usato dal loop
+        mc._poll_one(mc.servers["example"])   # metodo del loop di poll
         self.assertEqual(mc.servers["example"].last_status, "error")
         self.assertTrue(mc.servers["example"].last_error)
         mc.stop()

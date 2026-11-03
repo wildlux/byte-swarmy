@@ -39,6 +39,25 @@ class TestE2ETaskExecution(unittest.TestCase):
             urllib.request.urlopen("http://localhost:11434/api/tags", timeout=3).read()
         except Exception:
             raise unittest.SkipTest("Ollama non disponibile, skip E2E test")
+
+        # Skip se l'orchestratore e in pausa o non e in esecuzione:
+        # senza queste guardie i test aspettano 120s+ e falliscono con
+        # timeout invece di essere dichiarati "ambiente non pronto".
+        pause_flag = cls.root / "state" / "pause.flag"
+        if pause_flag.exists():
+            raise unittest.SkipTest(
+                "orchestratore in pausa (state/pause.flag): E2E richiede "
+                "il sistema attivo (rimuovi il flag o riprendi dalla GUI)")
+
+        pid_file = cls.root / "state" / "orchestrator.pid"
+        try:
+            pid = int(pid_file.read_text().strip())
+            if not Path(f"/proc/{pid}").exists():
+                raise unittest.SkipTest(
+                    "orchestratore non in esecuzione (pid file stantio): "
+                    "avia con ./byte-swarm.sh start per eseguire i test E2E")
+        except ValueError:
+            raise unittest.SkipTest("orchestratore non in esecuzione (pid file assente)")
     
     def setUp(self):
         # Pulisci DB
