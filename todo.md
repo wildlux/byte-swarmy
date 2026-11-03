@@ -10,11 +10,10 @@ Automatizzazione: `python travasa_todo.py` (prova con `--dry-run`) sposta le
 righe `- [x]` di questo file nella sezione "Completati (spostati da todo.md)"
 di `IMPLEMENTED.md`, deduplicando (idempotente).
 
-Stato attuale: **sistema operativo end-to-end**, suite pass
-(27 security + 22 sandbox + 3 escape-gate + 6 intent + 9 execute-handler +
-7 decision-feedback + 7 correction-loop + 6 thermal-gatekeeper +
-14 repo-hygiene + 18 dotfile-security + 8 push-dialogs + 19 timestral-full +
-19 hardware-strategy = 179 test totali).
+Stato attuale: **sistema operativo end-to-end**, suite pass verde: via
+pytest **223 test + 131 subtest** (skipped solo i 3 E2E live quando il
+sistema è in pausa); via `unittest discover` 167 test. Vedi
+`IMPLEMENTED.md` per la storia.
 
 GUI Control Center: pannelli Impostazioni + Attori + Code Task Scheduler +
 CI/CD + Clean Code + Integrità + Sicurezza tutti cablati. Timestral **100%
@@ -39,21 +38,10 @@ aggiorni la replica, il test passa ma il codice reale è rotto. Vedi
 
 I test attuali sono di unità. Per arrivare al 9.5/10 vero servono test
 di integrazione che chiamino i metodi reali dell'Orchestrator e testino
-la GUI con click simulati (`QTest`).
+la GUI con click simulati (`QTest`). **I1/I2 fatti** (metodo
+`_thermal_gate_pass` reale nei test; bug asimmetria `planner` corretto
+in `_thermal_gate_pass` — vedi `IMPLEMENTED.md`).
 
-- [ ] **I1 Test `_thermal_gate_pass` vero (non replica)** — Riscrivere
-  i 4 test A3 (`test_a3_*`) in `tests/test_timestral_full.py` usando
-  `Orchestrator.__new__(Orchestrator)` per creare un'istanza senza
-  `__init__` (che vuole DB/Ollama/config), impostare gli attributi
-  manualmente (`thermal_gate`, `timestral.last_sample`, `check_only_if_gpu`,
-  `pause_decision_model_too`, `queue`, `log` mockati) e chiamare il VERO
-  `orch._thermal_gate_pass()`. Così se cambi il codice reale il test
-  cattura la regressione. ~30 min.
-- [ ] **I2 Test `_thermal_gate_pass` con pause_decision_model_too** —
-  Aggiungere 2 test che verificano A4 per davvero: orchestratore con
-  `pause_decision_model_too=True` + `generic_planner.set_paused` mockato
-  → dopo pausa termica `set_paused(True)` è chiamato, dopo ripresa
-  `set_paused(False)`. ~20 min.
 - [ ] **I3 Test GUI ActorsPanel con QTest** — `tests/test_actors_gui.py`
   con `QTest.mouseClick` + `QTest.keyClicks`: apre `ActorsPanel`, cambia
   `Soglia RIPRESA` da 65 a 70, clicca `Salva configurazione attori`,

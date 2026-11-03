@@ -7,10 +7,15 @@ Cosa testiamo:
   sotto min_tokens_per_sec (con isteresi sulla ripresa)
 - A3: orchestratore._thermal_gate_pass() bypassa il gate se
   check_only_if_gpu=True e gpu_temp == 0
+  (I1: i test chiamano il VERO metodo via Orchestrator.__new__,
+  niente più repliche della logica nei test)
 - A4: orchestratore._thermal_gate_pass() ferma/rilancia il
   generic_planner se pause_decision_model_too=True
+  (I2: set_paused(True/False) verificato sul metodo reale)
 """
 import sys, os, json, tempfile, shutil
+from types import SimpleNamespace
+from unittest.mock import MagicMock, call, patch
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -154,11 +159,17 @@ class FakeSample:
     tokens_per_sec: Optional[float] = None
 
 
-def _make_orch_with_overrides(actors_ts: dict):
-    """Crea un Orchestrator-like con gli override di actors.json iniettati.
-    Evita di istanziare il vero Orchestrator (che richiede DB, Ollama, ecc.).
+def _make_real_orch(actors_ts: dict):
+    """I1: crea un VERO Orchestrator (senza __init__, che vuole DB/Ollama)
+    con gli attributi usati da `_thermal_gate_pass` iniettati a mano.
+
+    Così se il codice reale del metodo cambia, i test catturano la
+    regressione (niente più repliche della logica nei test).
     """
-    from MONITORING.thermal_manager import TimestralGatekeeper, PAUSE_CPU, PAUSE_GPU, RESUME_TEMP
+    from CORE.orchestrator import Orchestrator
+    from MONITORING.thermal_manager import (
+        TimestralGatekeeper, PAUSE_CPU, PAUSE_GPU, RESUME_TEMP,
+    )
     pause_cpu = float(actors_ts.get("cpu_temp_threshold", PAUSE_CPU))
     pause_gpu = float(actors_ts.get("gpu_temp_threshold", PAUSE_GPU))
     resume_temp = float(actors_ts.get("resume_temp_threshold", RESUME_TEMP))
@@ -166,61 +177,104 @@ def _make_orch_with_overrides(actors_ts: dict):
     check_only_if_gpu = bool(actors_ts.get("check_only_if_gpu", False))
     pause_dm = bool(actors_ts.get("pause_decision_model_too", True))
 
-    orch = MagicMock()
+    orch = Orchestrator.__new__(Orchestrator)
     orch.thermal_gate = TimestralGatekeeper(
         pause_cpu=pause_cpu, pause_gpu=pause_gpu,
         resume_temp=resume_temp, min_tokens_per_sec=min_tps,
     )
+    orch.timestral = SimpleNamespace(last_sample=None, get_advice=lambda: None)
     orch.check_only_if_gpu = check_only_if_gpu
     orch.pause_decision_model_too = pause_dm
+    orch.queue = MagicMock()      # pause_thermal/resume_thermal mockati
+    orch.log = MagicMock()
     return orch
 
 
-def _call_thermal_gate_pass(orch, sample):
-    """Replica la logica di _thermal_gate_pass usando gli attributi del mock.
-    Ritorna True se il tick procede, False se in pausa termica.
-    """
-    if sample is None:
-        return True
-    cpu_temp = sample.cpu_temp_max
-    gpu_temp = getattr(sample, "gpu_temp", 0.0)
-    if orch.check_only_if_gpu and gpu_temp == 0.0:
-        return True
-    tok_per_sec = getattr(sample, "tokens_per_sec", None)
-    paused = orch.thermal_gate.check(cpu_temp, gpu_temp, tok_per_sec=tok_per_sec)
-    return not paused
+def _set_sample(orch, sample):
+    orch.timestral.last_sample = sample
 
 
 def test_a3_no_gpu_no_check_when_flag_true():
-    """A3: check_only_if_gpu=True + GPU assente → gate bypassato."""
-    orch = _make_orch_with_overrides({"check_only_if_gpu": True, "cpu_temp_threshold": 80})
-    sample = FakeSample(cpu_temp_max=95, gpu_temp=0.0)
-    # CPU 95 > 80 → normally would pause, but flag bypasses it
-    assert _call_thermal_gate_pass(orch, sample) is True
+    """A3 (I1, metodo VERO): check_only_if_gpu=True + GPU assente → bypass."""
+    orch = _make_real_orch({"check_only_if_gpu": True, "cpu_temp_threshold": 80})
+    _set_sample(orch, FakeSample(cpu_temp_max=95, gpu_temp=0.0))
+    # CPU 95 > 80 → normalmente pausa, ma il flag bypassa il gate
+    assert orch._thermal_gate_pass() is True
+    orch.queue.pause_thermal.assert_not_called()
 
 
 def test_a3_no_gpu_no_check_when_flag_false():
-    """A3: check_only_if_gpu=False + CPU alta → gate scatta (comportamento default)."""
-    orch = _make_orch_with_overrides({"check_only_if_gpu": False, "cpu_temp_threshold": 80})
-    sample = FakeSample(cpu_temp_max=95, gpu_temp=0.0)
-    # Senza il flag, CPU alta scatta pausa anche senza GPU
-    assert _call_thermal_gate_pass(orch, sample) is False
+    """A3 (I1, metodo VERO): flag=False + CPU alta → gate scatta."""
+    orch = _make_real_orch({"check_only_if_gpu": False, "cpu_temp_threshold": 80})
+    _set_sample(orch, FakeSample(cpu_temp_max=95, gpu_temp=0.0))
+    assert orch._thermal_gate_pass() is False
+    orch.queue.pause_thermal.assert_called_once()
 
 
 def test_a3_gpu_present_check_runs_when_flag_true():
-    """A3: check_only_if_gpu=True + GPU presente → gate attivo."""
-    orch = _make_orch_with_overrides({
+    """A3 (I1, metodo VERO): flag=True + GPU presente sopra soglia → pausa."""
+    orch = _make_real_orch({
         "check_only_if_gpu": True, "cpu_temp_threshold": 80, "gpu_temp_threshold": 75
     })
-    sample = FakeSample(cpu_temp_max=50, gpu_temp=80)  # GPU sopra soglia
-    assert _call_thermal_gate_pass(orch, sample) is False
+    _set_sample(orch, FakeSample(cpu_temp_max=50, gpu_temp=80))
+    assert orch._thermal_gate_pass() is False
+    orch.queue.pause_thermal.assert_called_once()
 
 
 def test_a3_gpu_present_temp_ok_when_flag_true():
-    """A3: flag=True, GPU presente, temperature OK → gate pass."""
-    orch = _make_orch_with_overrides({"check_only_if_gpu": True, "cpu_temp_threshold": 80})
-    sample = FakeSample(cpu_temp_max=50, gpu_temp=60)
-    assert _call_thermal_gate_pass(orch, sample) is True
+    """A3 (I1, metodo VERO): flag=True, GPU presente, temperature OK → pass."""
+    orch = _make_real_orch({"check_only_if_gpu": True, "cpu_temp_threshold": 80})
+    _set_sample(orch, FakeSample(cpu_temp_max=50, gpu_temp=60))
+    assert orch._thermal_gate_pass() is True
+    orch.queue.pause_thermal.assert_not_called()
+
+
+def test_a3_no_sample_no_gate():
+    """A3 (I1, metodo VERO): sensori assenti (last_sample None) → degradato,
+    gate non blocca."""
+    orch = _make_real_orch({"check_only_if_gpu": False, "cpu_temp_threshold": 80})
+    _set_sample(orch, None)          # timestral senza sample
+    assert orch._thermal_gate_pass() is True
+    orch.queue.pause_thermal.assert_not_called()
+
+
+# ============ A4 (I2): pause_decision_model_too sul metodo VERO ============
+
+def test_a4_real_pause_stops_decision_model_too():
+    """I2: pause_decision_model_too=True + gate che scatta → il generic
+    planner viene messo in pausa (set_paused(True) chiamato)."""
+    orch = _make_real_orch({"pause_decision_model_too": True,
+                            "cpu_temp_threshold": 80})
+    orch.generic_planner = MagicMock()
+    _set_sample(orch, FakeSample(cpu_temp_max=95, gpu_temp=0.0))
+    assert orch._thermal_gate_pass() is False
+    # A4: anche il decision model fermato
+    orch.generic_planner.set_paused.assert_called_once_with(True)
+
+
+def test_a4_real_pause_resume_restarts_decision_model():
+    """I2: dopo la pausa termica, con temperatura sotto la soglia di
+    ripresa → resume → set_paused(False) sul decision model."""
+    orch = _make_real_orch({"pause_decision_model_too": True,
+                            "cpu_temp_threshold": 80})
+    orch.generic_planner = MagicMock()
+    _set_sample(orch, FakeSample(cpu_temp_max=95, gpu_temp=0.0))
+    assert orch._thermal_gate_pass() is False          # pausa
+    orch.queue.resume_thermal.return_value = 2         # 2 task riaccodati
+    _set_sample(orch, FakeSample(cpu_temp_max=50, gpu_temp=0.0))
+    assert orch._thermal_gate_pass() is True           # ripresa
+    assert orch.generic_planner.set_paused.call_args_list == [
+        call(True), call(False)]
+
+
+def test_a4_real_pause_false_does_not_touch_planner():
+    """I2: pause_decision_model_too=False → il planner NON viene toccato."""
+    orch = _make_real_orch({"pause_decision_model_too": False,
+                            "cpu_temp_threshold": 80})
+    orch.generic_planner = MagicMock()
+    _set_sample(orch, FakeSample(cpu_temp_max=95, gpu_temp=0.0))
+    assert orch._thermal_gate_pass() is False
+    orch.generic_planner.set_paused.assert_not_called()
 
 
 # ============ A4: pause_decision_model_too ============
@@ -314,17 +368,21 @@ if __name__ == "__main__":
         test_a2_gatekeeper_min_tps_no_pause_when_high,
         test_a2_gatekeeper_min_tps_resume_requires_high_tps,
         test_a2_gatekeeper_min_tps_none_skips_check,
-        # A3
+        # A3 (I1: chiamano il VERO _thermal_gate_pass)
         test_a3_no_gpu_no_check_when_flag_true,
         test_a3_no_gpu_no_check_when_flag_false,
         test_a3_gpu_present_check_runs_when_flag_true,
         test_a3_gpu_present_temp_ok_when_flag_true,
-        # A4
+        test_a3_no_sample_no_gate,
+        # A4 (I2: metodo VERO con generic_planner mockato)
         test_a4_pause_decision_model_too_default_true,
         test_a4_actors_panel_save_persist_pause_dm,
         test_a4_resume_temp_threshold_in_defaults,
         test_a4_min_tokens_per_sec_in_defaults,
         test_a4_check_only_if_gpu_in_defaults,
+        test_a4_real_pause_stops_decision_model_too,
+        test_a4_real_pause_resume_restarts_decision_model,
+        test_a4_real_pause_false_does_not_touch_planner,
         # Backward compat
         test_backward_compat_check_without_tok_per_sec,
     ]

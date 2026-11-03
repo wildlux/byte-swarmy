@@ -431,4 +431,21 @@ I 4 parametri residui del pannello Attori/Timestral, ora davvero cablati.
   stantio): prima i 3 test live andavano in timeout cieco
   (120s+60s+120s). Suite definitiva: 170 test totali (167 offline verdi
   + 3 E2E live).
+- [x] **I1 Test `_thermal_gate_pass` vero (non replica)** — I test A3
+  (`tests/test_timestral_full.py`) ora creano un vero
+  `Orchestrator.__new__(Orchestrator)` con attributi iniettati
+  (`thermal_gate`, `timestral` SimpleNamespace, `queue`/`log` mockati)
+  e chiamano il **vero** `orch._thermal_gate_pass()`. Ho trovato e
+  corretto un bug reale: il path di pausa richiedeva
+  `hasattr(self, "planner")` (asimmetrico rispetto alla ripresa, che
+  usa solo `generic_planner`) → senza l'attributo `planner` il decision
+  model non veniva mai messo in pausa. `_thermal_gate_pass` ora usa
+  `getattr(self, "generic_planner", None)` in modo simmetrico (pausa e
+  ripresa). Aggiunto `test_a3_no_sample_no_gate` (sensori assenti →
+  degradato, gate non blocca). 23/23 pytest.
+
+- [x] **I2 Test `_thermal_gate_pass` con pause_decision_model_too** —
+  3 test reali: pausa → `set_paused(True)` chiamato; ripresa →
+  `set_paused(False)` dopo pausa; flag False → planner non toccato.
+  Zero token LLM.
 

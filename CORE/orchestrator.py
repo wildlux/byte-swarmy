@@ -1396,12 +1396,13 @@ class Orchestrator:
             self.log.warning(
                 f"[thermal-gate] PAUSA TERMICA: {self.thermal_gate.pause_reason}"
             )
-            # A4: se pause_decision_model_too, ferma anche il planner
-            if self.pause_decision_model_too and hasattr(self, "planner"):
-                # Marca in pausa anche il generic_planner se attivo
-                if hasattr(self, "generic_planner") and self.generic_planner:
+            # A4: se pause_decision_model_too, ferma anche il decision model
+            # (usa generic_planner se presente — simmetrico al path ripresa)
+            if self.pause_decision_model_too:
+                planner = getattr(self, "generic_planner", None)
+                if planner:
                     try:
-                        self.generic_planner.set_paused(True)
+                        planner.set_paused(True)
                     except Exception:
                         pass  # backward compat se non ha set_paused
             return False
@@ -1413,11 +1414,13 @@ class Orchestrator:
                 f"{resumed} task riaccodati"
             )
             # A4: riprendi anche il decision model
-            if self.pause_decision_model_too and hasattr(self, "generic_planner") and self.generic_planner:
-                try:
-                    self.generic_planner.set_paused(False)
-                except Exception:
-                    pass
+            if self.pause_decision_model_too:
+                planner = getattr(self, "generic_planner", None)
+                if planner:
+                    try:
+                        planner.set_paused(False)
+                    except Exception:
+                        pass
         return True
 
     def _tick(self) -> None:

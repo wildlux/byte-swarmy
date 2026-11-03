@@ -69,7 +69,7 @@ Details, threat model, residual risks and rollback: **[SECURITY.md](SECURITY.md)
 Policy verification:
 
 ```bash
-python -m pytest tests/ -v            # 170 tests: 27 security + 22 sandbox + 3 escape-gate + 6 intent + 9 execute + 7 decision-feedback + 7 correction + 6 thermal-gate + 14 repo-hygiene + 18 dotfile-security + 20 scheduler + 6 settings + 6 actors-panel + 4 MCP E2E + 16 USB protocol + 10 USB differential (+3 live E2E)
+python -m pytest tests/ -v            # 223 tests + 131 subtests: security, sandbox, escape-gate, intent, execute, decision-feedback, correction, thermal-gate, repo-hygiene, dotfile-security, scheduler, settings, actors-panel, MCP E2E, USB protocol/differential (+3 live E2E)
 tail -f logs/security.log
 ```
 
@@ -575,7 +575,7 @@ byte-swarmy/
 │   ├── main_window.py       # Zero-Click layout (Top bar + splitter + Bottom bar)
 │   └── theme/               # QSS theme system (light.qss, dark.qss, theme.py)
 ├── CONFIG/                  # config.toml
-├── tests/                   # 170 tests: security, sandbox, escape-gate, intent,
+├── tests/                   # 223 tests: security, sandbox, escape-gate, intent,
 │   │                        #   execute-handler, decision-feedback, correction,
 │   │                        #   thermal-gatekeeper, repo-hygiene,
 │   │                        #   dotfile-security
@@ -618,7 +618,7 @@ byte-swarmy/
 
 ## Development and testing
 
-### Test suite (170 tests: 167 offline + 3 live E2E)
+### Test suite (223 pytest tests + 131 subtests)
 
 ```bash
 source .venv/bin/activate
