@@ -1,0 +1,234 @@
+[ollama]
+host = "http://localhost:11434"
+request_timeout = 300
+
+[models.orchestrator]
+name = "qwen2.5:1.5b"
+temperature = 0.1
+top_p = 0.8
+top_k = 20
+repeat_penalty = 1.15
+repeat_last_n = 256
+num_ctx = 2048
+num_predict = 256
+seed = 42
+
+[models.planner]
+name = "qwen2.5:1.5b"
+temperature = 0.4
+top_p = 0.9
+top_k = 40
+repeat_penalty = 1.1
+repeat_last_n = 512
+num_ctx = 3072
+num_predict = 512
+
+[models.worker_coder]
+name = "qwen2.5-coder:1.5b"
+temperature = 0.1
+top_p = 0.8
+top_k = 30
+repeat_penalty = 1.15
+repeat_last_n = 512
+num_ctx = 3072
+num_predict = 512
+
+[models.worker_general]
+name = "qwen2.5:1.5b"
+temperature = 0.1
+top_p = 0.8
+top_k = 30
+repeat_penalty = 1.15
+repeat_last_n = 512
+num_ctx = 3072
+num_predict = 512
+
+[models.embedding]
+name = "moondream:latest"
+
+[thermal]
+enabled = true
+sample_interval = 30
+history_max = 2880
+
+[thermal.thresholds]
+temp_cold = 50.0
+temp_warm = 65.0
+temp_hot = 80.0
+temp_critical = 90.0
+gpu_temp_warm = 80.0
+gpu_temp_hot = 85.0
+gpu_temp_critical = 95.0
+cpu_pause_threshold = 0.95
+
+[timing]
+orchestrator_tick = 30
+worker_tick = 60
+health_check = 300
+git_snapshot = 999999
+memory_compaction = 3600
+backup_complete = 86400
+model_unload_idle = 120
+
+[safety]
+# 3. Sandbox bubblewrap: true (default, sicuro) o false (locale, veloce)
+sandbox_enabled = true
+max_attempts = 10
+max_consecutive_failures = 3
+cooldown_after_failure = 120
+swap_threshold = 0.95
+disk_free_threshold = 1000000000
+max_log_size = 10000000
+heartbeat_timeout = 300
+max_tasks_per_agent_per_hour = 20
+memory_compaction_threshold = 50
+
+[security]
+enabled = true
+max_output_chars = 10000
+max_file_size_write = 2000000
+max_file_size_bytes = 50000000
+max_memory_mb = 1536
+
+[routing]
+confidence_threshold = 0.65
+max_files_per_task = 8
+max_file_size_readable = 50000
+timeout_bash = 30
+
+[routing.direct_keywords]
+worker_coder = [
+    "implementa",
+    "fix",
+    "refactor",
+    "parser",
+    "bug",
+    "funzione",
+    "classe",
+    "test",
+    "scrivi",
+    "crea",
+    "write",
+    "make",
+    "compila",
+    "build",
+    "hello world",
+    "semplice",
+    "singolo file",
+]
+worker_general = [
+    "documenta",
+    "commenta",
+    "readme",
+    "spiega",
+]
+
+[paths]
+project_root = "./project"
+state_dir = "./state"
+tasks_dir = "./tasks"
+logs_dir = "./logs"
+backups_dir = "./backups"
+git_dir = "./project"
+
+[logging]
+level = "DEBUG"
+file = "./logs/byte-swarmy.log"
+
+[decision_models]
+active = "qwen2_5"
+
+[decision_models.tev1]
+name = "tev1:4b"
+enabled = false
+temperature = 0.1
+num_ctx = 4096
+
+[decision_models.d3]
+name = "d3:4b"
+enabled = false
+temperature = 0.1
+num_ctx = 4096
+
+[decision_models.nimble]
+name = "nimble:4b"
+enabled = false
+temperature = 0.1
+num_ctx = 4096
+
+[decision_models.qwen2_5]
+name = "qwen2.5:1.5b"
+enabled = true
+temperature = 0.1
+num_ctx = 4096
+
+[generic_task_planner]
+enabled = true
+max_subtasks = 8
+max_tokens = 1500
+system_prompt = "Sei un pianificatore software esperto. Decomponi il task generico in 2-8 code task atomici.\n\nREGOLE:\n1. Ogni sottotask deve essere implementabile in massimo 200 righe di codice\n2. I sottotask devono essere sequenziali e indipendenti\n3. Includi sempre: creazione file principale, implementazione logica, test, documentazione\n4. Specifica il tipo di ogni sottotask: implement | test | fix | document\n\nRISPONDI SOLO con formato JSON:\n{\"subtasks\": [{\"title\": \"...\", \"description\": \"...\", \"type\": \"implement|test|fix|document\"}]}\n\nNiente testo fuori dal JSON."
+
+# ====================================================================
+# LLM Tuner — Timestral ottimizza i parametri LLM in base allo stato termico
+# ====================================================================
+[llm_tuner]
+# Il tuner è attivo se [thermal].enabled = true
+# Override dei profili (opzionale, lasciare commentato per usare i default)
+
+[llm_tuner.fast]
+# Sistema freddo (< 50°C): creativo, output lungo
+# temperature = 0.25
+# top_p = 0.92
+# num_predict = 600
+# num_ctx = 3072
+# max_steps = 8
+
+[llm_tuner.normal]
+# Sistema normale (50-65°C): bilanciato
+# temperature = 0.15
+# top_p = 0.85
+# num_predict = 450
+# num_ctx = 3072
+# max_steps = 6
+
+[llm_tuner.slow]
+# Sistema caldo (65-85°C): deterministico, output corto
+# temperature = 0.08
+# top_p = 0.78
+# num_predict = 300
+# num_ctx = 2048
+# max_steps = 5
+
+[llm_tuner.pause]
+# Sistema critico (> 85°C): lavoro minimo
+# temperature = 0.05
+# top_p = 0.70
+# num_predict = 200
+# num_ctx = 1536
+# max_steps = 4
+
+# ═══════════════════════════════════════════════════════════════
+# AUDIT GATES — Quality gate per progetti target
+# ═══════════════════════════════════════════════════════════════
+# L'orchestratore, prima di eseguire un task su un progetto, può lanciare
+# l'audit gate per verificare che il progetto sia "sano" (nessuna porta
+# esposta, nessun tunnel sospetto, nessun import bandito, ecc.).
+#
+# Modalità:
+#   off       → gate disattivato, sempre PASS
+#   advisory  → log warning se FAIL, ma non blocca il task
+#   strict    → blocca il task se FAIL (richiede risoluzione critical)
+#
+# Target:
+#   auto      → usa il progetto corrente ( quello del tab attivo)
+#   <path>    → path esplicito (es. "/home/user/myproject")
+#
+# Categories: lista opzionale di categorie bloccanti da considerare.
+# Default (se vuoto): tutte le categorie bloccanti sono attive.
+# Valori possibili: exposed_ports, potential_tunnel, banned_import,
+#                   critical_files, config_validity
+[audit.gates]
+enabled = false
+mode = "advisory"
+target = "auto"
+categories = []

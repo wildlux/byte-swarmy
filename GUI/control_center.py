@@ -4377,6 +4377,9 @@ class CenterArea(QWidget):
             ("security", "🛡️ Sicurezza & anti-manomissione",
              "Scansioni di sicurezza, rilevamento manomissioni e hardening",
              "Security", "#b91c1c", 1, 1),
+            ("audit_project", "🔍 Audit Progetto",
+             "Quality gate su un progetto target: porte esposte, tunnel, codice morto",
+             "Gate", "#9333ea", 1, 2),
         ]
 
         for key, title, subtitle, badge, badge_color, row, col in tool_card_configs:
@@ -4451,6 +4454,11 @@ class CenterArea(QWidget):
             "🛡️ Sicurezza del software & anti-manomissione", self.security_panel
         )
         self.detail_stack.addWidget(self.panel_pages["security"])
+
+        # Pannello "audit_project" → AuditProjectPanel (gate su progetto target)
+        from GUI.audit_project_panel import AuditProjectPanel
+        self.panel_pages["audit_project"] = AuditProjectPanel()
+        self.detail_stack.addWidget(self.panel_pages["audit_project"])
         
         self.main_stack.addWidget(self.detail_stack)
         

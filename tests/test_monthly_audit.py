@@ -114,22 +114,35 @@ _TUNNEL_COMMANDS = re.compile(
 # Helper: scanning del repo
 # ═══════════════════════════════════════════════════════════════
 
-def _iter_source_files() -> Iterable[Path]:
-    """Itera sui file .py delle directory sorgente, saltando env/cache."""
-    for subdir in _SOURCE_DIRS:
-        base = ROOT / subdir
-        if not base.is_dir():
-            continue
+def _iter_source_files(root: Path = None) -> Iterable[Path]:
+    """Itera sui file .py delle directory sorgente, saltando env/cache.
+
+    Per self-audit (root=ROOT o None): itera CORE/GUI/SAFETY/MONITORING/INTENT.
+    Per target esterni: itera tutti i .py della root (skip env/cache).
+    """
+    base = Path(root) if root else ROOT
+    if root is None or base.resolve() == ROOT.resolve():
+        # Self-audit: usa le directory byte-swarmy
+        for subdir in _SOURCE_DIRS:
+            d = base / subdir
+            if not d.is_dir():
+                continue
+            for p in d.rglob("*.py"):
+                if any(part in _ENV_DIRS for part in p.parts):
+                    continue
+                yield p
+    else:
+        # Target esterno: tutti i .py ricorsivamente (skip env/cache)
         for p in base.rglob("*.py"):
-            # Salta __pycache__
             if any(part in _ENV_DIRS for part in p.parts):
                 continue
             yield p
 
 
-def _iter_all_py_files() -> Iterable[Path]:
+def _iter_all_py_files(root: Path = None) -> Iterable[Path]:
     """Itera su TUTTI i .py del repo (esclusi env/cache) — per cross-ref."""
-    for p in ROOT.rglob("*.py"):
+    base = Path(root) if root else ROOT
+    for p in base.rglob("*.py"):
         if any(part in _ENV_DIRS for part in p.parts):
             continue
         yield p
@@ -142,10 +155,11 @@ def _read_text(p: Path) -> str:
         return ""
 
 
-def _rel(p: Path) -> str:
-    """Percorso relativo a ROOT, con separatori normalizzati a /."""
+def _rel(p: Path, root: Path = None) -> str:
+    """Percorso relativo a root, con separatori normalizzati a /."""
+    base = Path(root) if root else ROOT
     try:
-        return str(p.relative_to(ROOT)).replace(os.sep, "/")
+        return str(p.relative_to(base)).replace(os.sep, "/")
     except ValueError:
         return str(p)
 
@@ -154,7 +168,7 @@ def _rel(p: Path) -> str:
 # AUDIT 1: Variabili inutilizzate
 # ═══════════════════════════════════════════════════════════════
 
-def _scan_unused_variables() -> list[dict]:
+def _scan_unused_variables(root: Path = None) -> list[dict]:
     """Trova variabili pubbliche a livello modulo mai referenziate altrove.
 
     Cerca:
@@ -168,7 +182,7 @@ def _scan_unused_variables() -> list[dict]:
     # Mappa: nome variabile -> lista di (file, riga) dove è definita
     module_vars: dict[str, list[tuple[str, int]]] = defaultdict(list)
 
-    for p in _iter_all_py_files():
+    for p in _iter_all_py_files(root):
         src = _read_text(p)
         try:
             tree = ast.parse(src, filename=str(p))
@@ -196,7 +210,7 @@ def _scan_unused_variables() -> list[dict]:
                         # Salta __all__, __version__ ecc.
                         if name in ("__all__", "__version__", "__author__"):
                             continue
-                        module_vars[name].append((_rel(p), node.lineno))
+                        module_vars[name].append((_rel(p, root), node.lineno))
 
     # Cerca variabili definite ma mai usate altrove
     findings = []
@@ -237,7 +251,7 @@ _ENTRY_POINT_NAMES = {
 }
 
 
-def _scan_dead_code() -> list[dict]:
+def _scan_dead_code(root: Path = None) -> list[dict]:
     """Trova funzioni/metodi pubblici mai chiamati nel repo.
 
     Euristiche:
@@ -252,7 +266,7 @@ def _scan_dead_code() -> list[dict]:
     # Raccogli tutte le chiamate (Name o Attribute con ctx=Call)
     called_names: set[str] = set()
 
-    for p in _iter_all_py_files():
+    for p in _iter_all_py_files(root):
         src = _read_text(p)
         try:
             tree = ast.parse(src, filename=str(p))
@@ -277,7 +291,7 @@ def _scan_dead_code() -> list[dict]:
                             "focusInEvent", "focusOutEvent", "showEvent", "hideEvent",
                             "timerEvent", "event", "eventFilter"}:
                     continue
-                definitions[name].append((_rel(p), node.lineno, name))
+                definitions[name].append((_rel(p, root), node.lineno, name))
             elif isinstance(node, ast.Call):
                 # Resolves name(...) e obj.name(...)
                 fn = node.func
@@ -305,7 +319,7 @@ def _scan_dead_code() -> list[dict]:
 # AUDIT 3: Porte/endpoint esposti
 # ═══════════════════════════════════════════════════════════════
 
-def _scan_exposed_ports() -> list[dict]:
+def _scan_exposed_ports(root: Path = None) -> list[dict]:
     """Trova bind/listen su porte, specialmente non-loopback.
 
     Pattern cercati:
@@ -316,13 +330,13 @@ def _scan_exposed_ports() -> list[dict]:
       - host="0.0.0.0" o host="::" in qualsiasi contesto di bind
     """
     findings = []
-    for p in _iter_all_py_files():
+    for p in _iter_all_py_files(root):
         src = _read_text(p)
-        rel_p = _rel(p)
         try:
             tree = ast.parse(src, filename=str(p))
         except SyntaxError:
             continue
+        rel_p = _rel(p, root)
         for node in ast.walk(tree):
             # Caso 1: socket.bind((host, port))
             if isinstance(node, ast.Call):
@@ -364,9 +378,9 @@ def _scan_exposed_ports() -> list[dict]:
                                 })
 
     # Scansione testuale per 0.0.0.0 in stringhe (anche in config, shell, ecc.)
-    for p in _iter_source_files():
+    for p in _iter_source_files(root):
         src = _read_text(p)
-        rel_p = _rel(p)
+        rel_p = _rel(p, root)
         for m in re.finditer(r'["\'](0\.0\.0\.0|::)\s*["\']', src):
             line = src[:m.start()].count("\n") + 1
             findings.append({
@@ -418,7 +432,7 @@ def _check_bind(rel_p: str, line: int, host: str | None, port: int | None) -> li
 # AUDIT 4: Superficie reverse proxy / tunnel
 # ═══════════════════════════════════════════════════════════════
 
-def _scan_proxy_tunnel_surface() -> list[dict]:
+def _scan_proxy_tunnel_surface(root: Path = None) -> list[dict]:
     """Trova comandi subprocess che potrebbero esporre porte all'esterno.
 
     Cerca pattern di reverse proxy / tunnel / port-forward in:
@@ -427,9 +441,9 @@ def _scan_proxy_tunnel_surface() -> list[dict]:
       - os.system(...)
     """
     findings = []
-    for p in _iter_source_files():
+    for p in _iter_source_files(root):
         src = _read_text(p)
-        rel_p = _rel(p)
+        rel_p = _rel(p, root)
         try:
             tree = ast.parse(src, filename=str(p))
         except SyntaxError:
@@ -507,12 +521,23 @@ def _check_tunnel_command(rel_p: str, line: int, cmd: str) -> list[dict]:
 # AUDIT 5: Moduli banditi fuori allowlist
 # ═══════════════════════════════════════════════════════════════
 
-def _scan_banned_imports() -> list[dict]:
-    """Trova import di moduli banditi (socket, ctypes, pickle, ...) fuori allowlist."""
+def _scan_banned_imports(root: Path = None, is_self_audit: bool = True) -> list[dict]:
+    """Trova import di moduli banditi (socket, ctypes, pickle, ...) fuori allowlist.
+
+    Per self-audit (byte-swarmy su se stesso) usa l'allowlist di byte-swarmy.
+    Per target esterni usa allowlist vuota (qualsiasi socket/ctypes/pickle è
+    bandito a meno che non sia esplicitamente configurato dal progetto).
+    """
     findings = []
-    for p in _iter_source_files():
+    # Per target esterni, l'allowlist byte-swarmy non si applica: ogni file è
+    # potenzialmente sospetto. Usiamo una allowlist vuota.
+    if is_self_audit:
+        banned_map = _BANNED_IMPORTS
+    else:
+        banned_map = {k: set() for k in _BANNED_IMPORTS}
+    for p in _iter_source_files(root):
         src = _read_text(p)
-        rel_p = _rel(p)
+        rel_p = _rel(p, root)
         try:
             tree = ast.parse(src, filename=str(p))
         except SyntaxError:
@@ -521,7 +546,7 @@ def _scan_banned_imports() -> list[dict]:
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     mod = alias.name.split(".")[0]
-                    if mod in _BANNED_IMPORTS and rel_p not in _BANNED_IMPORTS[mod]:
+                    if mod in banned_map and rel_p not in banned_map[mod]:
                         findings.append({
                             "type": "banned_import",
                             "file": rel_p, "line": node.lineno,
@@ -533,7 +558,7 @@ def _scan_banned_imports() -> list[dict]:
                 if node.module:
                     mod = node.module.split(".")[0]
                     full = node.module
-                    if mod in _BANNED_IMPORTS and rel_p not in _BANNED_IMPORTS[mod]:
+                    if mod in banned_map and rel_p not in banned_map[mod]:
                         findings.append({
                             "type": "banned_import",
                             "file": rel_p, "line": node.lineno,
@@ -601,16 +626,72 @@ def _scan_config_toml() -> list[dict]:
 # Runner principale
 # ═══════════════════════════════════════════════════════════════
 
-def run_full_audit() -> dict:
-    """Esegue tutti gli audit e ritorna un report dict."""
+# Metadati delle categorie di audit: nome, icona, descrizione, bloccante.
+# Le categorie "bloccanti" sono sempre critical (porte, tunnel, import, file).
+# Le categorie "advisory" sono solo warning (vars, dead code).
+AUDIT_CATEGORIES = [
+    {"id": "unused_variables", "icon": "🎨", "name": "Variabili inutilizzate",
+     "description": "Variabili pubbliche a livello modulo mai referenziate",
+     "blocking": False},
+    {"id": "dead_code", "icon": "💀", "name": "Codice morto",
+     "description": "Funzioni/metodi pubblici mai chiamati",
+     "blocking": False},
+    {"id": "exposed_ports", "icon": "🛡️", "name": "Porte esposte",
+     "description": "Bind su host non-loopback (0.0.0.0, ::, ecc.)",
+     "blocking": True},
+    {"id": "potential_tunnel", "icon": "🔄", "name": "Tunnel/Reverse proxy",
+     "description": "Comandi che potrebbero esporre porte (ngrok, ssh -R, docker -p)",
+     "blocking": True},
+    {"id": "banned_import", "icon": "📦", "name": "Import banditi",
+     "description": "socket/ctypes/pickle/http.server fuori allowlist",
+     "blocking": True},
+    {"id": "critical_files", "icon": "📁", "name": "File critici",
+     "description": "File essenziali (orchestratore, security, config) presenti e non vuoti",
+     "blocking": True},
+    {"id": "config_validity", "icon": "⚙️", "name": "config.toml valido",
+     "description": "File di configurazione TOML sintatticamente valido",
+     "blocking": True},
+]
+
+# Mappa type finding → categoria ID (per il gate)
+_FINDING_TYPE_TO_CATEGORY = {
+    "unused_module_variable": "unused_variables",
+    "dead_code": "dead_code",
+    "exposed_port": "exposed_ports",
+    "exposed_host_string": "exposed_ports",
+    "nonstandard_port": "exposed_ports",
+    "potential_tunnel": "potential_tunnel",
+    "banned_import": "banned_import",
+    "missing_critical_file": "critical_files",
+    "empty_critical_file": "critical_files",
+    "invalid_config": "config_validity",
+}
+
+
+def run_full_audit(root_dir: Path = None) -> dict:
+    """Esegue tutti gli audit su root_dir (default: byte-swarmy root).
+
+    Args:
+        root_dir: directory root del progetto da auditare. Se None o
+                  uguale a ROOT, usa la lista CRITICAL_FILES di byte-swarmy
+                  (audit di byte-swarmy su se stesso). Se diverso, fa un
+                  audit generico sul target (5 categorie, skip file critici
+                  e config.toml specifici di byte-swarmy).
+    """
+    target = Path(root_dir) if root_dir else ROOT
+    is_self_audit = (target.resolve() == ROOT.resolve())
+
     findings: list[dict] = []
-    findings.extend(_scan_unused_variables())
-    findings.extend(_scan_dead_code())
-    findings.extend(_scan_exposed_ports())
-    findings.extend(_scan_proxy_tunnel_surface())
-    findings.extend(_scan_banned_imports())
-    findings.extend(_scan_critical_files())
-    findings.extend(_scan_config_toml())
+    # Queste 5 categorie sono generiche (funzionano su qualsiasi progetto .py)
+    findings.extend(_scan_unused_variables(target))
+    findings.extend(_scan_dead_code(target))
+    findings.extend(_scan_exposed_ports(target))
+    findings.extend(_scan_proxy_tunnel_surface(target))
+    findings.extend(_scan_banned_imports(target, is_self_audit))
+    # Queste 2 categorie sono byte-swarmy-specific (solo self-audit)
+    if is_self_audit:
+        findings.extend(_scan_critical_files())
+        findings.extend(_scan_config_toml())
 
     # Conteggi per severity
     counts = {"critical": 0, "warning": 0, "info": 0}
@@ -623,10 +704,15 @@ def run_full_audit() -> dict:
     for f in findings:
         by_type[f["type"]] += 1
 
+    # Gate: per categoria, calcola status (PASS/FAIL/SKIP) e critical/warning
+    categories_status = _compute_categories_status(findings, is_self_audit)
+
     return {
         "audit": "byte-swarmy-monthly-audit",
-        "version": "1.0",
-        "root": str(ROOT),
+        "version": "2.0",
+        "root": str(target),
+        "target_name": target.name if not is_self_audit else "byte-swarmy (self)",
+        "is_self_audit": is_self_audit,
         "timestamp": _now_iso(),
         "summary": {
             "total": len(findings),
@@ -634,10 +720,64 @@ def run_full_audit() -> dict:
             "warning": counts["warning"],
             "info": counts["info"],
             "passed": counts["critical"] == 0,
+            "gate": _compute_gate_status(categories_status),
         },
+        "categories": categories_status,
         "by_type": dict(by_type),
         "findings": findings,
     }
+
+
+def _compute_categories_status(findings: list[dict], is_self_audit: bool) -> list[dict]:
+    """Per ogni categoria, calcola status (PASS/FAIL/SKIP) e conteggi."""
+    # Raggruppa finding per categoria
+    by_cat: dict[str, list[dict]] = defaultdict(list)
+    for f in findings:
+        cat_id = _FINDING_TYPE_TO_CATEGORY.get(f["type"], "")
+        if cat_id:
+            by_cat[cat_id].append(f)
+
+    result = []
+    for cat in AUDIT_CATEGORIES:
+        cat_id = cat["id"]
+        # Skip file critici e config per target non-byte-swarmy
+        if not is_self_audit and cat_id in ("critical_files", "config_validity"):
+            result.append({
+                **cat,
+                "status": "SKIP",
+                "critical": 0,
+                "warning": 0,
+                "total": 0,
+                "message": "N/A per progetti esterni (byte-swarmy-specific)",
+            })
+            continue
+
+        cat_findings = by_cat.get(cat_id, [])
+        critical = sum(1 for f in cat_findings if f["severity"] == "critical")
+        warning = sum(1 for f in cat_findings if f["severity"] == "warning")
+        # Status: FAIL se ci sono critical (per bloccanti) o se la categoria
+        # è bloccante e ha qualsiasi finding; PASS altrimenti.
+        if cat["blocking"]:
+            status = "FAIL" if critical > 0 else "PASS"
+        else:
+            # Advisory: FAIL solo se critical, PASS anche con warning
+            status = "FAIL" if critical > 0 else "PASS"
+        result.append({
+            **cat,
+            "status": status,
+            "critical": critical,
+            "warning": warning,
+            "total": len(cat_findings),
+        })
+    return result
+
+
+def _compute_gate_status(categories: list[dict]) -> str:
+    """Gate globale: FAIL se almeno una categoria bloccante è FAIL."""
+    for cat in categories:
+        if cat.get("blocking") and cat.get("status") == "FAIL":
+            return "FAIL"
+    return "PASS"
 
 
 def _now_iso() -> str:
@@ -706,6 +846,53 @@ class TestMonthlyAudit(unittest.TestCase):
 # ═══════════════════════════════════════════════════════════════
 # CLI entry point
 # ═══════════════════════════════════════════════════════════════
+
+def _print_gate_report(report: dict) -> None:
+    """Stampa il report in formato gate compatto (una riga per categoria)."""
+    s = report["summary"]
+    print("=" * 72)
+    print(f"  AUDIT GATE — {report.get('target_name', report['root'])}")
+    print(f"  {report['timestamp']}")
+    print("=" * 72)
+    print()
+    print(f"  {'CATEGORIA':<32s} {'STATUS':<8s} {'CRIT':<5s} {'WARN':<5s}")
+    print(f"  {'-'*32} {'-'*8} {'-'*5} {'-'*5}")
+    for cat in report.get("categories", []):
+        icon = cat.get("icon", "")
+        name = cat.get("name", cat["id"])
+        status = cat.get("status", "?")
+        blocking = "🔒" if cat.get("blocking") else "  "
+        status_str = {
+            "PASS": "✓ PASS",
+            "FAIL": "✗ FAIL",
+            "SKIP": "– SKIP",
+        }.get(status, status)
+        print(f"  {blocking} {icon} {name:<26s} {status_str:<8s} "
+              f"{cat.get('critical', 0):<5d} {cat.get('warning', 0):<5d}")
+    print()
+    gate = s.get("gate", "?")
+    gate_str = "✓ PASS — nessuna categoria bloccante con critical" if gate == "PASS" \
+        else "✗ FAIL — almeno una categoria bloccante con critical"
+    gate_color = "\033[32m" if gate == "PASS" else "\033[31m"
+    reset = "\033[0m"
+    print(f"  GATE: {gate_color}{gate_str}{reset}")
+    print(f"  Totale finding: {s['total']} (critical: {s['critical']}, warning: {s['warning']})")
+    print()
+    if gate == "FAIL":
+        # Mostra solo i critical delle categorie bloccanti
+        blocking_cats = {c["id"] for c in report.get("categories", []) if c.get("blocking")}
+        crit_findings = [f for f in report["findings"]
+                         if f["severity"] == "critical"
+                         and _FINDING_TYPE_TO_CATEGORY.get(f["type"], "") in blocking_cats]
+        if crit_findings:
+            print(f"  ─── CRITICAL DA RISOLVERE ({len(crit_findings)}) ────────────────────────")
+            for f in crit_findings[:20]:
+                print(f"  [{f['type']}] {f['file']}:{f.get('line', 0)}")
+                print(f"    {f['message']}")
+            if len(crit_findings) > 20:
+                print(f"  ... e altri {len(crit_findings) - 20} critical")
+            print()
+
 
 def _print_text_report(report: dict) -> None:
     """Stampa il report in formato testo leggibile."""
@@ -817,35 +1004,56 @@ def _write_html_report(report: dict, out_path: Path) -> None:
 
 
 def main() -> int:
-    """CLI entry point: python tests/test_monthly_audit.py [--json|--html PATH]"""
+    """CLI entry point.
+
+    Uso:
+      python tests/test_monthly_audit.py                      # self-audit (test unittest)
+      python tests/test_monthly_audit.py --json               # JSON su stdout (self)
+      python tests/test_monthly_audit.py --gate               # gate compatto (self)
+      python tests/test_monthly_audit.py --target PATH        # audit un progetto target
+      python tests/test_monthly_audit.py --target PATH --gate # gate su target
+      python tests/test_monthly_audit.py --target PATH --json --html out.html
+    """
     import argparse
     parser = argparse.ArgumentParser(description="Audit mensile BYTE-SWARMY")
-    parser.add_argument("--json", action="store_true", help="Stampa il report come JSON su stdout")
-    parser.add_argument("--html", metavar="PATH", help="Salva il report come HTML nel percorso indicato")
-    parser.add_argument("--no-text", action="store_true", help="Non stampare il report testuale")
+    parser.add_argument("--json", action="store_true",
+                        help="Stampa il report come JSON su stdout")
+    parser.add_argument("--html", metavar="PATH",
+                        help="Salva il report come HTML nel percorso indicato")
+    parser.add_argument("--no-text", action="store_true",
+                        help="Non stampare il report testuale")
+    parser.add_argument("--gate", action="store_true",
+                        help="Stampa solo il gate compatto (una riga per categoria)")
+    parser.add_argument("--target", metavar="PATH",
+                        help="Directory del progetto da auditare (default: byte-swarmy self)")
     args = parser.parse_args()
 
-    report = run_full_audit()
+    # Determina il target
+    target = Path(args.target) if args.target else None
+    report = run_full_audit(target)
 
+    # Output
     if args.json:
         print(json.dumps(report, indent=2, ensure_ascii=False, default=str))
+    elif args.gate:
+        _print_gate_report(report)
     elif not args.no_text:
         _print_text_report(report)
 
     if args.html:
         out = Path(args.html)
         _write_html_report(report, out)
-        # Stampa il path del file HTML su stderr (così non inquina il JSON su stdout)
         if not args.json:
             print(f"Report HTML salvato: {out}")
         else:
             print(f"Report HTML salvato: {out}", file=sys.stderr)
 
-    return 0 if report["summary"]["passed"] else 1
+    # Exit code: 0 se gate PASS, 1 se FAIL
+    return 0 if report["summary"].get("gate", "PASS") == "PASS" else 1
 
 
 if __name__ == "__main__":
-    if "--json" in sys.argv or "--html" in sys.argv:
+    if any(a in sys.argv for a in ("--json", "--html", "--gate", "--target")):
         sys.exit(main())
     print(f"Monthly audit → {ROOT}")
     unittest.main(verbosity=2)

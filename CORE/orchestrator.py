@@ -1561,6 +1561,58 @@ class Orchestrator:
         model_key = self._select_worker(task)
         worker = self._build_worker(task["id"], model_key)
 
+        # ── Audit gate pre-esecuzione ────────────────────────────────
+        # Prima di eseguire il task, verifica che il progetto target passi
+        # il gate di audit (porte esposte, tunnel, import banditi, ecc.).
+        # Modalità:
+        #   - "off"      → skip (gate disattivato)
+        #   - "advisory" → log warning se FAIL, ma procedi
+        #   - "strict"   → blocca il task, marca come "blocked:audit_gate"
+        try:
+            from CORE.audit_gate import check_audit_gate, load_gate_config
+            gate_cfg = load_gate_config()
+            if gate_cfg.get("enabled", False) and gate_cfg.get("mode", "off") != "off":
+                # Determina il project_path: "auto" = project/ di byte-swarmy,
+                # oppure il path esplicito nel config.
+                target = gate_cfg.get("target", "auto")
+                if target == "auto":
+                    import os
+                    proj_path = os.path.join(
+                        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "project",
+                    )
+                    # Se il task ha un project_path specifico nel context, usalo
+                    ctx = task.get("context", {})
+                    if isinstance(ctx, dict) and ctx.get("project_path"):
+                        proj_path = ctx["project_path"]
+                else:
+                    proj_path = target
+                # Esegui il gate (sincrono: ~1-3s su progetti piccoli)
+                gate_result = check_audit_gate(proj_path)
+                if gate_result.gate == "FAIL":
+                    if gate_result.blocks_execution:
+                        # strict mode: blocca il task
+                        self.log.warning(
+                            f"task {task['id']} BLOCKED by audit gate "
+                            f"(mode=strict, {gate_result.critical_count} critical)"
+                        )
+                        self.queue.mark_failed(
+                            task["id"],
+                            f"blocked:audit_gate ({gate_result.critical_count} critical findings)",
+                        )
+                        return
+                    else:
+                        # advisory mode: log warning ma procedi
+                        self.log.warning(
+                            f"task {task['id']} audit gate FAIL "
+                            f"(mode=advisory, {gate_result.critical_count} critical) — procedo"
+                        )
+                else:
+                    self.log.info(f"task {task['id']} audit gate PASS")
+        except Exception as _e:
+            # Se il gate check crasha, non bloccare l'esecuzione (fail-open)
+            self.log.warning(f"audit gate check fallito (fail-open): {_e}")
+
         try:
             result = worker.execute(task)
             if result.startswith("ERROR"):

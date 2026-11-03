@@ -206,3 +206,29 @@ system_prompt = "Sei un pianificatore software esperto. Decomponi il task generi
 # num_predict = 200
 # num_ctx = 1536
 # max_steps = 4
+
+# ═══════════════════════════════════════════════════════════════
+# AUDIT GATES — Quality gate per progetti target
+# ═══════════════════════════════════════════════════════════════
+# L'orchestratore, prima di eseguire un task su un progetto, può lanciare
+# l'audit gate per verificare che il progetto sia "sano" (nessuna porta
+# esposta, nessun tunnel sospetto, nessun import bandito, ecc.).
+#
+# Modalità:
+#   off       → gate disattivato, sempre PASS
+#   advisory  → log warning se FAIL, ma non blocca il task
+#   strict    → blocca il task se FAIL (richiede risoluzione critical)
+#
+# Target:
+#   auto      → usa il progetto corrente ( quello del tab attivo)
+#   <path>    → path esplicito (es. "/home/user/myproject")
+#
+# Categories: lista opzionale di categorie bloccanti da considerare.
+# Default (se vuoto): tutte le categorie bloccanti sono attive.
+# Valori possibili: exposed_ports, potential_tunnel, banned_import,
+#                   critical_files, config_validity
+[audit.gates]
+enabled = false
+mode = "advisory"
+target = "auto"
+categories = []
