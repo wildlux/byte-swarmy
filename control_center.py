@@ -4359,6 +4359,7 @@ class CenterArea(QWidget):
         tools_grid.setColumnStretch(2, 1)
         tools_grid.setRowStretch(0, 0)
         tools_grid.setRowStretch(1, 0)
+        tools_grid.setRowStretch(2, 0)
 
         self.tools_cards = {}
         tool_card_configs = [
@@ -4380,6 +4381,9 @@ class CenterArea(QWidget):
             ("audit_project", "🔍 Audit Progetto",
              "Quality gate su un progetto target: porte esposte, tunnel, codice morto",
              "Gate", "#9333ea", 1, 2),
+            ("hardware", "🖥️ Hardware & Modelli",
+             "Rilevamento GPU/memoria: strategia auto-suggerita per Worker e modelli",
+             "Hardware", "#0891b2", 2, 0),
         ]
 
         for key, title, subtitle, badge, badge_color, row, col in tool_card_configs:
@@ -4459,6 +4463,11 @@ class CenterArea(QWidget):
         from GUI.audit_project_panel import AuditProjectPanel
         self.panel_pages["audit_project"] = AuditProjectPanel()
         self.detail_stack.addWidget(self.panel_pages["audit_project"])
+
+        # Pannello "hardware" → HardwarePanel (profilo GPU/memoria + strategia)
+        from GUI.hardware_panel import HardwarePanel
+        self.panel_pages["hardware"] = HardwarePanel()
+        self.detail_stack.addWidget(self.panel_pages["hardware"])
         
         self.main_stack.addWidget(self.detail_stack)
         

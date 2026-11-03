@@ -232,3 +232,31 @@ enabled = false
 mode = "advisory"
 target = "auto"
 categories = []
+
+# ═══════════════════════════════════════════════════════════════
+# HARDWARE DETECTION — Auto-rilevamento Apple/NVIDIA/AMD/CPU
+# ═══════════════════════════════════════════════════════════════
+# Al boot byte-swarmy rileva automaticamente il tipo di GPU (Apple
+# Metal / NVIDIA CUDA / AMD ROCm / nessuna) e la memoria disponibile
+# (unificata vs dedicata), poi suggerisce:
+#   - worker_count: numero di Worker paralleli ottimali
+#   - keep_alive_sec: secondi di permanenza modelli in RAM
+#   - models_in_ram: modelli caricati simultaneamente
+#
+# Modalità:
+#   mode = "auto"     → rileva hardware e applica strategia ottimale
+#   mode = "manual"   → usa i valori espliciti sotto (override)
+#
+# Strategie auto (da hardware rilevato):
+#   unified_parallel  → Apple Silicon ≥32GB, 4 Worker, 4 modelli
+#   unified_light     → Apple Silicon 16GB, 2 Worker, 2 modelli
+#   nvidia_dual       → NVIDIA ≥20GB VRAM, 2 Worker su GPU
+#   nvidia_cpu_split  → NVIDIA 8-20GB VRAM, 1 GPU + 1 CPU
+#   amd_dual          → AMD ≥16GB VRAM, 2 Worker su GPU
+#   cpu_only          → Solo CPU, 1 Worker, 1 modello
+[hardware]
+mode = "auto"
+# Override manuali (solo se mode = "manual"):
+# worker_count = 1
+# keep_alive_sec = 0
+# strategy = "cpu_only"

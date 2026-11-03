@@ -316,17 +316,36 @@ class ModelClient:
     # ------------------------------------------------------------------
 
     def _unload(self, model_name: str) -> None:
-        """Scarica un modello dalla RAM (keep_alive=0)."""
+        """Scarica o mantiene un modello in RAM in base al profilo hardware.
+
+        Comportamento:
+          - Hardware tradizionale (cpu_only, VRAM dedicata piccola): keep_alive=0
+            → scarica subito per liberare RAM (comportamento originale)
+          - Memoria unificata Apple Silicon ≥16GB: keep_alive=300-600s
+            → mantiene il modello in RAM per riuso rapido
+          - NVIDIA/AMD con VRAM ≥20GB: keep_alive=300s
+            → mantiene su VRAM dedicata
+          - Override manuale da CONFIG/config.toml [hardware].keep_alive_sec
+        """
         if not model_name:
             return
+        # Determina keep_alive dal profilo hardware o dal config
+        try:
+            from CORE.hardware_detector import get_keep_alive_override
+            keep_alive = get_keep_alive_override(getattr(self, "cfg", None))
+        except Exception:
+            keep_alive = 0  # fallback: scarica subito (comportamento originale)
         try:
             payload = {
                 "model": model_name,
                 "messages": [],
-                "keep_alive": 0,
+                "keep_alive": keep_alive,
             }
             self._post("/api/chat", payload, timeout=30)
-            self.log.debug(f"unloaded {model_name}")
+            if keep_alive > 0:
+                self.log.debug(f"unloaded {model_name} (keep_alive={keep_alive}s — resterà in RAM)")
+            else:
+                self.log.debug(f"unloaded {model_name} (keep_alive=0 — scaricato subito)")
         except Exception as e:
             self.log.warning(f"failed to unload {model_name}: {e}")
 
