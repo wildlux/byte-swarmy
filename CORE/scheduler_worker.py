@@ -7,13 +7,14 @@ pannello "Code Task Scheduler" della GUI) e inietta i task scaduti in
 `tasks/queue.db` (via `TaskQueue.add`).
 
 Tipologie (schema del pannello):
-    {"title": str, "prompt": str, "type": "oneshot", "datetime": "YYYY-MM-DD HH:MM"}
+    {"title": str, "prompt": str, "type": "oneshot",  "datetime": "YYYY-MM-DD HH:MM"}
     {"title": str, "prompt": str, "type": "interval", "interval_sec": N}
     {"title": str, "prompt": str, "type": "daily",    "time": "HH:MM"}
+    {"title": str, "prompt": str, "type": "monthly",  "day": 1-31, "time": "HH:MM"}
 
 Il tool aggiunge questi campi nel JSON:
-    "last_run": <epoch seconds>     (interval/daily — e oneshot, informativo)
-    "last_run_date": "YYYY-MM-DD"   (daily: evita doppio scatto nello stesso giorno)
+    "last_run": <epoch seconds>     (interval/daily/monthly — e oneshot, informativo)
+    "last_run_date": "YYYY-MM-DD"   (daily/monthly: evita doppio scatto nello stesso giorno)
     "done": true                    (oneshot consumato: non re-iniettato)
 
 Architettura: la logica di matching è `SchedulerLogic` (pura, senza I/O —
@@ -107,18 +108,51 @@ class SchedulerLogic:
             minute_now = local.hour * 60 + local.minute
             return minute_now >= h * 60 + m
 
+        if t == "monthly":
+            # Task mensile: gira il giorno `day` del mese, all'ora `time`.
+            # Se il giorno indicato non esiste nel mese (es. day=31 in febbraio),
+            # gira l'ULTIMO giorno del mese (fallback robusto).
+            h, m = self._parse_daily(task.get("time", ""))
+            if h is None:
+                return False
+            try:
+                day = int(task.get("day", 1))
+            except (TypeError, ValueError):
+                day = 1
+            if not (1 <= day <= 31):
+                return False
+            local = datetime.datetime.fromtimestamp(now)
+            today = local.date().isoformat()
+            if task.get("last_run_date") == today:
+                return False                     # già girato oggi
+            # Calcola il giorno effettivo: se day > giorni del mese, usa l'ultimo
+            _, days_in_month = self._days_in_month(local.year, local.month)
+            effective_day = min(day, days_in_month)
+            if local.day != effective_day:
+                return False
+            # Stesso check dell'orario del daily
+            minute_now = local.hour * 60 + local.minute
+            return minute_now >= h * 60 + m
+
         return False
+
+    @staticmethod
+    def _days_in_month(year: int, month: int) -> tuple[int, int]:
+        """Ritorna (weekday del 1°, numero di giorni nel mese)."""
+        import calendar
+        return calendar.monthrange(year, month)
 
     # -- post-esecuzione ----------------------------------------
     def mark_run(self, task: dict, now: Optional[float] = None) -> None:
-        """Nota sul task FATTO: last_run (+ data per daily) + done oneshot."""
+        """Nota sul task FATTO: last_run (+ data per daily/monthly) + done oneshot."""
         if now is None:
             now = self.now_fn()
         task["last_run"] = now
-        if task.get("type", "") == "daily":
+        t = task.get("type", "")
+        if t in ("daily", "monthly"):
             task["last_run_date"] = datetime.datetime.fromtimestamp(
                 now).date().isoformat()
-        if task.get("type", "") == "oneshot":
+        if t == "oneshot":
             task["done"] = True
 
     # -- costruzione del task coda --------------------------------
