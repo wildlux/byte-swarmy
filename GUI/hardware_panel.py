@@ -105,6 +105,8 @@ class HardwarePanel(QWidget):
             ("vram_total", "VRAM totale"),
             ("bandwidth", "Bandwidth"),
             ("cpu_cores", "CPU cores"),
+            ("model_size", "Modello configurato"),
+            ("model_fits", "Modello in VRAM?"),
         ]
         for key, label_text in info_grid_data:
             row = QHBoxLayout()
@@ -204,13 +206,31 @@ class HardwarePanel(QWidget):
                 self.info_labels["bandwidth"].setText("—")
             self.info_labels["cpu_cores"].setText(str(profile.cpu_cores))
 
+            # Nuovi campi: modello configurato + fits VRAM
+            if profile.model_size_gb > 0:
+                self.info_labels["model_size"].setText(
+                    f"{profile.model_size_gb:.1f} GB (modello più grande in actors.json)"
+                )
+            else:
+                self.info_labels["model_size"].setText("— (nessun actors.json)")
+            if profile.vram_total_gb > 0:
+                fits_text = "✓ Sì — GPU verrà usata" if profile.model_fits_vram else "✗ No — userà CPU"
+                color = "#16a34a" if profile.model_fits_vram else "#dc2626"
+                self.info_labels["model_fits"].setText(
+                    f'<span style="color:{color};font-weight:bold">{fits_text}</span>'
+                )
+            else:
+                self.info_labels["model_fits"].setText("— (no GPU)")
+
             # Badge strategia
             strat_colors = {
                 "unified_parallel": ("#16a34a", "🚀 unified_parallel"),
                 "unified_light":    ("#16a34a", "⚡ unified_light"),
                 "nvidia_dual":      ("#2563eb", "🎮 nvidia_dual"),
                 "nvidia_cpu_split": ("#2563eb", "🔀 nvidia_cpu_split"),
+                "nvidia_light":     ("#0891b2", "💡 nvidia_light"),
                 "amd_dual":         ("#dc2626", "🎮 amd_dual"),
+                "amd_light":        ("#dc2626", "💡 amd_light"),
                 "cpu_only":         ("#666666", "💻 cpu_only"),
             }
             color, label = strat_colors.get(

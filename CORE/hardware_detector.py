@@ -57,6 +57,8 @@ class HardwareProfile:
     keep_alive_sec: int = 0          # secondi keep_alive per Ollama
     models_in_ram: int = 1           # modelli caricati simultaneamente
     description: str = ""            # descrizione umana della strategia
+    model_size_gb: float = 0.0       # dimensione stimata del modello più grande
+    model_fits_vram: bool = False    # True se il modello entra in VRAM disponibile
 
     # ── Stato rilevamento ─────────────────────────────────────────
     detection_ok: bool = True        # False se rilevamento fallito (fallback a cpu_only)
@@ -107,23 +109,37 @@ STRATEGIES = {
         "models_in_ram": 2,
     },
     "nvidia_dual": {
-        "description": "NVIDIA con VRAM ≥24GB — 2 Worker su GPU, 2 modelli simultanei",
+        "description": "NVIDIA con VRAM ≥20GB — 2 Worker su GPU, 2 modelli simultanei",
         "worker_count": 2,
         "keep_alive_sec": 300,
         "models_in_ram": 2,
     },
     "nvidia_cpu_split": {
-        "description": "NVIDIA con VRAM 8-16GB — 1 Worker su GPU + 1 su CPU, "
+        "description": "NVIDIA con VRAM 8-20GB — 1 Worker su GPU + 1 su CPU, "
                        "context switching rapido",
         "worker_count": 2,
         "keep_alive_sec": 60,
         "models_in_ram": 2,
+    },
+    "nvidia_light": {
+        "description": "NVIDIA con VRAM 4-8GB e modello piccolo — 1 Worker su GPU, "
+                       "keep_alive medio. La GPU viene usata per modelli che entrano "
+                       "in VRAM (es. qwen2.5:1.5b su GTX 1050 4GB).",
+        "worker_count": 1,
+        "keep_alive_sec": 120,
+        "models_in_ram": 1,
     },
     "amd_dual": {
         "description": "AMD ROCm con VRAM ≥16GB — 2 Worker su GPU, 2 modelli simultanei",
         "worker_count": 2,
         "keep_alive_sec": 300,
         "models_in_ram": 2,
+    },
+    "amd_light": {
+        "description": "AMD ROCm con VRAM 4-16GB e modello piccolo — 1 Worker su GPU",
+        "worker_count": 1,
+        "keep_alive_sec": 120,
+        "models_in_ram": 1,
     },
     "cpu_only": {
         "description": "Solo CPU (no GPU) — 1 Worker, 1 modello, context switch immediato",
@@ -310,12 +326,125 @@ def _detect_cpu_cores() -> int:
 
 
 # ═══════════════════════════════════════════════════════════════
+# Stima dimensione modello
+# ═══════════════════════════════════════════════════════════════
+
+# Mappa nome modello → dimensione stimata in GB (formato Q4_K_M, il default di Ollama)
+# Fonte: dimensioni reali dei modelli Ollama più comuni
+_MODEL_SIZE_GB = {
+    # Modelli molto piccoli (< 1GB)
+    "0.5b": 0.4, "270m": 0.3, "1b": 0.7, "tiny": 0.3,
+    # Modelli piccoli (1-2GB)
+    "1.3b": 0.8, "1.5b": 1.0, "1.7b": 1.1, "1.8b": 1.2,
+    # Modelli medi (2-4GB)
+    "2b": 1.5, "3b": 2.0, "4b": 2.6, "3.8b": 2.5,
+    # Modelli grandi (4-8GB)
+    "7b": 4.5, "6.7b": 4.0, "8b": 5.2, "6b": 3.8,
+    # Modelli molto grandi (8-15GB)
+    "13b": 8.0, "14b": 9.0, "12b": 7.5,
+    # Modelli enormi (>15GB) — non supportati su GPU piccole
+    "30b": 20.0, "31b": 21.0, "33b": 22.0, "70b": 40.0,
+}
+
+
+def _estimate_model_size_gb(model_name: str) -> float:
+    """Stima la dimensione di un modello Ollama in GB (formato Q4 default).
+
+    Cerca nel nome del modello pattern come '1.5b', '7b', '13b' e ritorna
+    la dimensione stimata. Fallback: 2GB (modello medio-piccolo).
+
+    Esempi:
+        'qwen2.5:1.5b' → 1.0 GB
+        'qwen2.5:7b'   → 4.5 GB
+        'llama3:8b'    → 5.2 GB
+        'phi3:mini'    → 2.0 GB (fallback)
+    """
+    if not model_name:
+        return 2.0
+    name_lower = model_name.lower()
+    # Cerca pattern N.Nb o Nb (es. 1.5b, 7b, 13b, 270m)
+    import re
+    match = re.search(r'(\d+(?:\.\d+)?)(b|m)\b', name_lower)
+    if match:
+        size_str = match.group(1) + match.group(2)
+        if size_str in _MODEL_SIZE_GB:
+            return _MODEL_SIZE_GB[size_str]
+        # Se non è nella mappa, stima: 1B ≈ 0.65GB in Q4
+        try:
+            num = float(match.group(1))
+            unit = match.group(2)
+            if unit == "b":
+                return num * 0.65  # stima Q4
+            else:  # 'm'
+                return num * 0.001  # 270m ≈ 0.27GB
+        except ValueError:
+            pass
+    return 2.0  # fallback conservativo
+
+
+def _get_configured_models() -> list[str]:
+    """Legge i modelli configurati in CONFIG/actors.json.
+
+    Ritorna una lista con i nomi dei modelli (LLM + decision_model + timestral).
+    Se actors.json non esiste o non si riesce a leggerlo, ritorna [].
+    """
+    try:
+        import json
+        actors_file = _BASE / "CONFIG" / "actors.json"
+        if not actors_file.exists():
+            return []
+        with open(actors_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        models = []
+        for key in ("llm", "decision_model", "timestral"):
+            if key in data and isinstance(data[key], dict):
+                m = data[key].get("model", "")
+                if m:
+                    models.append(m)
+        return models
+    except Exception:
+        return []
+
+
+def _largest_configured_model_gb() -> float:
+    """Ritorna la dimensione del modello più grande configurato in actors.json.
+
+    Usato per decidere se la GPU ha abbastanza VRAM. Se actors.json non
+    è leggibile, ritorna 2.0GB (assunzione conservativa modello medio).
+    """
+    models = _get_configured_models()
+    if not models:
+        return 2.0
+    sizes = [_estimate_model_size_gb(m) for m in models]
+    return max(sizes) if sizes else 2.0
+
+
+# ═══════════════════════════════════════════════════════════════
 # Selettore strategia
 # ═══════════════════════════════════════════════════════════════
 
+# Overhead di sicurezza per VRAM (Ollama ha bisogno di ~1GB per KV cache + compute)
+_VRAM_OVERHEAD_GB = 1.0
+
+
 def _select_strategy(gpu_type: str, ram_gb: float, vram_gb: float,
-                     unified: bool) -> str:
-    """Seleziona la strategia ottimale in base all'hardware rilevato."""
+                     unified: bool, model_gb: float = None) -> str:
+    """Seleziona la strategia ottimale in base all'hardware + modello configurato.
+
+    Args:
+        gpu_type: tipo GPU ("apple_metal" | "nvidia_cuda" | "amd_rocm" | "none")
+        ram_gb: RAM totale sistema in GB
+        vram_gb: VRAM GPU in GB (per unified, = ram_gb)
+        unified: True per memoria unificata Apple Silicon
+        model_gb: dimensione del modello più grande configurato in GB.
+                  Se None, legge da CONFIG/actors.json (fallback 2.0GB).
+    """
+    if model_gb is None:
+        model_gb = _largest_configured_model_gb()
+
+    # VRAM utile = VRAM totale - overhead (KV cache, compute buffers)
+    vram_available = vram_gb - _VRAM_OVERHEAD_GB
+
     if gpu_type == "apple_metal":
         # Apple Silicon: memoria unificata, decide in base alla RAM totale
         if ram_gb >= 32:
@@ -325,16 +454,22 @@ def _select_strategy(gpu_type: str, ram_gb: float, vram_gb: float,
         else:
             return "cpu_only"  # Mac con poca RAM (8GB), resta conservativo
     elif gpu_type == "nvidia_cuda":
-        # Soglia a 20GB per includere RTX 4090 (24GB nominali, ~23.9GB reali)
+        # Gerarchia: dual (≥20GB) → cpu_split (8-20GB) → light (4-8GB + modello piccolo)
         if vram_gb >= 20:
             return "nvidia_dual"
         elif vram_gb >= 8:
             return "nvidia_cpu_split"
+        elif vram_gb >= 4 and model_gb <= vram_available:
+            # GPU piccola (4-8GB) MA il modello configurato entra in VRAM
+            # → usa GPU per inference (es. GTX 1050 4GB + qwen2.5:1.5b 1GB)
+            return "nvidia_light"
         else:
-            return "cpu_only"  # GPU NVIDIA entry-level (4GB), non vale la pena
+            return "cpu_only"  # modello troppo grande per la VRAM disponibile
     elif gpu_type == "amd_rocm":
         if vram_gb >= 16:
             return "amd_dual"
+        elif vram_gb >= 4 and model_gb <= vram_available:
+            return "amd_light"
         elif vram_gb >= 8:
             return "nvidia_cpu_split"  # riusa la strategia split
         else:
@@ -410,6 +545,13 @@ def detect() -> HardwareProfile:
         profile.keep_alive_sec = strat["keep_alive_sec"]
         profile.models_in_ram = strat["models_in_ram"]
         profile.description = strat["description"]
+
+        # Popola info sul modello configurato (per GUI e debug)
+        profile.model_size_gb = _largest_configured_model_gb()
+        vram_available = profile.vram_total_gb - _VRAM_OVERHEAD_GB
+        profile.model_fits_vram = (
+            profile.vram_total_gb > 0 and profile.model_size_gb <= vram_available
+        )
 
     except Exception as e:
         # Fail-safe: cpu_only conservativo
@@ -507,6 +649,8 @@ if __name__ == "__main__":
         print(f"  Worker count:     {profile.worker_count}")
         print(f"  Keep alive:       {profile.keep_alive_sec}s")
         print(f"  Models in RAM:    {profile.models_in_ram}")
+        print(f"  Model size:       {profile.model_size_gb:.1f} GB")
+        print(f"  Model fits VRAM:  {'✓ sì' if profile.model_fits_vram else '✗ no'}")
         print(f"  Description:      {profile.description}")
         print()
         if not profile.detection_ok:
