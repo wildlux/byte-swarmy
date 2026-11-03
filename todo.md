@@ -57,10 +57,6 @@ in `_thermal_gate_pass` — vedi `IMPLEMENTED.md`).
   apre `TaskSchedulerPanel`, compila titolo+prompt, seleziona tipo
   `interval`, imposta 60s, clicca `Aggiungi task`, verifica
   `CONFIG/scheduled_tasks.json` contenga il task. ~30 min.
-- [ ] **I6 Test end-to-end Timestral** — `tests/test_timestral_e2e.py`:
-  crea `actors.json` con `cpu_temp_threshold=50` (bassa), avvia
-  orchestratore con sample finto `cpu_temp=60`, verifica che
-  `queue.pause_thermal()` sia chiamato. ~45 min.
 - [ ] **I7 Test integrazione strategia hardware** — `tests/test_hardware_e2e.py`:
   simula cambio strategia da `cpu_only` a `gpu+cpu` in settings.json,
   verifica che l'orchestratore cambi il routing di LLM da CPU a GPU

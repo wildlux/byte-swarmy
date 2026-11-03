@@ -448,4 +448,13 @@ I 4 parametri residui del pannello Attori/Timestral, ora davvero cablati.
   3 test reali: pausa → `set_paused(True)` chiamato; ripresa →
   `set_paused(False)` dopo pausa; flag False → planner non toccato.
   Zero token LLM.
+- [x] **I6 Test end-to-end Timestral** — `tests/test_timestral_e2e.py`
+  (3 test): vero `Orchestrator` (`__new__`) con VERO `TimestralGatekeeper`
+  (soglie basse), VERO `TaskQueue` su SQLite temporaneo e VERO
+  `_thermal_gate_pass`; solo i samples sono finti (SimpleNamespace).
+  Verificati: sample caldo 60°C > 50 → task nel DB diventa
+  `thermal_paused`; isteresi (47 > resume 45 → pausa resta) + task
+  aggiunto a coda ferma durante la pausa resta `pending` + freddo 40°C
+  → gate pass e task riaccodato; tutto freddo → mai gap sulla coda.
+  Zero token LLM, zero Ollama.
 
