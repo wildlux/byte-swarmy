@@ -99,7 +99,7 @@ Dettagli, modello di minaccia, rischi residui e rollback:
 Verifica della policy:
 
 ```bash
-python -m pytest tests/ -v            # 223 test + 131 subtest: security, sandbox, escape-gate, intent, execute, decision-feedback, correction, thermal-gate, repo-hygiene, dotfile-security, scheduler, settings, actors-panel, MCP E2E, USB protocol/differential (+3 E2E live)
+python -m pytest tests/ -v            # 226 test + 131 subtest: security, sandbox, escape-gate, intent, execute, decision-feedback, correction, thermal-gate, repo-hygiene, dotfile-security, scheduler, settings, actors-panel, MCP E2E, USB protocol/differential, Timestral E2E (+3 E2E live)
 tail -f logs/security.log
 ```
 
@@ -644,7 +644,7 @@ byte-swarmy/
 │   ├── main_window.py       # Zero-Click layout (Top bar + splitter + Bottom bar)
 │   └── theme/               # QSS theme system (light.qss, dark.qss, theme.py)
 ├── CONFIG/                  # config.toml
-├── tests/                   # 223 test pytest: security, sandbox, escape-gate, intent,
+├── tests/                   # 226 test pytest: security, sandbox, escape-gate, intent,
 │   │                        #   execute-handler, decision-feedback, correction,
 │   │                        #   thermal-gatekeeper, repo-hygiene,
 │   │                        #   dotfile-security
@@ -689,7 +689,7 @@ byte-swarmy/
 
 ## Sviluppo e test
 
-### Test suite (223 test pytest + 131 subtest)
+### Test suite (226 test pytest + 131 subtest)
 
 ```bash
 source .venv/bin/activate
