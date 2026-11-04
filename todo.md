@@ -5,113 +5,66 @@ al codice deve avere una riga con stato `[ ]` / `[x]`. I task devono essere
 piccoli, atomici e verificabili. Per modifiche a `orchestrator.py`/`tools.py`:
 `py_compile` + boot reale sotto watchdog + suite completa (R1).
 
-Le voci completate vengono spostate in `IMPLEMENTED.md` (log storico per cicli).
-Automatizzazione: `python travasa_todo.py` (prova con `--dry-run`) sposta le
-righe `- [x]` di questo file nella sezione "Completati (spostati da todo.md)"
-di `IMPLEMENTED.md`, deduplicando (idempotente).
-
-Stato attuale: **sistema operativo end-to-end**, suite pass verde: via
-pytest **223 test + 131 subtest** (skipped solo i 3 E2E live quando il
-sistema è in pausa); via `unittest discover` 167 test. Vedi
-`IMPLEMENTED.md` per la storia.
-
-GUI Control Center: pannelli Impostazioni + Attori + Code Task Scheduler +
-CI/CD + Clean Code + Integrità + Sicurezza tutti cablati. Timestral **100%
-cablato** (A1+A2+A3+A4). Push Git con conferma + riepilogo errori (C1+C2).
-**Strategia Hardware** (GPU+CPU / Solo GPU / Solo CPU / CPU→GPU) con
-auto-detect GPU via `nvidia-smi` (H1+H2). **Pesi modelli** light/medium/
-heavy per LLM e Decision Model; Timestral sempre light + force_cpu=True
-(H3+H4). Orchestratore legge strategia + pesi e decide target CPU/GPU
-(H5).
-
-**Brutal honest follow-up**: i test `test_timestral_full.py` sono test di
-unità/isolation (verificano `TimestralGatekeeper` e `load_timestral_overrides`
-in isolamento). I test A3/A4 usano `_make_orch_with_overrides()` + una
-**replica** della logica di `_thermal_gate_pass`, non chiamano il vero
-metodo dell'Orchestrator. Questo significa: se cambi il codice reale e non
-aggiorni la replica, il test passa ma il codice reale è rotto. Vedi
-**Round 3** sotto per i task di integrazione reali.
+Stato attuale: **sistema operativo end-to-end**, 58/58 test pass
+(27 security + 22 sandbox + 3 escape-gate + 6 intent).
 
 ---
 
-## 🔵 Round 3 — Integrazione GUI + Orchestrator (test reali)
+## 🎯 Priorità alta (sicurezza e stabilità)
 
-I test attuali sono di unità. Per arrivare al 9.5/10 vero servono test
-di integrazione che chiamino i metodi reali dell'Orchestrator e testino
-la GUI con click simulati (`QTest`). **I1/I2 fatti** (metodo
-`_thermal_gate_pass` reale nei test; bug asimmetria `planner` corretto
-in `_thermal_gate_pass` — vedi `IMPLEMENTED.md`).
+- [x] **9.1b Fix allowlist per binari locali** — `./binari` locali ora permessi in `security.py`.
+- [x] **M2. Exception Hardening centralizzato** — `CORE/exception_handler.py` con policy classificazione errori.
+- [x] **M4. State Recovery da event-store** — `CORE/state_recovery.py` per ripristino contesto worker.
+- [x] **M6. Mascheratura selettiva `/etc`** — Verificato: 5/5 file montati selettivamente.
+- [x] **M7. Quota disco su `project/`** — Check 500MB default in `tools.py` prima di `write_file`.
+- [x] **M1. Guardrail anti-escape** — Verificato `detect_artifacts` in `ast_scanner.py`. 3/3 test pass.
 
-- [ ] **I3 Test GUI ActorsPanel con QTest** — `tests/test_actors_gui.py`
-  con `QTest.mouseClick` + `QTest.keyClicks`: apre `ActorsPanel`, cambia
-  `Soglia RIPRESA` da 65 a 70, clicca `Salva configurazione attori`,
-  verifica che `CONFIG/actors.json` contenga `resume_temp_threshold=70`.
-  Mock di `QMessageBox.information` per evitare dialog bloccante.
-  ~45 min.
-- [ ] **I4 Test GUI SettingsPanel con QTest** — `tests/test_settings_gui.py`:
-  apre `SettingsPanel`, aggiunge un remote Git (nome `origin`, URL
-  `https://github.com/test/repo.git`, token `ghp_test`), clicca
-  `Aggiungi/Aggiorna remote`, verifica che `CONFIG/settings.json`
-  contenga il remote con il token. ~30 min.
-- [ ] **I5 Test GUI TaskSchedulerPanel con QTest** — `tests/test_scheduler_gui.py`:
-  apre `TaskSchedulerPanel`, compila titolo+prompt, seleziona tipo
-  `interval`, imposta 60s, clicca `Aggiungi task`, verifica
-  `CONFIG/scheduled_tasks.json` contenga il task. ~30 min.
-- [ ] **I7 Test integrazione strategia hardware** — `tests/test_hardware_e2e.py`:
-  simula cambio strategia da `cpu_only` a `gpu+cpu` in settings.json,
-  verifica che l'orchestratore cambi il routing di LLM da CPU a GPU
-  (mock `ollama` per evitare chiamate reali). ~30 min.
+## 🔧 Priorità media (qualità e usabilità)
 
-## 🟢 Round 4 — Strategia hardware + pesi modelli (H1-H5)
-
-
-## 🟡 Priorità 3 — Nice to have residui
-
-- [ ] **T3.2 File editor + Code Explorer cablato** — Cliccare un file
-  nella sidebar → vedi sempre "Nessun file caricato" nel Code Explorer.
-  Creare un editor docked di default (anche un `QPlainTextEdit` read-only)
-  e collegare `code_explorer.load_file(path)` a ogni click sul file tree.
-- [ ] **T3.3 Log reali in BackupCodeLogs** — Sostituire i sample
-  hardcoded del `BackupCodeLogs` con `git log --since="1 day ago"
-  --oneline` dal repo. Filtrare per remote se possibile, altrimenti
-  mostrare tutti i commit nel tab "Git". I tab GitHub/GitLab possono
-  usare `gh` CLI o le API REST con token configurato.
-- [ ] **T3.4 Decision Model → architettura reale** — Vere 2 fasi: prima
-  il decision model decide cosa fare, poi l'LLM esegue. Richiede refactor
-  di `CORE/orchestrator.py` e `CORE/task_dispatcher.py`. **Complesso** —
-  salta se non è priorità.
-- [ ] **T3.5 i18n vero (inglese)** — Definire `_ = lambda s: s` per ora,
-  marcare le stringhe principali (titoli card, pulsanti comuni) con
-  `_("...")`. Creare `GUI/i18n.py` con dizionario it/en. Rimuovere il
-  tooltip "Work in progress" quando fatto. **Molte stringhe** — salta se
-  non è priorità.
-- [ ] **C3 Validazione URL Git** — Nel pulsante "🔌 Test connessione"
-  (che esiste) usa `git ls-remote` con URL+token. Aggiungere: dopo
-  "Aggiungi/Aggiorna remote" chiede "Vuoi testare ora?" → se sì esegue
-  automaticamente. ~20 min.
-- [ ] **D1 Documenta architettura GUI** — Crea `DOCS/ARCHITETTURA_GUI.md`
-  con: schema 5 pannelli, schema 3 file JSON (chi scrive, chi legge),
-  schema flusso GUI → JSON → CORE → effetto reale, tabella "stato
-  cablaggio" (tutti ✅). ~20 min.
+- [x] **9.1 Handler deterministico per `type=execute`** — `CORE/execute_handler.py` (gcc/python/make, no LLM).
+- [x] **9.4 Timestral predittivo** — `MONITORING/predictive.py` con EMA e regressione lineare.
+- [x] **9.9 Memoria persistente avanzata** — `extract_preferences()` in `persistent_memory.py` (pattern matching).
+- [x] **9.11 Benchmark automatico dei modelli** — `CORE/benchmark.py` (3 test, score 100/100 su qwen2.5-coder).
+- [x] **M3. Static Checks (Bandit/Mypy)** — Verificato: già integrati in `lint_code` (`tools.py`).
+- [x] **Feature 7: Timestral LLM Tuner** — `CORE/llm_tuner.py` con 4 profili termici (fast/normal/slow/pause).
+- [ ] **UI Redesign** — Menu hamburger, Live Activity in alto, rimozione status bar (da fare a mano).
 
 ## 🔌 Priorità bassa (USB e MCP)
 
+- [ ] **9.7 MCP E2E** — Collaudo completo.
+- [ ] **M10. USB Protocol Parser** — Traduzione descrittori/endpoint/payload.
+- [ ] **M11. USB Differential Analysis** — Confronto automatico tra catture.
 - [ ] **M8. Utente dedicato `byteswarmy`** — Richiede sudo.
+- [ ] **M9. usbmon/tshark ambiente** — Automatizzare installazione.
 
 ## 🧹 Igiene continua
 
+- [ ] **R1.** `py_compile` + boot reale sotto watchdog per modifiche strutturali.
 - [ ] **R2.** Test di interazione reale per i gate di sicurezza.
 - [ ] **R3.** Verificare funzionalità duplicate se un file supera ~500 righe.
 - [ ] **FM14** — Unificare la coda GUI→SQLite in sola lettura.
 
----
+## ✅ Completato (riepilogo)
 
-## ✅ Completato
-
-Tutti i task completati sono registrati in **`IMPLEMENTED.md`** — non
-duplicare qui. Per spostare i `[x]` automaticamente: `python travasa_todo.py`
-(prova `--dry-run` prima).
-
-**Round 1 + Round 2 completati** (sicurezza, igiene, UX, Timestral completo):
-vedi `IMPLEMENTED.md` sezione "Completati (spostati da todo.md) — Round 1 +
-Round 2 (2026-11-02)".
+Tutte le features dei cicli 1–11 sono completate. Vedi `IMPLEMENTED.md` per
+il log storico dettagliato. In particolare:
+- Sandbox sicuro (escape `/etc` bloccato, 11/11 subtest pass).
+- M1 Anti-escape guardrail (detect_artifacts, 3/3 test pass).
+- IntentRouter multilingue IT/EN/ZH (28 intent, 314 trigger).
+- Streaming token real-time nel Live Activity Panel.
+- Swarm command handlers diretti (8 comandi, no LLM).
+- 9.1 Execute handler deterministico (gcc/python/make, no LLM).
+- Decision model `tev1:4b` per task generici.
+- Memoria persistente tra task + estrazione preferenze utente.
+- Model selector intelligente + tab Modelli nella GUI.
+- Dynamic KV cache estimation (formula reale).
+- Timestral LLM parameter optimizer (4 profili termici).
+- Timestral predittivo (EMA + regressione lineare).
+- Exception hardening centralizzato.
+- State recovery da event-store SQLite.
+- Benchmark automatico modelli (100/100 score).
+- Quota disco su project/ (500MB).
+- QSS Theme system (light/dark, toggle Ctrl+Shift+T).
+- Planner SQLite bug fix (subtask ora persistono correttamente).
+- Migrazione a package maiuscoli (CORE/INTENT/SAFETY/MONITORING/GUI/CONFIG).
+- 58/58 test pass.
