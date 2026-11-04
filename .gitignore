@@ -128,3 +128,10 @@ feature_m1_anti_escape*
 _archivio_root_duplicates/
 
 # setup-dual-gpu temporanei
+# Runtime data (in data/ via symlink)
+data/
+tasks/queue.db
+logs/*.log
+state/*.flag
+state/*.pid
+project/

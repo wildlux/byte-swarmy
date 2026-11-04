@@ -167,7 +167,7 @@ class TaskQueue:
         
         with self._get_conn() as conn:
             conn.execute(
-                "INSERT INTO tasks (id, title, description, context, status, attempts, created_at, parent, type, source) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                "INSERT OR IGNORE INTO tasks (id, title, description, context, status, attempts, created_at, parent, type, source) VALUES (?,?,?,?,?,?,?,?,?,?)",
                 (
                     task["id"], task.get("title", ""), task.get("description", ""), 
                     task.get("context", ""), task["status"], task["attempts"], 
@@ -300,6 +300,56 @@ class TaskQueue:
                 )
             conn.commit()
             return status
+
+    def _save(self):
+        """No-op: SQLite auto-commit. Mantenuto per compatibilità vecchia API."""
+        pass
+
+    def update_task(self, task_id: str, **fields):
+        """Aggiorna campi di un task nel DB SQLite (UPDATE diretto).
+
+        Esempio: queue.update_task("task-123", status="planned", result="ok")
+        Campi non esistenti nello schema vengono ignorati con warning.
+        Liste/dict vengono serializzati come JSON.
+        """
+        if not fields:
+            return
+        import json as _json, logging as _logging
+        _log = _logging.getLogger("byte-swarmy")
+        conn = self._get_conn()
+        try:
+            cur = conn.execute("PRAGMA table_info(tasks)")
+            valid_cols = {row[1] for row in cur.fetchall()}
+            updates, vals = [], []
+            for k, v in fields.items():
+                if k in valid_cols:
+                    if isinstance(v, (list, dict)):
+                        v = _json.dumps(v)
+                    updates.append(f"{k} = ?")
+                    vals.append(v)
+                else:
+                    _log.warning(f"update_task: colonna '{k}' non in schema, ignorata")
+            if not updates:
+                return
+            vals.append(task_id)
+            conn.execute(
+                f"UPDATE tasks SET {', '.join(updates)} WHERE id = ?",
+                vals,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def list_tasks(self) -> list:
+        """Ritorna tutti i task (compatibilità vecchia API .tasks)."""
+        conn = self._get_conn()
+        try:
+            conn.row_factory = sqlite3.Row
+            cur = conn.execute('SELECT * FROM tasks')
+            cols = [d[0] for d in cur.description]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
+        finally:
+            conn.close()
 
     def stats(self) -> dict:
         with self._get_conn() as conn:
@@ -1552,12 +1602,12 @@ class Orchestrator:
                 for st in subtasks:
                     self.queue.add(st)
                 self.queue._save()
-                # Marca il task parent come 'planned'
-                for t in self.queue.list_tasks():
-                    if t["id"] == task["id"]:
-                        t["status"] = "planned"
-                        t["subtask_ids"] = [s["id"] for s in subtasks]
-                self.queue._save()
+                # Marca il task parent come 'planned' (UPDATE SQLite diretto)
+                self.queue.update_task(
+                    task["id"],
+                    status="planned",
+                    subtask_ids=[s["id"] for s in subtasks],
+                )
                 return
             # Se il planner fallisce, esegui il task direttamente
 
