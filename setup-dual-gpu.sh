@@ -262,6 +262,11 @@ case "${1:-}" in
         test_gpu_loading
         show_status
         ;;
+    --create-variants)
+        detect_gpus
+        create_gpu_model_variants
+        show_status
+        ;;
     --help|-h)
         show_help
         ;;
@@ -285,12 +290,12 @@ case "${1:-}" in
         configure_ollama_service
         
         echo
-        info "Creazione varianti GPU dei modelli..."
-        create_gpu_model_variants
-        
-        echo
         info "Test caricamento su GPU..."
         test_gpu_loading
+        
+        echo
+        info "Nota: i modelli normali vanno già su GPU automaticamente."
+        info "Le varianti -gpu sono opzionali. Per crearle: ./setup-dual-gpu.sh --create-variants"
         
         echo
         show_status
