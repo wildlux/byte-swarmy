@@ -118,3 +118,10 @@ CONFIG/*.local.json
 analisi-e-sicurezza-codice.json
 *.json.bak
 analisi-e-sicurezza-codice.json
+feature_m1_2_anti_escape.py
+feature_m1_2_anti_escape.py
+
+# File temporanei feature_m1 (NON tracciare)
+feature_m1_anti_escape.py
+feature_m1_2_anti_escape.py
+feature_m1_anti_escape*
