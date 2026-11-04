@@ -276,15 +276,15 @@ chmod +x bswarm
 echo "✓ Nuovo bswarm dispatcher creato (usa avvia.sh/ferma.sh + SQLite)"
 echo ""
 
-# ─── 3. Sposta docs in docs/ (mantieni README.md in root) ────────────
+# ─── 3. Sposta docs in DOCS/ (mantieni README.md in root) ────────────
 echo "=== 3. Sposta docs ==="
 mkdir -p docs
 for f in AGENT.md IMPLEMENTED.md README_EN.md SECURITY.md SPECIFICATIONS.md todo.md INTENT TEST_GUI_SEPARATA; do
     [ -f "$f" ] || continue
     if [[ "$f" != *.md ]]; then
-        target="docs/${f}.md"
+        target="DOCS/${f}.md"
     else
-        target="docs/$f"
+        target="DOCS/$f"
     fi
     git mv "$f" "$target" 2>/dev/null || mv "$f" "$target"
     echo "✓ $f -> $target"
