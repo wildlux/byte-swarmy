@@ -141,3 +141,9 @@ project/
 /state
 /tasks
 /backups
+
+# Symlinks legacy per data/ (per-install)
+/logs
+/state
+/tasks
+/backups

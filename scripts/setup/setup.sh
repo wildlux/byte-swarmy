@@ -480,3 +480,10 @@ for d in logs state tasks backups; do
     [ -L "$d" ] || ln -s "data/$d" "$d"
 done
 echo "✓ Symlink data/ creati"
+
+# Crea data dirs e symlink legacy (per chi clona il repo)
+mkdir -p data/logs data/state data/tasks data/backups
+for d in logs state tasks backups; do
+    [ -L "$d" ] || ln -s "data/$d" "$d"
+done
+echo "✓ data/ dirs e symlink legacy creati"
