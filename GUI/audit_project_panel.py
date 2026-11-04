@@ -25,6 +25,9 @@ from PyQt6.QtWidgets import (
     QPlainTextEdit, QTreeWidget, QTreeWidgetItem, QHeaderView,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
+
+from GUI.theme.theme import set_prop as _theme_prop
+from GUI.theme.theme import set_banner as _theme_banner
 from PyQt6.QtGui import QDesktopServices, QColor, QFont
 
 # pyqtSignal è anche esportato come Signal per compatibilità
@@ -92,11 +95,6 @@ class AuditProjectPanel(QWidget):
         head.setSpacing(10)
         back = QPushButton("← Indietro alla Plancia")
         back.setObjectName("back_btn")
-        back.setStyleSheet(
-            "QPushButton#back_btn { background:#e8e8ec; color:#1a1a1a; "
-            "border:none; padding:8px 16px; border-radius:6px; font-size:12px; }"
-            "QPushButton#back_btn:hover { background:#d0d0d0; }"
-        )
         back.clicked.connect(self._back_to_main)
         head.addWidget(back)
         head.addStretch()
@@ -112,12 +110,12 @@ class AuditProjectPanel(QWidget):
             "Le categorie 🔒 bloccanti determinano il gate (PASS/FAIL)."
         )
         expl.setWordWrap(True)
-        expl.setStyleSheet("color:#555; font-size:11px;")
+        expl.setStyleSheet("font-size:11px;")
+        _theme_prop(expl, "role", "muted")
         outer.addWidget(expl)
 
         # Sezione scelta progetto + esecuzione
         exec_box = QGroupBox("🎯 Progetto target")
-        exec_box.setStyleSheet(self._group_style())
         exec_lay = QVBoxLayout(exec_box)
         exec_lay.setSpacing(8)
         exec_lay.setContentsMargins(14, 14, 14, 14)
@@ -129,23 +127,12 @@ class AuditProjectPanel(QWidget):
         proj_row.addWidget(proj_lbl)
         self.project_combo = QComboBox()
         self.project_combo.setMinimumWidth(300)
-        self.project_combo.setStyleSheet(
-            "QComboBox { background:#ffffff; color:#1a1a1a; "
-            "border:1px solid #d0d0d0; padding:6px 10px; border-radius:6px; "
-            "font-size:12px; }"
-            "QComboBox:hover { border-color:#16a34a; }"
-        )
         self.project_combo.currentIndexChanged.connect(self._on_project_changed)
         proj_row.addWidget(self.project_combo, stretch=1)
 
         self.refresh_btn = QPushButton("🔄")
         self.refresh_btn.setFixedSize(32, 32)
         self.refresh_btn.setToolTip("Aggiorna lista progetti")
-        self.refresh_btn.setStyleSheet(
-            "QPushButton { background:#e8e8ec; color:#666; border:none; "
-            "border-radius:6px; font-size:14px; }"
-            "QPushButton:hover { background:#d0d0d0; color:#1a1a1a; }"
-        )
         self.refresh_btn.clicked.connect(self._refresh_projects)
         proj_row.addWidget(self.refresh_btn)
         exec_lay.addLayout(proj_row)
@@ -153,36 +140,35 @@ class AuditProjectPanel(QWidget):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
         self.run_btn = QPushButton("🔍 Esegui audit gate")
-        self.run_btn.setStyleSheet(self._primary_btn_style())
+        _theme_prop(self.run_btn, "role", "start")
         self.run_btn.clicked.connect(self._on_run_audit)
         btn_row.addWidget(self.run_btn)
 
         self.open_html_btn = QPushButton("📂 Apri report HTML")
-        self.open_html_btn.setStyleSheet(self._secondary_btn_style())
         self.open_html_btn.clicked.connect(self._on_open_html)
         btn_row.addWidget(self.open_html_btn)
         btn_row.addStretch()
         exec_lay.addLayout(btn_row)
 
         self.status_lbl = QLabel("Pronto. Seleziona un progetto e clicca 'Esegui audit gate'.")
-        self.status_lbl.setStyleSheet("color:#666; font-size:11px; font-style:italic;")
+        self.status_lbl.setStyleSheet("font-size:11px; font-style:italic;")
+        _theme_prop(self.status_lbl, "role", "muted")
         self.status_lbl.setWordWrap(True)
         exec_lay.addWidget(self.status_lbl)
 
         outer.addWidget(exec_box)
 
-        # Gate summary (badge grande PASS/FAIL)
+        # Gate summary (badge grande PASS/FAIL) — bottoni colore dal tema
         self.gate_summary = QLabel("<i>Gate non ancora eseguito</i>")
         self.gate_summary.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.gate_summary.setStyleSheet(
-            "background:#f8f9fa; border:2px solid #e0e0e0; border-radius:8px; "
-            "padding:16px; font-size:16px; font-weight:bold; color:#666;"
+            "padding:16px; font-size:16px; font-weight:bold;"
         )
+        _theme_prop(self.gate_summary, "role", "muted")
         outer.addWidget(self.gate_summary)
 
         # Tree delle categorie con status
         cat_box = QGroupBox("📋 Categorie")
-        cat_box.setStyleSheet(self._group_style())
         cat_lay = QVBoxLayout(cat_box)
         cat_lay.setSpacing(8)
         cat_lay.setContentsMargins(14, 14, 14, 14)
@@ -191,14 +177,7 @@ class AuditProjectPanel(QWidget):
         self.cat_tree.setHeaderLabels(["Categoria", "Status", "Critical", "Warning", "Descrizione"])
         self.cat_tree.setRootIsDecorated(True)
         self.cat_tree.setAlternatingRowColors(True)
-        self.cat_tree.setStyleSheet(
-            "QTreeWidget { background:#ffffff; border:1px solid #e0e0e0; "
-            "border-radius:6px; font-size:12px; }"
-            "QTreeWidget::item { padding:6px 4px; }"
-            "QTreeWidget::item:selected { background:#f0f9ff; }"
-            "QHeaderView::section { background:#f5f5f7; padding:6px; "
-            "border:none; border-bottom:1px solid #e0e0e0; font-weight:bold; }"
-        )
+        # stile (bg/border/selection/header) dal tema app-level
         header = self.cat_tree.header()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
@@ -210,35 +189,9 @@ class AuditProjectPanel(QWidget):
         outer.addWidget(cat_box, stretch=1)
 
     # ──────────────────────────────────────────────────────────────────
-    # Stili
+    # Stili: RIMOSSI gli inline light-only (white/#f8f9fa/#666). Lo stile
+    # arriva dal tema app-level (QGroupBox/QTreeWidget/QPushButton[role]).
     # ──────────────────────────────────────────────────────────────────
-    def _group_style(self) -> str:
-        return (
-            "QGroupBox {"
-            "  background:#ffffff; border:1px solid #e0e0e0; border-radius:8px;"
-            "  margin-top:14px; padding-top:8px;"
-            "  font-weight:bold; color:#1a1a1a;"
-            "}"
-            "QGroupBox::title {"
-            "  subcontrol-origin: margin; left:14px; padding:0 6px;"
-            "  background:#ffffff;"
-            "}"
-        )
-
-    def _primary_btn_style(self) -> str:
-        return (
-            "QPushButton { background:#16a34a; color:#ffffff; border:none; "
-            "padding:8px 14px; border-radius:6px; font-weight:bold; font-size:11px; }"
-            "QPushButton:hover { background:#15803d; }"
-            "QPushButton:disabled { background:#9ca3af; }"
-        )
-
-    def _secondary_btn_style(self) -> str:
-        return (
-            "QPushButton { background:#e8e8ec; color:#1a1a1a; border:none; "
-            "padding:8px 14px; border-radius:6px; font-size:11px; }"
-            "QPushButton:hover { background:#d0d0d0; }"
-        )
 
     # ──────────────────────────────────────────────────────────────────
     # Handler
@@ -276,9 +229,9 @@ class AuditProjectPanel(QWidget):
         else:
             self.gate_summary.setText("<i>Nessun audit precedente. Clicca 'Esegui audit gate'.</i>")
             self.gate_summary.setStyleSheet(
-                "background:#f8f9fa; border:2px solid #e0e0e0; border-radius:8px; "
-                "padding:16px; font-size:16px; font-weight:bold; color:#666;"
+                "padding:16px; font-size:16px; font-weight:bold;"
             )
+            _theme_prop(self.gate_summary, "role", "muted")
             self.cat_tree.clear()
             self.status_lbl.setText(
                 "Pronto. Seleziona un progetto e clicca 'Esegui audit gate'."
@@ -299,13 +252,14 @@ class AuditProjectPanel(QWidget):
         self.run_btn.setEnabled(False)
         self.run_btn.setText("⏳ Audit in corso...")
         self.status_lbl.setText(f"Avvio audit su {Path(path).name}...")
-        self.status_lbl.setStyleSheet("color:#2563eb; font-size:11px; font-weight:bold;")
+        self.status_lbl.setStyleSheet("font-size:11px; font-weight:bold;")
+        _theme_banner(self.status_lbl, "info")
         self.cat_tree.clear()
         self.gate_summary.setText("<i>⏳ Audit in corso...</i>")
         self.gate_summary.setStyleSheet(
-            "background:#f0f9ff; border:2px solid #2563eb; border-radius:8px; "
-            "padding:16px; font-size:16px; font-weight:bold; color:#2563eb;"
+            "padding:16px; font-size:16px; font-weight:bold;"
         )
+        _theme_banner(self.gate_summary, "info")
 
         # Leggi mode da config
         from CORE.audit_gate import load_gate_config
@@ -335,12 +289,13 @@ class AuditProjectPanel(QWidget):
         self.run_btn.setEnabled(True)
         self.run_btn.setText("🔍 Esegui audit gate")
         self.status_lbl.setText("✗ Audit fallito")
-        self.status_lbl.setStyleSheet("color:#dc2626; font-size:11px; font-weight:bold;")
+        self.status_lbl.setStyleSheet("font-size:11px; font-weight:bold;")
+        _theme_banner(self.status_lbl, "error")
         self.gate_summary.setText(f"✗ Errore: {msg[:200]}")
         self.gate_summary.setStyleSheet(
-            "background:#fef2f2; border:2px solid #dc2626; border-radius:8px; "
-            "padding:16px; font-size:14px; color:#dc2626;"
+            "padding:16px; font-size:14px; font-weight:bold;"
         )
+        _theme_banner(self.gate_summary, "error")
         QMessageBox.critical(self, "Audit fallito", msg)
 
     def _display_result(self, result: dict):
@@ -356,26 +311,26 @@ class AuditProjectPanel(QWidget):
             self.gate_summary.setText(
                 f"✓ GATE PASS\n"
                 f"Nessuna categoria bloccante con critical\n"
-                f"<span style='font-size:12px;color:#666;'>"
+                f"<span style='font-size:12px;'>"
                 f"Totale: {total} finding (critical: {crit}, warning: {warn}, mode: {mode})"
                 f"</span>"
             )
             self.gate_summary.setStyleSheet(
-                "background:#f0fdf4; border:2px solid #16a34a; border-radius:8px; "
-                "padding:16px; font-size:18px; font-weight:bold; color:#16a34a;"
+                "padding:16px; font-size:18px; font-weight:bold;"
             )
+            _theme_banner(self.gate_summary, "ok")
         else:
             self.gate_summary.setText(
                 f"✗ GATE FAIL\n"
                 f"Almeno una categoria bloccante ha critical da risolvere\n"
-                f"<span style='font-size:12px;color:#666;'>"
+                f"<span style='font-size:12px;'>"
                 f"Totale: {total} finding (critical: {crit}, warning: {warn}, mode: {mode})"
                 f"</span>"
             )
             self.gate_summary.setStyleSheet(
-                "background:#fef2f2; border:2px solid #dc2626; border-radius:8px; "
-                "padding:16px; font-size:18px; font-weight:bold; color:#dc2626;"
+                "padding:16px; font-size:18px; font-weight:bold;"
             )
+            _theme_banner(self.gate_summary, "error")
 
         # Tree categorie
         self.cat_tree.clear()
@@ -396,7 +351,7 @@ class AuditProjectPanel(QWidget):
                 color = QColor("#dc2626")
             else:  # SKIP
                 status_icon = "– SKIP"
-                color = QColor("#888888")
+                color = QColor("#8f99ab")
 
             item = QTreeWidgetItem([
                 f"{lock}{icon} {name}",
@@ -434,7 +389,7 @@ class AuditProjectPanel(QWidget):
                     "critical": QColor("#dc2626"),
                     "warning": QColor("#f59e0b"),
                     "info": QColor("#3b82f6"),
-                }.get(sev, QColor("#666"))
+                }.get(sev, QColor("#8f99ab"))
                 child.setForeground(0, sev_color)
                 item.addChild(child)
             if len(cat_findings) > 30:
@@ -442,7 +397,7 @@ class AuditProjectPanel(QWidget):
                     f"  ... e altri {len(cat_findings) - 30} finding",
                     "", "", "", "",
                 ])
-                more.setForeground(0, QColor("#888"))
+                more.setForeground(0, QColor("#8f99ab"))
                 item.addChild(more)
 
         # Espandi le categorie FAIL per evidenziare i problemi

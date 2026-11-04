@@ -23,7 +23,8 @@ from PyQt6.QtCore import Qt, pyqtSignal, QUrl, QThread, QObject, pyqtSignal as S
 from PyQt6.QtGui import QDesktopServices
 
 from GUI import settings_store
-
+from GUI.theme.theme import set_prop as _theme_prop
+from GUI.theme.theme import set_banner as _theme_banner
 
 # ═══════════════════════════════════════════════════════════════
 # Worker thread per l'audit (non blocca la GUI)
@@ -83,7 +84,6 @@ class AuditWorker(QThread):
             self._proc.kill()
         self.requestInterruption()
 
-
 class SettingsPanel(QWidget):
     """Pannello impostazioni con tema, lingua e Git remotes."""
 
@@ -110,11 +110,6 @@ class SettingsPanel(QWidget):
         head.setSpacing(10)
         back = QPushButton("← Indietro alla Plancia")
         back.setObjectName("back_btn")
-        back.setStyleSheet(
-            "QPushButton#back_btn { background:#e8e8ec; color:#1a1a1a; "
-            "border:none; padding:8px 16px; border-radius:6px; font-size:12px; }"
-            "QPushButton#back_btn:hover { background:#d0d0d0; }"
-        )
         back.clicked.connect(self._back_to_main)
         head.addWidget(back)
         head.addStretch()
@@ -133,11 +128,8 @@ class SettingsPanel(QWidget):
         self.search_input.setPlaceholderText(
             "🔍 Cerca nelle impostazioni…  (es. \"tema\", \"git\", \"audit\", \"gpu\")"
         )
-        self.search_input.setStyleSheet(
-            "QLineEdit { background:#ffffff; color:#1a1a1a; "
-            "border:1px solid #d0d0d0; padding:10px 14px; border-radius:8px; "
-            "font-size:13px; }"
-            "QLineEdit:focus { border-color:#16a34a; }"
+        self.search_input.setToolTip(
+            "Cerca nelle impostazioni: titolo sezione + contenuto"
         )
         self.search_input.textChanged.connect(self._on_search)
         search_row.addWidget(self.search_input, stretch=1)
@@ -145,18 +137,14 @@ class SettingsPanel(QWidget):
         self.search_clear_btn = QPushButton("✕")
         self.search_clear_btn.setFixedSize(36, 36)
         self.search_clear_btn.setToolTip("Cancella ricerca")
-        self.search_clear_btn.setStyleSheet(
-            "QPushButton { background:#e8e8ec; color:#666; border:none; "
-            "border-radius:6px; font-size:14px; font-weight:bold; }"
-            "QPushButton:hover { background:#d0d0d0; color:#1a1a1a; }"
-        )
         self.search_clear_btn.clicked.connect(self._clear_search)
         search_row.addWidget(self.search_clear_btn)
         outer.addLayout(search_row)
 
         # Contatore risultati (es. "4 di 5 sezioni visibili")
         self.search_count = QLabel("")
-        self.search_count.setStyleSheet("color:#888; font-size:11px; padding:0 4px;")
+        self.search_count.setStyleSheet("font-size:11px; padding:0 4px;")
+        _theme_prop(self.search_count, "role", "muted")
         outer.addWidget(self.search_count)
 
         # Scroll area per il contenuto (in caso di molti remote)
@@ -273,7 +261,7 @@ class SettingsPanel(QWidget):
     def _build_theme_section(self) -> QFrame:
         """Sezione per scegliere il tema (chiaro/scuro)."""
         box = QGroupBox("🎨 Tema interfaccia")
-        box.setStyleSheet(self._group_style())
+
         form = QFormLayout(box)
         form.setSpacing(10)
         form.setContentsMargins(14, 14, 14, 14)
@@ -282,14 +270,14 @@ class SettingsPanel(QWidget):
         self.theme_combo.addItem("🌙 Scuro", "dark")
         self.theme_combo.addItem("☀️ Chiaro", "light")
         self.theme_combo.currentIndexChanged.connect(self._on_theme_changed)
-        self.theme_combo.setStyleSheet(self._combo_style())
         form.addRow("Tema:", self.theme_combo)
 
         hint = QLabel(
             "Il tema scuro è consigliato per i credits e per l'uso notturno.\n"
             "Il tema chiaro è più leggibile in ambienti luminosi."
         )
-        hint.setStyleSheet("color:#666; font-size:10px; font-style:italic;")
+        hint.setStyleSheet("font-size:10px; font-style:italic;")
+        _theme_prop(hint, "role", "muted")
         hint.setWordWrap(True)
         form.addRow("", hint)
         return box
@@ -297,7 +285,7 @@ class SettingsPanel(QWidget):
     def _build_language_section(self) -> QFrame:
         """Sezione per scegliere la lingua (it/en) — Work in progress."""
         box = QGroupBox("🌐 Lingua")
-        box.setStyleSheet(self._group_style())
+
         form = QFormLayout(box)
         form.setSpacing(10)
         form.setContentsMargins(14, 14, 14, 14)
@@ -307,11 +295,11 @@ class SettingsPanel(QWidget):
         self.lang_combo.addItem("🇬🇧 English", "en")
         self.lang_combo.setToolTip("Work in progress")
         self.lang_combo.currentIndexChanged.connect(self._on_lang_changed)
-        self.lang_combo.setStyleSheet(self._combo_style())
         form.addRow("Lingua:", self.lang_combo)
 
         wip = QLabel("⚠️ Work in progress — la lingua inglese sarà disponibile prossimamente.")
-        wip.setStyleSheet("color:#f59e0b; font-size:10px; font-style:italic;")
+        wip.setStyleSheet("font-size:10px; font-style:italic;")
+        _theme_prop(wip, "role", "wip")
         wip.setWordWrap(True)
         form.addRow("", wip)
         return box
@@ -326,7 +314,7 @@ class SettingsPanel(QWidget):
           - cpu_then_gpu: CPU default, fallback GPU se overload (archi vecchie)
         """
         box = QGroupBox("⚡ Strategia Hardware")
-        box.setStyleSheet(self._group_style())
+
         form = QFormLayout(box)
         form.setSpacing(10)
         form.setContentsMargins(14, 14, 14, 14)
@@ -357,13 +345,13 @@ class SettingsPanel(QWidget):
                     item.setEnabled(False)
                     item.setToolTip("GPU non rilevata — opzione non disponibile")
         self.hw_combo.currentIndexChanged.connect(self._on_hw_changed)
-        self.hw_combo.setStyleSheet(self._combo_style())
         form.addRow("Strategia:", self.hw_combo)
 
         # Hint dinamico (descrizione della strategia selezionata)
         self.hw_hint = QLabel()
         self.hw_hint.setWordWrap(True)
-        self.hw_hint.setStyleSheet("color:#666; font-size:10px; font-style:italic;")
+        self.hw_hint.setStyleSheet("font-size:10px; font-style:italic;")
+        _theme_prop(self.hw_hint, "role", "muted")
         self._update_hw_hint()
         form.addRow("", self.hw_hint)
 
@@ -385,9 +373,8 @@ class SettingsPanel(QWidget):
 
     def _on_hw_changed(self, _idx: int):
         """H1: quando cambia strategia hardware, salva + aggiorna hint."""
-        from GUI import settings_store as ss
         strategy = self.hw_combo.currentData()
-        ss.set_hardware_strategy(strategy, user_set=True)
+        settings_store.set_hardware_strategy(strategy, user_set=True)
         # Salva anche lo stato dell'auto-detect checkbox
         if hasattr(self, "hw_auto_detect"):
             s = ss.load_settings()
@@ -399,7 +386,7 @@ class SettingsPanel(QWidget):
     def _build_git_section(self) -> QFrame:
         """Sezione per configurare i remote Git (GitHub/GitLab/Git) + token."""
         box = QGroupBox("💾 Remote Git — push automatico")
-        box.setStyleSheet(self._group_style())
+
         outer = QVBoxLayout(box)
         outer.setSpacing(8)
         outer.setContentsMargins(14, 14, 14, 14)
@@ -412,7 +399,8 @@ class SettingsPanel(QWidget):
             "usando il token per l'autenticazione."
         )
         expl.setWordWrap(True)
-        expl.setStyleSheet("color:#555; font-size:11px;")
+        expl.setStyleSheet("font-size:11px;")
+        _theme_prop(expl, "role", "muted")
         outer.addWidget(expl)
 
         # Form per aggiungere un remote
@@ -421,25 +409,21 @@ class SettingsPanel(QWidget):
 
         self.git_name_edit = QLineEdit()
         self.git_name_edit.setPlaceholderText("origin")
-        self.git_name_edit.setStyleSheet(self._input_style())
         form_row.addRow("Nome remote:", self.git_name_edit)
 
         self.git_url_edit = QLineEdit()
         self.git_url_edit.setPlaceholderText("https://github.com/wildlux/byte-swarmy.git")
-        self.git_url_edit.setStyleSheet(self._input_style())
         form_row.addRow("URL repo:", self.git_url_edit)
 
         self.git_token_edit = QLineEdit()
         self.git_token_edit.setPlaceholderText("ghp_xxx (GitHub PAT) o gitlab-xxx")
         self.git_token_edit.setEchoMode(QLineEdit.EchoMode.Password)
-        self.git_token_edit.setStyleSheet(self._input_style())
         form_row.addRow("Token:", self.git_token_edit)
 
         self.git_type_combo = QComboBox()
         self.git_type_combo.addItem("GitHub", "github")
         self.git_type_combo.addItem("GitLab", "gitlab")
         self.git_type_combo.addItem("Git generico", "git")
-        self.git_type_combo.setStyleSheet(self._combo_style())
         form_row.addRow("Tipo:", self.git_type_combo)
 
         outer.addLayout(form_row)
@@ -449,12 +433,11 @@ class SettingsPanel(QWidget):
         btns_row.setSpacing(8)
 
         add_btn = QPushButton("➕ Aggiungi / Aggiorna remote")
-        add_btn.setStyleSheet(self._primary_btn_style())
+        _theme_prop(add_btn, "role", "start")
         add_btn.clicked.connect(self._on_add_git_remote)
         btns_row.addWidget(add_btn)
 
         test_btn = QPushButton("🔌 Test connessione")
-        test_btn.setStyleSheet(self._secondary_btn_style())
         test_btn.clicked.connect(self._on_test_git)
         btns_row.addWidget(test_btn)
 
@@ -478,7 +461,7 @@ class SettingsPanel(QWidget):
         'Apri report HTML' apre il browser su logs/audit/latest.html.
         """
         box = QGroupBox("🔍 Audit del software")
-        box.setStyleSheet(self._group_style())
+
         outer = QVBoxLayout(box)
         outer.setSpacing(8)
         outer.setContentsMargins(14, 14, 14, 14)
@@ -492,7 +475,8 @@ class SettingsPanel(QWidget):
             "<code>logs/audit/</code>."
         )
         expl.setWordWrap(True)
-        expl.setStyleSheet("color:#555; font-size:11px;")
+        expl.setStyleSheet("font-size:11px;")
+        _theme_prop(expl, "role", "muted")
         outer.addWidget(expl)
 
         # Riga pulsanti
@@ -500,12 +484,11 @@ class SettingsPanel(QWidget):
         btns_row.setSpacing(8)
 
         self.audit_run_btn = QPushButton("🔍 Esegui audit ora")
-        self.audit_run_btn.setStyleSheet(self._primary_btn_style())
+        _theme_prop(self.audit_run_btn, "role", "start")
         self.audit_run_btn.clicked.connect(self._on_run_audit)
         btns_row.addWidget(self.audit_run_btn)
 
         self.audit_open_btn = QPushButton("📂 Apri report HTML")
-        self.audit_open_btn.setStyleSheet(self._secondary_btn_style())
         self.audit_open_btn.clicked.connect(self._on_open_audit_report)
         btns_row.addWidget(self.audit_open_btn)
 
@@ -514,16 +497,15 @@ class SettingsPanel(QWidget):
 
         # Status label (cambia durante l'esecuzione)
         self.audit_status = QLabel("Pronto. Clicca 'Esegui audit ora' per iniziare.")
-        self.audit_status.setStyleSheet("color:#666; font-size:11px; font-style:italic;")
+        self.audit_status.setStyleSheet("font-size:11px; font-style:italic;")
+        _theme_prop(self.audit_status, "role", "muted")
         self.audit_status.setWordWrap(True)
         outer.addWidget(self.audit_status)
 
-        # Summary cards (Critical / Warning / Total)
+        # Summary cards (Critical / Warning / Total) — stile dal tema
         self.audit_summary = QLabel("")
-        self.audit_summary.setStyleSheet(
-            "background:#f8f9fa; border:1px solid #e0e0e0; border-radius:6px; "
-            "padding:10px; font-size:12px; color:#333;"
-        )
+        self.audit_summary.setStyleSheet("padding:10px; font-size:12px;")
+        _theme_prop(self.audit_summary, "role", "muted")
         self.audit_summary.setWordWrap(True)
         outer.addWidget(self.audit_summary)
 
@@ -531,10 +513,9 @@ class SettingsPanel(QWidget):
         self.audit_output = QPlainTextEdit()
         self.audit_output.setReadOnly(True)
         self.audit_output.setMaximumHeight(180)
+        # font inline only — bg/bordri/colore dal tema (QPlainTextEdit)
         self.audit_output.setStyleSheet(
-            "QPlainTextEdit { background:#fafafa; color:#1a1a1a; "
-            "border:1px solid #e0e0e0; border-radius:6px; padding:8px; "
-            "font-family:'JetBrains Mono','Consolas',monospace; font-size:11px; }"
+            "font-family:'JetBrains Mono','Consolas',monospace; font-size:11px;"
         )
         self.audit_output.setPlaceholderText(
             "I risultati dettagliati dell'audit appariranno qui dopo l'esecuzione..."
@@ -563,7 +544,8 @@ class SettingsPanel(QWidget):
         self.audit_run_btn.setEnabled(False)
         self.audit_run_btn.setText("⏳ Audit in corso...")
         self.audit_status.setText("Avvio audit in background...")
-        self.audit_status.setStyleSheet("color:#2563eb; font-size:11px; font-weight:bold;")
+        self.audit_status.setStyleSheet("font-size:11px; font-weight:bold;")
+        _theme_banner(self.audit_status, "info")
         self.audit_output.clear()
 
         # Crea e connetta il worker
@@ -592,10 +574,12 @@ class SettingsPanel(QWidget):
         # Status
         if passed:
             self.audit_status.setText("✓ AUDIT PASS — 0 problemi critical")
-            self.audit_status.setStyleSheet("color:#16a34a; font-size:12px; font-weight:bold;")
+            self.audit_status.setStyleSheet("font-size:12px; font-weight:bold;")
+            _theme_banner(self.audit_status, "ok")
         else:
             self.audit_status.setText(f"✗ AUDIT FAIL — {critical} problemi critical")
-            self.audit_status.setStyleSheet("color:#dc2626; font-size:12px; font-weight:bold;")
+            self.audit_status.setStyleSheet("font-size:12px; font-weight:bold;")
+            _theme_banner(self.audit_status, "error")
 
         # Summary con badge colorati
         crit_color = "#dc2626" if critical else "#16a34a"
@@ -657,7 +641,8 @@ class SettingsPanel(QWidget):
         self.audit_run_btn.setEnabled(True)
         self.audit_run_btn.setText("🔍 Esegui audit ora")
         self.audit_status.setText("✗ Audit fallito")
-        self.audit_status.setStyleSheet("color:#dc2626; font-size:12px; font-weight:bold;")
+        self.audit_status.setStyleSheet("font-size:12px; font-weight:bold;")
+        _theme_banner(self.audit_status, "error")
         self.audit_output.setPlainText(msg)
 
     def _on_open_audit_report(self):
@@ -673,57 +658,10 @@ class SettingsPanel(QWidget):
     # ──────────────────────────────────────────────────────────────────
     # Stili
     # ──────────────────────────────────────────────────────────────────
-    def _group_style(self) -> str:
-        return (
-            "QGroupBox {"
-            "  background:#ffffff; border:1px solid #e0e0e0; border-radius:8px;"
-            "  margin-top:14px; padding-top:8px;"
-            "  font-weight:bold; color:#1a1a1a;"
-            "}"
-            "QGroupBox::title {"
-            "  subcontrol-origin: margin; left:14px; padding:0 6px;"
-            "  background:#ffffff;"
-            "}"
-        )
-
-    def _combo_style(self) -> str:
-        return (
-            "QComboBox { background:#ffffff; color:#1a1a1a; "
-            "border:1px solid #d0d0d0; padding:6px 10px; border-radius:6px; "
-            "font-size:12px; min-width:160px; }"
-            "QComboBox:hover { border-color:#16a34a; }"
-            "QComboBox QAbstractItemView { background:#ffffff; color:#1a1a1a; "
-            "selection-background-color:#f0f9ff; }"
-        )
-
-    def _input_style(self) -> str:
-        return (
-            "QLineEdit { background:#ffffff; color:#1a1a1a; "
-            "border:1px solid #d0d0d0; padding:6px 10px; border-radius:6px; "
-            "font-size:12px; }"
-            "QLineEdit:focus { border-color:#16a34a; }"
-        )
-
-    def _primary_btn_style(self) -> str:
-        return (
-            "QPushButton { background:#16a34a; color:#ffffff; border:none; "
-            "padding:8px 14px; border-radius:6px; font-weight:bold; font-size:11px; }"
-            "QPushButton:hover { background:#15803d; }"
-        )
-
-    def _secondary_btn_style(self) -> str:
-        return (
-            "QPushButton { background:#e8e8ec; color:#1a1a1a; border:none; "
-            "padding:8px 14px; border-radius:6px; font-size:11px; }"
-            "QPushButton:hover { background:#d0d0d0; }"
-        )
-
-    def _danger_btn_style(self) -> str:
-        return (
-            "QPushButton { background:#dc2626; color:#ffffff; border:none; "
-            "padding:4px 10px; border-radius:4px; font-size:10px; }"
-            "QPushButton:hover { background:#b91c1c; }"
-        )
+    # Stili inline (group/combo/input/bottoni) RIMOSSI: ora arrivano dal
+    # tema app-level (GUI/theme/*.qss): QGroupBox, QLineEdit, QComboBox,
+    # QPushButton[role=…]. Colori hardcoded light-only erano rotti nel
+    # tema scuro e non sincronizzati con il toggle live.
 
     # ──────────────────────────────────────────────────────────────────
     # Carica / ricarica dal settings store
@@ -766,16 +704,15 @@ class SettingsPanel(QWidget):
         remotes = settings_store.get_git_remotes()
         if not remotes:
             empty = QLabel("Nessun remote configurato. Aggiungine uno sopra. ↑")
-            empty.setStyleSheet("color:#888; font-style:italic; padding:8px;")
+            empty.setStyleSheet("font-style:italic; padding:8px;")
+            _theme_prop(empty, "role", "muted")
             self.git_list_container.addWidget(empty)
             return
 
         for r in remotes:
             row = QFrame()
-            row.setStyleSheet(
-                "QFrame { background:#f8f9fa; border:1px solid #e0e0e0; "
-                "border-radius:6px; padding:6px 10px; }"
-            )
+            # cartolina "card" dal tema (QFrame#card nei .qss)
+            row.setObjectName("card")
             rl = QHBoxLayout(row)
             rl.setContentsMargins(8, 4, 8, 4)
             rl.setSpacing(8)
@@ -785,12 +722,13 @@ class SettingsPanel(QWidget):
             url = r.get("url", "")
             has_token = "✓ token" if r.get("token") else "✗ token"
             lbl = QLabel(f"{icon} <b>{name}</b> — {url} <i>({has_token})</i>")
-            lbl.setStyleSheet("font-size:11px; color:#333;")
+            lbl.setStyleSheet("font-size:11px;")
+            _theme_prop(lbl, "role", "muted")
             rl.addWidget(lbl, stretch=1)
 
             del_btn = QPushButton("🗑")
             del_btn.setToolTip("Rimuovi questo remote")
-            del_btn.setStyleSheet(self._danger_btn_style())
+            _theme_prop(del_btn, "role", "danger")
             del_btn.setFixedWidth(32)
             del_btn.clicked.connect(lambda _, n=name: self._on_remove_git(n))
             rl.addWidget(del_btn)

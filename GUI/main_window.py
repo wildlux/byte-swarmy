@@ -672,8 +672,9 @@ class LiveActivityPanel(QWidget):
         row1 = QHBoxLayout()
         self.status_label = QLabel("○ In attesa")
         self.status_label.setStyleSheet(
-            "font-weight: bold; color: #8a93a2; font-size: 10pt;"
+            "font-weight: bold; font-size: 10pt;"
         )
+        self.status_label.setProperty("role", "muted")
         row1.addWidget(self.status_label)
         row1.addStretch()
         self.spinner_label = QLabel("")
@@ -688,8 +689,9 @@ class LiveActivityPanel(QWidget):
             "L'orchestratore controlla la coda. Nessun task in esecuzione."
         )
         self.details_label.setStyleSheet(
-            "color: #999; font-family: monospace; font-size: 9pt;"
+            "font-family: monospace; font-size: 9pt;"
         )
+        self.details_label.setProperty("role", "muted")
         self.details_label.setWordWrap(True)
         gl.addWidget(self.details_label)
 
@@ -878,8 +880,9 @@ class LiveActivityPanel(QWidget):
         self._last_task_id = None
         self.status_label.setText("○ In attesa")
         self.status_label.setStyleSheet(
-            "font-weight: bold; color: #8a93a2; font-size: 10pt;"
+            "font-weight: bold; font-size: 10pt;"
         )
+        self.status_label.setProperty("role", "muted")
         self.details_label.setText(
             "L'orchestratore controlla la coda. Nessun task in esecuzione."
         )
@@ -1058,7 +1061,8 @@ class TaskQueueTab(QWidget):
             quick_layout.addWidget(btn_quick)
             quick_layout.addWidget(btn_new)
             self.quick_status = QLabel("")
-            self.quick_status.setStyleSheet("color: #8a93a2; padding: 2px;")
+            self.quick_status.setStyleSheet("padding: 2px;")
+            self.quick_status.setProperty("role", "muted")
             quick_layout.addWidget(self.quick_status, stretch=1)
             layout.addWidget(quick_group)
 
@@ -1092,7 +1096,8 @@ class TaskQueueTab(QWidget):
  
         # Statistiche
         self.stats_label = QLabel("Caricamento...")
-        self.stats_label.setStyleSheet("padding: 4px; color: #8a93a2;")
+        self.stats_label.setStyleSheet("padding: 4px;")
+        self.stats_label.setProperty("role", "muted")
         layout.addWidget(self.stats_label)
 
         # 🆕 Live Activity Panel (creato qui, inserito nello splitter sotto)
@@ -1248,7 +1253,8 @@ class TaskQueueTab(QWidget):
             self._refresh()
         except Exception as e:
             self.quick_status.setText(f"❌ Errore: {e}")
-            self.quick_status.setStyleSheet("color: #e06c75; padding: 2px;")
+            self.quick_status.setStyleSheet("padding: 2px;")
+            self.quick_status.setProperty("role", "alert")
 
     def _on_add_task(self) -> None:
         dialog = AddTaskDialog(self)
@@ -1370,7 +1376,8 @@ class AddTaskDialog(QDialog):
             "in 2-8 Code task atomici, che vengono accodati automaticamente."
         )
         type_hint.setWordWrap(True)
-        type_hint.setStyleSheet("color: #8a93a2; padding: 4px;")
+        type_hint.setStyleSheet("padding: 4px;")
+        type_hint.setProperty("role", "muted")
         type_layout.addWidget(type_hint)
 
         type_row = QHBoxLayout()
@@ -1405,7 +1412,8 @@ class AddTaskDialog(QDialog):
         # Hint
         self.hint_label = QLabel()
         self.hint_label.setWordWrap(True)
-        self.hint_label.setStyleSheet("color: #8a93a2; padding: 8px;")
+        self.hint_label.setStyleSheet("padding: 8px;")
+        self.hint_label.setProperty("role", "muted")
         layout.addWidget(self.hint_label)
 
         # Buttons
@@ -1933,7 +1941,8 @@ class ConfigTab(QWidget):
         # Status label (valid/invalid) + pulsante Copia errore
         status_row = QHBoxLayout()
         self.status_label = QLabel("Caricamento...")
-        self.status_label.setStyleSheet("padding: 4px; color: #8a93a2;")
+        self.status_label.setStyleSheet("padding: 4px;")
+        self.status_label.setProperty("role", "muted")
         self.status_label.setMinimumWidth(400)
         # Click sulla label copia il messaggio
         self.status_label.setCursor(Qt.CursorShape.IBeamCursor)
@@ -2691,7 +2700,8 @@ class TestsTab(QWidget):
             "capability, ambiente)."
         )
         intro.setWordWrap(True)
-        intro.setStyleSheet("color: #444; padding: 2px 0 6px 0;")
+        intro.setStyleSheet("padding: 2px 0 6px 0;")
+        intro.setProperty("role", "muted")
         layout.addWidget(intro)
 
         # Banner stato sandbox
@@ -2723,7 +2733,8 @@ class TestsTab(QWidget):
 
         controls.addStretch()
         self.last_run_label = QLabel("Mai eseguito")
-        self.last_run_label.setStyleSheet("color: #8a93a2;")
+        self.last_run_label.setStyleSheet("")
+        self.last_run_label.setProperty("role", "muted")
         controls.addWidget(self.last_run_label)
         layout.addLayout(controls)
 
@@ -2731,9 +2742,10 @@ class TestsTab(QWidget):
         self.summary_label = QLabel("In attesa di esecuzione")
         self.summary_label.setWordWrap(True)
         self.summary_label.setStyleSheet(
-            "padding: 8px; color: #8a93a2; "
+            "padding: 8px; "
             "border-radius: 4px;"
         )
+        self.summary_label.setProperty("role", "muted")
         layout.addWidget(self.summary_label)
 
         # Tabella dei singoli test
@@ -3111,7 +3123,8 @@ class ModelsTab(QWidget):
         btn_save.clicked.connect(self.save_and_restart)
         
         self.status_label = QLabel("Caricamento modelli...")
-        self.status_label.setStyleSheet("color: #999; padding: 0 10px;")
+        self.status_label.setStyleSheet("padding: 0 10px;")
+        self.status_label.setProperty("role", "muted")
         
         toolbar.addWidget(btn_refresh)
         toolbar.addWidget(btn_auto)

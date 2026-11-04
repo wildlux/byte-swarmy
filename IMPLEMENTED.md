@@ -457,4 +457,19 @@ I 4 parametri residui del pannello Attori/Timestral, ora davvero cablati.
   aggiunto a coda ferma durante la pausa resta `pending` + freddo 40°C
   → gate pass e task riaccodato; tutto freddo → mai gap sulla coda.
   Zero token LLM, zero Ollama.
+- [x] **Sync tema widget (richiesta utente 2026-11-04)** — Audit di
+  tutti i `setStyleSheet` in `GUI/`: convertiti i colori hardcoded
+  light-only del badge ma autostili (bg+color) autoconsistenti, i grigi
+  testo senza bg sono il problema reale) al sistema property del tema
+  app-level (`role="muted"/"hint"/"wip"/"alert"`, `banner="info/ok/
+  error/warn"`). File toccati: `theme.py` (helper `set_banner`),
+  `dark.qss`/`light.qss` (banner="warn", role="alert"/"wip"),
+  `hardware_panel.py` (valori info griglia #1a1a1a **invisibili** nel
+  tema scuro → colore dal tema), `actors_panel.py` (rimossi
+  `_group_style`/`_combo_style`/`_spin_style` inline white),
+  `settings_panel.py` (rimossi 6 metodi stile inline; audit_status con
+  `set_banner`), `audit_project_panel.py` (badge gate PASS/FAIL/idle
+  via banner), `search_bar.py`, `main_window.py` (13 label muted →
+  `role="muted"`/`"alert"`). Verificato con screenshot offscreen di 4
+  pannelli in ENTRAMBI i temi.
 

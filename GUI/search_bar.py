@@ -77,7 +77,9 @@ class SearchBar(QWidget):
         lay.addWidget(self.clear_btn)
 
         self.count_lbl = QLabel("")
-        self.count_lbl.setStyleSheet("color:#666; font-size:11px; padding:0 4px;")
+        self.count_lbl.setStyleSheet("font-size:11px; padding:0 4px;")
+        from GUI.theme.theme import set_prop as _tp
+        _tp(self.count_lbl, "role", "muted")
         self.count_lbl.setMinimumWidth(80)
         self.count_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         lay.addWidget(self.count_lbl)

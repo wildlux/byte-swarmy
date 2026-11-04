@@ -54,6 +54,9 @@ QLabel[thermal="hot"] { color: #a32a1d; background: #fde3df; border-radius: 12px
 QLabel[banner="info"] { background: #e7f0ff; color: #1c4fb0; border-radius: 6px; padding: 8px 12px; }
 QLabel[banner="ok"] { background: #dff3e8; color: #176f46; border-radius: 6px; padding: 8px 12px; }
 QLabel[banner="error"] { background: #fde3df; color: #a32a1d; border-radius: 6px; padding: 8px 12px; }
+QLabel[banner="warn"] { background: #fff0cf; color: #8a5a00; border-radius: 6px; padding: 8px 12px; }
+QLabel[role="alert"] { color: #a32a1d; }
+QLabel[role="wip"] { color: #8a5a00; }
 QProgressBar { background: #e4e8ef; border: none; border-radius: 4px; height: 8px; text-align: center; color: transparent; }
 QProgressBar::chunk { background: #1e8e5a; border-radius: 4px; }
 QSlider::groove:horizontal { height: 4px; background: #d3d8e0; border-radius: 2px; }

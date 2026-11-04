@@ -21,6 +21,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 
+from GUI.theme.theme import set_prop as _theme_prop
+
 _BASE = Path(__file__).resolve().parent.parent
 
 
@@ -45,16 +47,11 @@ class HardwarePanel(QWidget):
         outer.setContentsMargins(20, 16, 20, 16)
         outer.setSpacing(14)
 
-        # Header: pulsante Indietro + titolo
+        # Header: pulsante Indietro + titolo (stile dal tema app-level QSS)
         head = QHBoxLayout()
         head.setSpacing(10)
         back = QPushButton("← Indietro alla Plancia")
         back.setObjectName("back_btn")
-        back.setStyleSheet(
-            "QPushButton#back_btn { background:#e8e8ec; color:#1a1a1a; "
-            "border:none; padding:8px 16px; border-radius:6px; font-size:12px; }"
-            "QPushButton#back_btn:hover { background:#d0d0d0; }"
-        )
         back.clicked.connect(self._back_to_main)
         head.addWidget(back)
         head.addStretch()
@@ -71,25 +68,22 @@ class HardwarePanel(QWidget):
             "NVIDIA CUDA (VRAM dedicata), AMD ROCm, o solo CPU."
         )
         expl.setWordWrap(True)
-        expl.setStyleSheet("color:#555; font-size:11px;")
+        # tema: colore dal QSS (role="muted"), solo la dimensione inline
+        expl.setStyleSheet("font-size:11px;")
+        _theme_prop(expl, "role", "muted")
         outer.addWidget(expl)
 
-        # Pulsante refresh
+        # Pulsante refresh: stile primario dal tema (QPushButton[role="primary"])
         btn_row = QHBoxLayout()
         self.refresh_btn = QPushButton("🔄 Rileva hardware di nuovo")
-        self.refresh_btn.setStyleSheet(
-            "QPushButton { background:#2563eb; color:#ffffff; border:none; "
-            "padding:8px 14px; border-radius:6px; font-weight:bold; font-size:11px; }"
-            "QPushButton:hover { background:#1d4ed8; }"
-        )
+        _theme_prop(self.refresh_btn, "role", "primary")
         self.refresh_btn.clicked.connect(self._refresh_profile)
         btn_row.addWidget(self.refresh_btn)
         btn_row.addStretch()
         outer.addLayout(btn_row)
 
-        # Box profilo hardware
+        # Box profilo hardware (stile QGroupBox dal tema)
         prof_box = QGroupBox("📊 Profilo hardware rilevato")
-        prof_box.setStyleSheet(self._group_style())
         prof_lay = QVBoxLayout(prof_box)
         prof_lay.setSpacing(8)
         prof_lay.setContentsMargins(14, 14, 14, 14)
@@ -111,44 +105,45 @@ class HardwarePanel(QWidget):
         for key, label_text in info_grid_data:
             row = QHBoxLayout()
             lbl = QLabel(f"<b>{label_text}:</b>")
-            lbl.setStyleSheet("color:#555; font-size:12px;")
+            lbl.setStyleSheet("font-size:12px;")
+            _theme_prop(lbl, "role", "muted")
             lbl.setFixedWidth(160)
             row.addWidget(lbl)
             val = QLabel("—")
-            val.setStyleSheet("color:#1a1a1a; font-size:12px;")
+            # NB: nessun colore inline — segue il tema (il vecchio
+            # #1a1a1a era invisibile nel tema scuro)
+            val.setStyleSheet("font-size:12px;")
             row.addWidget(val, stretch=1)
             self.info_labels[key] = val
             prof_lay.addLayout(row)
 
         outer.addWidget(prof_box)
 
-        # Box strategia suggerita
+        # Box strategia suggerita (stile QGroupBox dal tema)
         strat_box = QGroupBox("🎯 Strategia auto-suggerita")
-        strat_box.setStyleSheet(self._group_style())
         strat_lay = QVBoxLayout(strat_box)
         strat_lay.setSpacing(8)
         strat_lay.setContentsMargins(14, 14, 14, 14)
 
-        # Badge grande strategia
+        # Badge grande strategia (ricolorato dinamico in _refresh_profile)
         self.strat_badge = QLabel("—")
         self.strat_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.strat_badge.setStyleSheet(
-            "background:#f8f9fa; border:2px solid #e0e0e0; border-radius:8px; "
-            "padding:16px; font-size:18px; font-weight:bold; color:#666;"
+            "padding:16px; font-size:18px; font-weight:bold;"
         )
         strat_lay.addWidget(self.strat_badge)
 
         # Descrizione strategia
         self.strat_desc = QLabel("—")
         self.strat_desc.setWordWrap(True)
-        self.strat_desc.setStyleSheet("color:#555; font-size:11px; padding:8px;")
+        self.strat_desc.setStyleSheet("font-size:11px; padding:8px;")
+        _theme_prop(self.strat_desc, "role", "muted")
         strat_lay.addWidget(self.strat_desc)
 
         # Parametri strategia
         self.strat_params = QLabel("—")
         self.strat_params.setStyleSheet(
-            "background:#f8f9fa; border:1px solid #e0e0e0; border-radius:6px; "
-            "padding:10px; font-size:12px; color:#333;"
+            "padding:10px; font-size:12px;"
         )
         self.strat_params.setWordWrap(True)
         strat_lay.addWidget(self.strat_params)
@@ -158,30 +153,21 @@ class HardwarePanel(QWidget):
         # Riepilogo one-line
         self.summary_lbl = QLabel("—")
         self.summary_lbl.setStyleSheet(
-            "color:#666; font-size:11px; font-style:italic; padding:8px;"
+            "font-size:11px; font-style:italic; padding:8px;"
         )
+        _theme_prop(self.summary_lbl, "role", "muted")
         self.summary_lbl.setWordWrap(True)
         outer.addWidget(self.summary_lbl)
 
         # Stretch finale
         outer.addStretch()
 
-    def _group_style(self) -> str:
-        return (
-            "QGroupBox {"
-            "  background:#ffffff; border:1px solid #e0e0e0; border-radius:8px;"
-            "  margin-top:14px; padding-top:8px;"
-            "  font-weight:bold; color:#1a1a1a;"
-            "}"
-            "QGroupBox::title {"
-            "  subcontrol-origin: margin; left:14px; padding:0 6px;"
-            "  background:#ffffff;"
-            "}"
-        )
-
     # ──────────────────────────────────────────────────────────────────
     # Handler
     # ──────────────────────────────────────────────────────────────────
+    # NB: _group_style() rimosso — i QGroupBox ora prendono lo stile dal
+    # tema app-level (QGroupBox nei .qss), così seguono il tema live.
+
     def _refresh_profile(self):
         """Rileva l'hardware e aggiorna la GUI."""
         try:

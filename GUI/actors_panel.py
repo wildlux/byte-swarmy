@@ -168,6 +168,10 @@ def save_actors(actors: Dict) -> bool:
         return False
 
 
+from GUI.theme.theme import set_prop as _theme_prop
+from GUI.theme.theme import set_banner as _theme_banner
+
+
 class ActorsPanel(QWidget):
     """Pannello per configurare i 3 attori: LLM, Decision Model, Timestral."""
 
@@ -185,16 +189,11 @@ class ActorsPanel(QWidget):
         outer.setContentsMargins(20, 16, 20, 16)
         outer.setSpacing(14)
 
-        # Header con pulsante Indietro + titolo
+        # Header con pulsante Indietro + titolo (stile dal tema)
         head = QHBoxLayout()
         head.setSpacing(10)
         back = QPushButton("← Indietro alla Plancia")
         back.setObjectName("back_btn")
-        back.setStyleSheet(
-            "QPushButton#back_btn { background:#e8e8ec; color:#1a1a1a; "
-            "border:none; padding:8px 16px; border-radius:6px; font-size:12px; }"
-            "QPushButton#back_btn:hover { background:#d0d0d0; }"
-        )
         back.clicked.connect(self._back_to_main)
         head.addWidget(back)
         head.addStretch()
@@ -215,7 +214,7 @@ class ActorsPanel(QWidget):
         lay.setSpacing(12)
         lay.setContentsMargins(0, 0, 0, 0)
 
-        # Spiegazione iniziale
+        # Spiegazione iniziale (banner "info" dal tema)
         expl = QLabel(
             "Configura qui i 3 attori del sistema. Il <b>Timestral</b> "
             "monitora termica/CPU/tok/s e decide se scattare un controllo "
@@ -223,10 +222,7 @@ class ActorsPanel(QWidget):
             "esegue poi i task pianificati usando l'<b>LLM</b> principale."
         )
         expl.setWordWrap(True)
-        expl.setStyleSheet(
-            "background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; "
-            "padding:10px; font-size:11px; color:#0c4a6e;"
-        )
+        _theme_banner(expl, "info")
         lay.addWidget(expl)
 
         # Sezioni
@@ -237,13 +233,9 @@ class ActorsPanel(QWidget):
         # verificare che Ollama sia installato e funzionante sul PC.
         lay.addWidget(self._build_ollama_status_section())
 
-        # Pulsante Salva in fondo
+        # Pulsante Salva in fondo (primary/start dal tema)
         save_btn = QPushButton("💾 Salva configurazione attori")
-        save_btn.setStyleSheet(
-            "QPushButton { background:#16a34a; color:#ffffff; border:none; "
-            "padding:10px 24px; border-radius:6px; font-weight:bold; font-size:13px; }"
-            "QPushButton:hover { background:#15803d; }"
-        )
+        _theme_prop(save_btn, "role", "start")
         save_btn.clicked.connect(self._on_save)
         lay.addWidget(save_btn)
 
@@ -252,7 +244,6 @@ class ActorsPanel(QWidget):
 
     def _build_llm_section(self) -> QGroupBox:
         box = QGroupBox("🤖 LLM — modello principale")
-        box.setStyleSheet(self._group_style())
         form = QFormLayout(box)
         form.setSpacing(10)
         form.setContentsMargins(14, 14, 14, 14)
@@ -266,7 +257,6 @@ class ActorsPanel(QWidget):
         self.llm_weight.currentIndexChanged.connect(
             lambda _: self._apply_weight("llm", self.llm_weight.currentData())
         )
-        self.llm_weight.setStyleSheet(self._combo_style())
         form.addRow("Peso:", self.llm_weight)
 
         self.llm_model = QComboBox()
@@ -274,33 +264,29 @@ class ActorsPanel(QWidget):
         # T2.4: prima i modelli installati (ollama list), fallback a lista statica
         installed = ollama_list_models() or OLLAMA_MODELS
         self.llm_model.addItems(installed)
-        self.llm_model.setStyleSheet(self._combo_style())
         form.addRow("Modello:", self.llm_model)
 
         self.llm_temp = QDoubleSpinBox()
         self.llm_temp.setRange(0.0, 2.0)
         self.llm_temp.setSingleStep(0.1)
         self.llm_temp.setDecimals(2)
-        self.llm_temp.setStyleSheet(self._spin_style())
         form.addRow("Temperature:", self.llm_temp)
 
         self.llm_ctx = QSpinBox()
         self.llm_ctx.setRange(512, 32768)
         self.llm_ctx.setSingleStep(512)
-        self.llm_ctx.setStyleSheet(self._spin_style())
         form.addRow("num_ctx (token contesto):", self.llm_ctx)
 
         self.llm_predict = QSpinBox()
         self.llm_predict.setRange(64, 8192)
         self.llm_predict.setSingleStep(64)
-        self.llm_predict.setStyleSheet(self._spin_style())
         form.addRow("num_predict (token max output):", self.llm_predict)
 
         return box
 
     def _build_decision_section(self) -> QGroupBox:
         box = QGroupBox("🧠 Decision Model — pianificatore")
-        box.setStyleSheet(self._group_style())
+
         form = QFormLayout(box)
         form.setSpacing(10)
         form.setContentsMargins(14, 14, 14, 14)
@@ -313,39 +299,35 @@ class ActorsPanel(QWidget):
         self.dec_weight.currentIndexChanged.connect(
             lambda _: self._apply_weight("decision_model", self.dec_weight.currentData())
         )
-        self.dec_weight.setStyleSheet(self._combo_style())
         form.addRow("Peso:", self.dec_weight)
 
         self.dec_model = QComboBox()
         self.dec_model.setEditable(True)
         self.dec_model.addItems(ollama_list_models() or OLLAMA_MODELS)
-        self.dec_model.setStyleSheet(self._combo_style())
         form.addRow("Modello:", self.dec_model)
 
         self.dec_temp = QDoubleSpinBox()
         self.dec_temp.setRange(0.0, 2.0)
         self.dec_temp.setSingleStep(0.1)
         self.dec_temp.setDecimals(2)
-        self.dec_temp.setStyleSheet(self._spin_style())
         form.addRow("Temperature:", self.dec_temp)
 
         self.dec_ctx = QSpinBox()
         self.dec_ctx.setRange(512, 32768)
         self.dec_ctx.setSingleStep(512)
-        self.dec_ctx.setStyleSheet(self._spin_style())
         form.addRow("num_ctx:", self.dec_ctx)
 
         self.dec_predict = QSpinBox()
         self.dec_predict.setRange(64, 8192)
         self.dec_predict.setSingleStep(64)
-        self.dec_predict.setStyleSheet(self._spin_style())
         form.addRow("num_predict:", self.dec_predict)
 
         hint = QLabel(
             "Il Decision Model riceve lo stato del sistema dal Timestral e "
             "decide quale task eseguire, in quale ordine, e con quale modello."
         )
-        hint.setStyleSheet("color:#666; font-size:10px; font-style:italic;")
+        hint.setStyleSheet("font-size:10px; font-style:italic;")
+        _theme_prop(hint, "role", "muted")
         hint.setWordWrap(True)
         form.addRow("", hint)
 
@@ -353,7 +335,7 @@ class ActorsPanel(QWidget):
 
     def _build_timestral_section(self) -> QGroupBox:
         box = QGroupBox("🌡️ Timestral — controller termico adattivo")
-        box.setStyleSheet(self._group_style())
+
         outer = QVBoxLayout(box)
         outer.setSpacing(10)
         outer.setContentsMargins(14, 14, 14, 14)
@@ -371,10 +353,7 @@ class ActorsPanel(QWidget):
             "<code>force_cpu=True</code> è bloccato (vedi CONFIG/actors.json)."
         )
         ts_note.setWordWrap(True)
-        ts_note.setStyleSheet(
-            "background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px; "
-            "padding:8px; font-size:10px; color:#0c4a6e;"
-        )
+        _theme_banner(ts_note, "info")
         outer.addWidget(ts_note)
 
         form = QFormLayout()
@@ -383,7 +362,6 @@ class ActorsPanel(QWidget):
         self.ts_cpu_threshold = QSpinBox()
         self.ts_cpu_threshold.setRange(40, 100)
         self.ts_cpu_threshold.setSuffix(" °C")
-        self.ts_cpu_threshold.setStyleSheet(self._spin_style())
         self.ts_cpu_threshold.setToolTip(
             "Soglia temperatura CPU: se superata, scatta la pausa termica"
         )
@@ -392,7 +370,6 @@ class ActorsPanel(QWidget):
         self.ts_gpu_threshold = QSpinBox()
         self.ts_gpu_threshold.setRange(40, 100)
         self.ts_gpu_threshold.setSuffix(" °C")
-        self.ts_gpu_threshold.setStyleSheet(self._spin_style())
         self.ts_gpu_threshold.setToolTip(
             "Soglia temperatura GPU: se superata, scatta la pausa termica"
         )
@@ -403,7 +380,6 @@ class ActorsPanel(QWidget):
         self.ts_resume_threshold = QSpinBox()
         self.ts_resume_threshold.setRange(30, 95)
         self.ts_resume_threshold.setSuffix(" °C")
-        self.ts_resume_threshold.setStyleSheet(self._spin_style())
         self.ts_resume_threshold.setToolTip(
             "Soglia di RIPRESA: il gate si riapre solo quando la temperatura "
             "scende sotto questo valore. Deve essere <= Soglia CPU (isteresi)."
@@ -415,7 +391,6 @@ class ActorsPanel(QWidget):
         self.ts_min_tps.setSingleStep(0.5)
         self.ts_min_tps.setDecimals(1)
         self.ts_min_tps.setSuffix(" t/s")
-        self.ts_min_tps.setStyleSheet(self._spin_style())
         self.ts_min_tps.setToolTip(
             "Sotto questa velocità, il Timestral riduce contesto o switcha modello"
         )
@@ -424,7 +399,6 @@ class ActorsPanel(QWidget):
         self.ts_pause_sec = QSpinBox()
         self.ts_pause_sec.setRange(5, 600)
         self.ts_pause_sec.setSuffix(" s")
-        self.ts_pause_sec.setStyleSheet(self._spin_style())
         self.ts_pause_sec.setToolTip(
             "Per quanti secondi mettere in pausa dopo aver superato la soglia"
         )
@@ -433,7 +407,6 @@ class ActorsPanel(QWidget):
         self.ts_interval = QSpinBox()
         self.ts_interval.setRange(5, 600)
         self.ts_interval.setSuffix(" s")
-        self.ts_interval.setStyleSheet(self._spin_style())
         self.ts_interval.setToolTip("Ogni quanto monitorare (polling)")
         form.addRow("Intervallo monitoraggio:", self.ts_interval)
 
@@ -461,7 +434,8 @@ class ActorsPanel(QWidget):
             "soglie, scatta una pausa termica (worker fermati per N secondi). "
             "Se i tok/s scendono sotto il minimo, riduce il contesto o switcha modello."
         )
-        hint.setStyleSheet("color:#666; font-size:10px; font-style:italic;")
+        hint.setStyleSheet("font-size:10px; font-style:italic;")
+        _theme_prop(hint, "role", "muted")
         hint.setWordWrap(True)
         outer.addWidget(hint)
 
@@ -482,7 +456,7 @@ class ActorsPanel(QWidget):
         import shutil, subprocess
 
         box = QGroupBox("🦙 Ollama — stato del runtime")
-        box.setStyleSheet(self._group_style())
+
         outer = QVBoxLayout(box)
         outer.setSpacing(8)
         outer.setContentsMargins(14, 14, 14, 14)
@@ -500,32 +474,22 @@ class ActorsPanel(QWidget):
         head.addWidget(self._ollama_status_label)
         head.addStretch()
 
-        # Pulsante refresh
+        # Pulsante refresh (primario dal tema)
         refresh_btn = QPushButton("🔄 Aggiorna")
-        refresh_btn.setStyleSheet(
-            "QPushButton { background:#2563eb; color:#ffffff; border:none; "
-            "padding:6px 14px; border-radius:6px; font-weight:bold; font-size:11px; }"
-            "QPushButton:hover { background:#1d4ed8; }"
-        )
+        _theme_prop(refresh_btn, "role", "primary")
         refresh_btn.clicked.connect(self._refresh_ollama_status)
         head.addWidget(refresh_btn)
 
-        # Pulsante apri cartella Ollama (solo se trovato)
+        # Pulsante apri cartella Ollama (solo se trovato) — stile default
         self._open_ollama_btn = QPushButton("📂 Apri cartella Ollama")
-        self._open_ollama_btn.setStyleSheet(
-            "QPushButton { background:#e8e8ec; color:#1a1a1a; border:1px solid #d0d0d0; "
-            "padding:6px 14px; border-radius:6px; font-size:11px; }"
-            "QPushButton:hover { background:#d0d0d0; }"
-        )
         self._open_ollama_btn.clicked.connect(self._open_ollama_folder)
         head.addWidget(self._open_ollama_btn)
         outer.addLayout(head)
 
-        # Dettagli (versione + numero modelli + primo modello)
+        # Dettagli (versione + numero modelli + primo modello) — colore tema
         self._ollama_details = QLabel()
-        self._ollama_details.setStyleSheet(
-            "font-size:11px; color:#555; padding:4px 8px;"
-        )
+        self._ollama_details.setStyleSheet("font-size:11px; padding:4px 8px;")
+        _theme_prop(self._ollama_details, "role", "muted")
         self._ollama_details.setWordWrap(True)
         outer.addWidget(self._ollama_details)
 
@@ -541,9 +505,9 @@ class ActorsPanel(QWidget):
         ollama_path = shutil.which("ollama")
         if not ollama_path:
             self._ollama_status_label.setText("❌ Ollama NON installato")
+            _theme_banner(self._ollama_status_label, "error")
             self._ollama_status_label.setStyleSheet(
-                "color:#dc2626; background:#fee2e2; font-size:11px; "
-                "font-weight:bold; padding:6px 12px; border-radius:6px;"
+                "font-size:11px; font-weight:bold; padding:6px 12px;"
             )
             self._ollama_details.setText(
                 "Installa Ollama da https://ollama.com/download per usare i "
@@ -576,9 +540,9 @@ class ActorsPanel(QWidget):
             models = []
 
         self._ollama_status_label.setText(f"✅ Ollama installato (v{version})")
+        _theme_banner(self._ollama_status_label, "ok")
         self._ollama_status_label.setStyleSheet(
-            "color:#16a34a; background:#dcfce7; font-size:11px; "
-            "font-weight:bold; padding:6px 12px; border-radius:6px;"
+            "font-size:11px; font-weight:bold; padding:6px 12px;"
         )
         if models:
             self._ollama_details.setText(
@@ -619,38 +583,11 @@ class ActorsPanel(QWidget):
             self._ollama_details.setText(f"Errore apertura cartella: {e}")
 
     # ──────────────────────────────────────────────────────────────────
-    # Stili (riutilizzo gli stessi del SettingsPanel)
+    # Stili: rimossi gli inline hardcodati (white/#1a1a1a) — lo stile di
+    # QGroupBox/QComboBox/QSpinBox ora arriva dal tema app-level (.qss),
+    # quindi segue il tema live. NB: se serviva min-width, va rimpiazzato
+    # con QSize hint sul singolo widget, non con colore inline.
     # ──────────────────────────────────────────────────────────────────
-    def _group_style(self) -> str:
-        return (
-            "QGroupBox {"
-            "  background:#ffffff; border:1px solid #e0e0e0; border-radius:8px;"
-            "  margin-top:14px; padding-top:8px;"
-            "  font-weight:bold; color:#1a1a1a;"
-            "}"
-            "QGroupBox::title {"
-            "  subcontrol-origin: margin; left:14px; padding:0 6px;"
-            "  background:#ffffff;"
-            "}"
-        )
-
-    def _combo_style(self) -> str:
-        return (
-            "QComboBox { background:#ffffff; color:#1a1a1a; "
-            "border:1px solid #d0d0d0; padding:6px 10px; border-radius:6px; "
-            "font-size:12px; min-width:200px; }"
-            "QComboBox:hover { border-color:#16a34a; }"
-            "QComboBox QAbstractItemView { background:#ffffff; color:#1a1a1a; "
-            "selection-background-color:#f0f9ff; }"
-        )
-
-    def _spin_style(self) -> str:
-        return (
-            "QSpinBox, QDoubleSpinBox { background:#ffffff; color:#1a1a1a; "
-            "border:1px solid #d0d0d0; padding:6px 10px; border-radius:6px; "
-            "font-size:12px; min-width:120px; }"
-            "QSpinBox:hover, QDoubleSpinBox:hover { border-color:#16a34a; }"
-        )
 
     # ──────────────────────────────────────────────────────────────────
     # Carica / salva
