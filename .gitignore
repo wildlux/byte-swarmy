@@ -115,3 +115,6 @@ CONFIG/*.local.json
 /*.webp
 !IMG/**
 !IMG/SCHERMATE/**
+analisi-e-sicurezza-codice.json
+*.json.bak
+analisi-e-sicurezza-codice.json
