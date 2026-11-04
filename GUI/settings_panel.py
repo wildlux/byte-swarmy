@@ -377,10 +377,10 @@ class SettingsPanel(QWidget):
         settings_store.set_hardware_strategy(strategy, user_set=True)
         # Salva anche lo stato dell'auto-detect checkbox
         if hasattr(self, "hw_auto_detect"):
-            s = ss.load_settings()
+            s = settings_store.load_settings()
             s["detect_gpu_at_startup"] = self.hw_auto_detect.isChecked()
             s["user_set_hardware_strategy"] = True
-            ss.save_settings(s)
+            settings_store.save_settings(s)
         self._update_hw_hint()
 
     def _build_git_section(self) -> QFrame:
