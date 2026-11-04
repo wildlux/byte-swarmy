@@ -120,8 +120,9 @@ create_gpu_model_variants() {
     info "Creazione varianti GPU dei modelli piccoli..."
     
     for model in "${GPU_MODELS[@]}"; do
-        # Verifica che il modello sia installato
-        if ! ollama list 2>/dev/null | grep -q "^${model}"; then
+        # Verifica che il modello sia installato (usando API REST, più robusto)
+        if ! curl -s http://localhost:11434/api/tags 2>/dev/null | \
+            python3 -c "import sys,json; m=[x['name'] for x in json.load(sys.stdin).get('models',[])]; sys.exit(0 if '${model}' in m else 1)" 2>/dev/null; then
             warn "Modello ${model} non installato — salto"
             continue
         fi
