@@ -14,7 +14,13 @@
 
 set -e
 
-cd "$(dirname "${BASH_SOURCE[0]}")"
+# Risolve la root del repo git (robusto a spostamenti dello script)
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+if [ -z "$ROOT" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
+cd "$ROOT"
 
 # Verifica che sia un repo git
 if [ ! -d ".git" ]; then

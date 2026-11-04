@@ -58,10 +58,18 @@ EOF
 }
 
 cmd_status() {
+    # 1. Check PID file
     if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE" 2>/dev/null)" 2>/dev/null; then
         echo "● Orchestratore ATTIVO (PID $(cat "$PID_FILE"))"
     else
-        echo "○ Orchestratore fermato"
+        # 2. Fallback: cerca processi attivi anche se PID file mancante
+        RUNNING=$(pgrep -f "CORE.orchestrator" 2>/dev/null | head -1)
+        if [ -n "$RUNNING" ]; then
+            echo "● Orchestratore ATTIVO (rilevato via pgrep, PID $RUNNING)"
+            echo "  ⚠ PID file mancante o stale — considera ./bswarm stop + start"
+        else
+            echo "○ Orchestratore fermato"
+        fi
     fi
     echo ""
     echo "=== Processi ==="
