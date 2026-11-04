@@ -473,3 +473,10 @@ else
     err "Setup non completo. Risolvi i problemi sopra e ripeti."
     exit 1
 fi
+
+# Crea data dirs e symlink legacy
+mkdir -p data/{logs,state,tasks,backups}
+for d in logs state tasks backups; do
+    [ -L "$d" ] || ln -s "data/$d" "$d"
+done
+echo "✓ Symlink data/ creati"

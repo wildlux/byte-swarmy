@@ -135,3 +135,9 @@ logs/*.log
 state/*.flag
 state/*.pid
 project/
+
+# Symlinks legacy per data/ (per-install, non committare)
+/logs
+/state
+/tasks
+/backups
