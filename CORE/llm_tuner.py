@@ -95,13 +95,13 @@ PROFILES = {
 
 class TimestralLLMTuner:
     """Optimizes LLM parameters based on Timestral thermal advice.
-    
+
     Usage:
         tuner = TimestralLLMTuner(timestral_manager)
         params = tuner.get_params("worker_coder")
         # params is a dict ready for ollama options
     """
-    
+
     def __init__(self, timestral_manager=None, config: dict = None):
         self.timestral = timestral_manager
         self.cfg = config or {}
@@ -109,7 +109,7 @@ class TimestralLLMTuner:
         self._load_overrides()
         self.last_profile: Optional[LLMProfile] = None
         self.last_action: str = "normal"
-    
+
     def _load_overrides(self):
         """Load profile overrides from [llm_tuner] section in config."""
         tuner_cfg = self.cfg.get("llm_tuner", {})
@@ -134,7 +134,7 @@ class TimestralLLMTuner:
                 profile.repeat_penalty = float(section["repeat_penalty"])
             if "max_steps" in section:
                 profile.max_steps = int(section["max_steps"])
-    
+
     def get_action(self) -> str:
         """Get current Timestral action: fast|normal|slow|pause."""
         if not self.timestral:
@@ -144,7 +144,7 @@ class TimestralLLMTuner:
             return advice.action
         except Exception:
             return "normal"
-    
+
     def get_profile(self) -> LLMProfile:
         """Get the LLM profile for the current thermal state."""
         action = self.get_action()
@@ -154,20 +154,20 @@ class TimestralLLMTuner:
         self.last_profile = profile
         self.last_action = action
         return profile
-    
+
     def get_params(self, model_key: str = "") -> dict:
         """Get tuned parameters as a dict ready for ollama options.
-        
+
         Args:
             model_key: model role (orchestrator, planner, worker_coder, etc.)
                        Used for logging only.
-        
+
         Returns:
             dict with: temperature, top_p, top_k, num_predict, num_ctx,
                        repeat_penalty, repeat_last_n
         """
         profile = self.get_profile()
-        
+
         # Don't go above the model's configured num_ctx
         # (the tuner can only reduce it, not increase)
         if self.cfg and model_key:
@@ -178,9 +178,9 @@ class TimestralLLMTuner:
                 params = self._profile_to_params(profile)
                 params["num_ctx"] = max_ctx
                 return params
-        
+
         params = self._profile_to_params(profile)
-        
+
         log.debug(
             f"llm_tuner: model={model_key} action={self.last_action} "
             f"temp={params['temperature']:.2f} top_p={params['top_p']:.2f} "
@@ -188,7 +188,7 @@ class TimestralLLMTuner:
             f"max_steps={profile.max_steps}"
         )
         return params
-    
+
     def _profile_to_params(self, profile: LLMProfile) -> dict:
         return {
             "temperature": profile.temperature,
@@ -199,12 +199,12 @@ class TimestralLLMTuner:
             "repeat_penalty": profile.repeat_penalty,
             "repeat_last_n": profile.repeat_last_n,
         }
-    
+
     def get_max_steps(self) -> int:
         """Get the dynamic MAX_STEPS for the current thermal state."""
         profile = self.get_profile()
         return profile.max_steps
-    
+
     def format_status(self) -> str:
         """Format the tuner status for display in the GUI."""
         profile = self.get_profile()
@@ -226,9 +226,9 @@ if __name__ == "__main__":
     print("=" * 60)
     print("LLM TUNER - TEST")
     print("=" * 60)
-    
+
     tuner = TimestralLLMTuner(timestral_manager=None, config={})
-    
+
     print("\nProfiles (no timestral → normal):")
     for action in ["fast", "normal", "slow", "pause"]:
         # Simulate timestral
@@ -239,7 +239,7 @@ if __name__ == "__main__":
                 class FakeAdvice:
                     action: str
                 return FakeAdvice(action=action)
-        
+
         tuner.timestral = FakeTimestral()
         profile = tuner.get_profile()
         params = tuner.get_params("worker_coder")
@@ -249,7 +249,7 @@ if __name__ == "__main__":
         print(f"    num_predict={params['num_predict']}  num_ctx={params['num_ctx']}  "
               f"max_steps={profile.max_steps}")
         print(f"    repeat_penalty={params['repeat_penalty']:.2f}")
-    
+
     print("\n" + "=" * 60)
     print("Status line:")
     print("  " + tuner.format_status())

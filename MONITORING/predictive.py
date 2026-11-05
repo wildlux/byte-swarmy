@@ -30,26 +30,26 @@ class Prediction:
 
 class ThermalPredictor:
     """Predittore termico basato su EMA e regressione lineare semplice.
-    
+
     Usa solo stdlib, niente numpy. Adatto per modelli su CPU con poca RAM.
     """
-    
+
     def __init__(self, alpha: float = 0.3, window_size: int = 10):
         self.alpha = alpha  # peso EMA (0.3 = reattivo, 0.1 = liscio)
         self.window_size = window_size
         self.samples = []  # [(timestamp, temp, load), ...]
         self.ema_temp = None
         self.ema_load = None
-    
+
     def update(self, temp: float, load: float, timestamp: float = None):
         """Aggiunge un campione e aggiorna le EMA."""
         if timestamp is None:
             timestamp = time.time()
-        
+
         self.samples.append((timestamp, temp, load))
         if len(self.samples) > self.window_size:
             self.samples = self.samples[-self.window_size:]
-        
+
         # Aggiorna EMA
         if self.ema_temp is None:
             self.ema_temp = temp
@@ -57,45 +57,45 @@ class ThermalPredictor:
         else:
             self.ema_temp = self.alpha * temp + (1 - self.alpha) * self.ema_temp
             self.ema_load = self.alpha * load + (1 - self.alpha) * self.ema_load
-    
+
     def _linear_regression_slope(self) -> float:
         """Calcola la pendenza della retta di regressione sulla temperatura.
         Valore positivo = temperatura in aumento.
         """
         if len(self.samples) < 3:
             return 0.0
-        
+
         n = len(self.samples)
         x_vals = list(range(n))
         y_vals = [s[1] for s in self.samples]  # temperature
-        
+
         x_mean = sum(x_vals) / n
         y_mean = sum(y_vals) / n
-        
+
         numerator = sum((x - x_mean) * (y - y_mean) for x, y in zip(x_vals, y_vals))
         denominator = sum((x - x_mean) ** 2 for x in x_vals)
-        
+
         if denominator == 0:
             return 0.0
-        
+
         return numerator / denominator
-    
+
     def predict(self, threshold: float = 80.0) -> Prediction:
         """Predice la temperatura futura e i minuti alla soglia."""
         if not self.samples:
             return Prediction(0, 0, 0, None, "stable", 0.0)
-        
+
         current_temp = self.samples[-1][1]
         current_load = self.samples[-1][2]
-        
+
         # Slope (cambiamento per campione, ~30s)
         slope = self._linear_regression_slope()
-        
+
         # Predizione 1 minuto (2 campioni a 30s)
         pred_1min = current_temp + slope * 2
         # Predizione 5 minuti (10 campioni)
         pred_5min = current_temp + slope * 10
-        
+
         # Trend
         if slope > 0.5:
             trend = "rising"
@@ -103,7 +103,7 @@ class ThermalPredictor:
             trend = "falling"
         else:
             trend = "stable"
-        
+
         # Minuti alla soglia
         minutes_to_threshold = None
         if slope > 0 and current_temp < threshold:
@@ -111,10 +111,10 @@ class ThermalPredictor:
             minutes_to_threshold = (samples_to_threshold * 30) / 60  # 30s per campione
             if minutes_to_threshold > 60:
                 minutes_to_threshold = None  # troppo lontano
-        
+
         # Confidence: più campioni abbiamo, più alta
         confidence = min(1.0, len(self.samples) / self.window_size)
-        
+
         return Prediction(
             current_temp=current_temp,
             predicted_temp_1min=pred_1min,
@@ -123,11 +123,11 @@ class ThermalPredictor:
             trend=trend,
             confidence=confidence,
         )
-    
+
     def format_advice(self, threshold: float = 80.0) -> str:
         """Formatta il consiglio predittivo per il log/GUI."""
         pred = self.predict(threshold)
-        
+
         if pred.minutes_to_threshold is not None and pred.minutes_to_threshold < 5:
             return (f"PREDICTION: {pred.minutes_to_threshold:.1f}min to {threshold}C "
                     f"(trend={pred.trend}, now={pred.current_temp:.0f}C, "

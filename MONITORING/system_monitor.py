@@ -36,13 +36,13 @@ class SystemMonitor:
                 return False
         except Exception:
             pass
-            
+
         return True
 
     def get_thermal_advice(self):
         """Returns action based on Timestral's advice."""
         if not self.timestral:
             return "normal", 1.0
-        
+
         advice = self.timestral.get_advice()
         return advice.action, advice.tick_multiplier

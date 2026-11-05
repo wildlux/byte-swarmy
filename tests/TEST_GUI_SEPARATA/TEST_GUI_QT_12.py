@@ -30,7 +30,7 @@ from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, pyqtSignal, QDir,
 class CreditsOverlay(QFrame):
     """Overlay modale con i ringraziamenti del progetto."""
     closed = pyqtSignal()
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("credits_overlay")
@@ -43,17 +43,17 @@ class CreditsOverlay(QFrame):
             "  border-radius: 16px; "
             "}"
         )
-        
+
         lay = QVBoxLayout(self)
         lay.setContentsMargins(30, 24, 30, 24)
         lay.setSpacing(16)
-        
+
         # Header con ape grande
         bee_header = QLabel("🐝")
         bee_header.setAlignment(Qt.AlignmentFlag.AlignCenter)
         bee_header.setStyleSheet("font-size: 64px;")
         lay.addWidget(bee_header)
-        
+
         # Titolo
         title = QLabel("<b>BYTE-SWARMY</b>")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -61,24 +61,24 @@ class CreditsOverlay(QFrame):
             "font-size: 28px; color: #4ade80; font-weight: bold;"
         )
         lay.addWidget(title)
-        
+
         subtitle = QLabel("Autonomous Multi-Agent System")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle.setStyleSheet("font-size: 13px; color: #a0a0b0; font-style: italic;")
         lay.addWidget(subtitle)
-        
+
         # Separatore
         sep = QFrame()
         sep.setFixedHeight(1)
         sep.setStyleSheet("background: #4ade80;")
         lay.addWidget(sep)
-        
+
         # Sezione credits
         credits_title = QLabel("✨ Ringraziamenti ✨")
         credits_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         credits_title.setStyleSheet("font-size: 16px; color: #f9e2af; font-weight: bold;")
         lay.addWidget(credits_title)
-        
+
         # Lista contributori
         contributors = [
             ("👤", "Paolo Lo Bello", "Ideatore del progetto", "#4ade80"),
@@ -86,7 +86,7 @@ class CreditsOverlay(QFrame):
             ("🦙", "Qwen", "Miglioramento e ottimizzazione interfaccia grafica", "#f9e2af"),
             ("🔍", "DeepSeek", "Analisi della sicurezza", "#f38ba8"),
         ]
-        
+
         for icon, name, role, color in contributors:
             card = QFrame()
             card.setStyleSheet(
@@ -96,36 +96,36 @@ class CreditsOverlay(QFrame):
             card_lay = QHBoxLayout(card)
             card_lay.setContentsMargins(10, 8, 10, 8)
             card_lay.setSpacing(12)
-            
+
             icon_lbl = QLabel(icon)
             icon_lbl.setStyleSheet(f"font-size: 22px;")
             icon_lbl.setFixedWidth(32)
             card_lay.addWidget(icon_lbl)
-            
+
             info = QWidget()
             info_lay = QVBoxLayout(info)
             info_lay.setContentsMargins(0, 0, 0, 0)
             info_lay.setSpacing(2)
-            
+
             name_lbl = QLabel(f"<b>{name}</b>")
             name_lbl.setStyleSheet(f"font-size: 14px; color: {color};")
             info_lay.addWidget(name_lbl)
-            
+
             role_lbl = QLabel(role)
             role_lbl.setStyleSheet("font-size: 11px; color: #c0c0d0;")
             info_lay.addWidget(role_lbl)
-            
+
             card_lay.addWidget(info, stretch=1)
             lay.addWidget(card)
-        
+
         # Messaggio finale
         final_msg = QLabel("Grazie a tutti per aver contribuito a questo progetto 🐝")
         final_msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
         final_msg.setStyleSheet("font-size: 12px; color: #8888a0; font-style: italic; margin-top: 8px;")
         lay.addWidget(final_msg)
-        
+
         lay.addStretch()
-        
+
         # Pulsante chiudi
         close_btn = QPushButton("✕ Chiudi")
         close_btn.setObjectName("credits_close_btn")
@@ -139,7 +139,7 @@ class CreditsOverlay(QFrame):
         )
         close_btn.clicked.connect(self.closed.emit)
         lay.addWidget(close_btn)
-    
+
     def showEvent(self, event):
         """Animazione fade-in all'apertura."""
         super().showEvent(event)
@@ -164,27 +164,27 @@ class DevicePanel(QFrame):
             "QFrame#device_panel { background:#f8f9fa; border:1px solid #e0e0e0; "
             "border-radius:8px; }"
         )
-        
+
         lay = QHBoxLayout(self)
         lay.setContentsMargins(6, 4, 6, 4)
         lay.setSpacing(8)
-        
+
         devices_col = QVBoxLayout()
         devices_col.setSpacing(2)
         devices_col.setContentsMargins(0, 0, 0, 0)
-        
+
         self.cpu_box = self._device_row("CPU", "#16a34a", "qwen2.5:1.5b")
         self.gpu_box = self._device_row("GPU", "#2563eb", "—")
-        
+
         devices_col.addWidget(self.cpu_box)
         devices_col.addWidget(self.gpu_box)
         lay.addLayout(devices_col)
-        
+
         sep = QFrame()
         sep.setFixedWidth(1)
         sep.setStyleSheet("background:#d0d0d0;")
         lay.addWidget(sep)
-        
+
         self.git_btn = QPushButton("💾")
         self.git_btn.setFixedWidth(36)
         self.git_btn.setFixedHeight(46)
@@ -197,7 +197,7 @@ class DevicePanel(QFrame):
         )
         self.git_btn.clicked.connect(self._do_git_save)
         lay.addWidget(self.git_btn)
-        
+
         self.toggle_btn = QPushButton("▶")
         self.toggle_btn.setFixedWidth(44)
         self.toggle_btn.setFixedHeight(46)
@@ -209,10 +209,10 @@ class DevicePanel(QFrame):
             "QPushButton#primary_btn:hover { background:#15803d; }"
         )
         lay.addWidget(self.toggle_btn)
-        
+
         self.git_remotes = self._detect_git_remotes()
         self._update_git_tooltip()
-    
+
     def _detect_git_remotes(self):
         remotes = []
         try:
@@ -239,18 +239,18 @@ class DevicePanel(QFrame):
         if not remotes:
             remotes = [("Git", "origin")]
         return remotes
-    
+
     def _update_git_tooltip(self):
         names = [r[0] for r in self.git_remotes]
         if len(names) == 1:
             self.git_btn.setToolTip(f"Salva su {names[0]}")
         else:
             self.git_btn.setToolTip(f"Salva su {', '.join(names)}")
-    
+
     def _do_git_save(self):
         names = [r[0] for r in self.git_remotes]
         print(f"[GIT] Salvataggio su: {', '.join(names)}")
-    
+
     def _device_row(self, name, color, model_name):
         row = QFrame()
         row.setObjectName(f"{name.lower()}_row")
@@ -262,28 +262,28 @@ class DevicePanel(QFrame):
         lay = QHBoxLayout(row)
         lay.setContentsMargins(6, 2, 6, 2)
         lay.setSpacing(6)
-        
+
         lbl = QLabel(name)
         lbl.setStyleSheet(f"color:{color}; font-size:12px; font-weight:bold;")
         lbl.setFixedWidth(32)
         lay.addWidget(lbl)
-        
+
         model_lbl = QLabel(model_name)
         model_lbl.setStyleSheet("color:#555; font-size:10px;")
         model_lbl.setFixedWidth(72)
         lay.addWidget(model_lbl)
-        
+
         temp_lbl = QLabel("45°C")
         tok_lbl = QLabel("12t/s")
         kv_lbl = QLabel("2.1G")
         mem_lbl = QLabel("65%")
         bus_lbl = QLabel("800M")
-        
+
         for w in (temp_lbl, tok_lbl, kv_lbl, mem_lbl, bus_lbl):
             w.setStyleSheet("color:#333; font-size:11px; font-weight:500;")
             w.setFixedWidth(38)
             lay.addWidget(w)
-        
+
         row._temp = temp_lbl
         row._tok = tok_lbl
         row._kv = kv_lbl
@@ -304,11 +304,11 @@ class CollapsibleSection(QFrame):
             "QFrame#collapsible_section { background:#ffffff; border:1px solid #e0e0e0; "
             "border-radius:8px; }"
         )
-        
+
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
-        
+
         self.header = QFrame()
         self.header.setObjectName("section_header")
         self.header.setStyleSheet(
@@ -318,11 +318,11 @@ class CollapsibleSection(QFrame):
         header_lay = QHBoxLayout(self.header)
         header_lay.setContentsMargins(14, 10, 14, 10)
         header_lay.setSpacing(8)
-        
+
         self.title_lbl = QLabel(f"{icon} {title}")
         self.title_lbl.setStyleSheet("font-size:13px; font-weight:bold; color:#1a1a1a;")
         header_lay.addWidget(self.title_lbl, stretch=1)
-        
+
         self.toggle_btn = QPushButton("▾")
         self.toggle_btn.setFixedSize(28, 28)
         self.toggle_btn.setStyleSheet(
@@ -332,19 +332,19 @@ class CollapsibleSection(QFrame):
         )
         self.toggle_btn.clicked.connect(self._on_toggle)
         header_lay.addWidget(self.toggle_btn)
-        
+
         lay.addWidget(self.header)
-        
+
         self.content = QWidget()
         self.content.setStyleSheet("background:#ffffff; border-bottom-left-radius:8px; border-bottom-right-radius:8px;")
         self.content_lay = QVBoxLayout(self.content)
         self.content_lay.setContentsMargins(12, 12, 12, 12)
         self.content_lay.setSpacing(8)
-        
+
         lay.addWidget(self.content)
-        
+
         self._expanded = True
-    
+
     def _on_toggle(self):
         self._expanded = not self._expanded
         if self._expanded:
@@ -353,7 +353,7 @@ class CollapsibleSection(QFrame):
         else:
             self.content.hide()
             self.toggle_btn.setText("▸")
-    
+
     def add_widget(self, widget):
         self.content_lay.addWidget(widget)
 
@@ -363,24 +363,24 @@ class CollapsibleSection(QFrame):
 # ═══════════════════════════════════════════════════════════════
 class PlanciaCard(QFrame):
     clicked = pyqtSignal()
-    
+
     def __init__(self, title, subtitle, badge=None, badge_color="#666", parent=None):
         super().__init__(parent)
         self.setObjectName("card")
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.setFixedHeight(90)
-        
+
         lay = QVBoxLayout(self)
         lay.setContentsMargins(14, 10, 14, 10)
         lay.setSpacing(2)
-        
+
         head = QHBoxLayout()
         head.setSpacing(6)
-        
+
         title_lbl = QLabel(title)
         title_lbl.setStyleSheet("font-size:14px; font-weight:bold; color:#1a1a1a;")
         head.addWidget(title_lbl, stretch=1)
-        
+
         if badge:
             badge_lbl = QLabel(badge)
             badge_lbl.setStyleSheet(
@@ -388,15 +388,15 @@ class PlanciaCard(QFrame):
                 f"padding:2px 8px; border-radius:10px; font-size:10px; font-weight:bold;"
             )
             head.addWidget(badge_lbl)
-        
+
         lay.addLayout(head)
-        
+
         sub_lbl = QLabel(subtitle)
         sub_lbl.setStyleSheet("font-size:11px; color:#666;")
         lay.addWidget(sub_lbl)
-        
+
         lay.addStretch()
-        
+
         self._normal_style = (
             "QFrame#card { background:#ffffff; border:1px solid #e0e0e0; border-radius:10px; }"
         )
@@ -404,13 +404,13 @@ class PlanciaCard(QFrame):
             "QFrame#card { background:#f0f9ff; border:1px solid #16a34a; border-radius:10px; }"
         )
         self.setStyleSheet(self._normal_style)
-    
+
     def enterEvent(self, event):
         self.setStyleSheet(self._hover_style)
-    
+
     def leaveEvent(self, event):
         self.setStyleSheet(self._normal_style)
-    
+
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
@@ -427,11 +427,11 @@ class CategorizedLogViewer(QFrame):
             "QFrame#log_viewer { background:#ffffff; border:1px solid #e0e0e0; "
             "border-radius:6px; }"
         )
-        
+
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
-        
+
         self.tab_bar = QTabBar()
         self.tab_bar.setExpanding(False)
         self.tab_bar.setMovable(False)
@@ -447,12 +447,12 @@ class CategorizedLogViewer(QFrame):
         )
         self.tab_bar.currentChanged.connect(self._on_tab_changed)
         lay.addWidget(self.tab_bar)
-        
+
         self.log_stack = QStackedWidget()
         self.logs = {}
         categories = ["ollama", "byteswarm"]
         colors = {"ollama": "#a6e3a1", "byteswarm": "#f9e2af"}
-        
+
         for cat in categories:
             log_widget = QTextEdit()
             log_widget.setReadOnly(True)
@@ -465,9 +465,9 @@ class CategorizedLogViewer(QFrame):
             log_widget.setPlainText(sample)
             self.logs[cat] = log_widget
             self.log_stack.addWidget(log_widget)
-        
+
         lay.addWidget(self.log_stack, stretch=1)
-    
+
     def _get_sample_log(self, category, color):
         samples = {
             "ollama": f"[{color}] 2026-11-01 11:43:15 [INFO]  Model loaded: qwen2.5-coder:1.5b\n"
@@ -480,7 +480,7 @@ class CategorizedLogViewer(QFrame):
                         f"[{color}] 2026-11-01 11:44:15 [SUCCESS] Security audit passed\n"
         }
         return samples.get(category, "")
-    
+
     def _on_tab_changed(self, index):
         self.log_stack.setCurrentIndex(index)
 
@@ -496,15 +496,15 @@ class BackupCodeLogs(QFrame):
             "QFrame#backup_logs { background:#ffffff; border:1px solid #e0e0e0; "
             "border-radius:6px; }"
         )
-        
+
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
-        
+
         header = QLabel("<b>💾 Backup Code — Git Logs</b>")
         header.setStyleSheet("background:#f0f0f0; padding:8px 12px; font-size:12px; border-bottom:1px solid #e0e0e0;")
         lay.addWidget(header)
-        
+
         self.tab_bar = QTabBar()
         self.tab_bar.setExpanding(False)
         self.tab_bar.setMovable(False)
@@ -520,12 +520,12 @@ class BackupCodeLogs(QFrame):
         )
         self.tab_bar.currentChanged.connect(self._on_tab_changed)
         lay.addWidget(self.tab_bar)
-        
+
         self.log_stack = QStackedWidget()
         self.logs = {}
         categories = ["github", "gitlab", "git"]
         colors = {"github": "#89b4fa", "gitlab": "#f38ba8", "git": "#fab387"}
-        
+
         for cat in categories:
             log_widget = QTextEdit()
             log_widget.setReadOnly(True)
@@ -538,9 +538,9 @@ class BackupCodeLogs(QFrame):
             log_widget.setPlainText(sample)
             self.logs[cat] = log_widget
             self.log_stack.addWidget(log_widget)
-        
+
         lay.addWidget(self.log_stack, stretch=1)
-    
+
     def _get_sample_log(self, category, color):
         samples = {
             "github": f"[{color}] 2026-11-01 11:40:15 [INFO]  Push to main branch\n"
@@ -557,7 +557,7 @@ class BackupCodeLogs(QFrame):
                   f"[{color}] 2026-11-01 11:42:00 [INFO]  Pull from origin/main successful\n"
         }
         return samples.get(category, "")
-    
+
     def _on_tab_changed(self, index):
         self.log_stack.setCurrentIndex(index)
 
@@ -579,7 +579,7 @@ class CodeNode:
 
 class CodeExplorer(QFrame):
     node_clicked = pyqtSignal(str, int, int)
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("code_explorer")
@@ -587,31 +587,31 @@ class CodeExplorer(QFrame):
             "QFrame#code_explorer { background:#ffffff; border:1px solid #e0e0e0; "
             "border-radius:6px; }"
         )
-        
+
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 10, 12, 10)
         lay.setSpacing(8)
-        
+
         head = QHBoxLayout()
         head.addWidget(QLabel("<b>🎮 Code Explorer</b>"))
         head.addStretch()
-        
+
         zoom_in = QPushButton("+")
         zoom_in.setFixedSize(26, 26)
         zoom_in.setToolTip("Zoom in")
         head.addWidget(zoom_in)
-        
+
         zoom_out = QPushButton("-")
         zoom_out.setFixedSize(26, 26)
         zoom_out.setToolTip("Zoom out")
         head.addWidget(zoom_out)
-        
+
         lay.addLayout(head)
-        
+
         self.file_label = QLabel("Nessun file caricato")
         self.file_label.setStyleSheet("color:#666; font-size:11px;")
         lay.addWidget(self.file_label)
-        
+
         self.scene = QGraphicsScene()
         self.view = QGraphicsView(self.scene)
         self.view.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -623,15 +623,15 @@ class CodeExplorer(QFrame):
             "border-radius:6px; }"
         )
         lay.addWidget(self.view)
-        
+
         legend = QHBoxLayout()
         legend.addWidget(self._legend_item("Classe", "#89b4fa"))
         legend.addWidget(self._legend_item("Funzione", "#a6e3a1"))
         legend.addWidget(self._legend_item("Variabile", "#fab387"))
         lay.addLayout(legend)
-        
+
         self.nodes = []
-    
+
     def _legend_item(self, label, color):
         widget = QWidget()
         lay = QHBoxLayout(widget)
@@ -644,12 +644,12 @@ class CodeExplorer(QFrame):
         text.setStyleSheet("font-size:10px; color:#666;")
         lay.addWidget(text)
         return widget
-    
+
     def load_file(self, file_path):
         self.file_label.setText(os.path.basename(file_path))
         self.nodes = []
         self.scene.clear()
-        
+
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 source = f.read()
@@ -659,11 +659,11 @@ class CodeExplorer(QFrame):
             self._render_nodes()
         except Exception as e:
             self.scene.addText(f"Errore parsing: {e}")
-    
+
     def _parse_ast(self, tree, file_path):
         module_node = CodeNode(os.path.basename(file_path), "module", 1, len(tree.body), [])
         self.nodes.append(module_node)
-        
+
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
                 class_node = CodeNode(node.name, "class", node.lineno, node.end_lineno or node.lineno + 10, [])
@@ -679,7 +679,7 @@ class CodeExplorer(QFrame):
                     func_node = CodeNode(node.name, "function", node.lineno, node.end_lineno or node.lineno + 5, [])
                     module_node.children.append(func_node)
                     self.nodes.append(func_node)
-    
+
     def _layout_nodes(self):
         y_spacing = 80
         x_spacing = 200
@@ -697,7 +697,7 @@ class CodeExplorer(QFrame):
                         gc.x = grandchild_x
                         gc.y = child.y
                         grandchild_x += x_spacing
-    
+
     def _render_nodes(self):
         colors = {"module": "#cdd6f4", "class": "#89b4fa", "function": "#a6e3a1", "variable": "#fab387"}
         for node in self.nodes:
@@ -705,7 +705,7 @@ class CodeExplorer(QFrame):
                 for child in node.children:
                     line = self.scene.addLine(node.x + 60, node.y + 20, child.x + 60, child.y + 20, QPen(QColor("#6c7086"), 1.5))
                     line.setZValue(-1)
-        
+
         for node in self.nodes:
             color = colors.get(node.node_type, "#cdd6f4")
             rect = QGraphicsRectItem(node.x, node.y, 140, 40)
@@ -713,21 +713,21 @@ class CodeExplorer(QFrame):
             rect.setPen(QPen(QColor("#1e1e2e"), 2))
             rect.setZValue(0)
             self.scene.addItem(rect)
-            
+
             text = self.scene.addText(f"{node.name}")
             text.setDefaultTextColor(QColor("#1e1e2e"))
             text.setPos(node.x + 10, node.y + 8)
             text.setZValue(1)
-            
+
             line_info = self.scene.addText(f"L{node.line_start}-{node.line_end}")
             line_info.setDefaultTextColor(QColor("#6c7086"))
             line_info.setPos(node.x + 10, node.y + 24)
             line_info.setScale(0.7)
             line_info.setZValue(1)
-            
+
             rect.setAcceptHoverEvents(True)
             rect.mousePressEvent = lambda e, n=node: self._on_node_click(n)
-    
+
     def _on_node_click(self, node):
         node.expanded = not node.expanded
         self.scene.clear()
@@ -742,27 +742,27 @@ class FileEditorWidget(QFrame):
     closed = pyqtSignal()
     dock_requested = pyqtSignal()
     undock_requested = pyqtSignal()
-    
+
     def __init__(self, file_path, docked=False, parent=None):
         super().__init__(parent)
         self.file_path = file_path
         self._docked = docked
         self.setObjectName("editor_widget")
-        
+
         if docked:
             self.setStyleSheet("QFrame#editor_widget { background:#ffffff; border-left:1px solid #e0e0e0; }")
         else:
             self.setFixedSize(700, 500)
             self.setStyleSheet("QFrame#editor_widget { background:#ffffff; border:1px solid #e0e0e0; border-radius:12px; }")
-        
+
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 10, 12, 10)
         lay.setSpacing(6)
-        
+
         head = QHBoxLayout()
         head.addWidget(QLabel(f"<b>📝 {os.path.basename(file_path)}</b>"))
         head.addStretch()
-        
+
         self.dock_btn = QPushButton("📌 Dock" if not docked else "📌 Undock")
         self.dock_btn.setFixedHeight(28)
         self.dock_btn.setObjectName("dock_btn")
@@ -772,42 +772,42 @@ class FileEditorWidget(QFrame):
         )
         self.dock_btn.clicked.connect(self._on_dock_toggle)
         head.addWidget(self.dock_btn)
-        
+
         save_btn = QPushButton("💾 Salva")
         save_btn.setObjectName("primary_btn")
         save_btn.setFixedHeight(28)
         save_btn.clicked.connect(self._save)
         head.addWidget(save_btn)
-        
+
         close_btn = QPushButton("✕")
         close_btn.setFixedSize(28, 28)
         close_btn.clicked.connect(self.closed.emit)
         head.addWidget(close_btn)
         lay.addLayout(head)
-        
+
         path_lbl = QLabel(file_path)
         path_lbl.setStyleSheet("color:#888; font-size:10px; font-family:monospace;")
         lay.addWidget(path_lbl)
-        
+
         self.editor = QTextEdit()
         self.editor.setStyleSheet(
             "QTextEdit { background:#fafafa; color:#1a1a1a; border:1px solid #e0e0e0; "
             "border-radius:6px; font-family:'JetBrains Mono','Consolas',monospace; font-size:12px; padding:8px; }"
         )
         lay.addWidget(self.editor)
-        
+
         self.status = QLabel("Pronto")
         self.status.setStyleSheet("color:#666; font-size:11px;")
         lay.addWidget(self.status)
-        
+
         self._load_file()
-    
+
     def _on_dock_toggle(self):
         if self._docked:
             self.undock_requested.emit()
         else:
             self.dock_requested.emit()
-    
+
     def _load_file(self):
         try:
             with open(self.file_path, "r", encoding="utf-8", errors="replace") as f:
@@ -816,7 +816,7 @@ class FileEditorWidget(QFrame):
         except Exception as e:
             self.editor.setPlainText(f"[Errore lettura: {e}]")
             self.status.setText("Errore")
-    
+
     def _save(self):
         try:
             with open(self.file_path, "w", encoding="utf-8") as f:
@@ -865,7 +865,7 @@ class ControlCenter(QMainWindow):
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick_metrics)
         self._timer.start(1500)
-        
+
         self._editor_overlay = None
         self._editor_docked = None
         self._credits_overlay = None  # ← NUOVO
@@ -891,7 +891,7 @@ class ControlCenter(QMainWindow):
         bee_btn.setToolTip("Credits & Ringraziamenti")
         bee_btn.clicked.connect(self._show_credits)
         lay.addWidget(bee_btn)
-        
+
         # Aggiungo un nuovo bottone per il drawer (file tree)
         files_btn = QPushButton("📁")
         files_btn.setFixedSize(32, 32)
@@ -921,15 +921,15 @@ class ControlCenter(QMainWindow):
         lay.addWidget(self.device_panel)
 
         return bar
-    
+
     def _show_credits(self):
         """Mostra l'overlay dei ringraziamenti."""
         if self._credits_overlay:
             self._credits_overlay.deleteLater()
-        
+
         self._credits_overlay = CreditsOverlay(self.centralWidget())
         self._credits_overlay.closed.connect(self._close_credits)
-        
+
         # Centra l'overlay
         cw = self.centralWidget().size()
         self._credits_overlay.move(
@@ -938,7 +938,7 @@ class ControlCenter(QMainWindow):
         )
         self._credits_overlay.show()
         self._credits_overlay.raise_()
-    
+
     def _close_credits(self):
         if self._credits_overlay:
             self._credits_overlay.deleteLater()
@@ -964,7 +964,7 @@ class ControlCenter(QMainWindow):
         menu.addAction(act_settings)
 
         menu.addSeparator()
-        
+
         act_credits = QAction("🐝 Credits", self)
         act_credits.triggered.connect(self._show_credits)
         menu.addAction(act_credits)
@@ -1032,15 +1032,15 @@ class ControlCenter(QMainWindow):
             self._editor_docked._load_file()
             self.center.code_explorer.load_file(file_path)
             return
-        
+
         if self._editor_overlay:
             self._editor_overlay.close()
             self._editor_overlay.deleteLater()
-        
+
         self._editor_overlay = FileEditorWidget(file_path, docked=False, parent=self.centralWidget())
         self._editor_overlay.closed.connect(self._close_overlay)
         self._editor_overlay.dock_requested.connect(lambda: self._dock_editor(file_path))
-        
+
         cw = self.centralWidget().size()
         self._editor_overlay.move(
             (cw.width() - self._editor_overlay.width()) // 2,
@@ -1048,27 +1048,27 @@ class ControlCenter(QMainWindow):
         )
         self._editor_overlay.show()
         self._editor_overlay.raise_()
-        
+
         self.center.code_explorer.load_file(file_path)
-    
+
     def _close_overlay(self):
         if self._editor_overlay:
             self._editor_overlay.deleteLater()
             self._editor_overlay = None
-    
+
     def _dock_editor(self, file_path):
         self._close_overlay()
         self._editor_docked = FileEditorWidget(file_path, docked=True)
         self._editor_docked.closed.connect(self._undock_editor)
         self._editor_docked.undock_requested.connect(lambda: self._undock_editor_to_float(file_path))
         self.center.attach_editor_column(self._editor_docked)
-    
+
     def _undock_editor(self):
         if self._editor_docked:
             self.center.detach_editor_column()
             self._editor_docked.deleteLater()
             self._editor_docked = None
-    
+
     def _undock_editor_to_float(self, file_path):
         self.center.detach_editor_column()
         self._editor_docked.deleteLater()
@@ -1144,7 +1144,7 @@ class FileTreeDrawer(QFrame):
         self.tree = QTreeView()
         self.tree.setAlternatingRowColors(True)
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        
+
         self.model = QFileSystemModel()
         self.model.setRootPath("./")
         self.model.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.AllDirs | QDir.Filter.Files)
@@ -1157,7 +1157,7 @@ class FileTreeDrawer(QFrame):
         self.tree.setIndentation(14)
         self.tree.header().setStretchLastSection(False)
         self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        
+
         self.tree.clicked.connect(self._on_tree_click)
         self.tree.customContextMenuRequested.connect(self._on_tree_context_menu)
         lay.addWidget(self.tree)
@@ -1228,30 +1228,30 @@ class FileTreeDrawer(QFrame):
             return
         path = self.model.filePath(index)
         is_file = os.path.isfile(path)
-        
+
         menu = QMenu(self)
         menu.setStyleSheet(
             "QMenu { background:#ffffff; border:1px solid #e0e0e0; border-radius:8px; padding:6px; font-size:12px; }"
             "QMenu::item { padding:6px 20px; border-radius:4px; }"
             "QMenu::item:selected { background:#f0f9ff; }"
         )
-        
+
         if is_file:
             act_edit = QAction("✏️ Modifica file", self)
             act_edit.triggered.connect(lambda: self.main_win._show_file_editor(path))
             menu.addAction(act_edit)
             menu.addSeparator()
-        
+
         act_rename = QAction("📝 Rinomina", self)
         act_rename.triggered.connect(lambda: self._rename_item(path))
         menu.addAction(act_rename)
-        
+
         act_delete = QAction("🗑️ Cancella", self)
         act_delete.triggered.connect(lambda: self._delete_item(path))
         menu.addAction(act_delete)
-        
+
         menu.exec(self.tree.viewport().mapToGlobal(pos))
-    
+
     def _rename_item(self, path):
         old_name = os.path.basename(path)
         new_name, ok = QInputDialog.getText(self, "Rinomina", "Nuovo nome:", text=old_name)
@@ -1262,7 +1262,7 @@ class FileTreeDrawer(QFrame):
                 self.model.setRootPath("./")
             except Exception as e:
                 QMessageBox.warning(self, "Errore", f"Impossibile rinominare:\n{e}")
-    
+
     def _delete_item(self, path):
         name = os.path.basename(path)
         reply = QMessageBox.question(self, "Conferma cancellazione", f"Sei sicuro di voler eliminare '{name}'?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
@@ -1290,63 +1290,63 @@ class CenterArea(QWidget):
         super().__init__()
         self.main_win = parent
         self._editor_column = None
-        
+
         root = QHBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
-        
+
         self.main_stack = QStackedWidget()
-        
+
         main_scroll = QScrollArea()
         main_scroll.setWidgetResizable(True)
         main_scroll.setStyleSheet("QScrollArea { border:none; background:#ffffff; }")
-        
+
         main_widget = QWidget()
         main_lay = QVBoxLayout(main_widget)
         main_lay.setContentsMargins(16, 16, 16, 16)
         main_lay.setSpacing(12)
-        
+
         self.logs_section = CollapsibleSection("Logs CI/CD", icon="📜")
         self.log_viewer = CategorizedLogViewer()
         self.logs_section.add_widget(self.log_viewer)
         main_lay.addWidget(self.logs_section)
-        
+
         self.plancia_section = CollapsibleSection("Plancia di controllo", icon="✈️")
-        
+
         cards_grid = QGridLayout()
         cards_grid.setSpacing(12)
         cards_grid.setContentsMargins(0, 0, 0, 0)
-        
+
         self.cards = {}
         card_configs = [
             ("coda", "📋 Coda Task", "3 in coda", "3 tasks", "#f59e0b", 0, 0),
             ("modelli", "🤖 Modelli", "4 caricati", "4 loaded", "#2563eb", 0, 1),
             ("config", "⚙️ Config", "security: ON", "secure", "#16a34a", 0, 2),
         ]
-        
+
         for key, title, subtitle, badge, badge_color, row, col in card_configs:
             card = PlanciaCard(title, subtitle, badge=badge, badge_color=badge_color)
             card.clicked.connect(lambda k=key: self.open_panel(k))
             self.cards[key] = card
             cards_grid.addWidget(card, row, col)
-        
+
         cards_container = QWidget()
         cards_container.setLayout(cards_grid)
         self.plancia_section.add_widget(cards_container)
-        
+
         self.code_explorer = CodeExplorer()
         self.code_explorer.setFixedHeight(350)
         self.plancia_section.add_widget(self.code_explorer)
-        
+
         self.backup_logs = BackupCodeLogs()
         self.backup_logs.setFixedHeight(250)
         self.plancia_section.add_widget(self.backup_logs)
-        
+
         main_lay.addWidget(self.plancia_section)
-        
+
         main_scroll.setWidget(main_widget)
         self.main_stack.addWidget(main_scroll)
-        
+
         self.detail_stack = QStackedWidget()
         self.panel_pages = {}
         for key, title, content in [
@@ -1357,25 +1357,25 @@ class CenterArea(QWidget):
             page = self._build_panel_page(title, content, key)
             self.panel_pages[key] = page
             self.detail_stack.addWidget(page)
-        
+
         self.main_stack.addWidget(self.detail_stack)
-        
+
         root.addWidget(self.main_stack, stretch=1)
-    
+
     def open_panel(self, key):
         if key in self.panel_pages:
             self.main_stack.setCurrentIndex(1)
             self.detail_stack.setCurrentWidget(self.panel_pages[key])
-    
+
     def back_to_main(self):
         self.main_stack.setCurrentIndex(0)
-    
+
     def _build_panel_page(self, title, content, key):
         page = QWidget()
         lay = QVBoxLayout(page)
         lay.setContentsMargins(20, 20, 20, 20)
         lay.setSpacing(14)
-        
+
         head = QHBoxLayout()
         back = QPushButton("← Indietro alla Plancia")
         back.setObjectName("back_btn")
@@ -1390,7 +1390,7 @@ class CenterArea(QWidget):
         head.addWidget(QLabel(f"<b style='font-size:18px;'>{title}</b>"))
         head.addStretch()
         lay.addLayout(head)
-        
+
         body = QTextEdit()
         body.setReadOnly(True)
         body.setPlainText(content)
@@ -1401,14 +1401,14 @@ class CenterArea(QWidget):
         )
         lay.addWidget(body, stretch=1)
         return page
-    
+
     def attach_editor_column(self, editor_widget):
         if self._editor_column:
             self._editor_column.deleteLater()
         self._editor_column = editor_widget
         self._editor_column.setFixedWidth(500)
         self.layout().addWidget(self._editor_column)
-    
+
     def detach_editor_column(self):
         if self._editor_column:
             self.layout().removeWidget(self._editor_column)

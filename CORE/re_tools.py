@@ -21,10 +21,10 @@ Tools exposed (call_re_tool):
 
 Uso diretto:
   from CORE.re_tools import call_re_tool, check_re_environment
-  
+
   env = check_re_environment()
   print(env)
-  
+
   result = call_re_tool("binary_info", ["/bin/ls"])
   print(result)
 
@@ -91,48 +91,48 @@ def _file_exists(path: str) -> bool:
 
 def binary_info(path: str) -> str:
     """Basic info about a binary: file type, ELF header, symbols, hash.
-    
+
     Uses: file, readelf, nm, sha256sum (binutils + coreutils)
     """
     if not _file_exists(path):
         return f"ERROR: file not found: {path}"
-    
+
     parts = []
-    
+
     if _check_tool("file"):
         r = subprocess.run(["file", path], capture_output=True, text=True, timeout=10)
         parts.append(f"=== File type ===\n{r.stdout.strip()}")
-    
+
     if _check_tool("readelf"):
         r = subprocess.run(["readelf", "-h", path], capture_output=True, text=True, timeout=10)
         if r.returncode == 0 and r.stdout.strip():
             parts.append(f"=== ELF header ===\n{r.stdout.strip()}")
-    
+
     if _check_tool("nm"):
         r = subprocess.run(["nm", path], capture_output=True, text=True, timeout=10)
         if r.returncode == 0 and r.stdout.strip():
             lines = r.stdout.strip().split("\n")
             parts.append(f"=== Symbols ({len(lines)} total, first 30) ===\n" + "\n".join(lines[:30]))
-    
+
     if _check_tool("sha256sum"):
         r = subprocess.run(["sha256sum", path], capture_output=True, text=True, timeout=10)
         parts.append(f"=== Hash ===\n{r.stdout.strip()}")
-    
+
     if _check_tool("stat"):
         r = subprocess.run(["stat", path], capture_output=True, text=True, timeout=10)
         parts.append(f"=== Stat ===\n{r.stdout.strip()}")
-    
+
     return "\n\n".join(parts) if parts else "ERROR: no tools available (install binutils: sudo apt install binutils file coreutils)"
 
 
 def extract_strings(path: str, min_len: int = 4, max_strings: int = 200) -> str:
     """Extract printable strings from binary.
-    
+
     Uses `strings` if available, fallback to pure Python.
     """
     if not _file_exists(path):
         return f"ERROR: file not found: {path}"
-    
+
     if _check_tool("strings"):
         r = subprocess.run(
             ["strings", "-n", str(min_len), path],
@@ -141,11 +141,11 @@ def extract_strings(path: str, min_len: int = 4, max_strings: int = 200) -> str:
         all_strings = r.stdout.split("\n")
         shown = all_strings[:max_strings]
         return f"=== Strings (total {len(all_strings)}, showing {len(shown)}) ===\n\n" + "\n".join(shown)
-    
+
     # Pure Python fallback
     with open(path, "rb") as f:
         data = f.read()
-    
+
     result = []
     current = bytearray()
     for byte in data:
@@ -157,7 +157,7 @@ def extract_strings(path: str, min_len: int = 4, max_strings: int = 200) -> str:
                 if len(result) >= max_strings:
                     break
             current = bytearray()
-    
+
     return f"=== Strings (pure Python fallback, {len(result)} found) ===\n\n" + "\n".join(result)
 
 
@@ -165,7 +165,7 @@ def extract_strings(path: str, min_len: int = 4, max_strings: int = 200) -> str:
 
 def disassemble_radare2(path: str, address: Optional[str] = None, count: int = 50) -> str:
     """Disassemble using radare2 via r2pipe.
-    
+
     Args:
         path: binary path
         address: hex address (e.g. "0x401000"). If None, starts at entry point.
@@ -177,21 +177,21 @@ def disassemble_radare2(path: str, address: Optional[str] = None, count: int = 5
         return "ERROR: radare2 binary not found. Install: sudo apt install radare2"
     if not _file_exists(path):
         return f"ERROR: file not found: {path}"
-    
+
     try:
         r2 = r2pipe.open(str(path))
         r2.cmd("aaa")  # analyze all
-        
+
         if address:
             r2.cmd(f"s {address}")
         else:
             r2.cmd("s entry0")  # entry point
-        
+
         disasm = r2.cmd(f"pd {count}")
         funcs = r2.cmd("aflj")  # functions as JSON
-        
+
         r2.quit()
-        
+
         # Parse functions count
         try:
             func_list = json.loads(funcs) if funcs else []
@@ -200,7 +200,7 @@ def disassemble_radare2(path: str, address: Optional[str] = None, count: int = 5
                 func_summary += "First 10: " + ", ".join(f["name"] for f in func_list[:10])
         except Exception:
             func_summary = "Functions list (raw):\n" + funcs[:500]
-        
+
         return f"=== {func_summary} ===\n\n=== Disassembly ({count} instructions from {address or 'entry0'}) ===\n\n{disasm}"
     except Exception as e:
         return f"ERROR radare2: {e}"
@@ -209,7 +209,7 @@ def disassemble_radare2(path: str, address: Optional[str] = None, count: int = 5
 def disassemble_capstone(path: str, arch: str = "x86", mode: str = "64",
                           offset: int = 0, count: int = 50) -> str:
     """Disassemble using capstone (pure Python, no external tool needed).
-    
+
     Args:
         path: binary path
         arch: x86, arm, arm64, mips
@@ -221,7 +221,7 @@ def disassemble_capstone(path: str, arch: str = "x86", mode: str = "64",
         return "ERROR: capstone not installed. Run: pip install capstone"
     if not _file_exists(path):
         return f"ERROR: file not found: {path}"
-    
+
     arch_map = {
         "x86": capstone.CS_ARCH_X86,
         "arm": capstone.CS_ARCH_ARM,
@@ -234,27 +234,27 @@ def disassemble_capstone(path: str, arch: str = "x86", mode: str = "64",
         "arm": capstone.CS_MODE_ARM,
         "thumb": capstone.CS_MODE_THUMB,
     }
-    
+
     if arch not in arch_map:
         return f"ERROR: unsupported arch '{arch}'. Supported: {list(arch_map.keys())}"
     if mode not in mode_map:
         return f"ERROR: unsupported mode '{mode}'. Supported: {list(mode_map.keys())}"
-    
+
     try:
         with open(path, "rb") as f:
             f.seek(offset)
             code = f.read(count * 16)  # ~16 bytes per instruction
-        
+
         md = capstone.Cs(arch_map[arch], mode_map[mode])
         lines = []
         for ins in md.disasm(code, offset):
             lines.append(f"0x{ins.address:x}:\t{ins.mnemonic}\t{ins.op_str}")
             if len(lines) >= count:
                 break
-        
+
         if not lines:
             return f"No valid instructions found at offset {offset} (arch={arch}, mode={mode})"
-        
+
         return f"=== Disassembly ({len(lines)} instructions, {arch} {mode}) ===\n\n" + "\n".join(lines)
     except Exception as e:
         return f"ERROR capstone: {e}"
@@ -268,7 +268,7 @@ def list_functions_radare2(path: str) -> str:
         return "ERROR: radare2 binary not found. Install: sudo apt install radare2"
     if not _file_exists(path):
         return f"ERROR: file not found: {path}"
-    
+
     try:
         r2 = r2pipe.open(str(path))
         r2.cmd("aaa")
@@ -284,7 +284,7 @@ def list_functions_radare2(path: str) -> str:
 def decompile_ghidra(path: str, function_name: Optional[str] = None,
                      timeout: int = 120) -> str:
     """Decompile binary to C pseudocode using Ghidra headless mode.
-    
+
     Args:
         path: binary path
         function_name: if specified, decompile only this function. None = all (limited to 30).
@@ -297,10 +297,10 @@ def decompile_ghidra(path: str, function_name: Optional[str] = None,
                 "  export PATH=$PATH:/opt/ghidra/support")
     if not _file_exists(path):
         return f"ERROR: file not found: {path}"
-    
+
     proj_dir = tempfile.mkdtemp(prefix="ghidra_proj_")
     proj_name = "byte_swarm_re"
-    
+
     # Write Ghidra script
     script_path = Path(proj_dir) / "decompile.py"
     if function_name:
@@ -351,9 +351,9 @@ for func in fm.getFunctions(True):
 
 print("Decompiled " + str(count) + " functions")
 """
-    
+
     script_path.write_text(script_content)
-    
+
     try:
         cmd = [
             "analyzeHeadless",
@@ -365,7 +365,7 @@ print("Decompiled " + str(count) + " functions")
             "-deleteProject",
         ]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-        
+
         output = r.stdout
         # Extract decompilation sections
         if "===DECOMPILE_START===" in output:
@@ -376,7 +376,7 @@ print("Decompiled " + str(count) + " functions")
                     decomp_text = part.split("===DECOMPILE_END===")[0].strip()
                     result_parts.append(decomp_text)
             return f"=== Ghidra Decompilation ({len(result_parts)} functions) ===\n\n" + "\n\n---\n\n".join(result_parts)
-        
+
         # No decompilation markers — show tail of output
         return f"=== Ghidra output (no decompilation markers found) ===\n\n{output[-2000:]}\n\n--- stderr ---\n{r.stderr[-500:]}"
     except subprocess.TimeoutExpired:
@@ -396,7 +396,7 @@ print("Decompiled " + str(count) + " functions")
 def analyze_pcap(pcap_path: str, display_filter: Optional[str] = None,
                   packet_count: int = 20) -> str:
     """Analyze packet capture (pcap/pcapng).
-    
+
     Args:
         pcap_path: .pcap or .pcapng file
         display_filter: Wireshark display filter (e.g. "tcp.port == 80")
@@ -404,7 +404,7 @@ def analyze_pcap(pcap_path: str, display_filter: Optional[str] = None,
     """
     if not _file_exists(pcap_path):
         return f"ERROR: file not found: {pcap_path}"
-    
+
     if HAS_PYSHARK and _check_tool("tshark"):
         try:
             cap = pyshark.FileCapture(pcap_path, display_filter=display_filter)
@@ -428,7 +428,7 @@ def analyze_pcap(pcap_path: str, display_filter: Optional[str] = None,
             return f"=== First {len(lines)} packets ===\n\n" + "\n".join(lines)
         except Exception as e:
             return f"ERROR pyshark: {e}\n(falling back to tshark CLI if available)"
-    
+
     # Fallback: tshark CLI
     if _check_tool("tshark"):
         cmd = ["tshark", "-r", pcap_path, "-c", str(packet_count)]
@@ -439,7 +439,7 @@ def analyze_pcap(pcap_path: str, display_filter: Optional[str] = None,
             return f"=== tshark output (first {packet_count} packets) ===\n\n{r.stdout}"
         except Exception as e:
             return f"ERROR tshark: {e}"
-    
+
     return ("ERROR: neither pyshark nor tshark available.\n"
             "Install: sudo apt install tshark && pip install pyshark")
 
@@ -450,7 +450,7 @@ def protocol_stats_pcap(pcap_path: str) -> str:
         return "ERROR: tshark not installed. Run: sudo apt install tshark"
     if not _file_exists(pcap_path):
         return f"ERROR: file not found: {pcap_path}"
-    
+
     try:
         r = subprocess.run(
             ["tshark", "-r", pcap_path, "-q", "io,phs"],
@@ -467,7 +467,7 @@ def pcap_conversations(pcap_path: str) -> str:
         return "ERROR: tshark not installed"
     if not _file_exists(pcap_path):
         return f"ERROR: file not found: {pcap_path}"
-    
+
     try:
         r = subprocess.run(
             ["tshark", "-r", pcap_path, "-q", "conv,tcp"],
@@ -555,18 +555,18 @@ def get_re_tool_descriptions() -> str:
 
 def call_re_tool(name: str, args) -> str:
     """Call an RE tool by name with positional or keyword args.
-    
+
     Args:
         name: tool name (e.g. "binary_info")
         args: list (positional) or dict (kwargs) or single value
-    
+
     Returns:
         Tool output as string (or ERROR message)
     """
     if name not in RE_TOOLS:
         available = ", ".join(RE_TOOLS.keys())
         return f"ERROR: unknown RE tool '{name}'. Available: {available}"
-    
+
     fn = RE_TOOLS[name]["fn"]
     try:
         if isinstance(args, dict):
@@ -603,14 +603,14 @@ def check_re_environment() -> Dict[str, bool]:
 
 if __name__ == "__main__":
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="byte-swarmy RE tools")
     parser.add_argument("--check", action="store_true", help="Check environment and exit")
     parser.add_argument("--list", action="store_true", help="List available tools")
     parser.add_argument("--call", nargs=2, metavar=("TOOL", "PATH"),
                         help="Call a tool on a file (e.g. --call binary_info /bin/ls)")
     args = parser.parse_args()
-    
+
     if args.check or (not args.list and not args.call):
         print("=" * 60)
         print("  RE tools environment check")
@@ -622,11 +622,11 @@ if __name__ == "__main__":
         available = sum(1 for v in env.values() if v)
         total = len(env)
         print(f"\n  {available}/{total} tools available")
-    
+
     if args.list:
         print("\n=== Available RE tools ===\n")
         print(get_re_tool_descriptions())
-    
+
     if args.call:
         tool_name, file_path = args.call
         print(f"\n=== Calling {tool_name}({file_path!r}) ===\n")

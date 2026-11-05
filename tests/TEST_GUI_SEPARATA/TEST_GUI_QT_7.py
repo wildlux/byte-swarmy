@@ -30,27 +30,27 @@ class DevicePanel(QFrame):
             "QFrame#device_panel { background:#f8f9fa; border:1px solid #e0e0e0; "
             "border-radius:8px; }"
         )
-        
+
         lay = QHBoxLayout(self)
         lay.setContentsMargins(6, 4, 6, 4)
         lay.setSpacing(8)
-        
+
         devices_col = QVBoxLayout()
         devices_col.setSpacing(2)
         devices_col.setContentsMargins(0, 0, 0, 0)
-        
+
         self.cpu_box = self._device_row("CPU", "#16a34a", "qwen2.5:1.5b")
         self.gpu_box = self._device_row("GPU", "#2563eb", "—")
-        
+
         devices_col.addWidget(self.cpu_box)
         devices_col.addWidget(self.gpu_box)
         lay.addLayout(devices_col)
-        
+
         sep = QFrame()
         sep.setFixedWidth(1)
         sep.setStyleSheet("background:#d0d0d0;")
         lay.addWidget(sep)
-        
+
         self.git_btn = QPushButton("💾")
         self.git_btn.setFixedWidth(36)
         self.git_btn.setFixedHeight(46)
@@ -63,7 +63,7 @@ class DevicePanel(QFrame):
         )
         self.git_btn.clicked.connect(self._do_git_save)
         lay.addWidget(self.git_btn)
-        
+
         self.toggle_btn = QPushButton("▶")
         self.toggle_btn.setFixedWidth(44)
         self.toggle_btn.setFixedHeight(46)
@@ -75,10 +75,10 @@ class DevicePanel(QFrame):
             "QPushButton#primary_btn:hover { background:#15803d; }"
         )
         lay.addWidget(self.toggle_btn)
-        
+
         self.git_remotes = self._detect_git_remotes()
         self._update_git_tooltip()
-    
+
     def _detect_git_remotes(self):
         remotes = []
         try:
@@ -105,18 +105,18 @@ class DevicePanel(QFrame):
         if not remotes:
             remotes = [("Git", "origin")]
         return remotes
-    
+
     def _update_git_tooltip(self):
         names = [r[0] for r in self.git_remotes]
         if len(names) == 1:
             self.git_btn.setToolTip(f"Salva su {names[0]}")
         else:
             self.git_btn.setToolTip(f"Salva su {', '.join(names)}")
-    
+
     def _do_git_save(self):
         names = [r[0] for r in self.git_remotes]
         print(f"[GIT] Salvataggio su: {', '.join(names)}")
-    
+
     def _device_row(self, name, color, model_name):
         row = QFrame()
         row.setObjectName(f"{name.lower()}_row")
@@ -128,28 +128,28 @@ class DevicePanel(QFrame):
         lay = QHBoxLayout(row)
         lay.setContentsMargins(6, 2, 6, 2)
         lay.setSpacing(6)
-        
+
         lbl = QLabel(name)
         lbl.setStyleSheet(f"color:{color}; font-size:12px; font-weight:bold;")
         lbl.setFixedWidth(32)
         lay.addWidget(lbl)
-        
+
         model_lbl = QLabel(model_name)
         model_lbl.setStyleSheet("color:#555; font-size:10px;")
         model_lbl.setFixedWidth(72)
         lay.addWidget(model_lbl)
-        
+
         temp_lbl = QLabel("45°C")
         tok_lbl = QLabel("12t/s")
         kv_lbl = QLabel("2.1G")
         mem_lbl = QLabel("65%")
         bus_lbl = QLabel("800M")
-        
+
         for w in (temp_lbl, tok_lbl, kv_lbl, mem_lbl, bus_lbl):
             w.setStyleSheet("color:#333; font-size:11px; font-weight:500;")
             w.setFixedWidth(38)
             lay.addWidget(w)
-        
+
         row._temp = temp_lbl
         row._tok = tok_lbl
         row._kv = kv_lbl
@@ -164,24 +164,24 @@ class DevicePanel(QFrame):
 # ═══════════════════════════════════════════════════════════════
 class ClickableCard(QFrame):
     clicked = pyqtSignal()
-    
+
     def __init__(self, title, subtitle, badge=None, badge_color="#666", parent=None):
         super().__init__(parent)
         self.setObjectName("card")
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.setFixedHeight(90)
-        
+
         lay = QVBoxLayout(self)
         lay.setContentsMargins(14, 10, 14, 10)
         lay.setSpacing(2)
-        
+
         head = QHBoxLayout()
         head.setSpacing(6)
-        
+
         title_lbl = QLabel(title)
         title_lbl.setStyleSheet("font-size:14px; font-weight:bold; color:#1a1a1a;")
         head.addWidget(title_lbl, stretch=1)
-        
+
         if badge:
             badge_lbl = QLabel(badge)
             badge_lbl.setStyleSheet(
@@ -189,15 +189,15 @@ class ClickableCard(QFrame):
                 f"padding:2px 8px; border-radius:10px; font-size:10px; font-weight:bold;"
             )
             head.addWidget(badge_lbl)
-        
+
         lay.addLayout(head)
-        
+
         sub_lbl = QLabel(subtitle)
         sub_lbl.setStyleSheet("font-size:11px; color:#666;")
         lay.addWidget(sub_lbl)
-        
+
         lay.addStretch()
-        
+
         self._normal_style = (
             "QFrame#card { background:#ffffff; border:1px solid #e0e0e0; border-radius:10px; }"
         )
@@ -205,13 +205,13 @@ class ClickableCard(QFrame):
             "QFrame#card { background:#f0f9ff; border:1px solid #16a34a; border-radius:10px; }"
         )
         self.setStyleSheet(self._normal_style)
-    
+
     def enterEvent(self, event):
         self.setStyleSheet(self._hover_style)
-    
+
     def leaveEvent(self, event):
         self.setStyleSheet(self._normal_style)
-    
+
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
@@ -226,13 +226,13 @@ class FileEditorWidget(QFrame):
     closed = pyqtSignal()
     dock_requested = pyqtSignal()   # emesso quando l'utente clicca 📌
     undock_requested = pyqtSignal() # emesso quando l'utente clicca 📌 di nuovo
-    
+
     def __init__(self, file_path, docked=False, parent=None):
         super().__init__(parent)
         self.file_path = file_path
         self._docked = docked
         self.setObjectName("editor_widget")
-        
+
         if docked:
             # Stile dockato: senza bordo arrotondato grande, occupa tutta l'altezza
             self.setStyleSheet(
@@ -246,16 +246,16 @@ class FileEditorWidget(QFrame):
                 "QFrame#editor_widget { background:#ffffff; border:1px solid #e0e0e0; "
                 "border-radius:12px; }"
             )
-        
+
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 10, 12, 10)
         lay.setSpacing(6)
-        
+
         # Header
         head = QHBoxLayout()
         head.addWidget(QLabel(f"<b>📝 {os.path.basename(file_path)}</b>"))
         head.addStretch()
-        
+
         # Pulsante dock/undock
         self.dock_btn = QPushButton("📌 Dock" if not docked else "📌 Undock")
         self.dock_btn.setFixedHeight(28)
@@ -267,24 +267,24 @@ class FileEditorWidget(QFrame):
         )
         self.dock_btn.clicked.connect(self._on_dock_toggle)
         head.addWidget(self.dock_btn)
-        
+
         save_btn = QPushButton("💾 Salva")
         save_btn.setObjectName("primary_btn")
         save_btn.setFixedHeight(28)
         save_btn.clicked.connect(self._save)
         head.addWidget(save_btn)
-        
+
         close_btn = QPushButton("✕")
         close_btn.setFixedSize(28, 28)
         close_btn.clicked.connect(self.closed.emit)
         head.addWidget(close_btn)
         lay.addLayout(head)
-        
+
         # Path
         path_lbl = QLabel(file_path)
         path_lbl.setStyleSheet("color:#888; font-size:10px; font-family:monospace;")
         lay.addWidget(path_lbl)
-        
+
         # Editor
         self.editor = QTextEdit()
         self.editor.setStyleSheet(
@@ -293,20 +293,20 @@ class FileEditorWidget(QFrame):
             "font-size:12px; padding:8px; }"
         )
         lay.addWidget(self.editor)
-        
+
         # Status
         self.status = QLabel("Pronto")
         self.status.setStyleSheet("color:#666; font-size:11px;")
         lay.addWidget(self.status)
-        
+
         self._load_file()
-    
+
     def _on_dock_toggle(self):
         if self._docked:
             self.undock_requested.emit()
         else:
             self.dock_requested.emit()
-    
+
     def _load_file(self):
         try:
             with open(self.file_path, "r", encoding="utf-8", errors="replace") as f:
@@ -315,7 +315,7 @@ class FileEditorWidget(QFrame):
         except Exception as e:
             self.editor.setPlainText(f"[Errore lettura: {e}]")
             self.status.setText("Errore")
-    
+
     def _save(self):
         try:
             with open(self.file_path, "w", encoding="utf-8") as f:
@@ -364,7 +364,7 @@ class ControlCenter(QMainWindow):
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick_metrics)
         self._timer.start(1500)
-        
+
         # Stato editor
         self._editor_overlay = None   # flottante
         self._editor_docked = None    # dockato a destra
@@ -537,15 +537,15 @@ class ControlCenter(QMainWindow):
             # Aggiorna header
             # (ricostruiamo l'header con il nuovo nome)
             return
-        
+
         if self._editor_overlay:
             self._editor_overlay.close()
             self._editor_overlay.deleteLater()
-        
+
         self._editor_overlay = FileEditorWidget(file_path, docked=False, self.centralWidget())
         self._editor_overlay.closed.connect(self._close_overlay)
         self._editor_overlay.dock_requested.connect(lambda: self._dock_editor(file_path))
-        
+
         cw = self.centralWidget().size()
         self._editor_overlay.move(
             (cw.width() - self._editor_overlay.width()) // 2,
@@ -553,33 +553,33 @@ class ControlCenter(QMainWindow):
         )
         self._editor_overlay.show()
         self._editor_overlay.raise_()
-    
+
     def _close_overlay(self):
         if self._editor_overlay:
             self._editor_overlay.deleteLater()
             self._editor_overlay = None
-    
+
     # ── Editor dockato a destra ──
     def _dock_editor(self, file_path):
         """Aggancia l'editor come colonna a destra della Plancia."""
         # Chiudi l'overlay flottante
         self._close_overlay()
-        
+
         # Crea widget dockato
         self._editor_docked = FileEditorWidget(file_path, docked=True)
         self._editor_docked.closed.connect(self._undock_editor)
         self._editor_docked.undock_requested.connect(lambda: self._undock_editor_to_float(file_path))
-        
+
         # Inserisci come colonna a destra nel CenterArea
         self.center.attach_editor_column(self._editor_docked)
-    
+
     def _undock_editor(self):
         """Rimuove l'editor dockato (chiude)."""
         if self._editor_docked:
             self.center.detach_editor_column()
             self._editor_docked.deleteLater()
             self._editor_docked = None
-    
+
     def _undock_editor_to_float(self, file_path):
         """Sgancia l'editor dockato e lo rende flottante."""
         self.center.detach_editor_column()
@@ -643,7 +643,7 @@ class ProjectTabBar(QTabBar):
 
 class FileTreeDrawer(QFrame):
     file_open_requested = pyqtSignal(str)
-    
+
     def __init__(self, parent):
         super().__init__()
         self.setObjectName("drawer")
@@ -662,7 +662,7 @@ class FileTreeDrawer(QFrame):
         self.tree = QTreeView()
         self.tree.setAlternatingRowColors(True)
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        
+
         self.model = QFileSystemModel()
         self.model.setRootPath("./")
         self.model.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.AllDirs | QDir.Filter.Files)
@@ -675,10 +675,10 @@ class FileTreeDrawer(QFrame):
         self.tree.setIndentation(14)
         self.tree.header().setStretchLastSection(False)
         self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        
+
         self.tree.clicked.connect(self._on_tree_click)
         self.tree.customContextMenuRequested.connect(self._on_tree_context_menu)
-        
+
         lay.addWidget(self.tree)
 
         sep = QFrame()
@@ -736,7 +736,7 @@ class FileTreeDrawer(QFrame):
         self._anim.setDuration(220)
         self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         self._open = True
-        
+
         self.main_win = parent
 
     def _on_tree_click(self, index):
@@ -748,10 +748,10 @@ class FileTreeDrawer(QFrame):
         index = self.tree.indexAt(pos)
         if not index.isValid():
             return
-        
+
         path = self.model.filePath(index)
         is_file = os.path.isfile(path)
-        
+
         menu = QMenu(self)
         menu.setStyleSheet(
             "QMenu { background:#ffffff; border:1px solid #e0e0e0; border-radius:8px; "
@@ -760,23 +760,23 @@ class FileTreeDrawer(QFrame):
             "QMenu::item:selected { background:#f0f9ff; }"
             "QMenu::separator { height:1px; background:#e0e0e0; margin:3px 6px; }"
         )
-        
+
         if is_file:
             act_edit = QAction("✏️ Modifica file", self)
             act_edit.triggered.connect(lambda: self.main_win._show_file_editor(path))
             menu.addAction(act_edit)
             menu.addSeparator()
-        
+
         act_rename = QAction("📝 Rinomina", self)
         act_rename.triggered.connect(lambda: self._rename_item(path))
         menu.addAction(act_rename)
-        
+
         act_delete = QAction("🗑️ Cancella", self)
         act_delete.triggered.connect(lambda: self._delete_item(path))
         menu.addAction(act_delete)
-        
+
         menu.exec(self.tree.viewport().mapToGlobal(pos))
-    
+
     def _rename_item(self, path):
         old_name = os.path.basename(path)
         new_name, ok = QInputDialog.getText(
@@ -789,7 +789,7 @@ class FileTreeDrawer(QFrame):
                 self.model.setRootPath("./")
             except Exception as e:
                 QMessageBox.warning(self, "Errore", f"Impossibile rinominare:\n{e}")
-    
+
     def _delete_item(self, path):
         name = os.path.basename(path)
         reply = QMessageBox.question(
@@ -830,25 +830,25 @@ class CenterArea(QWidget):
         super().__init__()
         self.main_win = parent
         self._editor_column = None
-        
+
         # Layout principale: [main_content | editor_docked]
         root = QHBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
-        
+
         # Contenitore principale (logs + plancia)
         self.main_content = QWidget()
         main_lay = QVBoxLayout(self.main_content)
         main_lay.setContentsMargins(16, 16, 16, 16)
         main_lay.setSpacing(12)
-        
+
         # Header Plancia
         self.plancia_header = QLabel("✈️ Plancia di controllo")
         self.plancia_header.setStyleSheet(
             "font-size:13px; font-weight:bold; color:#2563eb; padding:4px 0;"
         )
         main_lay.addWidget(self.plancia_header)
-        
+
         # Logs toggle
         self.log_toggle = QPushButton("📜 Logs  [▾ collassa]")
         self.log_toggle.setStyleSheet(
@@ -857,7 +857,7 @@ class CenterArea(QWidget):
         )
         self.log_toggle.clicked.connect(self._toggle_logs)
         main_lay.addWidget(self.log_toggle)
-        
+
         # Log panel
         self.log_panel = QTextEdit()
         self.log_panel.setReadOnly(True)
@@ -873,19 +873,19 @@ class CenterArea(QWidget):
         )
         self.log_panel.setPlainText(sample)
         main_lay.addWidget(self.log_panel, stretch=1)
-        
+
         # Griglia Plancia (nascosta di default)
         self.menu_grid = self._build_menu_grid()
         self.menu_grid.hide()
         main_lay.addWidget(self.menu_grid, stretch=1)
-        
+
         root.addWidget(self.main_content, stretch=1)
-        
+
         # Pagine funzionali
         self.stack = QStackedWidget()
         self.stack.hide()  # nascosto finché non si apre un pannello
         root.addWidget(self.stack)
-        
+
         self.panel_pages = {}
         for key, title, content in [
             ("coda", "📋 Coda Task", "3 task in coda · 1 in esecuzione · 1 completato"),
@@ -899,9 +899,9 @@ class CenterArea(QWidget):
             page = self._build_panel_page(title, content, key)
             self.panel_pages[key] = page
             self.stack.addWidget(page)
-        
+
         self._logs_visible = True
-    
+
     def attach_editor_column(self, editor_widget):
         """Aggiunge l'editor come colonna a destra."""
         if self._editor_column:
@@ -909,13 +909,13 @@ class CenterArea(QWidget):
         self._editor_column = editor_widget
         self._editor_column.setFixedWidth(500)
         self.layout().addWidget(self._editor_column)
-    
+
     def detach_editor_column(self):
         """Rimuove la colonna editor."""
         if self._editor_column:
             self.layout().removeWidget(self._editor_column)
             self._editor_column = None
-    
+
     def _toggle_logs(self):
         self._logs_visible = not self._logs_visible
         if self._logs_visible:
@@ -928,13 +928,13 @@ class CenterArea(QWidget):
             self.menu_grid.show()
             self.plancia_header.show()
             self.log_toggle.setText("📜 Logs  [▴ espandi]")
-    
+
     def _build_menu_grid(self):
         grid = QWidget()
         lay = QGridLayout(grid)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(12)
-        
+
         cards = [
             ("coda", "📋 Coda Task", "3 in coda · 1 running", "1 running", "#f59e0b"),
             ("modelli", "🤖 Modelli", "4 caricati · qwen2.5 attivo", "4 loaded", "#2563eb"),
@@ -948,24 +948,24 @@ class CenterArea(QWidget):
             card = ClickableCard(title, sub, badge=badge, badge_color=badge_color)
             card.clicked.connect(lambda k=key: self._open_panel(k))
             lay.addWidget(card, i // 4, i % 4)
-        
+
         lay.setRowStretch(1, 1)
         for c in range(4):
             lay.setColumnStretch(c, 1)
         return grid
-    
+
     def _open_panel(self, key):
         if key in self.panel_pages:
             self.main_content.hide()
             self.stack.setCurrentWidget(self.panel_pages[key])
             self.stack.show()
-    
+
     def _build_panel_page(self, title, content, key):
         page = QWidget()
         lay = QVBoxLayout(page)
         lay.setContentsMargins(20, 20, 20, 20)
         lay.setSpacing(14)
-        
+
         head = QHBoxLayout()
         back = QPushButton("← Indietro alla Plancia")
         back.clicked.connect(self._back_to_plancia)
@@ -974,14 +974,14 @@ class CenterArea(QWidget):
         head.addWidget(QLabel(f"<b style='font-size:18px;'>{title}</b>"))
         head.addStretch()
         lay.addLayout(head)
-        
+
         body = QLabel(content)
         body.setStyleSheet("font-size:14px; color:#333; padding:20px; "
                            "background:#f8f9fa; border-radius:8px; border:1px solid #e0e0e0;")
         body.setWordWrap(True)
         lay.addWidget(body, stretch=1)
         return page
-    
+
     def _back_to_plancia(self):
         self.stack.hide()
         self.main_content.show()

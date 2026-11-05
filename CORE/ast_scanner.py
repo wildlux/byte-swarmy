@@ -23,15 +23,15 @@ _ARTIFACT_HINT = (
 
 class ASTSecurityScanner:
     """
-    Scanner di sicurezza deterministico. 
+    Scanner di sicurezza deterministico.
     Analizza il codice sorgente per identificare chiamate a funzioni vietate.
     """
 
     # Funzioni assolutamente vietate
     BANNED_FUNCTIONS = {
-        "eval", "exec", "compile", "getattr", "setattr", 
-        "__import__", "importlib.import_module", "os.system", 
-        "os.popen", "subprocess.Popen", "subprocess.call", 
+        "eval", "exec", "compile", "getattr", "setattr",
+        "__import__", "importlib.import_module", "os.system",
+        "os.popen", "subprocess.Popen", "subprocess.call",
         "subprocess.run", "subprocess.check_output", "subprocess.check_call",
         "shutil.rmtree", "os.remove", "os.unlink", "os.rmdir"
     }
@@ -46,7 +46,7 @@ class ASTSecurityScanner:
 
     def scan(self, code: str) -> Tuple[bool, str]:
         """
-        Analizza il codice e ritorna (True, "") se sicuro, 
+        Analizza il codice e ritorna (True, "") se sicuro,
         oppure (False, "motivo") se viene rilevata una violazione.
         """
         self.violations = []
@@ -78,7 +78,7 @@ class ASTSecurityScanner:
 
         if self.violations:
             return False, "; ".join(self.violations)
-        
+
         return True, ""
 
     def _get_func_name(self, node) -> str:

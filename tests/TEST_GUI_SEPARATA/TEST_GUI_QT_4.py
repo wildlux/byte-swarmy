@@ -26,29 +26,29 @@ class DevicePanel(QFrame):
             "QFrame#device_panel { background:#f8f9fa; border:1px solid #e0e0e0; "
             "border-radius:8px; padding:3px; }"
         )
-        
+
         lay = QHBoxLayout(self)
         lay.setContentsMargins(4, 3, 4, 3)
         lay.setSpacing(6)
-        
+
         # Colonna CPU + GPU
         devices_col = QVBoxLayout()
         devices_col.setSpacing(3)
         devices_col.setContentsMargins(0, 0, 0, 0)
-        
+
         self.cpu_box = self._device_row("CPU", "#16a34a", "qwen2.5:1.5b")
         self.gpu_box = self._device_row("GPU", "#2563eb", "—")
-        
+
         devices_col.addWidget(self.cpu_box)
         devices_col.addWidget(self.gpu_box)
         lay.addLayout(devices_col)
-        
+
         # Separatore
         sep = QFrame()
         sep.setFixedWidth(1)
         sep.setStyleSheet("background:#d0d0d0;")
         lay.addWidget(sep)
-        
+
         # Pulsante Orchestratore
         self.toggle_btn = QPushButton("▶")
         self.toggle_btn.setFixedWidth(40)
@@ -56,7 +56,7 @@ class DevicePanel(QFrame):
         self.toggle_btn.setObjectName("primary_btn")
         self.toggle_btn.setToolTip("Avvia/Ferma Orchestratore")
         lay.addWidget(self.toggle_btn)
-    
+
     def _device_row(self, name, color, model_name):
         row = QFrame()
         row.setObjectName(f"{name.lower()}_row")
@@ -67,30 +67,30 @@ class DevicePanel(QFrame):
         lay = QHBoxLayout(row)
         lay.setContentsMargins(4, 2, 4, 2)
         lay.setSpacing(4)
-        
+
         lbl = QLabel(f"<b>{name}</b>")
         lbl.setStyleSheet(f"color:{color}; font-size:10px; font-weight:bold;")
         lbl.setFixedWidth(28)
         lay.addWidget(lbl)
-        
+
         # Modello compatto (troncato se troppo lungo)
         model_lbl = QLabel(model_name)
         model_lbl.setStyleSheet("color:#555; font-size:9px;")
         model_lbl.setFixedWidth(70)
         lay.addWidget(model_lbl)
-        
+
         # Metrici compatti (senza emoji per risparmiare spazio)
         temp_lbl = QLabel("45°C")
         tok_lbl = QLabel("12t/s")
         kv_lbl = QLabel("2.1G")
         mem_lbl = QLabel("65%")
         bus_lbl = QLabel("800M")
-        
+
         for w in (temp_lbl, tok_lbl, kv_lbl, mem_lbl, bus_lbl):
             w.setStyleSheet("color:#444; font-size:9px;")
             w.setFixedWidth(32)
             lay.addWidget(w)
-        
+
         row._temp = temp_lbl
         row._tok = tok_lbl
         row._kv = kv_lbl
@@ -106,28 +106,28 @@ class DevicePanel(QFrame):
 class ClickableCard(QFrame):
     """Card cliccabile con titolo e sottotitolo renderizzati correttamente."""
     clicked = pyqtSignal()
-    
+
     def __init__(self, title, subtitle, parent=None):
         super().__init__(parent)
         self.setObjectName("card")
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        
+
         lay = QVBoxLayout(self)
         lay.setContentsMargins(16, 14, 16, 14)
         lay.setSpacing(4)
-        
+
         self.title_lbl = QLabel(title)
         self.title_lbl.setStyleSheet("font-size:15px; font-weight:bold; color:#1a1a1a;")
         lay.addWidget(self.title_lbl)
-        
+
         self.sub_lbl = QLabel(subtitle)
         self.sub_lbl.setStyleSheet("font-size:11px; color:#666;")
         lay.addWidget(self.sub_lbl)
-        
+
         lay.addStretch()
-        
+
         self._apply_style(normal=True)
-    
+
     def _apply_style(self, normal):
         if normal:
             self.setStyleSheet(
@@ -139,13 +139,13 @@ class ClickableCard(QFrame):
                 "QFrame#card { background:#f0f9ff; border:1px solid #16a34a; "
                 "border-radius:10px; }"
             )
-    
+
     def enterEvent(self, event):
         self._apply_style(normal=False)
-    
+
     def leaveEvent(self, event):
         self._apply_style(normal=True)
-    
+
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()

@@ -35,7 +35,7 @@ class TaskDispatcher:
                             t["subtask_ids"] = [s["id"] for s in subtasks]
                     self.queue._save()
                     return f"Decomposed into {len(subtasks)} tasks"
-        
+
         # 2. Classic Planning
         if self._needs_planning(task):
             subtasks = self.planner.decompose(task)

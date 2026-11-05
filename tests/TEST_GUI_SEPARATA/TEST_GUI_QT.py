@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QFrame, QTreeView, QScrollArea, QGridLayout,
     QSizePolicy, QAbstractItemView, QSplitter, QHeaderView
 )
-from PyQt6.QtGui import QFont, QFileSystemModel 
+from PyQt6.QtGui import QFont, QFileSystemModel
 from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, pyqtSignal, QDir, QTimer
 
 
@@ -125,7 +125,7 @@ class ControlCenter(QMainWindow):
         kv_lbl = QLabel("📦 KV: —")
         mem_lbl = QLabel("💾 —%")
         bus_lbl = QLabel("🔌 —MHz")
-        
+
         for w in (temp_lbl, tok_lbl, kv_lbl, mem_lbl, bus_lbl):
             w.setStyleSheet("color:#c8c8d8; font-size:10px;")
             lay.addWidget(w)

@@ -94,18 +94,18 @@ def test_binary_info_on_real_binary():
         if not env.get("file_cmd"):
             warn("file command not available, skipping")
             return True  # don't fail test if tool not installed
-        
+
         if not Path("/bin/ls").exists():
             warn("/bin/ls not found, trying /usr/bin/ls")
             target = "/usr/bin/ls"
         else:
             target = "/bin/ls"
-        
+
         result = call_re_tool("binary_info", [target])
         if "ERROR" in result:
             warn(f"binary_info returned error: {result[:100]}")
             return True  # don't fail if file output unavailable
-        
+
         assert "ELF" in result or "elf" in result.lower() or "executable" in result.lower()
         ok(f"binary_info on {target} returns valid info")
         # Show first 200 chars
@@ -120,17 +120,17 @@ def test_extract_strings():
     print("\n=== TEST 6: extract_strings ===")
     try:
         from CORE.re_tools import call_re_tool
-        
+
         target = "/bin/ls" if Path("/bin/ls").exists() else "/usr/bin/ls"
         if not Path(target).exists():
             warn("No /bin/ls to test on")
             return True
-        
+
         result = call_re_tool("extract_strings", [target, 8, 20])  # min_len=8, max=20
         if "ERROR" in result:
             warn(f"extract_strings returned error: {result[:100]}")
             return True
-        
+
         # Should find some strings (ls has many)
         assert "String" in result or "strings" in result.lower()
         ok(f"extract_strings on {target} returns strings")
@@ -149,12 +149,12 @@ def test_disassemble_capstone():
         if not env.get("capstone_python"):
             warn("capstone not installed, skipping (pip install capstone)")
             return True
-        
+
         target = "/bin/ls" if Path("/bin/ls").exists() else "/usr/bin/ls"
         if not Path(target).exists():
             warn("No /bin/ls to test on")
             return True
-        
+
         # Read ELF header offset (e_entry is at offset 24 for 64-bit ELF)
         # Just try offset 0 with x86_64
         result = call_re_tool("disassemble_capstone", [target, "x86", "64", 0x1000, 10])
@@ -164,7 +164,7 @@ def test_disassemble_capstone():
             result = call_re_tool("disassemble_capstone", [target, "x86", "64", 0, 10])
             if "ERROR" in result:
                 return True  # don't fail
-        
+
         ok(f"disassemble_capstone on {target} returns disassembly")
         print(f"    Output preview: {result[:200]}...")
         return True
@@ -178,34 +178,34 @@ def test_pcap_analysis():
     try:
         from CORE.re_tools import call_re_tool, check_re_environment
         env = check_re_environment()
-        
+
         if not env.get("tshark") and not env.get("pyshark_python"):
             warn("Neither tshark nor pyshark available, skipping (install: sudo apt install tshark)")
             return True
-        
+
         # Test on non-existent file (should fail gracefully)
         result = call_re_tool("analyze_pcap", ["/tmp/nonexistent.pcap"])
         assert "ERROR" in result
         ok("analyze_pcap handles missing file gracefully")
-        
+
         # Generate a tiny test pcap with scapy if available
         try:
             from scapy.all import IP, TCP, wrpcap
             test_pcap = "/tmp/test_re.pcap"
             wrpcap(test_pcap, [IP(src="1.1.1.1", dst="2.2.2.2")/TCP(dport=80)])
             ok(f"Created test pcap: {test_pcap}")
-            
+
             result = call_re_tool("analyze_pcap", [test_pcap])
             if "ERROR" in result:
                 warn(f"analyze_pcap returned error on real pcap: {result[:100]}")
             else:
                 ok("analyze_pcap works on synthetic pcap")
                 print(f"    Output preview: {result[:200]}...")
-            
+
             os.unlink(test_pcap)
         except ImportError:
             warn("scapy not installed, skipping real pcap test")
-        
+
         return True
     except Exception as e:
         fail(f"test_pcap_analysis failed: {e}")
@@ -235,7 +235,7 @@ def main():
     print("\n" + "="*60)
     print("  🐝 byte-swarmy RE tools — Test Suite")
     print("="*60)
-    
+
     tests = [
         ("Environment check", test_environment_check),
         ("Tool registry", test_tool_registry),
@@ -247,7 +247,7 @@ def main():
         ("pcap analysis", test_pcap_analysis),
         ("Tool registry consistency", test_tool_signatures_consistent),
     ]
-    
+
     results = []
     for desc, test in tests:
         try:
@@ -256,7 +256,7 @@ def main():
         except Exception as e:
             fail(f"Test '{desc}' crashed: {e}")
             results.append((desc, False))
-    
+
     print("\n" + "="*60)
     print("  RIASSUNTO")
     print("="*60)
@@ -268,7 +268,7 @@ def main():
     pct = passed / total * 100 if total else 0
     print(f"\n  {passed}/{total} ({pct:.0f}%)")
     print("="*60 + "\n")
-    
+
     sys.exit(0 if passed == total else 1)
 
 if __name__ == "__main__":

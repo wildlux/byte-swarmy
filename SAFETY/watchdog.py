@@ -38,7 +38,7 @@ def run_orchestrator():
                 text=True,
                 bufsize=1
             )
-            
+
             # Monitora l'output in tempo reale per loggare eventuali crash
             while True:
                 line = process.stdout.readline()
@@ -47,17 +47,17 @@ def run_orchestrator():
                 # Loggiamo l'output dell'orchestratore per debug
                 if "ERROR" in line or "Exception" in line or "SyntaxError" in line:
                     logger.error(f"Rilevato errore nell'orchestratore: {line.strip()}")
-                
+
             return_code = process.wait()
             if return_code == 0:
                 logger.info("L'orchestratore è stato terminato correttamente.")
                 sys.exit(0)
             else:
                 logger.warning(f"L'orchestratore è crashato con codice {return_code}. Riavvio in corso...")
-                
+
         except Exception as e:
             logger.error(f"Errore critico durante l'esecuzione dell'orchestratore: {e}")
-            
+
         time.sleep(1) # Evita loop infiniti a velocità massima in caso di errori fatali immediati
 
 if __name__ == "__main__":

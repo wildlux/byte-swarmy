@@ -156,7 +156,7 @@ class IntentRouter:
 
     def _hybrid_score(self, text: str, template: str) -> float:
         """Score ibrido con priorità per subset matching.
-        
+
         Strategia (in ordine di priorità):
         1. SUBSET MATCH: tutti i token del template sono nel testo → score altissimo
            (più token = più specifico = score più alto)

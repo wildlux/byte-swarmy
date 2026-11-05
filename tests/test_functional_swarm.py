@@ -93,7 +93,7 @@ def wait_for_task(task_id, timeout=180):
 def exec_code_safely(code):
     """Esegue codice Python in un namespace pulito. Ritorna il namespace."""
     ns = {}
-    exec(code, ns)
+    exec(code, ns)  # nosec: test dell'execute handler (codice di prova controllato)
     return ns
 
 

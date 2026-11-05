@@ -66,7 +66,7 @@ def get_logs(n=50):
 def add_task_to_db(title, description="", task_type="code"):
     """Aggiunge un task al database SQLite e al mirror JSON."""
     task_id = f"task-{int(time.time()*1000)}"
-    
+
     conn = sqlite3.connect(str(DB_PATH))
     conn.execute(
         "INSERT INTO tasks (id, title, description, context, status, "
@@ -77,7 +77,7 @@ def add_task_to_db(title, description="", task_type="code"):
     )
     conn.commit()
     conn.close()
-    
+
     json_file = BASE_DIR / "tasks" / "queue.json"
     tasks = []
     if json_file.exists():
@@ -92,7 +92,7 @@ def add_task_to_db(title, description="", task_type="code"):
         "source": "gui", "type": task_type,
     })
     json_file.write_text(json.dumps(tasks, indent=2))
-    
+
     return task_id
 
 

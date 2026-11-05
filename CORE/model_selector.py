@@ -168,34 +168,34 @@ def score_model_for_role(model: dict, role: str, hardware: dict) -> tuple:
     role_def = ROLE_DEFINITIONS[role]
     reasons = []
     score = 50.0  # base
-    
+
     # === HARD GATE: capability richiesta ===
     req_cap = role_def["required_capability"]
     if req_cap:
         if req_cap not in model["capabilities"]:
             return (0, f"missing required capability: {req_cap}")
-    
+
     # Embedding: deve avere SOLO embedding (non completion)
     if role == "embedding":
         if "completion" in model["capabilities"]:
             return (0, "is a chat model, not pure embedding")
-    
+
     # === HARD GATE: size vs VRAM ===
     vram_gb = hardware.get("vram_gb", 0)
     ram_gb = hardware.get("ram_gb", 0)
     model_gb = model["size_gb"]
-    
+
     if vram_gb > 0:
         # Lascia 25% per KV cache e altro
         max_vram = vram_gb * 0.75
         if model_gb > max_vram:
             return (0, f"too big for VRAM ({model_gb:.1f}GB > {max_vram:.1f}GB available)")
-    
+
     if ram_gb > 0 and model_gb > ram_gb * 0.5:
         return (0, f"too big for RAM ({model_gb:.1f}GB > {ram_gb*0.5:.1f}GB limit)")
-    
+
     # === SCORING ===
-    
+
     # 1. Size score: più vicino all'ideal_size, meglio è
     ideal = role_def["ideal_size_gb"]
     max_size = role_def["max_size_gb"]
@@ -211,7 +211,7 @@ def score_model_for_role(model: dict, role: str, hardware: dict) -> tuple:
         size_score = -10
         reasons.append(f"size {model_gb:.1f}GB > max {max_size}GB")
     score += size_score
-    
+
     # 2. Family score
     family = model["family"]
     families = model["families"] or [family]
@@ -220,7 +220,7 @@ def score_model_for_role(model: dict, role: str, hardware: dict) -> tuple:
     if family_match:
         score += 15
         reasons.append(f"family {family} preferred")
-    
+
     # 3. Name match (preferred names)
     if model["name"] in role_def["preferred_names"]:
         score += 20
@@ -233,13 +233,13 @@ def score_model_for_role(model: dict, role: str, hardware: dict) -> tuple:
                 score += 15
                 reasons.append(f"name contains '{kw}'")
                 break
-    
+
     # 4. Preferred capability (es. decision)
     pref_cap = role_def.get("preferred_capability")
     if pref_cap and pref_cap in model["capabilities"]:
         score += 25
         reasons.append(f"has preferred capability: {pref_cap}")
-    
+
     # 5. Thermal penalty (se GPU calda, preferisci modelli piccoli)
     gpu_temp = hardware.get("temp_c", 0)
     if gpu_temp > 85 and model_gb > 2.0:
@@ -248,7 +248,7 @@ def score_model_for_role(model: dict, role: str, hardware: dict) -> tuple:
     elif gpu_temp > 75 and model_gb > 3.0:
         score -= 8
         reasons.append(f"minor thermal penalty")
-    
+
     # 6. Quantization bonus (Q4_K_M è buon compromesso)
     quant = model.get("quantization", "")
     if "Q4_K_M" in quant:
@@ -260,7 +260,7 @@ def score_model_for_role(model: dict, role: str, hardware: dict) -> tuple:
     elif "BF16" in quant or "F16" in quant:
         score -= 5  # troppo grosso senza quantization
         reasons.append("unquantized (BF16/F16) - too big")
-    
+
     # Clamp 0-100
     score = max(0, min(100, score))
     return (score, "; ".join(reasons))
@@ -271,7 +271,7 @@ def get_recommendations(
     config_path: str = "CONFIG/config.toml",
 ) -> dict:
     """Calcola raccomandazioni per tutti i ruoli.
-    
+
     Returns:
         {
             "orchestrator": {"model": "qwen2.5:0.5b", "score": 95.0, "reason": "..."},
@@ -283,36 +283,36 @@ def get_recommendations(
     """
     models = get_ollama_models(ollama_host)
     hardware = {**get_gpu_info(), **get_ram_info()}
-    
+
     recs = {
         "_hardware": hardware,
         "_available_models": len(models),
         "_timestamp": __import__("time").time(),
     }
-    
+
     for role in ROLE_DEFINITIONS:
         if not models:
             recs[role] = {"model": None, "score": 0, "reason": "no models available"}
             continue
-        
+
         # Score tutti i modelli
         scored = []
         for m in models:
             score, reason = score_model_for_role(m, role, hardware)
             if score > 0:
                 scored.append((score, m, reason))
-        
+
         if not scored:
             recs[role] = {
                 "model": None, "score": 0,
                 "reason": f"no suitable model (all rejected by hard gates)"
             }
             continue
-        
+
         # Sort per score desc
         scored.sort(key=lambda x: x[0], reverse=True)
         best_score, best_model, best_reason = scored[0]
-        
+
         recs[role] = {
             "model": best_model["name"],
             "score": best_score,
@@ -323,7 +323,7 @@ def get_recommendations(
                 for s in scored[1:4]  # top 3 alternative
             ],
         }
-    
+
     return recs
 
 
@@ -338,15 +338,15 @@ def apply_recommendations(recs: dict, config_path: str = "CONFIG/config.toml") -
     try:
         import tomllib
         import shutil
-        
+
         # Backup
         backup = Path(config_path).with_suffix(".toml.bak.autoselect")
         shutil.copy2(config_path, backup)
-        
+
         # Leggi config attuale
         with open(config_path, "rb") as f:
             cfg = tomllib.load(f)
-        
+
         # Aggiorna [models.*]
         models_cfg = cfg.get("models", {})
         role_to_section = {
@@ -362,18 +362,18 @@ def apply_recommendations(recs: dict, config_path: str = "CONFIG/config.toml") -
                 if section not in models_cfg:
                     models_cfg[section] = {}
                 models_cfg[section]["name"] = rec["model"]
-        
+
         # Aggiorna [decision_models.active] e [decision_models.tev1].enabled
         # (il modello raccomandato diventa active, gli altri disabled)
         decision_rec = recs.get("decision", {})
         if decision_rec.get("model"):
             decision_cfg = cfg.get("decision_models", {})
             recommended = decision_rec["model"]
-            
+
             # Cerca la sezione che ha questo modello, o creane una nuova
             # basata sul nome modello
             model_section_name = recommended.split(":")[0].replace("-", "_").replace(".", "_")
-            
+
             # Disabilita tutti gli altri decision models
             for key, val in decision_cfg.items():
                 if isinstance(val, dict) and "enabled" in val:
@@ -382,7 +382,7 @@ def apply_recommendations(recs: dict, config_path: str = "CONFIG/config.toml") -
                         decision_cfg["active"] = key
                     else:
                         val["enabled"] = False
-            
+
             # Se nessuno matcha, aggiungi una sezione nuova
             if not any(
                 isinstance(v, dict) and v.get("name") == recommended
@@ -395,23 +395,23 @@ def apply_recommendations(recs: dict, config_path: str = "CONFIG/config.toml") -
                     "num_ctx": 4096,
                 }
                 decision_cfg["active"] = model_section_name
-            
+
             cfg["decision_models"] = decision_cfg
             cfg["models"] = models_cfg
-        
+
         # Scrivi config con tomli_w
         try:
             import tomli_w
         except ImportError:
             log.error("tomli_w non installato. Installa con: pip install tomli-w")
             return False
-        
+
         with open(config_path, "wb") as f:
             tomli_w.dump(cfg, f)
-        
+
         log.info(f"config aggiornato con auto-selezione (backup: {backup})")
         return True
-    
+
     except Exception as e:
         log.error(f"apply_recommendations failed: {e}")
         return False
@@ -420,21 +420,21 @@ def apply_recommendations(recs: dict, config_path: str = "CONFIG/config.toml") -
 def format_recommendations(recs: dict) -> str:
     """Formatta le raccomandazioni per display testuale."""
     lines = ["🎯 Auto-selezione modelli:", "=" * 60]
-    
+
     hw = recs.get("_hardware", {})
     lines.append(f"Hardware: VRAM {hw.get('vram_gb', 0):.1f}GB | "
                  f"RAM {hw.get('ram_gb', 0):.1f}GB | "
                  f"GPU {hw.get('temp_c', 0):.0f}°C")
     lines.append(f"Modelli disponibili: {recs.get('_available_models', 0)}")
     lines.append("")
-    
+
     for role in ROLE_DEFINITIONS:
         rec = recs.get(role, {})
         model = rec.get("model", "—")
         score = rec.get("score", 0)
         reason = rec.get("reason", "")
         size = rec.get("size_gb", 0)
-        
+
         if model:
             icon = "✓" if score >= 70 else ("⚠" if score >= 40 else "✗")
             lines.append(f"{icon} {role:15} → {model:30} (score: {score:.0f}/100, {size:.1f}GB)")
@@ -448,7 +448,7 @@ def format_recommendations(recs: dict) -> str:
             lines.append(f"✗ {role:15} → NESSUN MODELLO ADATTO")
             lines.append(f"  reason: {reason}")
         lines.append("")
-    
+
     return "\n".join(lines)
 
 
@@ -461,10 +461,10 @@ if __name__ == "__main__":
     print("=" * 60)
     print("MODEL SELECTOR - TEST")
     print("=" * 60)
-    
+
     recs = get_recommendations()
     print(format_recommendations(recs))
-    
+
     if "--apply" in sys.argv:
         print("\n→ Applicazione al config.toml...")
         if apply_recommendations(recs):

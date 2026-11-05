@@ -67,10 +67,10 @@ class SQLiteMemoryProvider(MemoryProvider):
         content = event.get("content", "")
         type_ = event.get("type", "event")
         ts = event.get("ts", time.time())
-        
+
         # Metadata salvati come JSON
         meta = {k: v for k, v in event.items() if k not in ("content", "type", "ts")}
-        
+
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT INTO events (agent_id, ts, type, content, metadata) VALUES (?, ?, ?, ?, ?)",
@@ -85,9 +85,9 @@ class SQLiteMemoryProvider(MemoryProvider):
             params = [agent_id]
             if limit:
                 query += f" LIMIT {int(limit)}"
-            
+
             rows = conn.execute(query, params).fetchall()
-            
+
             events = []
             for row in rows:
                 event = dict(row)
@@ -100,7 +100,7 @@ class SQLiteMemoryProvider(MemoryProvider):
             return events
 
     def clear_short_term(self, agent_id: str) -> None:
-        # In Event Sourcing, non cancelliamo i dati, ma potremmo marcare 
+        # In Event Sourcing, non cancelliamo i dati, ma potremmo marcare
         # l'inizio di una nuova sessione. Per ora lasciamo vuoto per compatibilità.
         pass
 

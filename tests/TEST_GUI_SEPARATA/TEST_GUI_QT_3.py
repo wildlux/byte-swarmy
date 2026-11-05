@@ -20,7 +20,7 @@ from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, pyqtSignal, QDir,
 # ═══════════════════════════════════════════════════════════════
 class DevicePanel(QFrame):
     """Widget unico che contiene CPU (sopra), GPU (sotto) e pulsante ▶ (a destra)."""
-    
+
     def __init__(self):
         super().__init__()
         self.setObjectName("device_panel")
@@ -28,29 +28,29 @@ class DevicePanel(QFrame):
             "QFrame#device_panel { background:#f8f9fa; border:1px solid #e0e0e0; "
             "border-radius:8px; padding:4px; }"
         )
-        
+
         lay = QHBoxLayout(self)
         lay.setContentsMargins(6, 4, 6, 4)
         lay.setSpacing(8)
-        
+
         # Colonna sinistra: CPU + GPU impilati
         devices_col = QVBoxLayout()
         devices_col.setSpacing(4)
         devices_col.setContentsMargins(0, 0, 0, 0)
-        
+
         self.cpu_box = self._device_row("CPU", "#16a34a", "qwen2.5-coder:1.5b")
         self.gpu_box = self._device_row("GPU", "#2563eb", "—")
-        
+
         devices_col.addWidget(self.cpu_box)
         devices_col.addWidget(self.gpu_box)
         lay.addLayout(devices_col)
-        
+
         # Separatore verticale
         sep = QFrame()
         sep.setFixedWidth(1)
         sep.setStyleSheet("background:#d0d0d0;")
         lay.addWidget(sep)
-        
+
         # Pulsante Orchestratore (alto come CPU+GPU)
         self.toggle_btn = QPushButton("▶")
         self.toggle_btn.setFixedWidth(44)
@@ -58,7 +58,7 @@ class DevicePanel(QFrame):
         self.toggle_btn.setObjectName("primary_btn")
         self.toggle_btn.setToolTip("Avvia/Ferma Orchestratore")
         lay.addWidget(self.toggle_btn)
-    
+
     def _device_row(self, name, color, model_name):
         """Singola riga dispositivo (CPU o GPU)."""
         row = QFrame()
@@ -70,30 +70,30 @@ class DevicePanel(QFrame):
         lay = QHBoxLayout(row)
         lay.setContentsMargins(6, 3, 6, 3)
         lay.setSpacing(6)
-        
+
         # Label dispositivo
         lbl = QLabel(f"<b>{name}</b>")
         lbl.setStyleSheet(f"color:{color}; font-size:11px; font-weight:bold;")
         lbl.setFixedWidth(32)
         lay.addWidget(lbl)
-        
+
         # Modello
         model_lbl = QLabel(f"🤖 {model_name}")
         model_lbl.setStyleSheet("color:#555; font-size:10px;")
         model_lbl.setFixedWidth(120)
         lay.addWidget(model_lbl)
-        
+
         # Metrici
         temp_lbl = QLabel("🌡️ —°C")
         tok_lbl = QLabel("⚡ — t/s")
         kv_lbl = QLabel("📦 —")
         mem_lbl = QLabel("💾 —%")
         bus_lbl = QLabel("🔌 —MHz")
-        
+
         for w in (temp_lbl, tok_lbl, kv_lbl, mem_lbl, bus_lbl):
             w.setStyleSheet("color:#444; font-size:10px;")
             lay.addWidget(w)
-        
+
         row._temp = temp_lbl
         row._tok = tok_lbl
         row._kv = kv_lbl

@@ -7,7 +7,7 @@ Progettato per funzionare con:
 
 Usage GUI:
     from INTENT.bridge import add_task_with_intent, localize
-    
+
     task = add_task_with_intent("ottimizza parse_json è lenta")
     # → usa la tua add_task() esistente, arricchisce context con lang+intent+params
 
@@ -52,22 +52,22 @@ def get_router() -> IntentRouter:
 
 def parse_input(raw_input: str) -> dict:
     """Prende input utente raw, lo classifica. NON aggiunge alla coda.
-    
+
     Returns:
-        dict con: {intent, lang, params, confidence, task_type, source, 
+        dict con: {intent, lang, params, confidence, task_type, source,
                    title, description, context, fallback, is_swarm_command}
     """
     router = get_router()
     parsed = router.parse(raw_input)
     task = router.to_task(parsed, raw_input)
-    
+
     # Identifica intent di "swarm control" che non richiedono worker
     swarm_intents = {
         "swarm_status", "list_tasks", "show_logs", "pause_swarm",
         "resume_swarm", "inspect_memory", "cancel_task", "run_audit",
     }
     is_swarm = parsed["intent"] in swarm_intents
-    
+
     return {
         # Dati per add_task()
         "title": task["title"],
@@ -90,24 +90,24 @@ def add_task_with_intent(
     logger: Optional[logging.Logger] = None,
 ) -> dict:
     """Wrapper: parse + chiama add_task() del gui.py.
-    
+
     Args:
         raw_input: testo utente (IT/EN/ZH)
         add_task_fn: riferimento alla funzione add_task() di gui.py
         logger: opzionale
-    
+
     Returns:
         dict con: {task, intent, lang, confidence, fallback, is_swarm_command}
     """
     parsed = parse_input(raw_input)
-    
+
     if logger:
         logger.info(
             f"intent_bridge: '{raw_input[:60]}' → "
             f"intent={parsed['intent']} lang={parsed['lang']} "
             f"conf={parsed['confidence']} swarm={parsed['is_swarm_command']}"
         )
-    
+
     # Chiama la add_task() di gui.py con i campi strutturati
     task = add_task_fn(
         title=parsed["title"],
@@ -115,7 +115,7 @@ def add_task_with_intent(
         context=parsed["context"],
         task_type=parsed["task_type"],
     )
-    
+
     return {
         "task": task,
         "intent": parsed["intent"],
@@ -182,4 +182,4 @@ def localize(key: str, lang: str, **kwargs) -> str:
     """Restituisce un messaggio localizzato."""
     templates = _TEMPLATES.get(key, {})
     template = templates.get(lang) or templates.get("en") or key
-    return template.format(**kwargs)	
+    return template.format(**kwargs)

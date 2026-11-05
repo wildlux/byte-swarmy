@@ -21,7 +21,7 @@ def check_isolation() -> Tuple[bool, str]:
         username = pwd.getpwuid(os.getuid()).pw_name
         if username == "root":
             return False, "Il sistema gira come ROOT. Rischio critico di escalation."
-        
+
         # In un setup ideale, l'utente si chiama 'byteswarmy'
         # Se non lo è, non è un errore fatale ma un warning
     except Exception as e:
@@ -35,15 +35,15 @@ def check_isolation() -> Tuple[bool, str]:
         Path("/sys/fs/cgroup/memory/byte-swarmy/memory.limit_in_bytes"), # v1
         Path("/sys/fs/cgroup/user.slice/user-1000.slice/memory.max"),    # v2 generic
     ]
-    
+
     for p in cgroup_paths:
         if p.exists():
             cgroup_detected = True
             break
-    
+
     # Non lo rendiamo bloccante perché cgroups richiede root per l'installazione,
     # ma lo registriamo.
-    
+
     # 3. Verifica Bubblewrap installato (già fatto in tools.py, ma qui lo rendiamo sistemico)
     import subprocess
     try:

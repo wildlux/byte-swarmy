@@ -27,27 +27,27 @@ class DevicePanel(QFrame):
             "QFrame#device_panel { background:#f8f9fa; border:1px solid #e0e0e0; "
             "border-radius:8px; }"
         )
-        
+
         lay = QHBoxLayout(self)
         lay.setContentsMargins(6, 4, 6, 4)
         lay.setSpacing(8)
-        
+
         devices_col = QVBoxLayout()
         devices_col.setSpacing(2)
         devices_col.setContentsMargins(0, 0, 0, 0)
-        
+
         self.cpu_box = self._device_row("CPU", "#16a34a", "qwen2.5:1.5b")
         self.gpu_box = self._device_row("GPU", "#2563eb", "—")
-        
+
         devices_col.addWidget(self.cpu_box)
         devices_col.addWidget(self.gpu_box)
         lay.addLayout(devices_col)
-        
+
         sep = QFrame()
         sep.setFixedWidth(1)
         sep.setStyleSheet("background:#d0d0d0;")
         lay.addWidget(sep)
-        
+
         self.toggle_btn = QPushButton("▶")
         self.toggle_btn.setFixedWidth(44)
         self.toggle_btn.setFixedHeight(46)
@@ -59,7 +59,7 @@ class DevicePanel(QFrame):
             "QPushButton#primary_btn:hover { background:#15803d; }"
         )
         lay.addWidget(self.toggle_btn)
-    
+
     def _device_row(self, name, color, model_name):
         row = QFrame()
         row.setObjectName(f"{name.lower()}_row")
@@ -71,28 +71,28 @@ class DevicePanel(QFrame):
         lay = QHBoxLayout(row)
         lay.setContentsMargins(6, 2, 6, 2)
         lay.setSpacing(6)
-        
+
         lbl = QLabel(name)
         lbl.setStyleSheet(f"color:{color}; font-size:12px; font-weight:bold;")
         lbl.setFixedWidth(32)
         lay.addWidget(lbl)
-        
+
         model_lbl = QLabel(model_name)
         model_lbl.setStyleSheet("color:#555; font-size:10px;")
         model_lbl.setFixedWidth(72)
         lay.addWidget(model_lbl)
-        
+
         temp_lbl = QLabel("45°C")
         tok_lbl = QLabel("12t/s")
         kv_lbl = QLabel("2.1G")
         mem_lbl = QLabel("65%")
         bus_lbl = QLabel("800M")
-        
+
         for w in (temp_lbl, tok_lbl, kv_lbl, mem_lbl, bus_lbl):
             w.setStyleSheet("color:#333; font-size:11px; font-weight:500;")
             w.setFixedWidth(38)
             lay.addWidget(w)
-        
+
         row._temp = temp_lbl
         row._tok = tok_lbl
         row._kv = kv_lbl
@@ -107,24 +107,24 @@ class DevicePanel(QFrame):
 # ═══════════════════════════════════════════════════════════════
 class ClickableCard(QFrame):
     clicked = pyqtSignal()
-    
+
     def __init__(self, title, subtitle, badge=None, badge_color="#666", parent=None):
         super().__init__(parent)
         self.setObjectName("card")
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.setFixedHeight(90)
-        
+
         lay = QVBoxLayout(self)
         lay.setContentsMargins(14, 10, 14, 10)
         lay.setSpacing(2)
-        
+
         head = QHBoxLayout()
         head.setSpacing(6)
-        
+
         title_lbl = QLabel(title)
         title_lbl.setStyleSheet("font-size:14px; font-weight:bold; color:#1a1a1a;")
         head.addWidget(title_lbl, stretch=1)
-        
+
         if badge:
             badge_lbl = QLabel(badge)
             badge_lbl.setStyleSheet(
@@ -132,15 +132,15 @@ class ClickableCard(QFrame):
                 f"padding:2px 8px; border-radius:10px; font-size:10px; font-weight:bold;"
             )
             head.addWidget(badge_lbl)
-        
+
         lay.addLayout(head)
-        
+
         sub_lbl = QLabel(subtitle)
         sub_lbl.setStyleSheet("font-size:11px; color:#666;")
         lay.addWidget(sub_lbl)
-        
+
         lay.addStretch()
-        
+
         self._normal_style = (
             "QFrame#card { background:#ffffff; border:1px solid #e0e0e0; border-radius:10px; }"
         )
@@ -148,13 +148,13 @@ class ClickableCard(QFrame):
             "QFrame#card { background:#f0f9ff; border:1px solid #16a34a; border-radius:10px; }"
         )
         self.setStyleSheet(self._normal_style)
-    
+
     def enterEvent(self, event):
         self.setStyleSheet(self._hover_style)
-    
+
     def leaveEvent(self, event):
         self.setStyleSheet(self._normal_style)
-    
+
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()

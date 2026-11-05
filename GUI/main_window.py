@@ -858,7 +858,7 @@ class LiveActivityPanel(QWidget):
                 }
                 label, desc = profile_map.get(action, ("NORMAL", "balanced"))
                 tuner_status = f"🎚️ LLM Tuned: {label} ({desc})"
-            
+
             if hasattr(self, "tuner_label"):
                 if tuner_status:
                     self.tuner_label.setText(tuner_status)
@@ -1093,7 +1093,7 @@ class TaskQueueTab(QWidget):
         toolbar.addWidget(btn_cleanup)
         toolbar.addStretch()
         layout.addLayout(toolbar)
- 
+
         # Statistiche
         self.stats_label = QLabel("Caricamento...")
         self.stats_label.setStyleSheet("padding: 4px;")
@@ -1461,7 +1461,7 @@ class McpServersTab(QWidget):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
- 
+
         # Banner se MCP non disponibile
         if not MCP_AVAILABLE:
             import mcp_client as _mc
@@ -1473,7 +1473,7 @@ class McpServersTab(QWidget):
             banner.setStyleSheet("padding: 12px; background: #221d10; color: #d8a657;")
             banner.setWordWrap(True)
             layout.addWidget(banner)
- 
+
         # Toolbar
         toolbar = QHBoxLayout()
         btn_add = QPushButton("Aggiungi Server")
@@ -1490,7 +1490,7 @@ class McpServersTab(QWidget):
         toolbar.addWidget(btn_discover)
         toolbar.addStretch()
         layout.addLayout(toolbar)
- 
+
         # Tabella server
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(
@@ -2477,7 +2477,7 @@ class ThermalTab(QWidget):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
- 
+
         # Banner informativo
         info = QLabel(
             "<b>Timestral — Monitoraggio termico + dynamic tuning</b><br>"
@@ -2488,7 +2488,7 @@ class ThermalTab(QWidget):
         info.setWordWrap(True)
         info.setStyleSheet("padding: 8px; background: #1b2330; color: #b9c1cc;")
         layout.addWidget(info)
- 
+
         # Status corrente
         status_group = QGroupBox("Stato corrente")
         status_layout = QFormLayout(status_group)
@@ -2502,7 +2502,7 @@ class ThermalTab(QWidget):
         status_layout.addRow("❓ Motivo:", self.reason_label)
         status_layout.addRow("Ultimo campione:", self.sample_label)
         layout.addWidget(status_group)
- 
+
         # Metriche live (4 cards)
         metrics_row = QHBoxLayout()
         self.metric_temp = self._make_metric_card("Temperatura", "°C", "#dc3545")
@@ -2514,7 +2514,7 @@ class ThermalTab(QWidget):
         metrics_row.addWidget(self.metric_freq)
         metrics_row.addWidget(self.metric_mem)
         layout.addLayout(metrics_row)
- 
+
         # Soglie
         thresholds_group = QGroupBox("Soglie (da config.toml)")
         thresholds_layout = QFormLayout(thresholds_group)
@@ -2522,7 +2522,7 @@ class ThermalTab(QWidget):
         self.thresholds_label.setStyleSheet("font-family: monospace;")
         thresholds_layout.addRow("", self.thresholds_label)
         layout.addWidget(thresholds_group)
- 
+
         # Statistiche 24h
         stats_group = QGroupBox("Statistiche ultime 24h")
         stats_layout = QFormLayout(stats_group)
@@ -2530,7 +2530,7 @@ class ThermalTab(QWidget):
         self.stats_label.setStyleSheet("font-family: monospace;")
         stats_layout.addRow("", self.stats_label)
         layout.addWidget(stats_group)
- 
+
         # Storico testuale
         history_group = QGroupBox("Storico recente (ultimi 20 campioni)")
         history_layout = QVBoxLayout(history_group)
@@ -2544,7 +2544,7 @@ class ThermalTab(QWidget):
         self.history_text.setMaximumHeight(150)
         history_layout.addWidget(self.history_text)
         layout.addWidget(history_group)
- 
+
         layout.addStretch()
 
     def _make_metric_card(self, title: str, unit: str, color: str) -> QGroupBox:
@@ -3079,7 +3079,7 @@ _STATUS_COLORS = {
 
 class ModelsTab(QWidget):
     """Tab per selezionare e configurare i modelli LLM per ogni ruolo."""
-    
+
     ROLES = [
         ("orchestrator", "Orchestrator (decisioni veloci)"),
         ("planner", "Planner (pianificazione task)"),
@@ -3088,7 +3088,7 @@ class ModelsTab(QWidget):
         ("embedding", "Embedding (ricerca semantica)"),
         ("decision", "Decision (scomposizione task generici)"),
     ]
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._recommendations = {}
@@ -3098,10 +3098,10 @@ class ModelsTab(QWidget):
         self.role_info_labels = {}
         self._build_ui()
         QTimer.singleShot(1000, self.refresh_models)
-    
+
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
-        
+
         header = QLabel(
             "<h2>🤖 Selezione Modelli LLM</h2>"
             "<p>Configura quali modelli Ollama usare per ogni ruolo. "
@@ -3111,7 +3111,7 @@ class ModelsTab(QWidget):
         header.setWordWrap(True)
         header.setStyleSheet("padding: 8px; background: #1f1f1f; border-radius: 4px;")
         layout.addWidget(header)
-        
+
         toolbar = QHBoxLayout()
         btn_refresh = QPushButton("🔄 Refresh modelli")
         btn_refresh.clicked.connect(self.refresh_models)
@@ -3121,53 +3121,53 @@ class ModelsTab(QWidget):
         btn_save = QPushButton("💾 Save & Restart")
         btn_save.setStyleSheet("background-color: #007acc; color: white; font-weight: bold; padding: 8px 16px;")
         btn_save.clicked.connect(self.save_and_restart)
-        
+
         self.status_label = QLabel("Caricamento modelli...")
         self.status_label.setStyleSheet("padding: 0 10px;")
         self.status_label.setProperty("role", "muted")
-        
+
         toolbar.addWidget(btn_refresh)
         toolbar.addWidget(btn_auto)
         toolbar.addStretch()
         toolbar.addWidget(self.status_label)
         toolbar.addWidget(btn_save)
         layout.addLayout(toolbar)
-        
+
         self.hw_label = QLabel("Hardware: caricamento...")
         self.hw_label.setStyleSheet("padding: 6px; background: #252525; font-family: monospace; color: #50fa7b; border-radius: 3px;")
         layout.addWidget(self.hw_label)
-        
+
         roles_group = QGroupBox("Configurazione ruoli")
         roles_layout = QVBoxLayout(roles_group)
-        
+
         for role_key, role_label in self.ROLES:
             row = QHBoxLayout()
             label = QLabel(f"<b>{role_label}</b>")
             label.setMinimumWidth(280)
             row.addWidget(label)
-            
+
             combo = QComboBox()
             combo.setMinimumWidth(300)
             combo.currentTextChanged.connect(lambda text, r=role_key: self._on_role_changed(r, text))
             self.role_combos[role_key] = combo
             row.addWidget(combo, stretch=1)
-            
+
             btn_test = QPushButton("🧪 Test")
             btn_test.setMaximumWidth(80)
             btn_test.clicked.connect(lambda checked, r=role_key: self._test_model(r))
             self.role_test_buttons[role_key] = btn_test
             row.addWidget(btn_test)
-            
+
             info = QLabel("—")
             info.setMinimumWidth(200)
             info.setStyleSheet("color: #999; font-size: 9pt;")
             self.role_info_labels[role_key] = info
             row.addWidget(info)
-            
+
             roles_layout.addLayout(row)
-        
+
         layout.addWidget(roles_group)
-        
+
         results_group = QGroupBox("📋 Dettagli Auto-Select")
         results_layout = QVBoxLayout(results_group)
         self.results_text = QPlainTextEdit()
@@ -3180,9 +3180,9 @@ class ModelsTab(QWidget):
         self.results_text.setPlaceholderText("Clicca 'Auto-Select' per vedere le raccomandazioni dettagliate...")
         results_layout.addWidget(self.results_text)
         layout.addWidget(results_group)
-        
+
         layout.addStretch()
-    
+
     def refresh_models(self) -> None:
         """Ricarica la lista modelli da Ollama e popola le ComboBox."""
         self.status_label.setText("Caricamento modelli...")
@@ -3190,7 +3190,7 @@ class ModelsTab(QWidget):
             from CORE.model_selector import get_ollama_models, get_gpu_info, get_ram_info
             models = get_ollama_models()
             self._available_models = models
-            
+
             gpu = get_gpu_info()
             ram = get_ram_info()
             self.hw_label.setText(
@@ -3199,7 +3199,7 @@ class ModelsTab(QWidget):
                 f"GPU {gpu['temp_c']:.0f}°C | "
                 f"Modelli disponibili: {len(models)}"
             )
-            
+
             for role_key, combo in self.role_combos.items():
                 current = combo.currentText()
                 combo.clear()
@@ -3212,11 +3212,11 @@ class ModelsTab(QWidget):
                         if current in combo.itemText(i):
                             combo.setCurrentIndex(i)
                             break
-            
+
             self.status_label.setText(f"✓ {len(models)} modelli caricati")
         except Exception as e:
             self.status_label.setText(f"❌ Errore: {e}")
-    
+
     def _on_role_changed(self, role: str, text: str) -> None:
         if not text or text.startswith("—"):
             self.role_info_labels[role].setText("—")
@@ -3231,7 +3231,7 @@ class ModelsTab(QWidget):
         if score > 0:
             info_text += f" | score: {score:.0f}/100"
         self.role_info_labels[role].setText(info_text)
-    
+
     def auto_select(self) -> None:
         """Esegue l'algoritmo di auto-selezione e mostra i risultati."""
         self.status_label.setText("Esecuzione auto-select...")
@@ -3255,7 +3255,7 @@ class ModelsTab(QWidget):
             self.status_label.setText(f"❌ Auto-select fallito: {e}")
             import traceback
             self.results_text.setPlainText(traceback.format_exc())
-    
+
     def _test_model(self, role: str) -> None:
         """Testa il modello selezionato con 'hello'."""
         combo = self.role_combos[role]
@@ -3300,7 +3300,7 @@ class ModelsTab(QWidget):
         finally:
             btn.setText("🧪 Test")
             btn.setEnabled(True)
-    
+
     def save_and_restart(self) -> None:
         """Salva le selezioni nel config.toml e riavvia l'orchestratore."""
         reply = QMessageBox.question(
@@ -3311,9 +3311,9 @@ class ModelsTab(QWidget):
         )
         if reply != QMessageBox.StandardButton.Yes:
             return
-        
+
         self.status_label.setText("Salvataggio...")
-        
+
         try:
             import tomllib
             import tomli_w
@@ -3323,14 +3323,14 @@ class ModelsTab(QWidget):
             import time
             import subprocess
             import sys
-            
+
             config_path = Path("CONFIG/config.toml")
             backup = config_path.with_suffix(".toml.bak.modelsel")
             shutil.copy2(config_path, backup)
-            
+
             with open(config_path, "rb") as f:
                 cfg = tomllib.load(f)
-            
+
             models_cfg = cfg.get("models", {})
             role_to_section = {
                 "orchestrator": "orchestrator",
@@ -3346,7 +3346,7 @@ class ModelsTab(QWidget):
                     if section not in models_cfg:
                         models_cfg[section] = {}
                     models_cfg[section]["name"] = model_name
-            
+
             dec_combo = self.role_combos["decision"]
             dec_model = dec_combo.currentData()
             if dec_model:
@@ -3372,14 +3372,14 @@ class ModelsTab(QWidget):
                             decision_cfg["active"] = k
                             break
                 cfg["decision_models"] = decision_cfg
-            
+
             cfg["models"] = models_cfg
-            
+
             with open(config_path, "wb") as f:
                 tomli_w.dump(cfg, f)
-            
+
             self.status_label.setText("✓ Config salvato. Riavvio orchestratore...")
-            
+
             # Riavvia orchestratore
             pid_file = Path("state/orchestrator.pid")
             if pid_file.exists():
@@ -3395,9 +3395,9 @@ class ModelsTab(QWidget):
                 stderr=subprocess.DEVNULL,
                 start_new_session=True,
             )
-            
+
             self.status_label.setText("✓ Orchestratore riavviato con nuovi modelli!")
-            
+
         except Exception as e:
             self.status_label.setText(f"❌ Errore: {e}")
             import traceback

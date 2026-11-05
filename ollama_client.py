@@ -134,7 +134,7 @@ class ModelClient:
                        system: Optional[str] = None,
                        max_tokens: Optional[int] = None):
         """Chiama un modello in streaming mode. Yielda token per token.
-        
+
         Usage:
             for token in client.call_streaming("worker_coder", prompt, system):
                 print(token, end="", flush=True)
@@ -186,7 +186,7 @@ class ModelClient:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        
+
         full_response = []
         metrics_data = {
             "model": model_name, "model_key": model_key,
@@ -195,7 +195,7 @@ class ModelClient:
         }
         start_time = time.time()
         first_token_time = None
-        
+
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 for line in resp:
@@ -205,7 +205,7 @@ class ModelClient:
                         chunk = json.loads(line.decode("utf-8"))
                     except json.JSONDecodeError:
                         continue
-                    
+
                     # Estrai token
                     if "message" in chunk and "content" in chunk["message"]:
                         token = chunk["message"]["content"]
@@ -215,7 +215,7 @@ class ModelClient:
                             full_response.append(token)
                             metrics_data["tokens_out"] += 1
                             yield token
-                    
+
                     # Fine stream: salva metriche
                     if chunk.get("done", False):
                         eval_count = chunk.get("eval_count", metrics_data["tokens_out"])
@@ -230,7 +230,7 @@ class ModelClient:
         except Exception as e:
             self.log.error(f"streaming failed: {e}")
             raise
-        
+
         # Salva metriche (come call normale)
         self._save_streaming_metrics(model_key, model_name, metrics_data,
                                      start_time, first_token_time)
@@ -246,7 +246,7 @@ class ModelClient:
             metrics["total_ms"] = (time.time() - start_time) * 1000
             metrics["model"] = model_name
             metrics["model_key"] = model_key
-            
+
             mfile = Path("state/last_metrics.json")
             mfile.parent.mkdir(parents=True, exist_ok=True)
             mfile.write_text(json.dumps(metrics, indent=2))
@@ -258,7 +258,7 @@ class ModelClient:
     def _get_tuned_options(self, model_key: str, model_cfg: dict,
                             max_tokens: Optional[int] = None) -> dict:
         """Build options dict, applying TimestralLLMTuner if available.
-        
+
         The tuner overrides: temperature, top_p, top_k, num_predict, num_ctx,
         repeat_penalty, repeat_last_n — based on current thermal state.
         """
@@ -274,7 +274,7 @@ class ModelClient:
         }
         if "seed" in model_cfg:
             options["seed"] = model_cfg["seed"]
-        
+
         # 🆕 Apply TimestralLLMTuner if available
         if hasattr(self, "llm_tuner") and self.llm_tuner:
             try:
@@ -289,7 +289,7 @@ class ModelClient:
                     options["num_predict"] = tuned.get("num_predict", options["num_predict"])
             except Exception as e:
                 self.log.debug(f"llm_tuner failed (using static config): {e}")
-        
+
         return options
 
 

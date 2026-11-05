@@ -65,7 +65,7 @@ class AgentMemory:
         event = {**event, "ts": time.time(), "agent": self.agent_id}
         self.short_term.append(event)
         self.working.append(event)
-        
+
         # Persistenza tramite provider
         self.provider.save_event(self.agent_id, event)
         self.heartbeat()
@@ -156,14 +156,14 @@ class AgentMemory:
 
         # Persistenza tramite provider
         self.provider.compact_memory(self.agent_id, summary)
-        
+
         # Aggiorna stato locale per riflessione immediata
         self.long_term.append({
             "ts": time.time(),
             "summary": summary,
             "events_compacted": len(events_to_summarize),
         })
-        
+
         # Tieni solo gli ultimi 10 eventi working
         self.working = self.working[-10:]
 

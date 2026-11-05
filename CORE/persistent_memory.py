@@ -72,7 +72,7 @@ def _default_memory() -> dict:
 def record_file_created(filepath: str, description: str = "") -> None:
     """Registra che un file è stato creato/modificato."""
     mem = load_memory()
-    
+
     # Aggiungi ai file esistenti (se non già presente)
     existing = mem["project_context"]["existing_files"]
     if filepath not in existing:
@@ -80,7 +80,7 @@ def record_file_created(filepath: str, description: str = "") -> None:
         # Mantieni solo gli ultimi 50
         if len(existing) > 50:
             mem["project_context"]["existing_files"] = existing[-50:]
-    
+
     # Aggiungi ai recent files
     recent = mem["recent_files"]
     # Rimuovi se già presente
@@ -91,7 +91,7 @@ def record_file_created(filepath: str, description: str = "") -> None:
         "timestamp": time.time(),
     })
     mem["recent_files"] = recent[:10]
-    
+
     save_memory(mem)
 
 
@@ -99,7 +99,7 @@ def record_error(error_type: str, error_message: str, context: str = "") -> None
     """Registra un errore comune per evitare di ripeterlo."""
     mem = load_memory()
     errors = mem["common_errors"]
-    
+
     # Verifica se simile a uno esistente
     for e in errors:
         if e.get("type") == error_type and error_message[:50] in e.get("message", ""):
@@ -107,7 +107,7 @@ def record_error(error_type: str, error_message: str, context: str = "") -> None
             e["last_seen"] = time.time()
             save_memory(mem)
             return
-    
+
     # Nuovo errore
     errors.append({
         "type": error_type,
@@ -139,7 +139,7 @@ def record_task_completed(task_id: str, title: str, result: str) -> None:
 
 def build_context_for_prompt() -> str:
     """Costruisce una stringa di contesto da inserire nel prompt del worker.
-    
+
     Include:
     - File esistenti nel progetto
     - Errori comuni da evitare
@@ -147,7 +147,7 @@ def build_context_for_prompt() -> str:
     """
     mem = load_memory()
     lines = []
-    
+
     # File esistenti
     existing = mem["project_context"]["existing_files"]
     if existing:
@@ -156,7 +156,7 @@ def build_context_for_prompt() -> str:
         for f in existing[-15:]:  # ultimi 15
             lines.append(f"  - {f}")
         lines.append("")
-    
+
     # Errori comuni
     errors = mem["common_errors"]
     if errors:
@@ -167,7 +167,7 @@ def build_context_for_prompt() -> str:
             for e in recurring[-5:]:
                 lines.append(f"  - [{e['type']}] {e['message'][:80]}")
             lines.append("")
-    
+
     # Ultimi task
     history = mem["task_history"]
     if history:
@@ -175,7 +175,7 @@ def build_context_for_prompt() -> str:
         for t in history[-5:]:
             lines.append(f"  - {t['title']}")
         lines.append("")
-    
+
     return "\n".join(lines) if lines else "(nessun contesto persistente)"
 
 
@@ -184,17 +184,17 @@ def update_project_context() -> None:
     project_root = Path("project")
     if not project_root.exists():
         return
-    
+
     mem = load_memory()
     existing = []
-    
+
     # Scan ricorsivo (max 30 file)
     for f in sorted(project_root.rglob("*")):
         if f.is_file() and ".git" not in f.parts:
             existing.append(str(f.relative_to(project_root)))
             if len(existing) >= 30:
                 break
-    
+
     mem["project_context"]["existing_files"] = existing
     save_memory(mem)
 
@@ -233,46 +233,46 @@ _PATTERNS = {
 
 def extract_preferences(task_history: list) -> dict:
     """Estrae preferenze utente dalla cronologia dei task (pattern matching).
-    
+
     Args:
         task_history: lista di dict con title, result, ecc.
-    
+
     Returns:
         dict con: preferred_language, uses_type_hints, frameworks, styles
     """
     if not task_history:
         return {}
-    
+
     all_text = " ".join([
         t.get("title", "") + " " + t.get("result", "")
         for t in task_history
     ])
-    
+
     # Lingua preferita
     lang_scores = {}
     for lang, pattern in _PATTERNS["languages"].items():
         matches = len(pattern.findall(all_text))
         if matches > 0:
             lang_scores[lang] = matches
-    
+
     preferred_lang = max(lang_scores, key=lang_scores.get) if lang_scores else "python"
-    
+
     # Type hints
     type_hint_count = sum(len(p.findall(all_text)) for p in _PATTERNS["type_hints"])
     uses_type_hints = type_hint_count > 0
-    
+
     # Frameworks
     frameworks = []
     for fw, pattern in _PATTERNS["frameworks"].items():
         if pattern.search(all_text):
             frameworks.append(fw)
-    
+
     # Styles
     styles = []
     for style, pattern in _PATTERNS["styles"].items():
         if pattern.search(all_text):
             styles.append(style)
-    
+
     return {
         "preferred_language": preferred_lang,
         "uses_type_hints": uses_type_hints,
@@ -286,7 +286,7 @@ def update_user_profile():
     """Aggiorna il profilo utente nella memoria persistente."""
     mem = load_memory()
     history = mem.get("task_history", [])
-    
+
     prefs = extract_preferences(history)
     if prefs:
         mem["user_profile"].update({
@@ -296,5 +296,5 @@ def update_user_profile():
             "uses_type_hints": prefs.get("uses_type_hints", False),
         })
         save_memory(mem)
-    
+
     return prefs

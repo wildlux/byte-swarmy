@@ -21,7 +21,7 @@ from typing import Optional
 
 def recover_worker_state(memories: dict, config: dict, log: logging.Logger):
     """Ripristina lo stato dei worker dall'event store.
-    
+
     Args:
         memories: dict di AgentMemory per worker
         config: config dict
@@ -29,15 +29,15 @@ def recover_worker_state(memories: dict, config: dict, log: logging.Logger):
     """
     state_dir = Path(config.get("paths", {}).get("state_dir", "state"))
     db_path = state_dir / "memory_events.db"
-    
+
     if not db_path.exists():
         log.info("[state_recovery] no event store found, starting fresh")
         return
-    
+
     try:
         conn = sqlite3.connect(str(db_path))
         conn.row_factory = sqlite3.Row
-        
+
         # Per ogni worker, carica gli ultimi eventi non riassunti
         for agent_id, memory in memories.items():
             rows = conn.execute(
@@ -45,10 +45,10 @@ def recover_worker_state(memories: dict, config: dict, log: logging.Logger):
                 "ORDER BY timestamp DESC LIMIT 20",
                 (agent_id,)
             ).fetchall()
-            
+
             if not rows:
                 continue
-            
+
             # Ricostruisci il contesto
             events = []
             for row in reversed(rows):
@@ -57,7 +57,7 @@ def recover_worker_state(memories: dict, config: dict, log: logging.Logger):
                     events.append(event)
                 except (json.JSONDecodeError, TypeError):
                     continue
-            
+
             if events:
                 # Aggiungi gli eventi alla memoria short-term
                 for event in events:
@@ -66,9 +66,9 @@ def recover_worker_state(memories: dict, config: dict, log: logging.Logger):
                             memory.add_event(event)
                     except Exception:
                         pass
-                
+
                 log.info(f"[state_recovery] {agent_id}: recovered {len(events)} events")
-        
+
         conn.close()
         log.info("[state_recovery] state recovery complete")
     except Exception as e:
@@ -79,10 +79,10 @@ def get_last_task_for_worker(agent_id: str, config: dict) -> Optional[dict]:
     """Trova l'ultimo task eseguito da un worker."""
     state_dir = Path(config.get("paths", {}).get("state_dir", "state"))
     db_path = state_dir / "memory_events.db"
-    
+
     if not db_path.exists():
         return None
-    
+
     try:
         conn = sqlite3.connect(str(db_path))
         conn.row_factory = sqlite3.Row
@@ -92,7 +92,7 @@ def get_last_task_for_worker(agent_id: str, config: dict) -> Optional[dict]:
             (agent_id,)
         ).fetchone()
         conn.close()
-        
+
         if row:
             return json.loads(row["data"])
         return None

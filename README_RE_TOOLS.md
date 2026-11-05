@@ -306,6 +306,6 @@ python3 tests/test_re_tools.py
 
 ---
 
-**Autori**: byte-swarmy RE module  
-**Versione**: 1.0  
+**Autori**: byte-swarmy RE module
+**Versione**: 1.0
 **Data**: 2026-11-05

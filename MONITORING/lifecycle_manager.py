@@ -56,7 +56,7 @@ class LifecycleManager:
                 self.log.info(f"backup verified: {backup_path.name} ({detail})")
             else:
                 self.log.error(f"backup NOT verified ({detail}): {backup_path.name}")
-            
+
             if backup_ok:
                 # Keep only last 7 (solo backup validi)
                 backups = sorted(Path(self.paths["backups_dir"]).glob("backup-*.tar.gz"))

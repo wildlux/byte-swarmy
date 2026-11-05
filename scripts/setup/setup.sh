@@ -384,7 +384,7 @@ done
 if [ ${#MISSING_REQUIRED[@]} -gt 0 ] || [ ${#MISSING_OPTIONAL[@]} -gt 0 ]; then
     echo
     info "Modelli mancanti: ${#MISSING_REQUIRED[@]} richiesti, ${#MISSING_OPTIONAL[@]} opzionali"
-    
+
     if [ ${#MISSING_REQUIRED[@]} -gt 0 ]; then
         echo
         read -p "Scaricare i modelli RICHIESTI mancanti ora? (${MISSING_REQUIRED[*]}) (s/N) " -n 1 -r
@@ -399,7 +399,7 @@ if [ ${#MISSING_REQUIRED[@]} -gt 0 ] || [ ${#MISSING_OPTIONAL[@]} -gt 0 ]; then
             warn "Senza questi modelli BYTE-SWARMY non può funzionare correttamente"
         fi
     fi
-    
+
     if [ ${#MISSING_OPTIONAL[@]} -gt 0 ]; then
         echo
         read -p "Scaricare anche i modelli OPZIONALI? (${MISSING_OPTIONAL[*]}) (s/N) " -n 1 -r
@@ -461,7 +461,7 @@ if [ "$ALL_OK" = true ]; then
     echo "  ./avvia.sh --gui     # solo GUI"
     echo "  ./avvia.sh --status  # solo stato"
     echo
-    
+
     # Chiedi se avviare ora
     read -p "Vuoi avviare BYTE-SWARMY ora? (s/N) " -n 1 -r
     echo
