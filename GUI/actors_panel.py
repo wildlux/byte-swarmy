@@ -172,6 +172,17 @@ from GUI.theme.theme import set_prop as _theme_prop
 from GUI.theme.theme import set_banner as _theme_banner
 
 
+def _set_combo_text(combo, text: str) -> None:
+    """Imposta il testo di un QComboBox NON editabile: aggiunge l'elemento
+    se mancante, poi lo seleziona. Evita setEditText (solo editabili)."""
+    text = (text or "").strip()
+    if not text:
+        return
+    if combo.findText(text) < 0:
+        combo.addItem(text)
+    combo.setCurrentText(text)
+
+
 class ActorsPanel(QWidget):
     """Pannello per configurare i 3 attori: LLM, Decision Model, Timestral."""
 
@@ -264,7 +275,6 @@ class ActorsPanel(QWidget):
         form.addRow("Peso:", self.llm_weight)
 
         self.llm_model = QComboBox()
-        self.llm_model.setEditable(True)
         # T2.4: prima i modelli installati (ollama list), fallback a lista statica
         installed = ollama_list_models() or OLLAMA_MODELS
         self.llm_model.addItems(installed)
@@ -306,7 +316,6 @@ class ActorsPanel(QWidget):
         form.addRow("Peso:", self.dec_weight)
 
         self.dec_model = QComboBox()
-        self.dec_model.setEditable(True)
         self.dec_model.addItems(ollama_list_models() or OLLAMA_MODELS)
         form.addRow("Modello:", self.dec_model)
 
@@ -605,7 +614,7 @@ class ActorsPanel(QWidget):
             if self.llm_weight.itemData(i) == llm_w:
                 self.llm_weight.setCurrentIndex(i)
                 break
-        self.llm_model.setEditText(a["llm"]["model"])
+        _set_combo_text(self.llm_model, a["llm"]["model"])
         self.llm_temp.setValue(a["llm"]["temperature"])
         self.llm_ctx.setValue(a["llm"]["num_ctx"])
         self.llm_predict.setValue(a["llm"]["num_predict"])
@@ -615,7 +624,7 @@ class ActorsPanel(QWidget):
             if self.dec_weight.itemData(i) == dec_w:
                 self.dec_weight.setCurrentIndex(i)
                 break
-        self.dec_model.setEditText(a["decision_model"]["model"])
+        _set_combo_text(self.dec_model, a["decision_model"]["model"])
         self.dec_temp.setValue(a["decision_model"]["temperature"])
         self.dec_ctx.setValue(a["decision_model"]["num_ctx"])
         self.dec_predict.setValue(a["decision_model"]["num_predict"])
@@ -649,14 +658,14 @@ class ActorsPanel(QWidget):
             # sostituiscilo con il default del nuovo peso
             for w in ACTOR_WEIGHTS:
                 if current_model == weight_default_model("llm", w):
-                    self.llm_model.setEditText(weight_default_model("llm", weight))
+                    _set_combo_text(self.llm_model, weight_default_model("llm", weight))
                     return
             # Se l'utente aveva un modello custom, non toccare — solo hint
         elif actor == "decision_model":
             current_model = self.dec_model.currentText()
             for w in ACTOR_WEIGHTS:
                 if current_model == weight_default_model("decision_model", w):
-                    self.dec_model.setEditText(weight_default_model("decision_model", weight))
+                    _set_combo_text(self.dec_model, weight_default_model("decision_model", weight))
                     return
 
     def _on_save(self):

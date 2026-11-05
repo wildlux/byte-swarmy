@@ -193,7 +193,6 @@ class TaskSchedulerPanel(QWidget):
 
         # Modello da usare (opzionale)
         self.task_model = QComboBox()
-        self.task_model.setEditable(True)
         self.task_model.addItems([
             "(default)", "qwen2.5:1.5b", "qwen2.5-coder:1.5b",
             "llama3:8b", "mistral:7b", "phi3:mini",
