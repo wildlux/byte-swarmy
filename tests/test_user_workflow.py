@@ -230,6 +230,17 @@ class TestThemeLiveSwitch(unittest.TestCase):
             _app.processEvents()
 
 
+    def test_inverted_light_themes_exist_and_classify_light(self):
+        """I temi chiari generati per inversione esistono e sono 'light'."""
+        from GUI.theme import theme as T
+        expected = {"light_dark", "light_dracula", "light_hacker",
+                    "light_neon", "light_nord", "light_pink", "light_solar",
+                    "light_venom_blue", "light_venom_green"}
+        self.assertTrue(expected.issubset(set(T.available_themes())),
+                        "mancano i temi chiari generati per inversione")
+        for t in expected:
+            self.assertEqual(T.theme_kind(t), "light", t)
+
     def test_dark_themes_leave_no_white_panels(self):
         """Regression: nei temi scuri nessuna zona deve restare bianca.
 

@@ -33,6 +33,16 @@ _FRIENDLY = {
     "venom_green": "Venom Verde",
     "venom_orange": "Venom Arancio",
     "venom_red": "Venom Rosso",
+    # Temi chiari generati per inversione luminanza dei temi scuri
+    "light_dark": "Chiaro Inverso",
+    "light_dracula": "Dracula Chiaro",
+    "light_hacker": "Hacker Chiaro",
+    "light_neon": "Neon Chiaro",
+    "light_nord": "Nord Chiaro",
+    "light_pink": "Rosa Chiaro",
+    "light_solar": "Solare Chiaro",
+    "light_venom_blue": "Venom Blu Chiaro",
+    "light_venom_green": "Venom Verde Chiaro",
 }
 
 
