@@ -3644,44 +3644,34 @@ class FileTreeDrawer(QFrame):
             print(f"Errore copy: {e}")
 
     def _open_task_result(self, task_id):
-        """Apre il file risultato del task se esiste."""
+        """Apre la CARTELLA dei file prodotti dal task nel file manager.
+
+        Flusso utente 3: l'utente deve vedere dove sta il codice generato
+        (e lanciare avvia.sh), non un singolo file indovinato.
+        """
         try:
-            import sqlite3, os, subprocess
+            import sqlite3, os
             base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             db_path = os.path.join(base, 'tasks', 'queue.db')
             con = sqlite3.connect(db_path)
+            con.row_factory = sqlite3.Row
             cur = con.cursor()
-            cur.execute("SELECT result, title FROM tasks WHERE id=?", (task_id,))
+            cur.execute("SELECT * FROM tasks WHERE id=?", (task_id,))
             row = cur.fetchone()
             con.close()
-
             if not row:
                 return
-            result_text, title = row
 
-            file_patterns = []
-            if result_text:
-                file_patterns = re.findall(r'[\w/\\]+\.\w+', str(result_text))
-
-            candidates = ['project/main.py']
-            if title:
-                try:
-                    candidates.append('project/' + title.split()[0] + '.py')
-                except Exception:
-                    pass
-            candidates.extend(file_patterns[:3])
-
-            opened = False
-            for f in candidates:
-                full = os.path.join(base, f) if not os.path.isabs(f) else f
-                if os.path.exists(full):
-                    subprocess.Popen(['xdg-open', full])
-                    opened = True
-                    break
-
-            if not opened:
-                QMessageBox.information(self, "Risultato",
-                    f"Nessun file trovato per il task.\n\nResult: {result_text}")
+            proj = os.path.join(base, 'project')
+            files = self._collect_task_files(dict(row), base)
+            if files:
+                # la cartella del primo file prodotto (o project/ se in root)
+                first_dir = os.path.dirname(os.path.join(proj, files[0]))
+            else:
+                first_dir = proj
+            os.makedirs(first_dir, exist_ok=True)
+            from PyQt6.QtCore import QUrl
+            QDesktopServices.openUrl(QUrl.fromLocalFile(first_dir))
         except Exception as e:
             print(f"Errore open result: {e}")
 

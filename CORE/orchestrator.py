@@ -1841,6 +1841,9 @@ class Orchestrator:
                 if audit_res.get("decision") == "APPROVE":
                     self.log.info(f"task {task['id']} APPROVED by auditor")
                     self.queue.mark_done(task["id"], result)
+                    # Flusso utente 3: il progetto generato deve SEMPRE avere
+                    # un avvio (avvia.sh) — anche se l'LLM non l'ha scritto.
+                    self._ensure_avvio_script()
                     self.tools.git_commit(f"task {task['id']}: {task.get('title', '')[:50]}")
                     self.log.info(f"task {task['id']} DONE")
                 else:
@@ -1898,6 +1901,56 @@ class Orchestrator:
                 f"(retry con prompt di correzione)"
             )
         return status
+
+    def _ensure_avvio_script(self) -> None:
+        """Flusso utente 3: garantisce che il progetto generato abbia un
+        avvio. Se l'LLM non ha scritto avvia.sh, lo genera dal contenuto:
+        main.py/app.py/primo .py → venv+python; Makefile → make; *.c → gcc.
+        Non sovrascrive mai un avvia.sh esistente (quello dell'LLM vince).
+        """
+        try:
+            from CORE.constants import weight_default_model  # noqa: F401 (coerenza import)
+            proj = Path(self.config["paths"]["project_root"])
+            avvio = proj / "avvia.sh"
+            if avvio.exists():
+                return                      # quello dell'LLM vince
+            entry = None
+            for name in ("main.py", "app.py"):
+                if (proj / name).exists():
+                    entry = name
+                    break
+            if entry is None:
+                pys = [p for p in sorted(proj.glob("*.py"))
+                       if not p.name.startswith("test_")]
+                if pys:
+                    entry = pys[0].name
+            if entry:
+                body = (
+                    "#!/bin/bash\n"
+                    'cd "$(dirname "$0")"\n'
+                    "if [ -f requirements.txt ]; then\n"
+                    "  [ -d .venv ] || python3 -m venv .venv\n"
+                    "  .venv/bin/pip install -r requirements.txt\n"
+                    "  PY=.venv/bin/python\n"
+                    "else\n"
+                    "  PY=python3\n"
+                    "fi\n"
+                    f'exec "$PY" {entry}\n'
+                )
+            elif (proj / "Makefile").exists():
+                body = ('#!/bin/bash\n' 'cd "$(dirname "$0")"\n'
+                        "make\n")
+            elif c_files := list(proj.glob("*.c")):
+                out = c_files[0].stem
+                body = ('#!/bin/bash\n' 'cd "$(dirname "$0")"\n'
+                        f"gcc {c_files[0].name} -o {out} && ./{out}\n")
+            else:
+                return                      # nulla di eseguibile riconosciuto
+            avvio.write_text(body, encoding="utf-8")
+            avvio.chmod(0o755)
+            self.log.info(f"[flusso 3] generato avvia.sh (entry={entry or 'build'})")
+        except Exception as e:
+            self.log.warning(f"avvia.sh non generato: {e}")
 
     # ------------------------------------------------------------------
     # Routing e decisioni

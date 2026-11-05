@@ -45,8 +45,8 @@ QListWidget::item:selected { background: #586e75; color: #839496; }
 QListWidget::item:hover { background: #073642; }
 QFrame#card { background: #073642; border: 1px solid #586e75; border-radius: 8px; }
 QLabel { background: transparent; }
-QLabel[role="muted"] { color: #586e75; }
-QLabel[role="hint"] { color: #586e75; font-size: 9.5pt; }
+QLabel[role="muted"] { color: #7f979f; }
+QLabel[role="hint"] { color: #7f979f; font-size: 9.5pt; }
 QLabel[role="metric"] { font-size: 20pt; font-weight: 600; }
 QLabel[state="done"] { color: #859900; background: #173626; border-radius: 9px; padding: 2px 10px; }
 QLabel[state="running"] { color: #a9c6ff; background: #1f3560; border-radius: 9px; padding: 2px 10px; }

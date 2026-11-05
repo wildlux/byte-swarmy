@@ -4,7 +4,7 @@ QWidget { background: #bfc5d1; color: #0b0e13; }
 QMainWindow, QDialog { background: #bfc5d1; }
 QToolTip { background: #0b0e13; color: #adb4c4; border: none; padding: 4px 8px; }
 QTabWidget::pane { border: none; border-top: 1px solid #959fb3; background: #bfc5d1; }
-QTabBar::tab { background: transparent; color: #4a5465; padding: 8px 16px; border: none; border-bottom: 2px solid transparent; margin-right: 4px; }
+QTabBar::tab { background: transparent; color: #414a59; padding: 8px 16px; border: none; border-bottom: 2px solid transparent; margin-right: 4px; }
 QTabBar::tab:hover { color: #0b0e13; }
 QTabBar::tab:selected { color: #0b0e13; font-weight: 600; border-bottom: 2px solid #2f6777; }
 QPushButton { background: #adb4c4; border: 1px solid #b5bcc9; border-radius: 6px; padding: 6px 12px; }
@@ -45,8 +45,8 @@ QListWidget::item:selected { background: #959fb3; color: #0b0e13; }
 QListWidget::item:hover { background: #adb4c4; }
 QFrame#card { background: #adb4c4; border: 1px solid #959fb3; border-radius: 8px; }
 QLabel { background: transparent; }
-QLabel[role="muted"] { color: #959fb3; }
-QLabel[role="hint"] { color: #959fb3; font-size: 9.5pt; }
+QLabel[role="muted"] { color: #454e60; }
+QLabel[role="hint"] { color: #454e60; font-size: 9.5pt; }
 QLabel[role="metric"] { font-size: 20pt; font-weight: 600; }
 QLabel[state="done"] { color: #587341; background: #c9e8d8; border-radius: 9px; padding: 2px 10px; }
 QLabel[state="running"] { color: #001d56; background: #9fb5e0; border-radius: 9px; padding: 2px 10px; }
