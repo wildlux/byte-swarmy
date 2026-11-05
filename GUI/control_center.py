@@ -106,6 +106,7 @@ class CreditsOverlay(QFrame):
                     1180, 600, Qt.AspectRatioMode.IgnoreAspectRatio,
                     Qt.TransformationMode.SmoothTransformation,
                 )
+                self._bg_pixmap_original = _pix   # per scale_to()
                 self._bg_label = QLabel(self)
                 self._bg_label.setPixmap(_pix)
                 self._bg_label.setGeometry(0, 0, 1180, 600)
@@ -512,6 +513,22 @@ class CreditsOverlay(QFrame):
             self.closed.emit()
             return
         super().keyPressEvent(event)
+
+    def scale_to(self, width: int, height: int):
+        """Ridimensiona l'overlay alla finestra (se più piccola di 1180x600).
+
+        Senza questo, su una finestra non massimizzata l'overlay fissato a
+        1180x600 veniva tagliato ai bordi (bug di "ingrandimento").
+        """
+        width = max(480, min(1180, int(width)))
+        height = max(360, min(600, int(height)))
+        self.setFixedSize(width, height)
+        self._bg_label.setGeometry(0, 0, width, height)
+        if getattr(self, "_bg_pixmap_original", None) is not None:
+            self._bg_label.setPixmap(self._bg_pixmap_original.scaled(
+                width, height, Qt.AspectRatioMode.IgnoreAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            ))
 
     def showEvent(self, event):
         """Animazione fade-in all'apertura."""
@@ -2144,11 +2161,14 @@ class ControlCenter(QMainWindow):
         self._credits_overlay = CreditsOverlay(self.centralWidget())
         self._credits_overlay.closed.connect(self._close_credits)
 
-        # Centra l'overlay
+        # Centra l'overlay, clamped alla finestra: se non siamo a tutto
+        # schermo e la finestra è più piccola dell'overlay (1180x600),
+        # l'overlay si ridimensiona invece di venire tagliato.
         cw = self.centralWidget().size()
+        self._credits_overlay.scale_to(cw.width() - 24, cw.height() - 24)
         self._credits_overlay.move(
-            (cw.width() - self._credits_overlay.width()) // 2,
-            (cw.height() - self._credits_overlay.height()) // 2,
+            max(12, (cw.width() - self._credits_overlay.width()) // 2),
+            max(12, (cw.height() - self._credits_overlay.height()) // 2),
         )
         self._credits_overlay.show()
         self._credits_overlay.raise_()
@@ -4829,6 +4849,19 @@ class CenterArea(QWidget):
         self._editor_column = editor_widget
         self._editor_column.setFixedWidth(500)
         self.layout().addWidget(self._editor_column)
+
+        # Bug di ingrandimento: su finestra NON massimizzata l'aggiunta dei
+        # 500px dell'editor superava il minimo del layout e Qt "ingrandiva"
+        # la finestra di colpo (dimensione imprevedibile, contenuto tagliato).
+        # Comportamento prevedibile: se non ci sta, si passa a massimizzata.
+        try:
+            main = getattr(self, "main_win", None)
+            if (main is not None and not main.isMaximized()
+                    and not main.isFullScreen()
+                    and main.width() < 280 + 470 + self._editor_column.width()):
+                main.showMaximized()
+        except Exception:
+            pass
 
     def detach_editor_column(self):
         if self._editor_column:

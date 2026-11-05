@@ -411,3 +411,46 @@ class TestNewShortcuts(unittest.TestCase):
         _app.processEvents()
         self.assertTrue(win.cmd_input.hasFocus(),
                         "'/' deve portare il focus sul campo comando in basso")
+
+
+class TestSmallWindowFixes(unittest.TestCase):
+    """Finestra piccola: crediti clampati, editor → massimizzazione prevedibile."""
+
+    def test_credits_fit_small_window(self):
+        """Overlay crediti (1180x600) si ridimensiona se la finestra è più
+        piccola — prima veniva tagliato ai bordi."""
+        win = _window()
+        win.showNormal()
+        win.resize(1000, 700)
+        _app.processEvents()
+        try:
+            win._show_credits()
+            _app.processEvents()
+            ov = win._credits_overlay
+            self.assertIsNotNone(ov)
+            self.assertLessEqual(ov.width(), win.width(),
+                                 "overlay più largo della finestra: tagliato")
+            self.assertLessEqual(ov.height(), win.height(),
+                                 "overlay più alto della finestra: tagliato")
+        finally:
+            win._close_credits()
+            _app.processEvents()
+
+    def test_editor_dock_maximizes_instead_of_jump(self):
+        """Aprire un documento su finestra stretta massimizza la finestra
+        (prevedibile) invece del salto di dimensione imposto da Qt."""
+        from PyQt6.QtWidgets import QWidget
+        win = _window()
+        win.showNormal()
+        win.resize(1000, 700)
+        _app.processEvents()
+        col = QWidget()
+        col.setMinimumWidth(500)
+        try:
+            win.center.attach_editor_column(col)
+            _app.processEvents()
+            self.assertTrue(win.isMaximized(),
+                            "dock su finestra stretta deve massimizzare")
+        finally:
+            win.center.detach_editor_column()
+            _app.processEvents()
