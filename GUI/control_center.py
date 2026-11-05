@@ -106,7 +106,11 @@ class CreditsOverlay(QFrame):
         scroll.setFrameShape(QFrame.Shape.NoFrame)
 
         content = QWidget()
-        content.setStyleSheet("background: transparent;")
+        content.setObjectName("panelScrollContent")
+        # NB: stylesheet con SELETTORE (non declaration-only), altrimenti
+        # il "background: transparent" trasuda su tutti i figli e azzera
+        # i bottoni role="start"/"danger" del tema app-level.
+        content.setStyleSheet("QWidget#panelScrollContent { background: transparent; }")
         lay = QVBoxLayout(content)
         lay.setContentsMargins(10, 4, 10, 4)
         lay.setSpacing(6)
@@ -3933,7 +3937,11 @@ class CICDPipelinePanel(QWidget):
         scroll.setStyleSheet("QScrollArea { background:transparent; border:none; }")
 
         content = QWidget()
-        content.setStyleSheet("background: transparent;")
+        content.setObjectName("panelScrollContent")
+        # NB: stylesheet con SELETTORE (non declaration-only), altrimenti
+        # il "background: transparent" trasuda su tutti i figli e azzera
+        # i bottoni role="start"/"danger" del tema app-level.
+        content.setStyleSheet("QWidget#panelScrollContent { background: transparent; }")
         lay = QVBoxLayout(content)
         lay.setSpacing(12)
         lay.setContentsMargins(0, 0, 0, 0)
@@ -4168,7 +4176,11 @@ class CleanCodePanel(QWidget):
         scroll.setStyleSheet("QScrollArea { background:transparent; border:none; }")
 
         content = QWidget()
-        content.setStyleSheet("background: transparent;")
+        content.setObjectName("panelScrollContent")
+        # NB: stylesheet con SELETTORE (non declaration-only), altrimenti
+        # il "background: transparent" trasuda su tutti i figli e azzera
+        # i bottoni role="start"/"danger" del tema app-level.
+        content.setStyleSheet("QWidget#panelScrollContent { background: transparent; }")
         lay = QVBoxLayout(content)
         lay.setSpacing(12)
         lay.setContentsMargins(0, 0, 0, 0)

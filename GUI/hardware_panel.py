@@ -22,6 +22,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 
 from GUI.theme.theme import set_prop as _theme_prop
+from GUI.theme.theme import set_banner as _theme_banner
 
 _BASE = Path(__file__).resolve().parent.parent
 
@@ -251,9 +252,9 @@ class HardwarePanel(QWidget):
         except Exception as e:
             self.strat_badge.setText(f"✗ Errore rilevamento: {e}")
             self.strat_badge.setStyleSheet(
-                "background:#fef2f2; border:2px solid #dc2626; border-radius:8px; "
-                "padding:16px; font-size:14px; color:#dc2626;"
+                "padding:16px; font-size:14px; font-weight:bold;"
             )
+            _theme_banner(self.strat_badge, "error")
 
     def _back_to_main(self):
         """Torna alla plancia di controllo."""

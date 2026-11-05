@@ -19,6 +19,9 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QDateTime, pyqtSignal
 
+from GUI.theme.theme import set_prop as _theme_prop
+from GUI.theme.theme import set_banner as _theme_banner
+
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCHEDULED_FILE = os.path.join(_BASE, "CONFIG", "scheduled_tasks.json")
 
@@ -79,12 +82,7 @@ class TaskSchedulerPanel(QWidget):
         head = QHBoxLayout()
         head.setSpacing(10)
         back = QPushButton("← Indietro alla Plancia")
-        back.setObjectName("back_btn")
-        back.setStyleSheet(
-            "QPushButton#back_btn { background:#e8e8ec; color:#1a1a1a; "
-            "border:none; padding:8px 16px; border-radius:6px; font-size:12px; }"
-            "QPushButton#back_btn:hover { background:#d0d0d0; }"
-        )
+        back.setObjectName("back_btn")   # stile dal tema app-level
         back.clicked.connect(self._back_to_main)
         head.addWidget(back)
         head.addStretch()
@@ -100,7 +98,11 @@ class TaskSchedulerPanel(QWidget):
         scroll.setStyleSheet("QScrollArea { background:transparent; border:none; }")
 
         content = QWidget()
-        content.setStyleSheet("background: transparent;")
+        content.setObjectName("panelScrollContent")
+        # NB: stylesheet con SELETTORE (non declaration-only), altrimenti
+        # il "background: transparent" trasuda su tutti i figli e azzera
+        # i bottoni role="start"/"danger" del tema app-level.
+        content.setStyleSheet("QWidget#panelScrollContent { background: transparent; }")
         lay = QVBoxLayout(content)
         lay.setSpacing(12)
         lay.setContentsMargins(0, 0, 0, 0)
@@ -113,27 +115,21 @@ class TaskSchedulerPanel(QWidget):
             "ogni giorno alle HH:MM)."
         )
         expl.setWordWrap(True)
-        expl.setStyleSheet(
-            "background:#fffbeb; border:1px solid #fde68a; border-radius:8px; "
-            "padding:10px; font-size:11px; color:#92400e;"
-        )
+        _theme_banner(expl, "warn")
         lay.addWidget(expl)
 
         # Form per aggiungere un task
         form_box = QGroupBox("➕ Nuovo task schedulato")
-        form_box.setStyleSheet(self._group_style())
         form = QFormLayout(form_box)
         form.setSpacing(8)
         form.setContentsMargins(14, 14, 14, 14)
 
         self.task_title = QLineEdit()
         self.task_title.setPlaceholderText("Es. Analisi sicurezza settimanale")
-        self.task_title.setStyleSheet(self._input_style())
         form.addRow("Titolo:", self.task_title)
 
         self.task_prompt = QLineEdit()
         self.task_prompt.setPlaceholderText("Prompt del compito da eseguire")
-        self.task_prompt.setStyleSheet(self._input_style())
         form.addRow("Prompt:", self.task_prompt)
 
         self.task_type = QComboBox()
@@ -141,14 +137,12 @@ class TaskSchedulerPanel(QWidget):
         self.task_type.addItem("🔁 Ricorrente (ogni N secondi)", "interval")
         self.task_type.addItem("📅 Giornaliero (alle HH:MM)", "daily")
         self.task_type.currentIndexChanged.connect(self._on_type_changed)
-        self.task_type.setStyleSheet(self._combo_style())
         form.addRow("Tipo:", self.task_type)
 
         # Per oneshot: data/ora
         self.task_datetime = QDateTimeEdit()
         self.task_datetime.setDateTime(QDateTime.currentDateTime().addSecs(3600))
         self.task_datetime.setDisplayFormat("yyyy-MM-dd HH:mm")
-        self.task_datetime.setStyleSheet(self._input_style())
         form.addRow("Data/Ora (uno-shot):", self.task_datetime)
 
         # Per interval: ogni quanti secondi
@@ -156,13 +150,11 @@ class TaskSchedulerPanel(QWidget):
         self.task_interval.setRange(60, 86400)
         self.task_interval.setSuffix(" s")
         self.task_interval.setValue(3600)
-        self.task_interval.setStyleSheet(self._input_style())
         form.addRow("Intervallo (ricorrente):", self.task_interval)
 
         # Per daily: a che ora
         self.task_time = QLineEdit("09:00")
         self.task_time.setInputMask("00:00")
-        self.task_time.setStyleSheet(self._input_style())
         form.addRow("Orario (giornaliero):", self.task_time)
 
         # Modello da usare (opzionale)
@@ -172,16 +164,11 @@ class TaskSchedulerPanel(QWidget):
             "(default)", "qwen2.5:1.5b", "qwen2.5-coder:1.5b",
             "llama3:8b", "mistral:7b", "phi3:mini",
         ])
-        self.task_model.setStyleSheet(self._combo_style())
         form.addRow("Modello LLM:", self.task_model)
 
-        # Pulsante aggiungi
+        # Pulsante aggiungi (primario dal tema)
         add_btn = QPushButton("➕ Aggiungi task")
-        add_btn.setStyleSheet(
-            "QPushButton { background:#16a34a; color:#ffffff; border:none; "
-            "padding:8px 16px; border-radius:6px; font-weight:bold; font-size:12px; }"
-            "QPushButton:hover { background:#15803d; }"
-        )
+        _theme_prop(add_btn, "role", "start")
         add_btn.clicked.connect(self._on_add_task)
         form.addRow("", add_btn)
 
@@ -189,28 +176,18 @@ class TaskSchedulerPanel(QWidget):
 
         # Lista task schedulati
         list_box = QGroupBox("📋 Task schedulati")
-        list_box.setStyleSheet(self._group_style())
         list_lay = QVBoxLayout(list_box)
         list_lay.setContentsMargins(14, 14, 14, 14)
         list_lay.setSpacing(6)
 
         self.task_list_widget = QListWidget()
-        self.task_list_widget.setStyleSheet(
-            "QListWidget { background:#fafafa; border:1px solid #e0e0e0; "
-            "border-radius:6px; padding:4px; font-size:12px; }"
-            "QListWidget::item { padding:8px; border-bottom:1px solid #f0f0f0; }"
-            "QListWidget::item:selected { background:#f0f9ff; color:#16a34a; }"
-        )
+        self.task_list_widget.setObjectName("schedlist")   # stile dal tema QSS
         list_lay.addWidget(self.task_list_widget)
 
-        # Pulsante elimina
+        # Pulsante elimina (danger dal tema)
         del_row = QHBoxLayout()
         del_btn = QPushButton("🗑️ Elimina selezionato")
-        del_btn.setStyleSheet(
-            "QPushButton { background:#dc2626; color:#ffffff; border:none; "
-            "padding:8px 16px; border-radius:6px; font-weight:bold; font-size:12px; }"
-            "QPushButton:hover { background:#b91c1c; }"
-        )
+        _theme_prop(del_btn, "role", "danger")
         del_btn.clicked.connect(self._on_del_task)
         del_row.addWidget(del_btn)
         del_row.addStretch()
@@ -314,33 +291,6 @@ class TaskSchedulerPanel(QWidget):
     # ──────────────────────────────────────────────────────────────────
     # Stili
     # ──────────────────────────────────────────────────────────────────
-    def _group_style(self) -> str:
-        return (
-            "QGroupBox {"
-            "  background:#ffffff; border:1px solid #e0e0e0; border-radius:8px;"
-            "  margin-top:14px; padding-top:8px;"
-            "  font-weight:bold; color:#1a1a1a;"
-            "}"
-            "QGroupBox::title {"
-            "  subcontrol-origin: margin; left:14px; padding:0 6px;"
-            "  background:#ffffff;"
-            "}"
-        )
-
-    def _combo_style(self) -> str:
-        return (
-            "QComboBox { background:#ffffff; color:#1a1a1a; "
-            "border:1px solid #d0d0d0; padding:6px 10px; border-radius:6px; "
-            "font-size:12px; min-width:200px; }"
-            "QComboBox:hover { border-color:#16a34a; }"
-            "QComboBox QAbstractItemView { background:#ffffff; color:#1a1a1a; "
-            "selection-background-color:#f0f9ff; }"
-        )
-
-    def _input_style(self) -> str:
-        return (
-            "QLineEdit, QDateTimeEdit, QSpinBox { background:#ffffff; color:#1a1a1a; "
-            "border:1px solid #d0d0d0; padding:6px 10px; border-radius:6px; "
-            "font-size:12px; }"
-            "QLineEdit:focus, QDateTimeEdit:focus, QSpinBox:focus { border-color:#16a34a; }"
-        )
+    # NB: gli stili inline (group/combo/input) sono rimossi: QGroupBox,
+    # QComboBox, QLineEdit, QDateTimeEdit, QSpinBox prendono lo stile dal
+    # tema app-level (GUI/theme/*.qss) e seguono il tema live.

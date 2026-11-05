@@ -55,12 +55,8 @@ class SearchBar(QWidget):
         self.input.setPlaceholderText(
             placeholder or "🔍 Cerca nel contenuto…  (Enter = successivo, Shift+Enter = precedente)"
         )
-        self.input.setStyleSheet(
-            "QLineEdit { background:#ffffff; color:#1a1a1a; "
-            "border:1px solid #d0d0d0; padding:8px 12px; border-radius:6px; "
-            "font-size:12px; }"
-            "QLineEdit:focus { border-color:#16a34a; }"
-        )
+        # font inline only — bg/border/colore dal tema app-level
+        self.input.setStyleSheet("font-size:12px;")
         self.input.textChanged.connect(self._on_text_changed)
         self.input.returnPressed.connect(self._on_enter)
         lay.addWidget(self.input, stretch=1)
@@ -68,11 +64,7 @@ class SearchBar(QWidget):
         self.clear_btn = QPushButton("✕")
         self.clear_btn.setFixedSize(30, 30)
         self.clear_btn.setToolTip("Cancella ricerca")
-        self.clear_btn.setStyleSheet(
-            "QPushButton { background:#e8e8ec; color:#666; border:none; "
-            "border-radius:6px; font-size:12px; font-weight:bold; }"
-            "QPushButton:hover { background:#d0d0d0; color:#1a1a1a; }"
-        )
+        # stile default dal tema (QPushButton)
         self.clear_btn.clicked.connect(self.clear)
         lay.addWidget(self.clear_btn)
 

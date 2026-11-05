@@ -154,7 +154,11 @@ class SettingsPanel(QWidget):
         scroll.setStyleSheet("QScrollArea { background:transparent; border:none; }")
 
         content = QWidget()
-        content.setStyleSheet("background: transparent;")
+        content.setObjectName("panelScrollContent")
+        # NB: stylesheet con SELETTORE (non declaration-only), altrimenti
+        # il "background: transparent" trasuda su tutti i figli e azzera
+        # i bottoni role="start"/"danger" del tema app-level.
+        content.setStyleSheet("QWidget#panelScrollContent { background: transparent; }")
         lay = QVBoxLayout(content)
         lay.setSpacing(12)
         lay.setContentsMargins(0, 0, 0, 0)

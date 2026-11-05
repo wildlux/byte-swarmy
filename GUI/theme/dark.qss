@@ -24,10 +24,10 @@ QPushButton[role="danger"]:hover { background: #3d1b17; border-color: #7a3b34; }
 QPushButton[role="start"] { background: #2aa86e; color: #1b1f27; border-color: #2aa86e; font-weight: 600; }
 QPushButton[role="start"]:hover { background: #6fd3a1; }
 QPushButton[role="stop"] { background: #e5584a; color: #1b1f27; border-color: #e5584a; font-weight: 600; }
-QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QPlainTextEdit, QTextEdit {
+QLineEdit, QSpinBox, QDoubleSpinBox, QDateTimeEdit, QComboBox, QPlainTextEdit, QTextEdit {
     background: #1b1f27; border: 1px solid #363d4a; border-radius: 6px; padding: 5px 8px;
     selection-background-color: #27427a; selection-color: #e6e9ef; }
-QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus, QPlainTextEdit:focus { border: 1px solid #5b92ff; }
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QDateTimeEdit:focus, QComboBox:focus, QPlainTextEdit:focus { border: 1px solid #5b92ff; }
 QLineEdit { placeholder-text-color: #6b7587; }
 QLineEdit#quickCommand { padding: 8px 12px; font-size: 11.5pt; }
 QPlainTextEdit#logView, QPlainTextEdit#tomlView, QTextEdit#logView {
@@ -39,6 +39,10 @@ QTableView::item:hover, QTreeView::item:hover { background: #232935; }
 QHeaderView::section { background: #14171d; color: #9aa4b5; font-weight: 600; padding: 6px 8px; border: none; border-bottom: 1px solid #2a303b; }
 QGroupBox { background: #1b1f27; border: 1px solid #2a303b; border-radius: 8px; margin-top: 14px; padding: 12px 10px 10px 10px; }
 QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 6px; color: #9aa4b5; font-weight: 600; background: #14171d; }
+QListWidget { background: #1b1f27; border: 1px solid #2a303b; border-radius: 6px; padding: 4px; }
+QListWidget::item { padding: 8px; border-bottom: 1px solid #21252d; }
+QListWidget::item:selected { background: #2a303b; color: #e6e9ef; }
+QListWidget::item:hover { background: #21252d; }
 QFrame#card { background: #1b1f27; border: 1px solid #2a303b; border-radius: 8px; }
 QLabel { background: transparent; }
 QLabel[role="muted"] { color: #8f99ab; }
