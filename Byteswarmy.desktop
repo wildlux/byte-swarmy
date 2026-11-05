@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=BYTE-SWARMY
+Comment=Sistema multi-agente locale (Ollama, PyQt6, SQLite)
+Exec=/home/wildlux/Desktop/byte-swarmy/byte-swarm.sh start
+Path=/home/wildlux/Desktop/byte-swarmy
+Icon=/home/wildlux/Desktop/byte-swarmy/IMG/icona.png
+Terminal=false
+Categories=Development;IDE;
+StartupNotify=true
+Keywords=ai;swarm;ollama;agents;llm;

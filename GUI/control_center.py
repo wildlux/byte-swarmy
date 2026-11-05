@@ -82,7 +82,7 @@ class CreditsOverlay(QFrame):
         # a destra le Tecnologie & Progetti Open Source in griglia 2-colonne.
         # Prima era 620x520 fisso e le card venivano compresse a 0px
         # (i nomi di Paolo Lo Bello, GLM 5.2, Qwen, DeepSeek sparivano).
-        self.setFixedSize(820, 620)
+        self.setFixedSize(1000, 640)
         # Il tema (chiaro/scuro) viene letto da settings_store e applicato
         # dinamicamente. Per cambiare tema live: apply_theme("light"|"dark").
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -156,7 +156,7 @@ class CreditsOverlay(QFrame):
                 img_label = QLabel()
                 pix = QPixmap(img_path)
                 # Più grande: 380px di larghezza (prima era 220)
-                pix = pix.scaledToWidth(380, Qt.TransformationMode.SmoothTransformation)
+                pix = pix.scaledToWidth(420, Qt.TransformationMode.SmoothTransformation)
                 img_label.setPixmap(pix)
                 img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 img_label.setFixedHeight(int(pix.height()))
