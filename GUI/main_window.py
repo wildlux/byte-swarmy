@@ -2563,7 +2563,8 @@ class ThermalTab(QWidget):
         # Prova a ottenere il timestral dall'orchestratore in esecuzione
         if not self.timestral:
             self.advice_label.setText("○ Timestral non attivo")
-            self.advice_label.setStyleSheet("font-weight: bold; font-size: 14pt; color: #909090;")
+            self.advice_label.setStyleSheet("font-weight: bold; font-size: 14pt;")
+        self.advice_label.setProperty("role", "muted")
             self.reason_label.setText("L'orchestratore non sta girando o Timestral è disabilitato nel config.")
             return
 
@@ -3160,7 +3161,8 @@ class ModelsTab(QWidget):
 
             info = QLabel("—")
             info.setMinimumWidth(200)
-            info.setStyleSheet("color: #999; font-size: 9pt;")
+            info.setStyleSheet("font-size: 9pt;")
+            info.setProperty("role", "muted")
             self.role_info_labels[role_key] = info
             row.addWidget(info)
 
