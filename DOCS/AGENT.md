@@ -293,6 +293,11 @@ QT_QPA_PLATFORM=offscreen .venv/bin/python <script_di_smoke>
 # stylesheet "declaration-only" su un antenato azzera i bottoni figli).
 ```
 
+# ── Scorciatoie tastiera (globali, in GUI) ──────────────────────
+# Backspace → "Indietro alla Plancia" (fuori dagli editor di testo)
+# "/"        → focus sul campo comando in basso + inserisce "/"
+# (i pulsanti "Indietro" mostrano "(Backspace)" nel label)
+
 Hard rules encoded in these commands: never `git push`/`pull` by hand,
 never block the Qt main thread, never `time.sleep` in the task runner
 (use `Event.wait` + single-threaded loop).

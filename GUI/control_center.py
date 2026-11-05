@@ -31,7 +31,7 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtCore import (
     Qt, QPropertyAnimation, QEasingCurve, pyqtSignal, QDir, QTimer,
-    QUrl,
+    QUrl, QEvent,
 )
 
 from GUI.gui_backend import (
@@ -1939,6 +1939,16 @@ class ControlCenter(QMainWindow):
         root.addLayout(body, stretch=1)
 
         root.addWidget(self._build_command_bar())
+
+        # Scorciatoie globali: Backspace → "Indietro alla Plancia",
+        # "/" (con campo vuoto e focus non su un editor) → scrivi nel
+        # campo comando in basso. Installate a livello app per catturare
+        # i tasti anche quando il focus è su widget figli.
+        try:
+            QApplication.instance().installEventFilter(self.center)
+            self._global_keys_installed = True
+        except Exception:
+            self._global_keys_installed = False
 
         self._cpu_temp = 45
         self._gpu_temp = 38
@@ -3915,7 +3925,7 @@ class CICDPipelinePanel(QWidget):
         # Header
         head = QHBoxLayout()
         head.setSpacing(10)
-        back = QPushButton("← Indietro alla Plancia")
+        back = QPushButton("← Indietro alla Plancia (Backspace)")
         back.setObjectName("back_btn")
         back.setStyleSheet(
             "QPushButton#back_btn { background:#e8e8ec; color:#1a1a1a; "
@@ -4154,7 +4164,7 @@ class CleanCodePanel(QWidget):
         # Header
         head = QHBoxLayout()
         head.setSpacing(10)
-        back = QPushButton("← Indietro alla Plancia")
+        back = QPushButton("← Indietro alla Plancia (Backspace)")
         back.setObjectName("back_btn")
         back.setStyleSheet(
             "QPushButton#back_btn { background:#e8e8ec; color:#1a1a1a; "
@@ -4554,7 +4564,7 @@ class CenterArea(QWidget):
 
         # ── 5 pannelli strumenti di analisi ────────────────────────────
         # Ognuno dei 5 widget istanziati sopra viene avvolto in una pagina
-        # con header "← Indietro alla Plancia" + titolo, poi aggiunto al
+        # con header "← Indietro alla Plancia (Backspace)" + titolo, poi aggiunto al
         # detail_stack. La key deve combaciare con quella usata nelle
         # PlanciaCard della tools_grid (vedi tool_card_configs sopra).
         self.panel_pages["code_explorer"] = self._wrap_in_panel_page(
@@ -4626,6 +4636,50 @@ class CenterArea(QWidget):
     def back_to_main(self):
         self.main_stack.setCurrentIndex(0)
 
+    def eventFilter(self, obj, event):
+        # Scorciatoie globali (Backspace = Indietro alla Plancia,
+        # "/" con campo vuoto = scrivi nel campo comando in basso).
+        try:
+            import sys as _d
+            if event.type() != QEvent.Type.KeyPress:
+                return False
+            if QApplication.activeModalWidget() is not None:
+                return False
+            from PyQt6.QtWidgets import (
+                QLineEdit, QTextEdit, QPlainTextEdit, QComboBox,
+                QSpinBox, QDoubleSpinBox, QDateTimeEdit,
+            )
+            focus = QApplication.focusWidget()
+            is_editor = isinstance(focus, (QLineEdit, QTextEdit, QPlainTextEdit,
+                                           QComboBox, QSpinBox, QDoubleSpinBox,
+                                           QDateTimeEdit))
+            key = event.key()
+            # Backspace → Indietro alla Plancia (solo fuori dagli editor)
+            if key == Qt.Key.Key_Backspace and not is_editor:
+                ms = getattr(self, "main_stack", None)
+                if ms is not None and ms.currentIndex() != 0:
+                    self.back_to_main()
+                    return True
+                return False
+            # "/" → scrivi nel campo comando in basso (se vuoto)
+            if key == Qt.Key.Key_Slash and not is_editor:
+                main_win = getattr(self, "main_win", None)
+                inp = getattr(main_win, "cmd_input", None) if main_win is not None else getattr(self, "cmd_input", None)
+                if inp is not None:
+                    inp.setFocus()
+                    if not inp.text():
+                        inp.setText("/")
+                    else:
+                        # inserisci "/" alla posizione del cursore
+                        pos = inp.cursorPosition()
+                        txt = inp.text()
+                        inp.setText(txt[:pos] + "/" + txt[pos:])
+                        inp.setCursorPosition(pos + 1)
+                    return True
+            return False
+        except Exception:
+            return False
+
     def _wrap_in_panel_page(self, title: str, widget: QWidget) -> QWidget:
         """Avvolge un widget in una pagina con header "← Indietro" + titolo.
 
@@ -4642,7 +4696,7 @@ class CenterArea(QWidget):
         # Header: pulsante Indietro + titolo
         head = QHBoxLayout()
         head.setSpacing(10)
-        back = QPushButton("← Indietro alla Plancia")
+        back = QPushButton("← Indietro alla Plancia (Backspace)")
         back.setObjectName("back_btn")
         back.setStyleSheet(
             "QPushButton#back_btn { background:#e8e8ec; color:#1a1a1a; "
@@ -4677,7 +4731,7 @@ class CenterArea(QWidget):
         lay.setSpacing(14)
 
         head = QHBoxLayout()
-        back = QPushButton("← Indietro alla Plancia")
+        back = QPushButton("← Indietro alla Plancia (Backspace)")
         back.setObjectName("back_btn")
         back.setStyleSheet(
             "QPushButton#back_btn { background:#e8e8ec; color:#1a1a1a; border:none; "

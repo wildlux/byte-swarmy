@@ -148,7 +148,14 @@ This file tracks every significant feature, fix, and architectural change implem
 - [x] **Test `tests/test_remote_bridge.py`**: 7 test round-trip
   in-process (inventario, click id/testo/index, duplicati `#n`,
   disabilitati, screenshot, op sconosciute, json invalido, slug). Suite
-  aggiornata: 254 passed (247 + 7).
+- [x] **Scorciatoie tastiera globali (UX)**: in `GUI/control_center.py`
+  (CenterArea) installato event filter a livello app:
+  - **Backspace** → "Indietro alla Plancia" (torna alla plancia principale),
+    solo fuori dagli editor di testo; i pulsanti "Indietro alla Plancia"
+    ora mostrano "(Backspace)" nel label per informare l'utente.
+  - **"/"** con focus fuori da un editor → focus sul campo comando in
+    basso e inserisce "/" (se vuoto, altrimenti alla posizione del cursore).
+  Smoke test offscreen: stack 1→0 e cmd_input="/". Suite verde.
 
 - [x] **Tooling mantenibilità**: tre nuovi tool in `tools/` (solo stdlib,
   exit code per CI):
