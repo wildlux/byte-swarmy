@@ -32,6 +32,7 @@ from CORE import sandbox
 from SAFETY.security import (
     SecurityError,
     allowed_commands_text,
+    is_sensitive_path,
     log_security_event,
     normalize_bash_argv,
     safe_project_path,
@@ -109,12 +110,16 @@ class ToolSet:
     def allowed_tools(self) -> set[str]:
         """Tool che il worker può realmente chiamare."""
         return {
-            "read_file", "write_file", "patch_code", "run_bash", "search",
+            "read_file", "read_file_slice", "write_file", "patch_code",
+            "delete_file", "move_file", "list_files",
+            "run_bash", "search",
             "analyze_project", "find_references", "lint_code",
             "rename_symbol", "analyze_complexity", "get_call_graph",
             "extract_method",
             "git_commit", "git_diff", "git_status", "git_log",
             "git_branch", "git_merge", "git_pull", "git_push", "git_remote",
+            "run_test_suite", "list_tools",
+            "inspect_usb_devices", "capture_usb_traffic",
         }
 
     # ----- 1. read_file -----
@@ -311,6 +316,148 @@ class ToolSet:
         except Exception as e:
             return f"ERROR search: {e}"
 
+    # ----- 6b. delete_file (ciclo di vita file: create esiste, delete no) -----
+    def delete_file(self, path: str) -> str:
+        """Cancella UN file dentro project/ (mai directory, mai root)."""
+        try:
+            full = safe_project_path(path, self.project_root, for_write=True)
+        except SecurityError as exc:
+            self._audit("blocked_path",
+                        f'op=delete path="{self._q(path)}" reason="{exc}"',
+                        "WARNING")
+            return f"ERROR: {exc}. Puoi cancellare solo file dentro project/."
+
+        if not full.exists():
+            return f"ERROR: file not found: {path}"
+        if full.is_dir():
+            return ("ERROR: '{p}' è una directory: delete_file cancella solo "
+                    "file singoli.".format(p=path))
+
+        size = full.stat().st_size
+        try:
+            full.unlink()
+            self._audit("file_deleted", f'path="{self._q(path)}" bytes={size}', "INFO")
+            return f"OK: deleted {path} ({size} bytes)"
+        except Exception as e:
+            return f"ERROR deleting {path}: {e}"
+
+    # ----- 6c. move_file (rinomina/sposta file dentro project/) -----
+    def move_file(self, path: str, new_path: str) -> str:
+        """Rinomina o sposta un file dentro project/. Non sovrascrive."""
+        try:
+            src = safe_project_path(path, self.project_root, for_write=True)
+            dst = safe_project_path(new_path, self.project_root, for_write=True)
+        except SecurityError as exc:
+            self._audit("blocked_path",
+                        f'op=move "{self._q(path)}"->"{self._q(new_path)}" '
+                        f'reason="{exc}"', "WARNING")
+            return f"ERROR: {exc}. Puoi spostare file solo dentro project/."
+
+        if not src.exists():
+            return f"ERROR: file not found: {path}"
+        if src.is_dir():
+            return (f"ERROR: '{path}' è una directory: move_file sposta "
+                    "solo file singoli.")
+        if dst.exists():
+            return f"ERROR: '{new_path}' esiste già: scegli un altro nome."
+        if src == dst:
+            return "ERROR: origine e destinazione coincidono."
+
+        try:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            src.rename(dst)
+            self._audit("file_moved",
+                        f'from="{self._q(path)}" to="{self._q(new_path)}"', "INFO")
+            return f"OK: moved {path} -> {new_path}"
+        except Exception as e:
+            return f"ERROR moving {path} -> {new_path}: {e}"
+
+    # ----- 6d. list_files (listing sicuro con glob) -----
+    def list_files(self, path: str = ".", pattern: str = "*") -> str:
+        """Elenca file e cartelle dentro project/ (glob, esclude sensibili)."""
+        if not isinstance(pattern, str) or not _GLOB_RE.match(pattern or "*"):
+            return "ERROR: pattern non valido (usa es. '*.py')"
+        try:
+            base = safe_project_path(path or ".", self.project_root)
+        except SecurityError as exc:
+            self._audit("blocked_path",
+                        f'op=list path="{self._q(path)}" reason="{exc}"',
+                        "WARNING")
+            return f"ERROR: {exc}. Puoi elencare solo directory dentro project/."
+
+        if not base.exists():
+            return f"ERROR: directory not found: {path}"
+        if not base.is_dir():
+            return f"ERROR: '{path}' non è una directory."
+
+        try:
+            entries = sorted(base.glob(pattern))[:200]
+            lines = []
+            for e in entries:
+                if is_sensitive_path(e):
+                    continue
+                tag = "/" if e.is_dir() else ""
+                size = f" ({e.stat().st_size}b)" if e.is_file() else ""
+                lines.append(f"{e.relative_to(self.project_root)}{tag}{size}")
+            if not lines:
+                return "(empty)"
+            out = "\n".join(lines)
+            if len(entries) == 200:
+                out += TRUNCATED
+            return out
+        except Exception as e:
+            return f"ERROR list_files: {e}"
+
+    # ----- 6e. read_file_slice (porzioni di file grandi, 1-based) -----
+    def read_file_slice(self, path: str, start_line: int, end_line: int) -> str:
+        """Legge le righe [start_line, end_line] di un file (max 200 a chiamata)."""
+        try:
+            full = safe_project_path(path, self.project_root)
+        except SecurityError as exc:
+            self._audit("blocked_path",
+                        f'op=read_slice path="{self._q(path)}" reason="{exc}"',
+                        "WARNING")
+            return f"ERROR: {exc}. Puoi leggere solo file dentro project/."
+
+        if not full.exists():
+            return f"ERROR: file not found: {path}"
+        if full.is_dir():
+            return f"ERROR: '{path}' è una directory."
+
+        try:
+            start_line = int(start_line)
+            end_line = int(end_line)
+        except (TypeError, ValueError):
+            return "ERROR: start_line e end_line devono essere interi (1-based)."
+
+        if start_line < 1:
+            start_line = 1
+        if end_line < start_line:
+            return f"ERROR: end_line ({end_line}) < start_line ({start_line})."
+        if end_line - start_line + 1 > 200:
+            end_line = start_line + 199  # cap: 200 righe per chiamata
+
+        try:
+            out_lines = []
+            total = 0
+            with full.open("r", encoding="utf-8", errors="replace") as fh:
+                for i, line in enumerate(fh, start=1):
+                    if i < start_line:
+                        continue
+                    if i > end_line:
+                        break
+                    piece = f"{i}\t{line.rstrip(chr(10))[:500]}"
+                    out_lines.append(piece)
+                    total += len(piece) + 1
+                    if total > self.max_output:
+                        out_lines.append(TRUNCATED.strip())
+                        break
+            if not out_lines:
+                return f"(no lines in {start_line}-{end_line}: file vuoto o più corto)"
+            return "\n".join(out_lines)
+        except Exception as e:
+            return f"ERROR read_file_slice: {e}"
+
     # ----- 7. git_status -----
     def git_status(self) -> str:
         """Stato del repo: file modificati/non tracciati."""
@@ -416,8 +563,12 @@ class ToolSet:
         """Firma dei tool per il system prompt dell'agente."""
         return {
             "read_file": "read_file(path) -> str: legge un file dentro project/",
+            "read_file_slice": "read_file_slice(path, start_line, end_line) -> str: legge max 200 righe di un file grande (righe 1-based)",
             "write_file": "write_file(path, content) -> str: scrive atomicamente in project/",
             "patch_code": "patch_code(path, old_text, new_text) -> str: sostituisce una porzione di testo in un file",
+            "delete_file": "delete_file(path) -> str: cancella un file singolo dentro project/",
+            "move_file": "move_file(path, new_path) -> str: rinomina o sposta un file dentro project/ (non sovrascrive)",
+            "list_files": "list_files(path='.', pattern='*') -> str: elenca file e cartelle (glob, es. '*.py')",
             "analyze_project": "analyze_project() -> str: restituisce la mappa di classi e funzioni del progetto",
             "find_references": "find_references(symbol) -> str: cerca tutte le occorrenze di una funzione/variabile",
             "run_test_suite": "run_test_suite() -> str: esegue i test e restituisce il report degli errori",
@@ -437,6 +588,10 @@ class ToolSet:
             "git_pull": "DISABILITATO per i worker (usa ./sync.sh come utente reale)",
             "git_push": "DISABILITATO per i worker (usa ./sync.sh come utente reale)",
             "git_remote": "git_remote(action='list') -> str (add/remove disabilitati)",
+            "run_test_suite": "run_test_suite() -> str: esegue i test del progetto",
+            "list_tools": "list_tools() -> str: elenca i tool disponibili con le loro firme",
+            "inspect_usb_devices": "inspect_usb_devices() -> str: elenca i dispositivi USB visibili",
+            "capture_usb_traffic": "capture_usb_traffic(bus, duration=5) -> str: cattura traffico USB per N secondi",
         }
 
     # ------------------------------------------------------------------
