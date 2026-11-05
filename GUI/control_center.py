@@ -4800,6 +4800,13 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     w = ControlCenter()
+    # Ponte remoto per simulare i pulsanti (tools/gui_remote.py).
+    # Opt-out: env BYTE_SWARMY_REMOTE=0. Mai raise: fail-open.
+    try:
+        from GUI.remote_bridge import start_button_bridge
+        start_button_bridge(w)
+    except Exception as _e:      # la GUI parte comunque
+        print(f"[remote-bridge] off: {_e}", file=sys.stderr)
     # Imposta icona finestra
     import os
     icon_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'IMG', 'icona.ico')
