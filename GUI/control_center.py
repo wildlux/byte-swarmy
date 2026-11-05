@@ -2132,20 +2132,12 @@ class ControlCenter(QMainWindow):
         self.device_panel = DevicePanel()
         lay.addWidget(self.device_panel)
 
-        return bar
+        # Pulsante ▶/⏸ della toolbar = Pausa/Riprendi orchestratore
+        # (stessa logica del menu: state/pause.flag).
+        self.device_panel.toggle_btn.clicked.connect(self._toggle_orchestrator)
+        self._sync_toggle_icon()
 
-        # Pulsanti Pausa/Stop orchestratore
-        _spacer = QWidget()
-        _spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        lay.addWidget(_spacer)
-        self._pause_btn = QPushButton("⏸ Pausa")
-        self._pause_btn.setStyleSheet("QPushButton { background:#f59e0b; color:white; border:none; padding:6px 12px; border-radius:6px; font-weight:bold; } QPushButton:hover { background:#d97706; }")
-        self._pause_btn.clicked.connect(self._pause_orchestrator)
-        lay.addWidget(self._pause_btn)
-        self._stop_btn = QPushButton("⏹ Stop")
-        self._stop_btn.setStyleSheet("QPushButton { background:#dc2626; color:white; border:none; padding:6px 12px; border-radius:6px; font-weight:bold; } QPushButton:hover { background:#b91c1c; }")
-        self._stop_btn.clicked.connect(self._stop_orchestrator)
-        lay.addWidget(self._stop_btn)
+        return bar
 
 
     def _show_credits(self):
@@ -2179,7 +2171,7 @@ class ControlCenter(QMainWindow):
             "QMenu::item:selected { background:#f0f9ff; color:#16a34a; }"
         )
 
-        act_pause = QAction("⏸ Pausa orchestratore", self)
+        act_pause = QAction("⏸/▶ Pausa / Riprendi orchestratore", self)
         act_pause.triggered.connect(self._toggle_orchestrator)
         menu.addAction(act_pause)
 
@@ -2207,13 +2199,53 @@ class ControlCenter(QMainWindow):
         menu.exec(self.sender().mapToGlobal(self.sender().rect().bottomLeft()))
 
     def _toggle_orchestrator(self):
+        """Pausa/Riprendi l'orchestratore (state/pause.flag).
+
+        Pulsante ▶/⏸ della toolbar e voce menu condividono questa logica:
+        ▶ (verde) = attivo, click → pausa (⏸ ambra); ⏸ = in pausa,
+        click → riprendi (▶ verde).
+        """
+        import os, time
         btn = self.device_panel.toggle_btn
-        if btn.text() == "▶":
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        pause_file = os.path.join(base, 'state', 'pause.flag')
+        running_style = ("QPushButton#primary_btn { background:#16a34a; color:white; "
+                         "font-weight:bold; font-size:16px; border-radius:6px; "
+                         "border:none; }")
+        paused_style = ("QPushButton#primary_btn { background:#f59e0b; color:white; "
+                        "font-weight:bold; font-size:14px; border-radius:6px; "
+                        "border:none; }")
+        try:
+            if btn.text() == "▶":
+                _log_user_action("Toolbar-Orchestratore", "pausa",
+                                 details="Pausa da pulsante ▶ toolbar")
+                with open(pause_file, 'w') as f:
+                    f.write(str(time.time()))
+                btn.setText("⏸")
+                btn.setStyleSheet(paused_style)
+                self.statusBar().showMessage("⏸ Orchestratore in pausa", 3000)
+            else:
+                _log_user_action("Toolbar-Orchestratore", "ripreso",
+                                 details="Ripresa da pulsante ⏸ toolbar")
+                if os.path.exists(pause_file):
+                    os.remove(pause_file)
+                btn.setText("▶")
+                btn.setStyleSheet(running_style)
+                self.statusBar().showMessage("▶ Orchestratore ripreso", 3000)
+        except Exception as e:
+            print(f"Errore toggle orchestratore: {e}")
+
+    def _sync_toggle_icon(self):
+        """Allinea l'icona del pulsante ▶/⏸ allo stato reale (pause.flag)."""
+        import os
+        btn = self.device_panel.toggle_btn
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        paused = os.path.exists(os.path.join(base, 'state', 'pause.flag'))
+        if paused:
             btn.setText("⏸")
-            btn.setStyleSheet("QPushButton#primary_btn { background:#f59e0b; color:white; font-weight:bold; font-size:14px; border-radius:6px; border:none; }")
-        else:
-            btn.setText("▶")
-            btn.setStyleSheet("QPushButton#primary_btn { background:#16a34a; color:white; font-weight:bold; font-size:16px; border-radius:6px; border:none; }")
+            btn.setStyleSheet(
+                "QPushButton#primary_btn { background:#f59e0b; color:white; "
+                "font-weight:bold; font-size:14px; border-radius:6px; border:none; }")
 
     def _tick_metrics(self):
         self._cpu_temp = get_cpu_temp()

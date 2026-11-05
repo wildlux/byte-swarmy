@@ -2564,7 +2564,7 @@ class ThermalTab(QWidget):
         if not self.timestral:
             self.advice_label.setText("○ Timestral non attivo")
             self.advice_label.setStyleSheet("font-weight: bold; font-size: 14pt;")
-        self.advice_label.setProperty("role", "muted")
+            self.advice_label.setProperty("role", "muted")
             self.reason_label.setText("L'orchestratore non sta girando o Timestral è disabilitato nel config.")
             return
 

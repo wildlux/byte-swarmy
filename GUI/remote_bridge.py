@@ -180,8 +180,10 @@ class ButtonBridge(QObject):
             if b is None:
                 return {"ok": False, "error": "pulsante non trovato"}
             if not b.isEnabled():
+                label = (b.text().strip() or b.objectName()
+                         or f"index {self._buttons().index(b)}")
                 return {"ok": False,
-                        "error": f"'{b.text()}' è disabilitato"}
+                        "error": f"'{label}' è disabilitato"}
             b.click()
             return {"ok": True, "clicked": (b.text() or b.objectName())}
         if op == "screenshot":
