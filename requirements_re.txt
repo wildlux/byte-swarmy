@@ -1,0 +1,56 @@
+# requirements_re.txt — Reverse Engineering dependencies for byte-swarmy
+#
+# Install with:
+#   pip install -r requirements_re.txt
+#
+# These are PYTHON bindings. System tools (Ghidra, radare2, tshark) must be
+# installed separately via scripts/setup/re_tools.sh
+#
+# After install, verify with:
+#   python3 CORE/re_tools.py --check
+
+# === Disassembler (pure Python, no external deps) ===
+capstone>=5.0.0          # multi-arch disassembly framework
+# Optional: keystone for assembling (paired with capstone)
+# keystone-engine>=0.9.2
+
+# === radare2 Python binding ===
+r2pipe>=1.8.0            # requires radare2 system binary (apt install radare2)
+
+# === Wireshark/tshark Python wrapper ===
+pyshark>=0.6             # requires tshark system binary (apt install tshark)
+
+# === Binary analysis helpers (optional but useful) ===
+# pefile for Windows PE analysis
+pefile>=2023.2.7         # parse PE/EXE files (Windows binaries)
+
+# LIEF for multi-format binary parsing (ELF, PE, Mach-O)
+lief>=0.14.0             # cross-platform binary parser
+
+# === Ghidra Python bridge (optional, for advanced integration) ===
+# pyghidra is the official Python interface to Ghidra
+# Note: requires Ghidra installed separately + Java 17+
+# pyghidra>=0.1.0        # uncomment if using pyghidra instead of subprocess
+
+# === Networking/protocol analysis ===
+scapy>=2.5.0             # packet manipulation, pcap reading without tshark
+
+# === Misc useful ===
+# unicorn for CPU emulation (advanced)
+# unicorn>=2.0.0         # CPU emulator, paired with capstone
+
+# yara for pattern matching (malware analysis)
+yara-python>=4.3.0       # YARA rules engine for binary pattern matching
+
+# === Summary of system deps ===
+# This requirements file installs Python packages. For full RE capability:
+#
+# System packages (Ubuntu/Debian):
+#   sudo apt install radare2 tshark binutils file coreutils
+#
+# Ghidra (not in apt):
+#   Download from https://ghidra-sre.org/
+#   Extract to /opt/ghidra
+#   Add /opt/ghidra/support to PATH (contains analyzeHeadless)
+#
+# See scripts/setup/re_tools.sh for automated setup
