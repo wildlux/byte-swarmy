@@ -296,7 +296,7 @@ class TestToolSetSecurity(unittest.TestCase):
         ):
             with self.subTest(cmd=cmd):
                 out = self.tools.run_bash(cmd)
-                self.assertTrue(out.startswith("ERROR: comando bloccato"), out[:200])
+                self.assertTrue(out.startswith("ERROR: command blocked"), out[:200])
 
     def test_dangerous_commands_are_blocked(self):
         for cmd in (
@@ -313,7 +313,7 @@ class TestToolSetSecurity(unittest.TestCase):
         ):
             with self.subTest(cmd=cmd):
                 out = self.tools.run_bash(cmd)
-                self.assertTrue(out.startswith("ERROR: comando bloccato"), out[:200])
+                self.assertTrue(out.startswith("ERROR: command blocked"), out[:200])
 
     def test_git_network_tools_disabled(self):
         for result in (
@@ -328,7 +328,7 @@ class TestToolSetSecurity(unittest.TestCase):
     def test_git_ref_injection_blocked(self):
         for rev in ("--no-index /etc/passwd", "-c core.pager=evil", "HEAD; id"):
             with self.subTest(rev=rev):
-                self.assertIn("non valida", self.tools.git_diff(rev).lower())
+                self.assertIn("invalid revision", self.tools.git_diff(rev).lower())
 
     def test_environment_is_sanitized(self):
         self._write("envcheck.py", (
@@ -393,7 +393,7 @@ class TestToolSetSecurity(unittest.TestCase):
         self._write("big.txt", "x" * 100)
         self.cfg["routing"]["max_file_size_readable"] = 10
         tools = ToolSet(self.cfg, logging.getLogger("size-test"))
-        self.assertTrue(tools.read_file("big.txt").startswith("ERROR: file troppo grande"))
+        self.assertTrue(tools.read_file("big.txt").startswith("ERROR: file too large"))
 
 
 class TestAlwaysOnSecurity(unittest.TestCase):
@@ -433,7 +433,7 @@ class TestAlwaysOnSecurity(unittest.TestCase):
         for cmd in ("rm -rf ~", "rm -rf ../sentinel.txt", "cat /etc/passwd"):
             with self.subTest(cmd=cmd):
                 out = self.tools.run_bash(cmd)
-                self.assertTrue(out.startswith("ERROR: comando bloccato"), out)
+                self.assertTrue(out.startswith("ERROR: command blocked"), out)
         self.assertEqual(self.sentinel.read_text(), "do not delete\n")
 
     def test_disable_attempt_is_logged_critical(self):
@@ -452,7 +452,7 @@ class TestAlwaysOnSecurity(unittest.TestCase):
         self.assertNotIn("do not delete", out)
 
         out = self.tools.run_bash("rm ../sentinel.txt")
-        self.assertTrue(out.startswith("ERROR: comando bloccato"), out)
+        self.assertTrue(out.startswith("ERROR: command blocked"), out)
 
         self.assertEqual(self.sentinel.read_text(), "do not delete\n")
 

@@ -130,15 +130,15 @@ class ToolSet:
         except SecurityError as exc:
             self._audit("blocked_path", f'op=read path="{self._q(path)}" reason="{exc}"',
                         "WARNING")
-            return f"ERROR: {exc}. Puoi leggere solo file dentro project/."
+            return f"ERROR: {exc}. You can only read files inside project/."
 
         if not full.exists():
             return f"ERROR: file not found: {path}"
         if full.is_dir():
-            return f"ERROR: '{path}' è una directory. Usa run_bash('ls {path}')."
+            return f"ERROR: '{path}' is a directory. Use run_bash('ls {path}')."
         size = full.stat().st_size
         if size > self.cfg["routing"]["max_file_size_readable"]:
-            return f"ERROR: file troppo grande ({size} byte). Leggilo a pezzi con head/tail."
+            return f"ERROR: file too large ({size} bytes). Read it in chunks with read_file_slice."
         try:
             return full.read_text(encoding="utf-8", errors="replace")
         except Exception as e:
@@ -160,30 +160,29 @@ class ToolSet:
             if not safe:
                 self._audit("blocked_ast", f'path="{self._q(path)}" reason="{self._q(reason)}"',
                             "CRITICAL")
-                return f"ERROR: Security Violation. Il codice contiene elementi vietati: {reason}."
+                return f"ERROR: Security Violation. The code contains forbidden elements: {reason}."
 
         # Gate anti-corruzione (todo 9c/M1): artefatti di escape su QUALSIASI
         # file di testo (il bug più costoso del progetto colpiva anche .py/.md).
         if detect_artifacts(content):
             self._audit("blocked_escape_artifact",
                         f'path="{self._q(path)}"', "CRITICAL")
-            return (f"ERROR: write_file rifiutato: il contenuto contiene artefatti "
-                    f"di escape (es. \\\" a inizio riga). NON usare patch_code per "
-                    f"correggere: riscrivi l'intero file pulito con write_file.")
-
+            return ("ERROR: write_file rejected: the content contains escape "
+                "artifacts (e.g. \\\" at line start). Do NOT use patch_code "
+                "to fix it: rewrite the whole clean file with write_file.")
         if len(content) > self.max_write_bytes:
-            return (f"ERROR: contenuto troppo grande ({len(content)} byte, "
-                    f"max {self.max_write_bytes}). Scrivi file più piccoli.")
+            return (f"ERROR: content too large ({len(content)} bytes, "
+                    f"max {self.max_write_bytes}). Write smaller files.")
         try:
             full = safe_project_path(path, self.project_root, for_write=True)
         except SecurityError as exc:
             self._audit("blocked_path", f'op=write path="{self._q(path)}" reason="{exc}"',
                         "WARNING")
-            return (f"ERROR: {exc}. Scrivi solo dentro project/ "
-                    f"(es. 'project/main.py').")
+            return (f"ERROR: {exc}. Write only inside project/ "
+                    f"(e.g. 'project/main.py').")
 
         if full.exists() and full.is_dir():
-            return f"ERROR: '{path}' è una directory."
+            return f"ERROR: '{path}' is a directory."
 
         try:
             full.parent.mkdir(parents=True, exist_ok=True)
@@ -207,7 +206,7 @@ class ToolSet:
         Timeout = routing.timeout_bash. Output limitato per non saturare il LLM.
         """
         if not isinstance(cmd, str) or not cmd.strip():
-            return "ERROR: comando vuoto"
+            return "ERROR: empty command"
 
         ok, reason = validate_bash_command(cmd, self.project_root)
         if not ok:
@@ -217,10 +216,10 @@ class ToolSet:
                 "CRITICAL",
             )
             return (
-                f"ERROR: comando bloccato: {reason}.\n"
+                f"ERROR: command blocked: {reason}.\n"
                 f"{allowed_commands_text()}\n"
-                "Suggerimento: usa i tool dedicati (write_file, git_commit, search) "
-                "oppure un singolo comando semplice dentro project/."
+                "Hint: use the dedicated tools (write_file, git_commit, search) "
+                "or a single simple command inside project/."
             )
 
         self._audit("allowed_command", f'cmd="{self._q(cmd)}"', "INFO")
@@ -228,13 +227,13 @@ class ToolSet:
         try:
             argv = shlex.split(cmd, posix=True)
         except ValueError as exc:
-            return f"ERROR: comando non valido: {exc}"
+            return f"ERROR: invalid command: {exc}"
         if not argv:
-            return "ERROR: comando vuoto"
+            return "ERROR: empty command"
 
         # `cd` non ha senso: ogni comando parte già da project/.
         if argv[0] == "cd":
-            return f"OK: la working directory è già {self.project_root}"
+            return f"OK: the working directory is already {self.project_root}"
 
         # Accetta sia 'project/x' sia 'x' (la cwd è già project/).
         argv = normalize_bash_argv(argv)
@@ -274,8 +273,8 @@ class ToolSet:
         """Mostra il diff rispetto a una revisione locale."""
         rev = self._safe_ref(rev)
         if rev is None:
-            return ("ERROR: revisione non valida. Usa HEAD, HEAD~1, un hash "
-                    "o un nome di branch locale.")
+            return ("ERROR: invalid revision. Use HEAD, HEAD~1, a hash "
+                    "or a local branch name.")
         try:
             # Per evitare che git diff restituisca un errore se non ci sono commit,
             # o se il ref è valido ma non c'è diff, gestiamo l'output.
@@ -295,13 +294,13 @@ class ToolSet:
     def search(self, pattern: str, file_glob: str = "*") -> str:
         """Cerca pattern regex nei file del progetto."""
         if not isinstance(pattern, str) or not pattern:
-            return "ERROR: pattern mancante"
+            return "ERROR: missing pattern"
         if len(pattern) > 500:
-            return "ERROR: pattern troppo lungo (max 500)"
+            return "ERROR: pattern too long (max 500)"
         if not isinstance(file_glob, str):
             file_glob = "*"
         if not _GLOB_RE.match(file_glob) or ".." in Path(file_glob).parts:
-            return "ERROR: file_glob non valido"
+            return "ERROR: invalid file_glob"
         try:
             cmd = [
                 "grep", "-rn", "-E",
@@ -325,13 +324,13 @@ class ToolSet:
             self._audit("blocked_path",
                         f'op=delete path="{self._q(path)}" reason="{exc}"',
                         "WARNING")
-            return f"ERROR: {exc}. Puoi cancellare solo file dentro project/."
+            return f"ERROR: {exc}. You can only delete files inside project/."
 
         if not full.exists():
             return f"ERROR: file not found: {path}"
         if full.is_dir():
-            return ("ERROR: '{p}' è una directory: delete_file cancella solo "
-                    "file singoli.".format(p=path))
+            return ("ERROR: '{p}' is a directory: delete_file deletes "
+                    "single files only.".format(p=path))
 
         size = full.stat().st_size
         try:
@@ -351,17 +350,17 @@ class ToolSet:
             self._audit("blocked_path",
                         f'op=move "{self._q(path)}"->"{self._q(new_path)}" '
                         f'reason="{exc}"', "WARNING")
-            return f"ERROR: {exc}. Puoi spostare file solo dentro project/."
+            return f"ERROR: {exc}. You can only move files inside project/."
 
         if not src.exists():
             return f"ERROR: file not found: {path}"
         if src.is_dir():
-            return (f"ERROR: '{path}' è una directory: move_file sposta "
-                    "solo file singoli.")
+            return (f"ERROR: '{path}' is a directory: move_file moves "
+                    "single files only.")
         if dst.exists():
-            return f"ERROR: '{new_path}' esiste già: scegli un altro nome."
+            return f"ERROR: '{new_path}' already exists: choose another name."
         if src == dst:
-            return "ERROR: origine e destinazione coincidono."
+            return "ERROR: source and destination are the same."
 
         try:
             dst.parent.mkdir(parents=True, exist_ok=True)
@@ -376,19 +375,19 @@ class ToolSet:
     def list_files(self, path: str = ".", pattern: str = "*") -> str:
         """Elenca file e cartelle dentro project/ (glob, esclude sensibili)."""
         if not isinstance(pattern, str) or not _GLOB_RE.match(pattern or "*"):
-            return "ERROR: pattern non valido (usa es. '*.py')"
+            return "ERROR: invalid pattern (use e.g. '*.py')"
         try:
             base = safe_project_path(path or ".", self.project_root)
         except SecurityError as exc:
             self._audit("blocked_path",
                         f'op=list path="{self._q(path)}" reason="{exc}"',
                         "WARNING")
-            return f"ERROR: {exc}. Puoi elencare solo directory dentro project/."
+            return f"ERROR: {exc}. You can only list directories inside project/."
 
         if not base.exists():
             return f"ERROR: directory not found: {path}"
         if not base.is_dir():
-            return f"ERROR: '{path}' non è una directory."
+            return f"ERROR: '{path}' is not a directory."
 
         try:
             entries = sorted(base.glob(pattern))[:200]
@@ -417,18 +416,18 @@ class ToolSet:
             self._audit("blocked_path",
                         f'op=read_slice path="{self._q(path)}" reason="{exc}"',
                         "WARNING")
-            return f"ERROR: {exc}. Puoi leggere solo file dentro project/."
+            return f"ERROR: {exc}. You can only read files inside project/."
 
         if not full.exists():
             return f"ERROR: file not found: {path}"
         if full.is_dir():
-            return f"ERROR: '{path}' è una directory."
+            return f"ERROR: '{path}' is a directory."
 
         try:
             start_line = int(start_line)
             end_line = int(end_line)
         except (TypeError, ValueError):
-            return "ERROR: start_line e end_line devono essere interi (1-based)."
+            return "ERROR: start_line and end_line must be integers (1-based)."
 
         if start_line < 1:
             start_line = 1
@@ -453,7 +452,7 @@ class ToolSet:
                         out_lines.append(TRUNCATED.strip())
                         break
             if not out_lines:
-                return f"(no lines in {start_line}-{end_line}: file vuoto o più corto)"
+                return f"(no lines in {start_line}-{end_line}: file is empty or shorter)"
             return "\n".join(out_lines)
         except Exception as e:
             return f"ERROR read_file_slice: {e}"
@@ -500,7 +499,7 @@ class ToolSet:
                 if name in PROTECTED_BRANCHES:
                     self._audit("blocked_branch_delete",
                                 f'branch="{name}" reason="protected"', "WARNING")
-                    return f"ERROR: il branch protetto '{name}' non può essere cancellato."
+                    return f"ERROR: protected branch '{name}' cannot be deleted."
 
             cmd = {
                 "create": ["git", "checkout", "-b", name],
@@ -637,7 +636,7 @@ class ToolSet:
                     os.replace(tmp, f)
                     count += 1
 
-            return f"OK: simbolo '{old_symbol}' rinominato in '{new_symbol}' in {count} file."
+            return f"OK: renamed symbol '{old_symbol}' to '{new_symbol}' in {count} files."
         except Exception as e:
             return f"ERROR renaming symbol: {e}"
 
@@ -650,7 +649,7 @@ class ToolSet:
         try:
             full = safe_project_path(path, self.project_root)
             if not full.exists():
-                return f"ERROR: file non trovato: {path}"
+                return f"ERROR: file not found: {path}"
 
             content = full.read_text(encoding="utf-8", errors="replace")
             # Punti di decisione tipici in Python
@@ -669,8 +668,8 @@ class ToolSet:
                     total_complexity += line_complexity
                     details.append(f"L{content.splitlines().index(line)+1}: {line.strip()[:50]}...")
 
-            return f"Complessità stimata: {total_complexity}\n" + \
-                   ("\n".join(details[:10]) if details else "Codice lineare, bassa complessità.")
+            return f"Estimated complexity: {total_complexity}\n" + \
+                   ("\n".join(details[:10]) if details else "Linear code, low complexity.")
         except Exception as e:
             return f"ERROR analyzing complexity: {e}"
 
@@ -694,7 +693,7 @@ class ToolSet:
         try:
             full = safe_project_path(path, self.project_root)
             if not full.exists():
-                return f"ERROR: file non trovato: {path}"
+                return f"ERROR: file not found: {path}"
 
             content = full.read_text(encoding="utf-8", errors="replace")
             if old_block not in content:
@@ -714,7 +713,7 @@ class ToolSet:
             tmp.write_text(new_content, encoding="utf-8")
             os.replace(tmp, full)
 
-            return f"OK: estratto '{new_method_name}' in {path}"
+            return f"OK: extracted '{new_method_name}' in {path}"
         except Exception as e:
             return f"ERROR extracting method: {e}"
 
@@ -742,7 +741,7 @@ class ToolSet:
                     results.append(entry)
 
             if not results:
-                return "Nessuna classe o funzione trovata nel progetto."
+                return "No classes or functions found in the project."
             return "\n".join(results)
         except Exception as e:
             return f"ERROR analyzing project: {e}"
@@ -781,7 +780,7 @@ class ToolSet:
             # Usiamo il runner JSON creato per la GUI per avere output strutturato
             runner_path = BASE_DIR / "tests" / "run_tests.py"
             if not runner_path.exists():
-                return "ERROR: runner di test non trovato in tests/run_tests.py"
+                return "ERROR: test runner not found in tests/run_tests.py"
 
             # Esecuzione in sandbox
             cmd, env = sandbox.build_command(
@@ -810,7 +809,7 @@ class ToolSet:
             raw = stdout.strip()
             start, end = raw.find("{"), raw.rfind("}")
             if start < 0 or end <= start:
-                return f"ERROR: report test non valido\n{stdout[:500]}"
+                return f"ERROR: invalid test report\n{stdout[:500]}"
 
             data = json.loads(raw[start:end+1])
             summary = data.get("summary", {})
@@ -826,7 +825,7 @@ class ToolSet:
                 if t["status"] in ("FAIL", "ERROR"):
                     report += f"\n[{t['status']}] {t['name']}: {t['detail']}"
 
-            return report if len(report) > 15 else report + "\nTutti i test sono passati!"
+            return report if len(report) > 15 else report + "\nAll tests passed!"
         except Exception as e:
             return f"ERROR running test suite: {e}"
 
@@ -841,14 +840,14 @@ class ToolSet:
         try:
             full = safe_project_path(path, self.project_root)
             if not full.exists():
-                return f"ERROR: file non trovato: {path}"
+                return f"ERROR: file not found: {path}"
 
             # 1. Sintassi (bloccante)
             import py_compile
             try:
                 py_compile.compile(str(full), doraise=True)
             except SyntaxError as e:
-                return f"SINTASSI ERRATA in {path}:\n{str(e)}"
+                return f"SYNTAX ERROR in {path}:\n{str(e)}"
 
             report = [f"SYNTAX OK: {path}"]
 
@@ -865,7 +864,7 @@ class ToolSet:
                         "Gate statico parziale: ieri puro py_compile."
                     )
                 elif "No issues identified." in r or "Total issues: 0" in r:
-                    report.append("BANDIT OK: nessun problema di sicurezza.")
+                    report.append("BANDIT OK: no security issues.")
                 else:
                     snippet = r.strip()[:800]
                     report.append(f"BANDIT ISSUES:\n{snippet}")
@@ -907,7 +906,7 @@ class ToolSet:
         try:
             full = safe_project_path(path, self.project_root)
             if not full.exists():
-                return f"ERROR: file non trovato: {path}"
+                return f"ERROR: file not found: {path}"
 
             content = full.read_text(encoding="utf-8", errors="replace")
             if old_text not in content:

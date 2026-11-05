@@ -15,10 +15,10 @@ from typing import Tuple, List, Set
 _ARTIFACT_RE = re.compile(r"(?m)^[ \t]*\\[\"']")
 
 _ARTIFACT_HINT = (
-    "Il testo contiene artefatti di escape (es. \\\" o \\\\n scritti come "
-    "caratteri letterali all'inizio di riga). NON usare il backslash per "
-    "le virgolette nelle stringhe: usa `\"` semplice. NON usare patch_code "
-    "per correggere: riscrivi l'intero file pulito con write_file."
+    "The text contains escape artifacts (e.g. \\\" or \\\\n written as "
+        "literal characters at line start). Do NOT use backslashes to quote "
+        "strings: use plain `\\\"`. Do NOT use patch_code to fix it: rewrite "
+        "the whole clean file with write_file."
 )
 
 class ASTSecurityScanner:
@@ -55,26 +55,26 @@ class ASTSecurityScanner:
         except SyntaxError as e:
             if _ARTIFACT_RE.search(code):
                 return False, (
-                    f"Errore di sintassi alla riga {e.lineno}. {_ARTIFACT_HINT}"
+                    f"Syntax error at line {e.lineno}. {_ARTIFACT_HINT}"
                 )
-            return False, f"Errore di sintassi nel codice: {e}"
+            return False, f"Syntax error in code: {e}"
 
         for node in ast.walk(tree):
             # 1. Controllo chiamate a funzioni (Call nodes)
             if isinstance(node, ast.Call):
                 func_name = self._get_func_name(node.func)
                 if func_name in self.BANNED_FUNCTIONS:
-                    self.violations.append(f"Chiamata vietata a {func_name}")
+                    self.violations.append(f"Forbidden call to {func_name}")
 
             # 2. Controllo import (Import & ImportFrom nodes)
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     if alias.name.split('.')[0] in self.BANNED_MODULES:
-                        self.violations.append(f"Importazione vietata del modulo {alias.name}")
+                        self.violations.append(f"Forbidden import of module {alias.name}")
 
             if isinstance(node, ast.ImportFrom):
                 if node.module and node.module.split('.')[0] in self.BANNED_MODULES:
-                    self.violations.append(f"Importazione vietata dal modulo {node.module}")
+                    self.violations.append(f"Forbidden import from module {node.module}")
 
         if self.violations:
             return False, "; ".join(self.violations)

@@ -24,12 +24,12 @@ MAX_ERROR_FRAMES = 5
 _PATH_RE = re.compile(r"/home/[^/\s]+(?=/|\s|:|$)")
 
 _DIRECTIVE_HEAD = (
-    "Correggi il seguente errore e restituisci solo il codice. "
-    "Non spiegare, non ripetere il codice invariato."
+    "Fix the following error and return only the code. "
+    "Do not explain, do not repeat unchanged code."
 )
 _DIRECTIVE_TAIL = (
     "Next step (JSON only, "
-    'format: {"action": "write_file", "args": ["<path>", "<codice corretto>"]}):'
+    'format: {"action": "write_file", "args": ["<path>", "<fixed code>"]}):'
 )
 
 
@@ -78,18 +78,18 @@ def build_correction_prompt(original_task: str,
     parts = [
         _DIRECTIVE_HEAD,
         "",
-        f"## TASK ORIGINALE\n{clamp(original_task)}",
+        f"## ORIGINAL TASK\n{clamp(original_task)}",
         "",
-        f"## ERRORE\n{limit_error(stderr)}",
+        f"## ERROR\n{limit_error(stderr)}",
     ]
 
     code = sanitize_paths(previous_code or "")
     if code:
         prev = "\n".join(code.splitlines()[:MAX_PROMPT_CHARS // 40])
-        parts += ["", f"## CODICE PRECEDENTE\n{clamp(prev)}"]
+        parts += ["", f"## PREVIOUS CODE\n{clamp(prev)}"]
 
     if previous_prompt:
-        parts += ["", f"## CORREZIONE PRECEDENTE\n{clamp(previous_prompt)}"]
+        parts += ["", f"## PREVIOUS CORRECTION\n{clamp(previous_prompt)}"]
 
     prompt = "\n".join(parts)
 

@@ -34,7 +34,7 @@ class ArtifactGateTests(unittest.TestCase):
         corrupted = 'def f():\n    return "ok"' + "\n\\\"\\n\\\"\\n"
         r = self.tools.write_file("notes2.txt", corrupted)
         self.assertTrue(r.startswith("ERROR"), r)
-        self.assertIn("artefatti", r)
+        self.assertIn("escape artifacts", r)
         # il file NON deve esistere
         self.assertFalse((self.base / "project" / "notes2.txt").exists())
 
@@ -45,7 +45,7 @@ class ArtifactGateTests(unittest.TestCase):
         corrupted_new = artifact + "\n\\\" stray"
         r = tools.patch_code("lib.py", "return 1", corrupted_new)
         self.assertTrue(r.startswith("ERROR"), r)
-        self.assertIn("artefatti", r)
+        self.assertIn("escape artifacts", r)
         # il file originale resta integro
         content = (self.base / "project" / "lib.py").read_text()
         self.assertIn("return 1", content)

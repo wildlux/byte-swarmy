@@ -33,10 +33,10 @@ class CorrectionPromptTests(unittest.TestCase):
         p = build_correction_prompt("hello task",
                                     "int main(){retunr 0;}",
                                     "error: expected ';'")
-        self.assertTrue(p.startswith("Correggi il seguente errore"))
-        self.assertIn("## TASK ORIGINALE", p)
-        self.assertIn("## ERRORE", p)
-        self.assertIn("## CODICE PRECEDENTE", p)
+        self.assertTrue(p.startswith("Fix the following error"))
+        self.assertIn("## ORIGINAL TASK", p)
+        self.assertIn("## ERROR", p)
+        self.assertIn("## PREVIOUS CODE", p)
 
     def test_no_absolute_paths_in_prompt(self):
         stderr = ('Traceback (most recent call last):\n'

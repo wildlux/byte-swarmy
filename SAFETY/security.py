@@ -316,41 +316,41 @@ def safe_project_path(path: str, project_root: str | Path,
     dalla root e file sensibili. Non crea nulla.
     """
     if not isinstance(path, (str, os.PathLike)):
-        raise SecurityError("path non valido")
+        raise SecurityError("invalid path")
     text = os.fspath(path).strip()
     if not text:
-        raise SecurityError("path vuoto")
+        raise SecurityError("empty path")
     if len(text) > MAX_PATH_LEN:
-        raise SecurityError("path troppo lungo")
+        raise SecurityError("path too long")
     if "\x00" in text:
-        raise SecurityError("path contiene NUL")
+        raise SecurityError("path contains NUL")
     if text.startswith("~"):
-        raise SecurityError("path con '~' non consentito")
+        raise SecurityError("paths with '~' not allowed")
     if text.startswith("/") or Path(text).is_absolute():
-        raise SecurityError("path assoluto non consentito")
+        raise SecurityError("absolute paths not allowed")
     text = _strip_project_prefix(text)
     if ".." in Path(text).parts:
-        raise SecurityError("path con '..' non consentito")
+        raise SecurityError("paths with '..' not allowed")
 
     root = Path(project_root).resolve()
     raw = root / text
     if for_write and raw.is_symlink():
-        raise SecurityError("scrittura su symlink non consentita")
+        raise SecurityError("writing through symlinks not allowed")
     full = raw.resolve()
 
     if not _is_within(full, root):
-        raise SecurityError("path fuori da project/")
+        raise SecurityError("path outside project/")
     if _has_sensitive_part(full):
-        raise SecurityError("path sensibile bloccato")
+        raise SecurityError("sensitive path blocked")
     if full == root and for_write:
-        raise SecurityError("impossibile scrivere sulla root del progetto")
+        raise SecurityError("cannot write to the project root")
     if must_exist and not full.exists():
-        raise SecurityError("file non trovato")
+        raise SecurityError("file not found")
 
     # Un symlink interno che punta fuori è già stato intercettato da resolve();
     # un symlink come target di scrittura viene rifiutato esplicitamente.
     if for_write and full.is_symlink():
-        raise SecurityError("scrittura su symlink non consentita")
+        raise SecurityError("writing through symlinks not allowed")
 
     return full
 
@@ -373,15 +373,15 @@ def _check_path_value(value: str, root: Path) -> None:
     if value.startswith("~"):
         raise SecurityError("'~' non consentito")
     if value.startswith("/") or Path(value).is_absolute():
-        raise SecurityError("path assoluto non consentito")
+        raise SecurityError("absolute paths not allowed")
     value = _strip_project_prefix(value)
     if ".." in Path(value).parts:
         raise SecurityError("'..' non consentito")
     full = (root / value).resolve()
     if not _is_within(full, root):
-        raise SecurityError("path fuori da project/")
+        raise SecurityError("path outside project/")
     if _has_sensitive_part(full):
-        raise SecurityError("path sensibile bloccato")
+        raise SecurityError("sensitive path blocked")
 
 
 # ---------------------------------------------------------------------------
@@ -402,10 +402,10 @@ def _next_value(argv: Sequence[str], index: int) -> Optional[str]:
 
 def _validate_git(argv: Sequence[str], root: Path) -> Tuple[bool, str]:
     if len(argv) < 2:
-        return _block("git richiede un sottocomando")
+        return _block("git requires a subcommand")
     sub = argv[1].lower()
     if sub.startswith("-"):
-        return _block("git: opzioni globali non consentite")
+        return _block("git: global options not allowed")
     if sub not in ALLOWED_GIT_SUBCOMMANDS:
         return _block(
             f"git {sub} non consentito: usa i tool git_* o ./sync.sh come utente reale"
@@ -413,17 +413,17 @@ def _validate_git(argv: Sequence[str], root: Path) -> Tuple[bool, str]:
 
     for token in argv[2:]:
         if token in BLOCKED_GIT_FLAGS:
-            return _block(f"git: flag {token} non consentito")
+            return _block(f"git: flag {token} not allowed")
         if token.startswith("-") and "=" in token:
             flag = token.split("=", 1)[0]
             if flag in BLOCKED_GIT_FLAGS:
-                return _block(f"git: flag {flag} non consentito")
+                return _block(f"git: flag {flag} not allowed")
 
     if sub == "commit":
         if "-m" not in argv and "--message" not in argv:
-            return _block("git commit richiede -m \"messaggio\"")
+            return _block("git commit requires -m \"messaggio\"")
         if "--amend" in argv:
-            return _block("git commit --amend non consentito")
+            return _block("git commit --amend not allowed")
 
     return _ok()
 
@@ -431,13 +431,13 @@ def _validate_git(argv: Sequence[str], root: Path) -> Tuple[bool, str]:
 def _validate_find(argv: Sequence[str], root: Path) -> Tuple[bool, str]:
     for token in argv[1:]:
         if token in BLOCKED_FIND_FLAGS:
-            return _block(f"find {token} non consentito")
+            return _block(f"find {token} not allowed")
         if token in ("-delete",):
-            return _block("find -delete non consentito: usa rm project/file")
+            return _block("find -delete not allowed: use rm project/file")
         if token.startswith("-") and "=" in token:
             flag = token.split("=", 1)[0]
             if flag in BLOCKED_FIND_FLAGS:
-                return _block(f"find {flag} non consentito")
+                return _block(f"find {flag} not allowed")
 
     # La root di find deve essere il progetto.
     for token in argv[1:]:
@@ -581,13 +581,13 @@ def validate_bash_command(cmd: str,
         return _ok()
 
     if "/" in name:
-        return _block("percorso del comando non consentito (usa il nome del comando)")
+        return _block("command path not allowed (use the bare command name)")
 
     if base not in ALLOWED_COMMANDS:
         return _block(
-            f"comando '{base}' non in allowlist. Comandi ammessi: "
+            f"command '{base}' not in allowlist. Allowed commands: "
             "ls, cat, head, tail, wc, grep, find, diff, mkdir, touch, rm, cp, mv, "
-            "gcc, g++, make, python, pytest, git (solo locale)"
+            "gcc, g++, make, python, pytest, git (local only)"
         )
 
     try:
@@ -660,11 +660,11 @@ def normalize_bash_argv(argv: Sequence[str]) -> List[str]:
 def allowed_commands_text() -> str:
     """Testo breve, adatto al system prompt di un piccolo LLM."""
     return (
-        "Comandi shell ammessi (uno alla volta, senza pipe/redirect): "
+        "Allowed shell commands (one at a time, no pipes/redirects): "
         "ls, cat, head, tail, wc, grep, find, diff, mkdir, touch, rm file, "
         "cp, mv, gcc, g++, make, python project/file.py, pytest, "
         "git status|diff|log|add|commit. "
-        "Vietati: sudo, curl, wget, ssh, nc, rm -r/-f, chmod, path assoluti, '..', '~'."
+        "Forbidden: sudo, curl, wget, ssh, nc, rm -r/-f, chmod, absolute paths, '..', '~'."
     )
 
 

@@ -377,11 +377,11 @@ class Planner:
     """Decompone un task in sottotask. Usa il modello planner (phi3:mini)."""
 
     SYSTEM = (
-        "Sei un pianificatore software. Decomponi il task in 2-5 sottotask "
-        "atomici e sequenziali. Ogni sottotask deve essere implementabile in "
-        "massimo 200 righe di codice. Rispondi SOLO in formato JSON:\n"
+        "You are a software planner. Decompose the task into 2-5 atomic, "
+        "sequential subtasks. Each subtask must be implementable in at most "
+        "200 lines of code. Reply with JSON ONLY:\n"
         '{"subtasks": [{"title": "...", "description": "...", "type": "implement|test|fix"}]}\n'
-        "Niente testo fuori dal JSON."
+        "No text outside the JSON."
     )
 
     # Costituzione dell'Agente Worker: regole ferree di sicurezza e qualità.
@@ -590,11 +590,11 @@ class Worker:
             if not action:
                 self.memory.add_event({"type": "parse_error", "content": raw[:300]})
                 prompt = (
-                    "ERRORE: la risposta non era JSON valido. "
-                    "Rispondi con SOLO un oggetto JSON, niente testo prima o dopo.\n"
-                    'Formato: {"thought": "...", "action": "tool_name", '
+                    "ERROR: the reply was not valid JSON. "
+                    "Reply with ONE JSON object, no text before or after it.\n"
+                    'Format: {"thought": "...", "action": "tool_name", '
                     '"args": [...], "done": false}\n\n'
-                    "Riprova ora:"
+                    "Try again now:"
                 )
                 continue
 
@@ -619,7 +619,7 @@ class Worker:
                         c = event["content"]
                         test_passed = (
                             "TUTTO OK" in c
-                            or "tutti i test sono passati" in c.lower()
+                            or "all tests passed" in c.lower()
                             or ("FAIL: 0" in c and "ERR: 0" in c)
                         )
                         break
@@ -667,9 +667,9 @@ class Worker:
             if repeated_actions[action_key] >= 3:
                 self.log.warning(f"[{self.agent_id}] CIRCUIT BREAKER: Action {tool_name} repeated 3x with same args. Forcing pivot.")
                 prompt = (
-                    f"ERRORE: Hai provato a eseguire {tool_name}({args}) per 3 volte con lo stesso risultato. "
-                    "Il sistema ha bloccato questa azione. ANALIZZA perché non funziona e cambia completamente approccio. "
-                    "Non ripetere l'azione.\n\n"
+                    f"ERROR: you tried {tool_name}({args}) 3 times with the same result. "
+                    "The system blocked this action. ANALYZE why it fails and change approach completely. "
+                    "Do not repeat the action.\n\n"
                     "Next step (JSON only):"
                 )
                 continue
@@ -729,7 +729,7 @@ class Worker:
             pass
 
         correction_block = (
-            f"## CORRECTION (tentativo precedente fallito)\n"
+            f"## CORRECTION (previous attempt failed)\n"
             f"{correction[:500]}\n\n" if correction else ""
         )
 
