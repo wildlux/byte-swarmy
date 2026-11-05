@@ -130,7 +130,7 @@ class HardwarePanel(QWidget):
         self.strat_badge = QLabel("—")
         self.strat_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.strat_badge.setStyleSheet(
-            "padding:16px; font-size:18px; font-weight:bold;"
+            "padding:8px; font-size:14px; font-weight:bold;"
         )
         strat_lay.addWidget(self.strat_badge)
 
@@ -171,8 +171,12 @@ class HardwarePanel(QWidget):
             "font-family:'JetBrains Mono','Consolas',monospace; font-size:10.5px;"
         )
         self.hw_log.setPlaceholderText("Il log del rilevamento apparirà qui...")
+        # NB: cappato — prima con stretch=1 si allungava su tutto lo spazio
+        # vuoto della pagina anche per 3 righe di testo (bug segnalato).
+        self.hw_log.setMaximumHeight(170)
         log_lay.addWidget(self.hw_log)
-        outer.addWidget(log_box, stretch=1)
+        outer.addWidget(log_box, stretch=0)
+        outer.addStretch()
 
     # ──────────────────────────────────────────────────────────────────
     # Handler
@@ -236,7 +240,7 @@ class HardwarePanel(QWidget):
             self.strat_badge.setText(f"Strategia: {label}")
             self.strat_badge.setStyleSheet(
                 f"background:{color}11; border:2px solid {color}; border-radius:8px; "
-                f"padding:16px; font-size:18px; font-weight:bold; color:{color};"
+                f"padding:8px; font-size:14px; font-weight:bold; color:{color};"
             )
 
             # Descrizione
@@ -288,7 +292,7 @@ class HardwarePanel(QWidget):
         except Exception as e:
             self.strat_badge.setText(f"✗ Errore rilevamento: {e}")
             self.strat_badge.setStyleSheet(
-                "padding:16px; font-size:14px; font-weight:bold;"
+                "padding:8px; font-size:14px; font-weight:bold;"
             )
             _theme_banner(self.strat_badge, "error")
             try:
