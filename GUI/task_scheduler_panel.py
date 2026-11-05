@@ -139,11 +139,45 @@ class TaskSchedulerPanel(QWidget):
         self.task_type.currentIndexChanged.connect(self._on_type_changed)
         form.addRow("Tipo:", self.task_type)
 
-        # Per oneshot: data/ora
-        self.task_datetime = QDateTimeEdit()
-        self.task_datetime.setDateTime(QDateTime.currentDateTime().addSecs(3600))
-        self.task_datetime.setDisplayFormat("yyyy-MM-dd HH:mm")
-        form.addRow("Data/Ora (uno-shot):", self.task_datetime)
+        # Per oneshot: data/ora divisa in campi separati (user-friendly)
+        oneshot_box = QFrame()
+        oneshot_lay = QHBoxLayout(oneshot_box)
+        oneshot_lay.setContentsMargins(0, 0, 0, 0)
+        oneshot_lay.setSpacing(6)
+
+        now = QDateTime.currentDateTime().addSecs(3600)
+        self.task_year = QSpinBox()
+        self.task_year.setRange(2024, 2100)
+        self.task_year.setValue(now.date().year())
+        self.task_year.setPrefix("Anno ")
+        oneshot_lay.addWidget(self.task_year)
+
+        self.task_month = QSpinBox()
+        self.task_month.setRange(1, 12)
+        self.task_month.setValue(now.date().month())
+        self.task_month.setPrefix("mese ")
+        oneshot_lay.addWidget(self.task_month)
+
+        self.task_day = QSpinBox()
+        self.task_day.setRange(1, 31)
+        self.task_day.setValue(now.date().day())
+        self.task_day.setPrefix("giorno ")
+        oneshot_lay.addWidget(self.task_day)
+
+        self.task_hour = QSpinBox()
+        self.task_hour.setRange(0, 23)
+        self.task_hour.setValue(now.time().hour())
+        self.task_hour.setPrefix("ore ")
+        oneshot_lay.addWidget(self.task_hour)
+
+        self.task_minute = QSpinBox()
+        self.task_minute.setRange(0, 59)
+        self.task_minute.setValue(now.time().minute())
+        self.task_minute.setPrefix("min ")
+        oneshot_lay.addWidget(self.task_minute)
+
+        form.addRow("Data/Ora (uno-shot):", oneshot_box)
+        self.task_datetime_box = oneshot_box
 
         # Per interval: ogni quanti secondi
         self.task_interval = QSpinBox()
@@ -204,7 +238,7 @@ class TaskSchedulerPanel(QWidget):
     def _on_type_changed(self, _idx: int):
         t = self.task_type.currentData()
         # Mostra solo i campi rilevanti
-        self.task_datetime.setVisible(t == "oneshot")
+        self.task_datetime_box.setVisible(t == "oneshot")
         self.task_interval.setVisible(t == "interval")
         self.task_time.setVisible(t == "daily")
 
@@ -223,7 +257,11 @@ class TaskSchedulerPanel(QWidget):
             "model": self.task_model.currentText(),
         }
         if t == "oneshot":
-            task["datetime"] = self.task_datetime.dateTime().toString("yyyy-MM-dd HH:mm")
+            task["datetime"] = (f"{self.task_year.value():04d}-"
+                                f"{self.task_month.value():02d}-"
+                                f"{self.task_day.value():02d} "
+                                f"{self.task_hour.value():02d}:"
+                                f"{self.task_minute.value():02d}")
         elif t == "interval":
             task["interval_sec"] = self.task_interval.value()
         elif t == "daily":
