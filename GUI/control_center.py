@@ -184,8 +184,9 @@ class CreditsOverlay(QFrame):
 
         for icon, name, role, color in contributors:
             card = QFrame()
+            card.setObjectName("contrib_card")
             card.setStyleSheet(
-                f"QFrame {{ background: #0f0f19; border-left: 3px solid {color}; "
+                f"QFrame {{ border-left: 3px solid {color}; "
                 f"border-radius: 6px; padding: 4px 10px; }}"
             )
             # Altezza minima garantita: senza questa, il QVBoxLayout comprimeva
@@ -251,8 +252,9 @@ class CreditsOverlay(QFrame):
         grid.setContentsMargins(0, 0, 0, 0)
         for idx, (icon, name, role) in enumerate(tech_projects):
             chip = QFrame()
+            chip.setObjectName("tech_chip")
             chip.setStyleSheet(
-                "QFrame { background: #181826; border: 1px solid #2e2e44; "
+                "QFrame { border: 1px solid #2e2e44; "
                 "border-radius: 6px; padding: 4px 8px; }"
             )
             chip.setMinimumHeight(56)
@@ -414,6 +416,8 @@ class CreditsOverlay(QFrame):
                 "  border: 2px solid #16a34a; "
                 "  border-radius: 16px; "
                 "}"
+                "QFrame#contrib_card { background: #f0f2f5; border-radius: 6px; }"
+                "QFrame#tech_chip { background: #f0f2f5; border: 1px solid #d6dae1; border-radius: 6px; }"
                 "QLabel { color: #1a1a1a; background: transparent; }"
                 "QScrollArea { background: transparent; border: none; }"
                 "QScrollBar:vertical { background: #f8f9fa; width: 10px; }"
@@ -436,6 +440,8 @@ class CreditsOverlay(QFrame):
                 "  border: 2px solid #4ade80; "
                 "  border-radius: 16px; "
                 "}"
+                "QFrame#contrib_card { background: #0f0f19; border-radius: 6px; }"
+                "QFrame#tech_chip { background: #181826; border: 1px solid #2e2e44; border-radius: 6px; }"
                 "QLabel { color: #cdd6f4; background: transparent; }"
                 "QScrollArea { background: transparent; border: none; }"
                 "QScrollBar:vertical { background: #1e1e2e; width: 10px; }"
@@ -2718,26 +2724,105 @@ class ProjectTabBar(QTabBar):
             self.setCurrentIndex(0)
 
     def _open_new_project_dialog(self):
-        """Apre QFileDialog per scegliere una cartella da aggiungere come progetto."""
-        from PyQt6.QtWidgets import QFileDialog
-        # Directory iniziale: project/ se esiste, altrimenti home
+        """Apre un dialog per aggiungere un progetto.
+
+        Chiede (opzionalmente) il link di un repository GitHub/GitLab da
+        clonare e la cartella in cui salvare il progetto; se non viene
+        fornito un link, permette di scegliere una cartella locale esistente.
+        """
+        from PyQt6.QtWidgets import (
+            QFileDialog, QInputDialog, QMessageBox,
+        )
         import os
+        import subprocess
+
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         projects_dir = os.path.join(base, "project")
         start_dir = projects_dir if os.path.isdir(projects_dir) else os.path.expanduser("~")
 
-        folder = QFileDialog.getExistingDirectory(
+        # 1) Link repository (opzionale)
+        url, ok = QInputDialog.getText(
             None,
-            "Apri progetto — scegli cartella",
-            start_dir,
-            QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
+            "Nuovo progetto — Repository",
+            "Link del repository (GitHub/GitLab) da clonare:\n"
+            "(lascia vuoto per scegliere una cartella locale esistente)",
         )
-        if not folder:
-            # Utente ha annullato — torna al primo tab
+        if not ok:
             self.setCurrentIndex(0)
             return
+        url = (url or "").strip()
 
-        # Usa il nome della cartella come etichetta del tab
+        folder = None
+        if url:
+            # 2) Cartella in cui salvare/clonare
+            parent = QFileDialog.getExistingDirectory(
+                None,
+                "Scegli la cartella in cui salvare il progetto clonato",
+                start_dir,
+                QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
+            )
+            if not parent:
+                self.setCurrentIndex(0)
+                return
+            # nome progetto dal basename dell'URL (senza .git)
+            name = url.rstrip("/").rsplit("/", 1)[-1]
+            if name.endswith(".git"):
+                name = name[:-4]
+            if not name:
+                name = "progetto"
+            target = os.path.join(parent, name)
+            if os.path.exists(target):
+                r = QMessageBox.question(
+                    None, "Cartella esistente",
+                    f"La cartella '{target}' esiste già.\n"
+                    "Vuoi aprirla come progetto invece di clonare?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                )
+                if r != QMessageBox.StandardButton.Yes:
+                    self.setCurrentIndex(0)
+                    return
+            else:
+                # clona
+                try:
+                    proc = subprocess.run(
+                        ["git", "clone", url, target],
+                        capture_output=True, text=True, timeout=300,
+                    )
+                except FileNotFoundError:
+                    QMessageBox.critical(
+                        None, "git non trovato",
+                        "Il comando 'git' non è disponibile sul sistema.\n"
+                        "Installa git oppure clona manualmente la repo.",
+                    )
+                    self.setCurrentIndex(0)
+                    return
+                except subprocess.TimeoutExpired:
+                    QMessageBox.critical(
+                        None, "Timeout",
+                        "Il clone ha superato i 5 minuti. Riprova o clona manualmente.",
+                    )
+                    self.setCurrentIndex(0)
+                    return
+                if proc.returncode != 0:
+                    QMessageBox.critical(
+                        None, "Clone fallito",
+                        f"git clone ha restituito errore:\n{proc.stderr.strip()[:500]}",
+                    )
+                    self.setCurrentIndex(0)
+                    return
+            folder = target
+        else:
+            # Nessun link: scegli cartella locale esistente (comportamento originale)
+            folder = QFileDialog.getExistingDirectory(
+                None,
+                "Apri progetto — scegli cartella",
+                start_dir,
+                QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
+            )
+            if not folder:
+                self.setCurrentIndex(0)
+                return
+
         name = os.path.basename(folder.rstrip("/"))
         if not name:
             name = folder
