@@ -218,14 +218,52 @@ class TestThemeLiveSwitch(unittest.TestCase):
             self.assertGreaterEqual(pos, 0)
             panel.theme_combo.setCurrentIndex(pos)   # camino utente reale
             _app.processEvents()
-            self.assertEqual(win.styleSheet(), T.load_stylesheet(other),
-                             "il QSS della finestra deve cambiare subito")
+            # Il QSS applicato è tema + regole di layout (_window_chrome)
+            self.assertTrue(
+                win.styleSheet().startswith(T.load_stylesheet(other)),
+                "il QSS della finestra deve cambiare subito")
             self.assertEqual(store.get_theme(), other,
                              "il tema scelto deve persistere per nome")
         finally:
             store.set_theme(saved)
             center._apply_theme_live(saved)
             _app.processEvents()
+
+
+    def test_dark_themes_leave_no_white_panels(self):
+        """Regression: nei temi scuri nessuna zona deve restare bianca.
+
+        Colpisce gli stylesheet inline light-only (drawer #fafafa, main_scroll
+        #ffffff, ecc.) che sovrascrivono il QSS del tema.
+        """
+        from GUI import settings_store as store
+        from GUI.theme import theme as T
+
+        def _lum(c):
+            return (0.2126 * c.red() + 0.7152 * c.green()
+                    + 0.0722 * c.blue()) / 255.0
+
+        # su finestra 1450x900: drawer, header, albero, lista task, gap
+        # tra i widget al centro, toolbar, pulsante ape.
+        spots = [(60, 300), (140, 95), (140, 250), (140, 600),
+                 (900, 430), (700, 20), (96, 32)]
+        win = _window()
+        saved = store.get_theme()
+        white = []
+        try:
+            for theme in T.available_themes():
+                if T.theme_kind(theme) != "dark":
+                    continue
+                win.center._apply_theme_live(theme)
+                _app.processEvents()
+                img = win.grab().toImage()
+                for x, y in spots:
+                    if _lum(img.pixelColor(x, y)) > 0.85:
+                        white.append(f"{theme}@({x},{y})")
+        finally:
+            win.center._apply_theme_live(saved)
+            _app.processEvents()
+        self.assertEqual(white, [], f"zone bianche nei temi scuri: {white}")
 
 
 class TestToolbarToggle(unittest.TestCase):

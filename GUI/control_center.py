@@ -505,11 +505,6 @@ class DevicePanel(QFrame):
         super().__init__()
         self.setObjectName("device_panel")
         self.setFixedHeight(56)
-        self.setStyleSheet(
-            "QFrame#device_panel { background:#f8f9fa; border:1px solid #e0e0e0; "
-            "border-radius:8px; }"
-        )
-
         lay = QHBoxLayout(self)
         lay.setContentsMargins(6, 4, 6, 4)
         lay.setSpacing(8)
@@ -843,7 +838,7 @@ class DevicePanel(QFrame):
         row.setObjectName(f"{name.lower()}_row")
         row.setFixedHeight(24)
         row.setStyleSheet(
-            f"QFrame#{name.lower()}_row {{ background:#ffffff; border:1px solid {color}44; "
+            f"QFrame#{name.lower()}_row {{ border:1px solid {color}44; "
             f"border-radius:4px; }}"
         )
         lay = QHBoxLayout(row)
@@ -890,11 +885,6 @@ class CollapsibleSection(QFrame):
     def __init__(self, title, icon="📁", parent=None):
         super().__init__(parent)
         self.setObjectName("collapsible_section")
-        self.setStyleSheet(
-            "QFrame#collapsible_section { background:#ffffff; border:1px solid #e0e0e0; "
-            "border-radius:8px; }"
-        )
-
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
@@ -904,10 +894,6 @@ class CollapsibleSection(QFrame):
         # Altezza fissa su tutti gli header: uniformità visiva tra le 5 sezioni
         # collassabili (Navigatore, Backup, Log, Integrità, Sicurezza).
         self.header.setFixedHeight(48)
-        self.header.setStyleSheet(
-            "QFrame#section_header { background:#f5f5f7; border-bottom:1px solid #e0e0e0; "
-            "border-top-left-radius:8px; border-top-right-radius:8px; }"
-        )
         header_lay = QHBoxLayout(self.header)
         header_lay.setContentsMargins(14, 10, 14, 10)
         header_lay.setSpacing(8)
@@ -929,7 +915,7 @@ class CollapsibleSection(QFrame):
         lay.addWidget(self.header)
 
         self.content = QWidget()
-        self.content.setStyleSheet("background:#ffffff; border-bottom-left-radius:8px; border-bottom-right-radius:8px;")
+        self.content.setStyleSheet("border-bottom-left-radius:8px; border-bottom-right-radius:8px;")
         self.content_lay = QVBoxLayout(self.content)
         self.content_lay.setContentsMargins(12, 12, 12, 12)
         self.content_lay.setSpacing(8)
@@ -1025,13 +1011,12 @@ class PlanciaCard(QFrame):
 
         lay.addStretch()
 
-        self._normal_style = (
-            "QFrame#card { background:#ffffff; border:1px solid #e0e0e0; border-radius:10px; }"
-        )
+        # Tema: il QSS app-level stila QFrame#card; l'hover aggiunge solo
+        # il bordo (il background resta quello del tema).
+        self._normal_style = ""
         self._hover_style = (
-            "QFrame#card { background:#f0f9ff; border:1px solid #16a34a; border-radius:10px; }"
+            "QFrame#card { border:1px solid #16a34a; border-radius:8px; }"
         )
-        self.setStyleSheet(self._normal_style)
 
     def enterEvent(self, event):
         self.setStyleSheet(self._hover_style)
@@ -1051,11 +1036,6 @@ class CategorizedLogViewer(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("log_viewer")
-        self.setStyleSheet(
-            "QFrame#log_viewer { background:#ffffff; border:1px solid #e0e0e0; "
-            "border-radius:6px; }"
-        )
-
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
@@ -1107,17 +1087,12 @@ class BackupCodeLogs(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("backup_logs")
-        self.setStyleSheet(
-            "QFrame#backup_logs { background:#ffffff; border:1px solid #e0e0e0; "
-            "border-radius:6px; }"
-        )
-
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
 
         header = QLabel("<b>💾 Backup Code — Git Logs</b>")
-        header.setStyleSheet("background:#f0f0f0; padding:8px 12px; font-size:12px; border-bottom:1px solid #e0e0e0;")
+        header.setStyleSheet("padding:8px 12px; font-size:12px;")
         lay.addWidget(header)
 
         self.tab_bar = QTabBar()
@@ -1127,11 +1102,7 @@ class BackupCodeLogs(QFrame):
         self.tab_bar.addTab("🦊 GitLab")
         self.tab_bar.addTab("📂 Git")
         self.tab_bar.setStyleSheet(
-            "QTabBar::tab { background:#f0f0f0; color:#555; border:1px solid #d0d0d0; "
-            "border-bottom:none; border-top-left-radius:6px; border-top-right-radius:6px; "
-            "padding:6px 12px; margin:2px; font-size:11px; }"
-            "QTabBar::tab:selected { background:#ffffff; color:#2563eb; "
-            "border-bottom:2px solid #2563eb; font-weight:bold; }"
+            "QTabBar::tab { padding:6px 12px; margin:2px; font-size:11px; }"
         )
         self.tab_bar.currentChanged.connect(self._on_tab_changed)
         lay.addWidget(self.tab_bar)
@@ -1194,11 +1165,6 @@ class CodeExplorer(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("code_explorer")
-        self.setStyleSheet(
-            "QFrame#code_explorer { background:#ffffff; border:1px solid #e0e0e0; "
-            "border-radius:6px; }"
-        )
-
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 10, 12, 10)
         lay.setSpacing(8)
@@ -1258,10 +1224,6 @@ class CodeExplorer(QFrame):
         self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.view.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
-        self.view.setStyleSheet(
-            "QGraphicsView { background:#fafafa; border:1px solid #d0d0d0; "
-            "border-radius:6px; }"
-        )
         lay.addWidget(self.view)
 
         legend = QHBoxLayout()
@@ -1404,11 +1366,9 @@ class FileEditorWidget(QFrame):
         self._docked = docked
         self.setObjectName("editor_widget")
 
-        if docked:
-            self.setStyleSheet("QFrame#editor_widget { background:#ffffff; border-left:1px solid #e0e0e0; }")
-        else:
+        if not docked:
             self.setFixedSize(700, 500)
-            self.setStyleSheet("QFrame#editor_widget { background:#ffffff; border:1px solid #e0e0e0; border-radius:12px; }")
+            self.setStyleSheet("QFrame#editor_widget { border-radius:12px; }")
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 10, 12, 10)
@@ -1446,8 +1406,7 @@ class FileEditorWidget(QFrame):
 
         self.editor = QTextEdit()
         self.editor.setStyleSheet(
-            "QTextEdit { background:#fafafa; color:#1a1a1a; border:1px solid #e0e0e0; "
-            "border-radius:6px; font-family:'JetBrains Mono','Consolas',monospace; font-size:12px; padding:8px; }"
+            "font-family:'JetBrains Mono','Consolas',monospace; font-size:12px; padding:8px;"
         )
         lay.addWidget(self.editor)
 
@@ -1944,8 +1903,11 @@ class ControlCenter(QMainWindow):
         # Tema: legge da CONFIG/settings.json e carica il QSS completo.
         # I temi sono 10+ (nord, dracula, hacker, ...): non più binario
         # dark/light. Il QSS si applica live anche senza riavvio.
+        # _window_chrome() aggiunge le regole di LAYOUT (tab a ×, senza
+        # colori) che i temi non contengono.
         from GUI.theme import theme as _theme_mod
-        self.setStyleSheet(_theme_mod.load_stylesheet(settings_store.get_theme()))
+        self.setStyleSheet(_theme_mod.load_stylesheet(settings_store.get_theme())
+                           + "\n" + self._window_chrome())
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -2080,9 +2042,7 @@ class ControlCenter(QMainWindow):
             "  padding: 0;"
             "  border: 2px solid #16a34a;"
             "  border-radius: 8px;"
-            "  background: #ffffff;"
             "}"
-            "QPushButton#icon_btn:hover { background: #f0fdf4; }"
         )
         bee_btn.setToolTip("Credits & Ringraziamenti")
         bee_btn.clicked.connect(self._show_credits)
@@ -2106,7 +2066,6 @@ class ControlCenter(QMainWindow):
 
         sep1 = QFrame()
         sep1.setFixedWidth(1)
-        sep1.setStyleSheet("background:#ddd;")
         lay.addWidget(sep1)
 
         self.project_tabs = ProjectTabBar()
@@ -2125,7 +2084,6 @@ class ControlCenter(QMainWindow):
 
         sep2 = QFrame()
         sep2.setFixedWidth(1)
-        sep2.setStyleSheet("background:#ddd;")
         lay.addWidget(sep2)
 
         self.device_panel = DevicePanel()
@@ -2163,12 +2121,6 @@ class ControlCenter(QMainWindow):
 
     def _show_context_menu(self):
         menu = QMenu(self)
-        menu.setStyleSheet(
-            "QMenu { background:#ffffff; border:1px solid #e0e0e0; border-radius:8px; "
-            "padding:8px; font-size:13px; }"
-            "QMenu::item { padding:8px 24px; border-radius:4px; }"
-            "QMenu::item:selected { background:#f0f9ff; color:#16a34a; }"
-        )
 
         act_pause = QAction("⏸/▶ Pausa / Riprendi orchestratore", self)
         act_pause.triggered.connect(self._toggle_orchestrator)
@@ -2434,144 +2386,27 @@ class ControlCenter(QMainWindow):
         self._editor_docked = None
         self._show_file_editor(file_path)
 
-    def _light_theme(self):
+    def _window_chrome(self):
+        """Regole di SOLO layout (nessun colore) concatenate al QSS del tema.
+
+        Il padding asimmetrico dei tab progetto lascia spazio alla × di
+        chiusura: 15px tra testo e ×, 15px tra × e bordo destro. I colori
+        arrivano dai temi GUI/theme/*.qss — qui solo geometria.
+        """
         return """
-        QMainWindow { background:#ffffff; color:#1a1a1a; }
-        QFrame#toolbar   { background:#f5f5f7; border-bottom:1px solid #e0e0e0; }
-        QFrame#command_bar { background:#f5f5f7; border-top:1px solid #e0e0e0; }
-        QPushButton {
-            background:#e8e8ec; color:#1a1a1a; border:none;
-            padding:6px 12px; border-radius:6px; font-size:12px;
-        }
-        QPushButton:hover { background:#d8d8dc; }
-        QPushButton#icon_btn { background:transparent; font-size:18px; }
-        QPushButton#icon_btn:hover { background:#e8e8ec; }
-        QPushButton#primary_btn { background:#16a34a; color:white; font-weight:bold; }
-        QPushButton#primary_btn:hover { background:#15803d; }
-        QLineEdit {
-            background:#ffffff; color:#1a1a1a; border:1px solid #d0d0d0;
-            padding:8px 12px; border-radius:6px; font-size:13px;
-        }
-        QLineEdit:focus { border-color:#16a34a; }
-        QTextEdit, QPlainTextEdit {
-            background:#fafafa; color:#1a1a1a; border:1px solid #e0e0e0;
-            font-family:'JetBrains Mono','Consolas',monospace; font-size:11px;
-        }
-        QLabel { color:#1a1a1a; }
-        QTreeView {
-            background:#fafafa; color:#1a1a1a; border:none;
-            font-size:12px; padding:4px;
-        }
-        QTreeView::item:hover { background:#f0f0f0; }
-        QTreeView::item:selected { background:#e0f2fe; }
-        QHeaderView::section { background:#f5f5f7; color:#666; border:none; padding:4px; }
         QTabBar::tab {
-            background:#e8e8ec; color:#555; border:1px solid #d0d0d0;
-            border-bottom:none; border-top-left-radius:6px; border-top-right-radius:6px;
+            border-bottom: 2px solid transparent;
+            border-top-left-radius: 6px; border-top-right-radius: 6px;
             /* padding-right 30px: lascia spazio per la × con 15px a sinistra
                (tra testo e ×) + 15px a destra (tra × e bordo destro del tab). */
-            padding:10px 30px 10px 16px; margin-right:2px; font-size:12px;
+            padding: 10px 30px 10px 16px; margin-right: 2px; font-size: 12px;
             min-height: 22px;
         }
-        /* Close button (×) dei tab: 15px dal testo (sinistra) + 15px dal
-           bordo destro (destra). subcontrol-position: right posiziona la ×
-           sul lato destro del tab; margin-left spinge la × verso sinistra
-           (cioè verso il testo) creando i 15px di margine destro. */
         QTabBar::close-button {
             subcontrol-position: right;
             padding: 0;
             margin: 0 15px 0 15px;
         }
-        QTabBar::close-button:hover {
-            background: #fee2e2;
-            border-radius: 4px;
-        }
-        QTabBar::tab:selected {
-            background:#ffffff; color:#16a34a; border-bottom:2px solid #16a34a; font-weight:bold;
-        }
-        QTabBar::tab:hover { background:#f0f0f0; }
-        """
-
-    def _dark_theme(self):
-        """Tema scuro per l'app principale (alternativa al light theme).
-
-        Attivato da SettingsPanel quando l'utente sceglie 'Scuro' — viene
-        salvato in CONFIG/settings.json e applicato al riavvio.
-        """
-        return """
-        QMainWindow { background:#1e1e2e; color:#cdd6f4; }
-        QFrame#toolbar   { background:#181825; border-bottom:1px solid #313244; }
-        QFrame#command_bar { background:#181825; border-top:1px solid #313244; }
-        QPushButton {
-            background:#313244; color:#cdd6f4; border:none;
-            padding:6px 12px; border-radius:6px; font-size:12px;
-        }
-        QPushButton:hover { background:#45475a; }
-        QPushButton#icon_btn { background:transparent; font-size:18px; color:#cdd6f4; }
-        QPushButton#icon_btn:hover { background:#313244; }
-        QPushButton#primary_btn { background:#16a34a; color:white; font-weight:bold; }
-        QPushButton#primary_btn:hover { background:#15803d; }
-        QLineEdit {
-            background:#313244; color:#cdd6f4; border:1px solid #45475a;
-            padding:8px 12px; border-radius:6px; font-size:13px;
-        }
-        QLineEdit:focus { border-color:#4ade80; }
-        QTextEdit, QPlainTextEdit {
-            background:#11111b; color:#cdd6f4; border:1px solid #313244;
-            font-family:'JetBrains Mono','Consolas',monospace; font-size:11px;
-        }
-        QLabel { color:#cdd6f4; }
-        QTreeView {
-            background:#11111b; color:#cdd6f4; border:none;
-            font-size:12px; padding:4px;
-        }
-        QTreeView::item:hover { background:#313244; }
-        QTreeView::item:selected { background:#45475a; color:#cdd6f4; }
-        QHeaderView::section { background:#181825; color:#a6adc8; border:none; padding:4px; }
-        QTabBar::tab {
-            background:#313244; color:#a6adc8; border:1px solid #45475a;
-            border-bottom:none; border-top-left-radius:6px; border-top-right-radius:6px;
-            /* padding-right 30px: 15px a sinistra della × + 15px a destra. */
-            padding:10px 30px 10px 16px; margin-right:2px; font-size:12px;
-            min-height: 22px;
-        }
-        /* Close button (×): 15px dal testo + 15px dal bordo destro. */
-        QTabBar::close-button {
-            subcontrol-position: right;
-            padding: 0;
-            margin: 0 15px 0 15px;
-        }
-        QTabBar::close-button:hover {
-            background: #7f1d1d;
-            border-radius: 4px;
-        }
-        QTabBar::tab:selected {
-            background:#1e1e2e; color:#4ade80; border-bottom:2px solid #4ade80; font-weight:bold;
-        }
-        QTabBar::tab:hover { background:#45475a; }
-        QScrollArea { background:#1e1e2e; border:none; }
-        QScrollBar:vertical { background:#1e1e2e; width:10px; }
-        QScrollBar::handle:vertical { background:#313244; border-radius:5px; min-height:30px; }
-        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height:0; }
-        QGroupBox {
-            background:#181825; border:1px solid #313244; border-radius:8px;
-            margin-top:14px; padding-top:8px; color:#cdd6f4; font-weight:bold;
-        }
-        QGroupBox::title { subcontrol-origin: margin; left:14px; padding:0 6px; color:#4ade80; }
-        QComboBox { background:#313244; color:#cdd6f4; border:1px solid #45475a; padding:6px 10px; border-radius:6px; font-size:12px; }
-        QComboBox:hover { border-color:#4ade80; }
-        QComboBox QAbstractItemView { background:#313244; color:#cdd6f4; selection-background-color:#45475a; }
-        /* Menu contestuali (tasto destro, hamburger) in tema scuro */
-        QMenu {
-            background:#1e1e2e; color:#cdd6f4;
-            border:1px solid #313244; border-radius:8px; padding:6px;
-        }
-        QMenu::item { padding:8px 24px; border-radius:4px; color:#cdd6f4; }
-        QMenu::item:selected { background:#313244; color:#4ade80; }
-        QMenu::separator { height:1px; background:#313244; margin:4px 8px; }
-        /* QMessageBox, QInputDialog — sfondo scuro coerente */
-        QMessageBox, QDialog { background:#1e1e2e; color:#cdd6f4; }
-        QMessageBox QLabel, QDialog QLabel { color:#cdd6f4; }
         """
 
 
@@ -2932,7 +2767,6 @@ class FileTreeDrawer(QFrame):
         super().__init__()
         self.setObjectName("drawer")
         self.setFixedWidth(280)
-        self.setStyleSheet("QFrame#drawer { background:#fafafa; border-right:1px solid #e0e0e0; }")
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 8, 0, 8)
         lay.setSpacing(0)
@@ -2978,7 +2812,7 @@ class FileTreeDrawer(QFrame):
 
         sep = QFrame()
         sep.setFixedHeight(1)
-        sep.setStyleSheet("background:#e0e0e0; margin:8px 12px;")
+        sep.setStyleSheet("margin:8px 12px;")
         lay.addWidget(sep)
 
         # Layout header "Lavori e compiti" con pulsante refresh
@@ -2994,13 +2828,9 @@ class FileTreeDrawer(QFrame):
         task_refresh_btn = QPushButton("🔄")
         task_refresh_btn.setFixedSize(20, 20)
         task_refresh_btn.setToolTip("Aggiorna lista task")
-        task_refresh_btn.setStyleSheet("""
-            QPushButton {
-                background:transparent; border:none;
-                font-size:13px; padding:0;
-            }
-            QPushButton:hover { background:#e5e7eb; border-radius:3px; }
-        """)
+        task_refresh_btn.setStyleSheet(
+            "QPushButton { background:transparent; border:none; font-size:13px; padding:0; }"
+        )
         task_refresh_btn.clicked.connect(self._force_refresh_tasks)
         task_header_row.addWidget(task_refresh_btn)
         lay.addLayout(task_header_row)
@@ -4494,7 +4324,6 @@ class CenterArea(QWidget):
 
         main_scroll = QScrollArea()
         main_scroll.setWidgetResizable(True)
-        main_scroll.setStyleSheet("QScrollArea { border:none; background:#ffffff; }")
 
         main_widget = QWidget()
         main_lay = QVBoxLayout(main_widget)
@@ -4949,7 +4778,8 @@ class CenterArea(QWidget):
             print("[tema] main_win non disponibile, salto applicazione live")
             return
         try:
-            main.setStyleSheet(_theme_mod.load_stylesheet(theme))
+            main.setStyleSheet(_theme_mod.load_stylesheet(theme)
+                               + "\n" + main._window_chrome())
         except Exception as e:
             print(f"[tema] applicazione '{theme}' fallita: {e}")
             return

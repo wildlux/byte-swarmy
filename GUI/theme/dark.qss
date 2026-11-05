@@ -84,3 +84,19 @@ QStatusBar { background: #1b1f27; border-top: 1px solid #2a303b; color: #9aa4b5;
 QToolBar { background: #14171d; border-bottom: 1px solid #2a303b; spacing: 4px; padding: 4px; }
 QToolBar QToolButton { background: transparent; color: #e6e9ef; padding: 6px 10px; border-radius: 3px; }
 QToolBar QToolButton:hover { background: #242a35; }
+
+/* extended coverage (auto) */
+
+QFrame#drawer { background: #14171d; border-right: 1px solid #2a303b; }
+QLabel#sidebar_path { color: #9aa4b5; }
+QFrame#toolbar { background: #14171d; border-bottom: 1px solid #2a303b; }
+QFrame#command_bar { background: #14171d; border-top: 1px solid #2a303b; }
+QFrame#device_panel { background: #1b1f27; border: 1px solid #2a303b; border-radius: 8px; }
+QFrame#collapsible_section { background: #1b1f27; border: 1px solid #2a303b; border-radius: 8px; }
+QFrame#section_header { background: #14171d; border-bottom: 1px solid #2a303b; }
+QFrame#log_viewer { background: #1b1f27; border: 1px solid #2a303b; border-radius: 8px; }
+QFrame#backup_logs { background: #1b1f27; border: 1px solid #2a303b; border-radius: 8px; }
+QFrame#code_explorer { background: #1b1f27; border: 1px solid #2a303b; border-radius: 8px; }
+QFrame#editor_widget { background: #14171d; border-left: 1px solid #2a303b; }
+QScrollArea { border: none; background: #14171d; }
+QGraphicsView { background: #14171d; border: 1px solid #2a303b; border-radius: 6px; }
