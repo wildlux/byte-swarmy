@@ -99,12 +99,7 @@ class CreditsOverlay(QFrame):
         outer.setContentsMargins(20, 14, 20, 14)
         outer.setSpacing(8)
 
-        # ── Scroll area con tutto il contenuto ─────────────────────────
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-
+        # ── Contenuto (schermata fissa, niente scroll) ─────────────────
         content = QWidget()
         content.setObjectName("panelScrollContent")
         # NB: stylesheet con SELETTORE (non declaration-only), altrimenti
@@ -333,8 +328,7 @@ class CreditsOverlay(QFrame):
         final_msg.setFixedHeight(18)
         lay.addWidget(final_msg)
 
-        scroll.setWidget(content)
-        outer.addWidget(scroll, stretch=1)
+        outer.addWidget(content, stretch=1)
 
         # ── Footer fisso (sempre visibile, fuori dallo scroll) ──────────
         # Contiene: link GitHub + link PayPal + pulsante Chiudi
