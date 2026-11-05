@@ -87,6 +87,30 @@ class CreditsOverlay(QFrame):
         # dinamicamente. Per cambiare tema live: apply_theme("light"|"dark").
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setAutoFillBackground(True)
+        # Sfondo: immagine di ringraziamenti (documentazione.jpeg) a pieno
+        # schermo, con contenuto sovrapposto (testo/bottoni trasparenti).
+        try:
+            from PyQt6.QtGui import QPixmap
+            import os
+            _img = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "IMG", "documentazione.jpeg",
+            )
+            if os.path.exists(_img):
+                _pix = QPixmap(_img).scaled(
+                    1180, 600, Qt.AspectRatioMode.IgnoreAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                self._bg_label = QLabel(self)
+                self._bg_label.setPixmap(_pix)
+                self._bg_label.setGeometry(0, 0, 1180, 600)
+                self._bg_label.lower()
+                self._bg_label.setAttribute(
+                    Qt.WidgetAttribute.WA_TransparentForMouseEvents, True
+                )
+        except Exception as e:
+            print(f"Errore sfondo credits: {e}")
+            self._bg_label = None
         # Leggi tema corrente (default scuro per backward compat)
         try:
             from GUI import settings_store as _ss
@@ -121,7 +145,7 @@ class CreditsOverlay(QFrame):
 
         subtitle = QLabel("Autonomous Multi-Agent System")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        subtitle.setStyleSheet("font-size: 12px; color: #a0a0b0; font-style: italic;")
+        subtitle.setStyleSheet("font-size: 12px; font-style: italic;")
         subtitle.setFixedHeight(16)
         lay.addWidget(subtitle)
 
@@ -240,7 +264,7 @@ class CreditsOverlay(QFrame):
             info_lay.addWidget(name_lbl)
 
             role_lbl = QLabel(role)
-            role_lbl.setStyleSheet("font-size: 10px; color: #c0c0d0;")
+            role_lbl.setStyleSheet("font-size: 10px;")
             role_lbl.setWordWrap(True)
             info_lay.addWidget(role_lbl)
 
@@ -297,14 +321,14 @@ class CreditsOverlay(QFrame):
             ic.setFixedWidth(20)
             top.addWidget(ic)
             nm = QLabel(f"<b>{name}</b>")
-            nm.setStyleSheet("font-size: 11px; color: #cdd6f4;")
+            nm.setStyleSheet("font-size: 11px;")
             nm.setWordWrap(True)
             top.addWidget(nm, stretch=1)
             chip_lay.addLayout(top)
 
             # Ruolo
             rl = QLabel(role)
-            rl.setStyleSheet("font-size: 9px; color: #8888a0;")
+            rl.setStyleSheet("font-size: 9px;")
             rl.setWordWrap(True)
             chip_lay.addWidget(rl)
 
@@ -323,7 +347,7 @@ class CreditsOverlay(QFrame):
         # Messaggio finale (sotto le 2 colonne)
         final_msg = QLabel("Grazie a tutti per aver contribuito a questo progetto 🐝")
         final_msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        final_msg.setStyleSheet("font-size: 12px; color: #8888a0; font-style: italic; margin-top: 4px;")
+        final_msg.setStyleSheet("font-size: 12px; font-style: italic; margin-top: 4px;")
         final_msg.setWordWrap(True)
         final_msg.setFixedHeight(18)
         lay.addWidget(final_msg)
@@ -427,53 +451,39 @@ class CreditsOverlay(QFrame):
         """
         self._theme = theme
         if theme == "light":
-            # Tema chiaro: sfondo bianco/grigio chiaro, testo scuro, accento verde
-            pal = self.palette()
-            pal.setColor(QPalette.ColorRole.Window, QColor("#f8f9fa"))
-            pal.setColor(QPalette.ColorRole.Base, QColor("#ffffff"))
-            pal.setColor(QPalette.ColorRole.Text, QColor("#1a1a1a"))
-            pal.setColor(QPalette.ColorRole.WindowText, QColor("#1a1a1a"))
-            self.setPalette(pal)
-            self.setStyleSheet(
-                "QFrame#credits_overlay { "
-                "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
-                "    stop:0 #ffffff, stop:0.5 #f0f9ff, stop:1 #ffffff); "
-                "  border: 2px solid #16a34a; "
-                "  border-radius: 16px; "
-                "}"
-                "QFrame#contrib_card { background: #f0f2f5; border-radius: 6px; }"
-                "QFrame#tech_chip { background: #f0f2f5; border: 1px solid #d6dae1; border-radius: 6px; }"
-                "QLabel { color: #1a1a1a; background: transparent; }"
-                "QScrollArea { background: transparent; border: none; }"
-                "QScrollBar:vertical { background: #f8f9fa; width: 10px; }"
-                "QScrollBar::handle:vertical { background: #16a34a; border-radius: 5px; min-height: 30px; }"
-                "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
-                "QPushButton { color: #1a1a1a; }"
-            )
+            text_color = "#000000"
+            border_color = "#ffffff"
+            card_bg = "#f0f2f5"
+            chip_bg = "#f0f2f5"
+            chip_border = "#d6dae1"
         else:
-            # Tema scuro: sfondo navy, testo chiaro, accento verde brillante
-            pal = self.palette()
-            pal.setColor(QPalette.ColorRole.Window, QColor("#1e1e2e"))
-            pal.setColor(QPalette.ColorRole.Base, QColor("#1e1e2e"))
-            pal.setColor(QPalette.ColorRole.Text, QColor("#cdd6f4"))
-            pal.setColor(QPalette.ColorRole.WindowText, QColor("#cdd6f4"))
-            self.setPalette(pal)
-            self.setStyleSheet(
-                "QFrame#credits_overlay { "
-                "  background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
-                "    stop:0 #1e1e2e, stop:0.5 #2a2a3c, stop:1 #1e1e2e); "
-                "  border: 2px solid #4ade80; "
-                "  border-radius: 16px; "
-                "}"
-                "QFrame#contrib_card { background: #0f0f19; border-radius: 6px; }"
-                "QFrame#tech_chip { background: #181826; border: 1px solid #2e2e44; border-radius: 6px; }"
-                "QLabel { color: #cdd6f4; background: transparent; }"
-                "QScrollArea { background: transparent; border: none; }"
-                "QScrollBar:vertical { background: #1e1e2e; width: 10px; }"
-                "QScrollBar::handle:vertical { background: #4ade80; border-radius: 5px; min-height: 30px; }"
-                "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
-                "QPushButton { color: #cdd6f4; }"
-            )
+            text_color = "#ffffff"
+            border_color = "#000000"
+            card_bg = "#0f0f19"
+            chip_bg = "#181826"
+            chip_border = "#2e2e44"
+        pal = self.palette()
+        pal.setColor(QPalette.ColorRole.Window, QColor(border_color if False else ("#f8f9fa" if theme == "light" else "#1e1e2e")))
+        pal.setColor(QPalette.ColorRole.Base, QColor("#ffffff" if theme == "light" else "#1e1e2e"))
+        pal.setColor(QPalette.ColorRole.Text, QColor(text_color))
+        pal.setColor(QPalette.ColorRole.WindowText, QColor(text_color))
+        self.setPalette(pal)
+        self.setStyleSheet(
+            "QFrame#credits_overlay { "
+            "  background: transparent; "
+            f"  border: 2px solid {border_color}; "
+            "  border-radius: 16px; "
+            "}"
+            f"QFrame#contrib_card {{ background: {card_bg}; border-radius: 6px; }}"
+            f"QFrame#tech_chip {{ background: {chip_bg}; border: 1px solid {chip_border}; border-radius: 6px; }}"
+            f"QLabel {{ color: {text_color}; background: transparent; }}"
+            "QScrollArea { background: transparent; border: none; }"
+            "QScrollBar:vertical { background: transparent; width: 10px; }"
+            "QScrollBar::handle:vertical { background: rgba(128,128,128,0.5); border-radius: 5px; min-height: 30px; }"
+            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
+            f"QPushButton {{ color: {text_color}; background: transparent; border: 1px solid {border_color}; border-radius: 6px; padding: 4px 12px; }}"
+            f"QPushButton:hover {{ background: rgba(128,128,128,0.2); }}"
+        )
 
     def showEvent(self, event):
         """Animazione fade-in all'apertura."""
