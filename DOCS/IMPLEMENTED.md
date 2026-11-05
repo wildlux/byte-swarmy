@@ -105,5 +105,34 @@ This file tracks every significant feature, fix, and architectural change implem
 - [x] **9.9 Advanced Persistent Memory**: `CORE/persistent_memory.py` — `extract_preferences()` uses pattern matching (regex) to detect user preferences (preferred language, type hints usage, frameworks, code styles) from task history.
 - [x] **M3 Static Checks (verified)**: `CORE/tools.py` `lint_code()` already integrates Bandit (SAST) and Mypy (type checking) in the sandbox.
 
+## 🚀 Sprint Ops — 2026-11-05
+
+- [x] **Repo mapping dinamico**: `tools/repo_map.py` — fotografia compatta
+  del repo (aree/ruoli, statistiche file, `.py` caldi via `--days`, stato
+  git, dir runtime). 3 modalità: stdout / `--out state/repo_map.md` /
+  `--json`. Registrato come `./byte-swarm.sh map` e in
+  `DOCS/AGENT.md → Shell Commands` (risparmio token a inizio sessione).
+- [x] **AGENT.md — Shell Commands quick reference**: sezione comandi
+  operativi più usati (test, runtime `byte-swarm.sh`, pausa/coda SQLite,
+  log, flusso documentale, push manuale, GUI offscreen + regole tema
+  `set_prop`/`set_banner`); sezione Testing aggiornata (niente più
+  conti hardcodati: 55 → "usa i comandi", suite attuale 247 pytest).
+- [x] **Fix `tools/travasa_todo.py`**: dopo la consolidation docs
+  puntava ancora ai path root inesistenti (`todo.md`, `IMPLEMENTED.md`)
+  → flusso documentale rotto. Ora rileva `DOCS/todo.md` /
+  `DOCS/IMPLEMENTED.md` (backward-compat con la root). Dry-run OK.
+- [x] **Sync tema widget — round 2**: `task_scheduler_panel.py` (12
+  colori inline light-only → theme: banner warn, bottoni
+  `role=start/danger`, QListWidget oggetto "schedlist"), `search_bar.py`
+  (QLineEdit bianca inline → tema), `hardware_panel.py` (badge errore →
+  `set_banner("error")`), `.qss` (`QListWidget`, `QDateTimeEdit`,
+  focus). **Bug Qt reale**: un stylesheet "declaration-only" su un
+  widget antenato (es. `content.setStyleSheet("background:
+  transparent;")`) azzera lo sfondo dei bottoni discendenti (vinto sui
+  QSS app-level) → convertiti tutti i 6 punti (anche
+  `control_center.py`) a regole con selettore objectName
+  (`QWidget#panelScrollContent`). Verificato a livello pixel + screenshot
+  entrambi i temi; suite verde 247 passed / 131 subtests.
+
 ## 🔓 Open follow-ups
 UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protocol parser, USB differential analysis, dedicated user `byteswarmy`, usbmon/tshark automation, unification of GUI→SQLite queue (FM14).

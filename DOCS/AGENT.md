@@ -217,13 +217,66 @@ Activity Panel.
 
 ## 🧪 Testing
 
-55 tests pass:
-- 27 security (`tests/test_security.py`) — always-on policy, prompt
-  injection resistance, path confinement, env sanitisation.
-- 22 sandbox (`tests/test_sandbox.py`) — bubblewrap isolation, escape
-  prevention, network blocked, write-outside blocked.
-- 6 intent integration (`tests/test_intent_integration.py`) — multilingual
-  routing, swarm command detection, localisation.
+The suite grows over time — never trust hardcoded counts, run it:
+- pytest (unit + integration): `.venv/bin/python -m pytest tests/ -q`
+- unittest legacy: `.venv/bin/python -m unittest discover -s tests -q`
+- E2E live (`tests/test_e2e.py`) auto-skips if `state/pause.flag`
+  exists or the orchestrator pid is stale; they are not failures.
 
 `tests/run_tests.py --json` is the GUI runner; output consumed by the
 "Test & Sandbox" tab.
+
+## 🛠️ Shell Commands — Quick Operational Reference
+
+The commands an agent uses most to keep BYTE-SWARMY alive and bug-free
+(they avoid re-deriving paths/flags each session, saving tokens):
+
+```bash
+# ── Sintassi veloce (zero token su errori formali) ──────────────
+.venv/bin/python -m py_compile <file.py>          # check singoli file
+.venv/bin/python -m pytest tests/ -q              # suite completa (10s)
+
+# ── Runtime dell'orchestratore ──────────────────────────────────
+./byte-swarm.sh status                            # pid/queue/log summary
+./byte-swarm.sh orch                              # solo orchestratore (bg)
+./byte-swarm.sh start                             # orchestratore + GUI
+./byte-swarm.sh gui                               # solo GUI
+./byte-swarm.sh stop                              # ferma tutto (ex ferma.sh)
+./byte-swarm.sh restart                           # stop + orch
+# Nota: ./avvia.sh e ./ferma.sh sono wrapper deprecated dello stesso
+# binario; preferisci byte-swarm.sh. Il dispatcher unito è ./bswarm.
+
+# ── Pausa termica / coda ────────────────────────────────────────
+rm -f state/pause.flag                            # riprendi (pausa continua)
+python3 -c "import sqlite3; con=sqlite3.connect('tasks/queue.db'); \
+print(con.execute('SELECT status, COUNT(*) FROM tasks GROUP BY status').fetchall())"
+# NB: state/pause.flag presente ⇒ test E2E in SKIP (non falliti).
+
+# ── Log live ────────────────────────────────────────────────────
+tail -30 logs/byte-swarmy.log
+tail -f logs/byte-swarmy.log &                    # durante un run
+
+# ── Flusso documentale (todo → IMPLEMENTED) ─────────────────────
+.venv/bin/python tools/travasa_todo.py --dry-run  # preview
+.venv/bin/python tools/travasa_todo.py            # travaso (idempotente)
+# I file vivono in DOCS/todo.md e DOCS/IMPLEMENTED.md.
+
+# ── Mappa dynamic repo (orientamento a inizio sessione) ─────────
+.venv/bin/python tools/repo_map.py                # stampa a stdout
+.venv/bin/python tools/repo_map.py --out state/repo_map.md
+.venv/bin/python tools/repo_map.py --json --days 3   # per scripting
+
+# ── Push manuale (MAI git push automatici) ──────────────────────
+./scripts/dev/sync.sh
+
+# ── GUI offscreen (debug tema/widget senza display) ─────────────
+QT_QPA_PLATFORM=offscreen .venv/bin/python <script_di_smoke>
+# Tema: GUI/theme/theme.py → set_prop(w, "role", "muted"/"alert"),
+# set_banner(w, "info"/"ok"/"error"/"warn"). MAI setStyleSheet inline
+# con colori hardcodati nei pannelli: rompono il tema live (e un
+# stylesheet "declaration-only" su un antenato azzera i bottoni figli).
+```
+
+Hard rules encoded in these commands: never `git push`/`pull` by hand,
+never block the Qt main thread, never `time.sleep` in the task runner
+(use `Event.wait` + single-threaded loop).

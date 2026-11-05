@@ -115,8 +115,13 @@ def main(argv: list[str]) -> int:
     dry_run = "--dry-run" in argv
     positional = [a for a in argv if not a.startswith("-")]
     root = Path(positional[0] if positional else ".").resolve()
+    # Dalla consolidation docs (2026-11-05) todo.md e IMPLEMENTED.md vivono
+    # in DOCS/; accettiamo anche la radice per backward compat.
     todo = root / "todo.md"
     impl = root / "IMPLEMENTED.md"
+    if not todo.exists() and (root / "DOCS" / "todo.md").exists():
+        todo = root / "DOCS" / "todo.md"
+        impl = root / "DOCS" / "IMPLEMENTED.md"
     if not todo.exists() or not impl.exists():
         print(f"Manca todo.md o IMPLEMENTED.md in {root}", file=sys.stderr)
         return 1
