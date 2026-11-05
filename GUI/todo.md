@@ -5,8 +5,9 @@ al codice deve avere una riga con stato `[ ]` / `[x]`. I task devono essere
 piccoli, atomici e verificabili. Per modifiche a `orchestrator.py`/`tools.py`:
 `py_compile` + boot reale sotto watchdog + suite completa (R1).
 
-Stato attuale: **sistema operativo end-to-end**, 58/58 test pass
-(27 security + 22 sandbox + 3 escape-gate + 6 intent).
+Stato attuale: **sistema operativo end-to-end**, 263 test veloci pass
+(+ suite LLM lente: e2e/functional/mcp/timestral/intent/monthly) dopo la
+sessione 2026-11-05/06 — vedi sezione 🆕 in fondo.
 
 ---
 
@@ -31,18 +32,39 @@ Stato attuale: **sistema operativo end-to-end**, 58/58 test pass
 
 ## 🔌 Priorità bassa (USB e MCP)
 
-- [ ] **9.7 MCP E2E** — Collaudo completo.
-- [ ] **M10. USB Protocol Parser** — Traduzione descrittori/endpoint/payload.
-- [ ] **M11. USB Differential Analysis** — Confronto automatico tra catture.
+- [x] **9.7 MCP E2E** — `tests/test_mcp_e2e.py` (4 test, pass nella suite completa 281).
+- [x] **M10. USB Protocol Parser** — `CORE/usb_protocol.py` + `tests/test_usb_protocol.py` (25 test USB pass).
+- [x] **M11. USB Differential Analysis** — `CORE/usb_differential.py` + test dedicati pass.
 - [ ] **M8. Utente dedicato `byteswarmy`** — Richiede sudo.
 - [ ] **M9. usbmon/tshark ambiente** — Automatizzare installazione.
 
 ## 🧹 Igiene continua
 
-- [ ] **R1.** `py_compile` + boot reale sotto watchdog per modifiche strutturali.
-- [ ] **R2.** Test di interazione reale per i gate di sicurezza.
-- [ ] **R3.** Verificare funzionalità duplicate se un file supera ~500 righe.
+- [ ] **R1.** `py_compile` + boot reale sotto watchdog per modifiche strutturali (pratica adottata: orchestratore va comunque RIAVVIATO dopo le modifiche).
+- [x] **R2.** Test di interazione reale per i gate di sicurezza — `tests/test_security.py` (ToolSet reale: comandi bloccati, traversal, symlink, allowlist).
+- [ ] **R3.** Verificare funzionalità duplicate se un file supera ~500 righe — `control_center.py` è ~5000 righe: da spezzare (DevicePanel/CenterArea/CreditsOverlay/editor in moduli separati).
 - [ ] **FM14** — Unificare la coda GUI→SQLite in sola lettura.
+
+## 🧪 Da valutare (aperti di recente)
+
+- [ ] **Audit LLM vero** — `AuditWorker.SYSTEM` è dead code: `audit()` è euristico. Implementare la review LLM reale (con decision APPROVE/REJECT).
+- [ ] **Escalation automatica per task** — il consiglio di escalation è scritto nei dettagli; valutare override del modello PER task (oggi il modello viene da actors.json/config).
+- [ ] **Minimi verticali Plancia** — la finestra viene forzata in altezza dai minimi interni (~1100px): valutare scroll o collasso di default.
+
+## ✅ Sessione 2026-11-05/06 (completata — 263 test veloci)
+
+- [x] **Fix workflow utente**: pulsante ▶ toolbar morto (return prematuro) → toggle pausa/riprendi REALE (pause.flag); IndentationError in main_window.py.
+- [x] **Agenti**: envelope `tool(...)` fixato (ast.literal_eval + prompt rework), allowlist allineata (29 tool), 4 nuovi tool file (delete/move/list/slice), protocollo normalizzato in INGLESE, regola "progetto autonomo" (requirements.txt + avvia.sh).
+- [x] **Modelli piccoli che salvano**: max_tokens 400→1024, parse dict Python-style, envelope (path, content) → write_file.
+- [x] **Retry configurabili**: `[orchestrator] max_task_retries` + `retry_cooldown_sec` (colonna retry_after in queue.db).
+- [x] **3 flussi utente**: CPU/GPU cliccabili → Attori; dettagli task con codice navigabile + ▶ Esegui (py/sh/c/cpp/html, fuori sandbox); "Apri risultato" apre la CARTELLA (filtro .git/__pycache__, priorità main/avvia); avvia.sh generato SEMPRE a task approvato.
+- [x] **Escalation LLM**: a fallimento definitivo, consiglio light→medium→heavy scritto nei dettagli (reason).
+- [x] **Temi**: 19 temi (9 chiari per inversione HSL), switch live reale (QSS per nome, non più binario), selettore diviso chiari/scuri, contrasto WCAG ≥4.5:1 su tutti, niente parti bianche (esteso coverage per tema + filtro spazzatura file task).
+- [x] **Crediti**: sfondo immagine visibile (vetro smerigliato), loghi 88x56, ESC per uscire.
+- [x] **Hardware**: capacità multi-modello CALCOLATA dai 3 attori (LLM/Decision/Timestral, timestral force-CPU), righe CPU/GPU cliccabili, pannello compatto.
+- [x] **Attori/Scheduler**: modelli ordinati alfabeticamente+grandezza con nota d'uso, modifica task schedulati (tasto destro → form).
+- [x] **Keyboard**: ESC crediti, "/" focus comando (testati); CPU/GPU click testato.
+- [x] **mappa pesi→modelli in CORE/constants.py** (unica fonte CORE+GUI).
 
 ## ✅ Completato (riepilogo)
 
@@ -67,4 +89,5 @@ il log storico dettagliato. In particolare:
 - QSS Theme system (light/dark, toggle Ctrl+Shift+T).
 - Planner SQLite bug fix (subtask ora persistono correttamente).
 - Migrazione a package maiuscoli (CORE/INTENT/SAFETY/MONITORING/GUI/CONFIG).
-- 58/58 test pass.
+- ButtonBridge remoto (list/click/screenshot) + test workflow end-to-end.
+- 263 test veloci pass + suite LLM lente.
