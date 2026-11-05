@@ -275,6 +275,13 @@ tail -f logs/byte-swarmy.log &                    # durante un run
 .venv/bin/python tools/repo_map.py --out state/repo_map.md
 .venv/bin/python tools/repo_map.py --json --days 3   # per scripting
 
+# ── Audit statico (stile, sicurezza, igiene git) ────────────────
+.venv/bin/python tools/lint_style.py        # stile/leggibilità + guardia tema
+.venv/bin/python tools/lint_style.py --fix  # auto-fix trailing ws + newline
+.venv/bin/python tools/security_scan.py     # pattern pericolosi (exit 2 = blocca)
+.venv/bin/python tools/git_hygiene.py      # igiene repo (bak, grandi, ws)
+# Orchestrazione: ./byte-swarm.sh lint (esegue i tre in sequenza)
+
 # ── Push manuale (MAI git push automatici) ──────────────────────
 ./scripts/dev/sync.sh
 

@@ -95,7 +95,7 @@ def setup_logger(config) -> logging.Logger:
             if hasattr(record, "extra_data"):
                 log_record.update(record.extra_data)
             return json.dumps(log_record)
-    
+
     jsonl_handler.setFormatter(JSONLFormatter())
     logger.addHandler(jsonl_handler)
 
@@ -164,14 +164,14 @@ class TaskQueue:
         task.setdefault("attempts", 0)
         task.setdefault("created_at", time.time())
         task.setdefault("parent", None)
-        
+
         with self._get_conn() as conn:
             conn.execute(
                 "INSERT OR IGNORE INTO tasks (id, title, description, context, status, attempts, created_at, parent, type, source) VALUES (?,?,?,?,?,?,?,?,?,?)",
                 (
-                    task["id"], task.get("title", ""), task.get("description", ""), 
-                    task.get("context", ""), task["status"], task["attempts"], 
-                    task["created_at"], task["parent"], task.get("type", "code"), 
+                    task["id"], task.get("title", ""), task.get("description", ""),
+                    task.get("context", ""), task["status"], task["attempts"],
+                    task["created_at"], task["parent"], task.get("type", "code"),
                     task.get("source", "manual")
                 )
             )
@@ -186,7 +186,7 @@ class TaskQueue:
                 "SELECT * FROM tasks WHERE status IN ('pending', 'retry') ORDER BY created_at ASC LIMIT 1"
             ).fetchone()
             if not res: return None
-            
+
             task_id = res["id"]
             conn.execute(
                 "UPDATE tasks SET status = ?, started_at = ? WHERE id = ?",
@@ -208,12 +208,12 @@ class TaskQueue:
             # Increment attempts
             curr = conn.execute("SELECT attempts FROM tasks WHERE id = ?", (task_id,)).fetchone()
             attempts = (curr[0] if curr else 0) + 1
-            
+
             status = "stuck" if attempts >= 10 else "retry"
             fail_col = "failure_reason" if status == "stuck" else "last_error"
-            
+
             conn.execute(
-                f"UPDATE tasks SET attempts = ?, status = ?, {fail_col} = ? WHERE id = ?",
+                f"UPDATE tasks SET attempts = ?, status = ?, {fail_col} = ? WHERE id = ?",  # nosec: colonna dinamica validata (fail_col ∈ {failure_reason,last_error})
                 (attempts, status, reason[:300], task_id)
             )
             conn.commit()
@@ -333,7 +333,7 @@ class TaskQueue:
                 return
             vals.append(task_id)
             conn.execute(
-                f"UPDATE tasks SET {', '.join(updates)} WHERE id = ?",
+                f"UPDATE tasks SET {', '.join(updates)} WHERE id = ?",  # nosec: chiavi validate contro schema (solo colonne note)
                 vals,
             )
             conn.commit()
@@ -382,7 +382,7 @@ class Planner:
         '{"subtasks": [{"title": "...", "description": "...", "type": "implement|test|fix"}]}\n'
         "Niente testo fuori dal JSON."
     )
-    
+
     # Costituzione dell'Agente Worker: regole ferree di sicurezza e qualità.
     # Versione compatta per modelli piccoli (3-4B su CPU).
     WORKER_CONSTRAINTS = (
@@ -454,10 +454,10 @@ class Planner:
 
 class Worker:
     """Esegue un task usando i tool e il modello LLM. Loop ReAct base."""
-    
+
     # Prompt Governance: versioned prompts
     PROMPT_VERSION = "2.1-enterprise"
-    
+
     SYSTEM = (
         "You are a coding agent working inside a sandboxed project directory.\n"
         "Reply with ONE JSON object per turn and NOTHING else:\n"
@@ -553,7 +553,7 @@ class Worker:
                 streaming_file = Path("state/streaming.txt")
                 streaming_file.parent.mkdir(parents=True, exist_ok=True)
                 streaming_file.write_text("")  # reset all'inizio di ogni call
-                
+
                 raw_parts = []
                 token_count = 0
                 for token in self.models.call_streaming(
@@ -570,7 +570,7 @@ class Worker:
                     # Log ogni 50 token
                     if token_count % 50 == 0:
                         self.log.debug(f"[{self.agent_id}] streaming: {token_count} tokens")
-                
+
                 raw = "".join(raw_parts)
                 self.log.debug(f"[{self.agent_id}] streaming done: {token_count} tokens total")
             except Exception as e:
@@ -865,10 +865,10 @@ class Worker:
 
 class AuditWorker:
     """
-    The Reviewer: An agent specialized in cross-checking code for security, 
+    The Reviewer: An agent specialized in cross-checking code for security,
     bugs, and architectural consistency.
     """
-    
+
     SYSTEM = (
         "You are the Senior Audit Worker (The Reviewer) and a Clean Code Expert.\n"
         "Your goal is to ensure enterprise-grade quality, security, and maintainability.\n\n"
@@ -1154,7 +1154,7 @@ class Orchestrator:
     def __init__(self, config_path: str = "CONFIG/config.toml"):
         self.config = load_config(config_path)
         self.log = setup_logger(self.config)
-        
+
         # --- SYSTEM ISOLATION CHECK (Safe Mode) ---
         is_safe, reason = check_isolation()
         if not is_safe:
@@ -1284,10 +1284,10 @@ class Orchestrator:
         # CONFIG/scheduled_tasks.json e inietta i task scaduti in coda.
         self.scheduler = SchedulerWorker(self.queue, logger=self.log)
         self.scheduler.start()
-        
+
         self.monitor = SystemMonitor(self.config, self.log, self.timestral)
         self.dispatcher = TaskDispatcher(self.queue, self.planner, self.generic_planner, self.models, self.tools, self.log)
-        
+
         self.memories = {}
         self.running = True
         # Timer di manutenzione usati dal loop principale (_tick)
@@ -1479,7 +1479,7 @@ class Orchestrator:
         _pause_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'state', 'pause.flag')
         if os.path.exists(_pause_file):
             return  # Orchestratore in pausa - non processa nessun task
-        
+
         # next_pending() filtra: status IN ('pending', 'retry')
         # - 'paused' (pausa utente) NON viene mai preso
         # - 'thermal_paused' gestito da pause_thermal/resume_thermal
@@ -1678,7 +1678,7 @@ class Orchestrator:
                 self.log.info(f"task {task['id']} submitted for audit")
                 worker_history = worker.memory.get_history()
                 audit_res = self.auditor.audit(task, result, worker_history)
-                
+
                 if audit_res.get("decision") == "APPROVE":
                     self.log.info(f"task {task['id']} APPROVED by auditor")
                     self.queue.mark_done(task["id"], result)
@@ -1900,7 +1900,7 @@ class Orchestrator:
             timestral_state = advice.action
             if advice.sample:
                 timestral_state += f" (CPU {advice.sample.cpu_temp_max:.0f}°C, load {advice.sample.cpu_load*100:.0f}%)"
-        
+
         lines = [
             "🐝 BYTE-SWARMY Status",
             "=" * 40,
@@ -1918,7 +1918,7 @@ class Orchestrator:
         tasks = self.queue.get_all_tasks()
         if not tasks:
             return "Nessun task nella coda."
-        
+
         lines = [f"📋 Coda task ({len(tasks)} totali):", "=" * 60]
         for t in tasks[:20]:  # max 20
             status_icon = {
@@ -1956,7 +1956,7 @@ class Orchestrator:
         """Ispeziona memoria agenti."""
         if not self.memories:
             return "Nessun agente ha memoria attiva."
-        
+
         lines = ["🧠 Memoria agenti:", "=" * 40]
         for agent_id, mem in self.memories.items():
             try:
@@ -1980,7 +1980,7 @@ class Orchestrator:
             target_id = ctx.get("params", {}).get("task_id")
         except Exception:
             pass
-        
+
         if not target_id:
             # Cancella tutti i task pending
             try:
@@ -2014,7 +2014,7 @@ class Orchestrator:
                     total_lines += sum(1 for _ in f.open(encoding="utf-8", errors="replace"))
                 except Exception:
                     pass
-            
+
             lines = [
                 "🔍 Audit progetto:",
                 "=" * 40,

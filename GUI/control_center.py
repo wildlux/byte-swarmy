@@ -74,7 +74,7 @@ except ImportError:
 class CreditsOverlay(QFrame):
     """Overlay modale con i ringraziamenti del progetto."""
     closed = pyqtSignal()
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("credits_overlay")
@@ -468,27 +468,27 @@ class DevicePanel(QFrame):
             "QFrame#device_panel { background:#f8f9fa; border:1px solid #e0e0e0; "
             "border-radius:8px; }"
         )
-        
+
         lay = QHBoxLayout(self)
         lay.setContentsMargins(6, 4, 6, 4)
         lay.setSpacing(8)
-        
+
         devices_col = QVBoxLayout()
         devices_col.setSpacing(2)
         devices_col.setContentsMargins(0, 0, 0, 0)
-        
+
         self.cpu_box = self._device_row("CPU", "#16a34a", "qwen2.5:1.5b")
         self.gpu_box = self._device_row("GPU", "#2563eb", "—")
-        
+
         devices_col.addWidget(self.cpu_box)
         devices_col.addWidget(self.gpu_box)
         lay.addLayout(devices_col)
-        
+
         sep = QFrame()
         sep.setFixedWidth(1)
         sep.setStyleSheet("background:#d0d0d0;")
         lay.addWidget(sep)
-        
+
         self.git_btn = QPushButton("💾")
         self.git_btn.setFixedWidth(36)
         self.git_btn.setFixedHeight(46)
@@ -501,7 +501,7 @@ class DevicePanel(QFrame):
         )
         self.git_btn.clicked.connect(self._do_git_save)
         lay.addWidget(self.git_btn)
-        
+
         self.toggle_btn = QPushButton("▶")
         self.toggle_btn.setFixedWidth(44)
         self.toggle_btn.setFixedHeight(46)
@@ -513,10 +513,10 @@ class DevicePanel(QFrame):
             "QPushButton#primary_btn:hover { background:#15803d; }"
         )
         lay.addWidget(self.toggle_btn)
-        
+
         self.git_remotes = self._detect_git_remotes()
         self._update_git_tooltip()
-    
+
     def _detect_git_remotes(self):
         remotes = []
         try:
@@ -543,14 +543,14 @@ class DevicePanel(QFrame):
         if not remotes:
             remotes = [("Git", "origin")]
         return remotes
-    
+
     def _update_git_tooltip(self):
         names = [r[0] for r in self.git_remotes]
         if len(names) == 1:
             self.git_btn.setToolTip(f"Salva su {names[0]}")
         else:
             self.git_btn.setToolTip(f"Salva su {', '.join(names)}")
-    
+
     def _do_git_save(self):
         """Salva (push) su tutti i remote Git configurati.
 
@@ -808,28 +808,28 @@ class DevicePanel(QFrame):
         lay = QHBoxLayout(row)
         lay.setContentsMargins(6, 2, 6, 2)
         lay.setSpacing(6)
-        
+
         lbl = QLabel(name)
         lbl.setStyleSheet(f"color:{color}; font-size:12px; font-weight:bold;")
         lbl.setFixedWidth(32)
         lay.addWidget(lbl)
-        
+
         model_lbl = QLabel(model_name)
         model_lbl.setStyleSheet("color:#555; font-size:10px;")
         model_lbl.setFixedWidth(72)
         lay.addWidget(model_lbl)
-        
+
         temp_lbl = QLabel("45°C")
         tok_lbl = QLabel("12t/s")
         kv_lbl = QLabel("2.1G")
         mem_lbl = QLabel("65%")
         bus_lbl = QLabel("800M")
-        
+
         for w in (temp_lbl, tok_lbl, kv_lbl, mem_lbl, bus_lbl):
             w.setStyleSheet("color:#333; font-size:11px; font-weight:500;")
             w.setFixedWidth(38)
             lay.addWidget(w)
-        
+
         row._temp = temp_lbl
         row._tok = tok_lbl
         row._kv = kv_lbl
@@ -853,11 +853,11 @@ class CollapsibleSection(QFrame):
             "QFrame#collapsible_section { background:#ffffff; border:1px solid #e0e0e0; "
             "border-radius:8px; }"
         )
-        
+
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
-        
+
         self.header = QFrame()
         self.header.setObjectName("section_header")
         # Altezza fissa su tutti gli header: uniformità visiva tra le 5 sezioni
@@ -870,11 +870,11 @@ class CollapsibleSection(QFrame):
         header_lay = QHBoxLayout(self.header)
         header_lay.setContentsMargins(14, 10, 14, 10)
         header_lay.setSpacing(8)
-        
+
         self.title_lbl = QLabel(f"{icon} {title}")
         self.title_lbl.setStyleSheet("font-size:13px; font-weight:bold; color:#1a1a1a;")
         header_lay.addWidget(self.title_lbl, stretch=1)
-        
+
         self.toggle_btn = QPushButton("▾")
         self.toggle_btn.setFixedSize(28, 28)
         self.toggle_btn.setStyleSheet(
@@ -884,20 +884,20 @@ class CollapsibleSection(QFrame):
         )
         self.toggle_btn.clicked.connect(self._on_toggle)
         header_lay.addWidget(self.toggle_btn)
-        
+
         lay.addWidget(self.header)
-        
+
         self.content = QWidget()
         self.content.setStyleSheet("background:#ffffff; border-bottom-left-radius:8px; border-bottom-right-radius:8px;")
         self.content_lay = QVBoxLayout(self.content)
         self.content_lay.setContentsMargins(12, 12, 12, 12)
         self.content_lay.setSpacing(8)
-        
+
         lay.addWidget(self.content)
-        
+
         self._expanded = True
         self._sync_silent = False  # True quando il cambio è programmatico (no signal)
-    
+
     def _on_toggle(self):
         self._expanded = not self._expanded
         if self._expanded:
@@ -909,7 +909,7 @@ class CollapsibleSection(QFrame):
         # Emetti segnale solo se il cambio è manuale (non da sync)
         if not self._sync_silent:
             self.toggled.emit(self._expanded)
-    
+
     def set_expanded(self, expanded: bool):
         """Cambia lo stato programmaticamente (per sincronizzazione).
         Non emette il segnale toggled (evita loop)."""
@@ -920,7 +920,7 @@ class CollapsibleSection(QFrame):
             self._on_toggle()
         finally:
             self._sync_silent = False
-    
+
     def add_widget(self, widget):
         self.content_lay.addWidget(widget)
 
@@ -991,13 +991,13 @@ class PlanciaCard(QFrame):
             "QFrame#card { background:#f0f9ff; border:1px solid #16a34a; border-radius:10px; }"
         )
         self.setStyleSheet(self._normal_style)
-    
+
     def enterEvent(self, event):
         self.setStyleSheet(self._hover_style)
-    
+
     def leaveEvent(self, event):
         self.setStyleSheet(self._normal_style)
-    
+
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
@@ -1057,7 +1057,7 @@ class CategorizedLogViewer(QFrame):
             self.log_stack.addWidget(log_widget)
 
         lay.addWidget(self.log_stack, stretch=1)
-    
+
     def _get_sample_log(self, category, color):
         # SOSTITUISCI i log finti con log reali
         if category == "byteswarm":
@@ -1079,15 +1079,15 @@ class BackupCodeLogs(QFrame):
             "QFrame#backup_logs { background:#ffffff; border:1px solid #e0e0e0; "
             "border-radius:6px; }"
         )
-        
+
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
-        
+
         header = QLabel("<b>💾 Backup Code — Git Logs</b>")
         header.setStyleSheet("background:#f0f0f0; padding:8px 12px; font-size:12px; border-bottom:1px solid #e0e0e0;")
         lay.addWidget(header)
-        
+
         self.tab_bar = QTabBar()
         self.tab_bar.setExpanding(False)
         self.tab_bar.setMovable(False)
@@ -1103,12 +1103,12 @@ class BackupCodeLogs(QFrame):
         )
         self.tab_bar.currentChanged.connect(self._on_tab_changed)
         lay.addWidget(self.tab_bar)
-        
+
         self.log_stack = QStackedWidget()
         self.logs = {}
         categories = ["github", "gitlab", "git"]
         colors = {"github": "#89b4fa", "gitlab": "#f38ba8", "git": "#fab387"}
-        
+
         for cat in categories:
             log_widget = QTextEdit()
             log_widget.setReadOnly(True)
@@ -1121,9 +1121,9 @@ class BackupCodeLogs(QFrame):
             log_widget.setPlainText(sample)
             self.logs[cat] = log_widget
             self.log_stack.addWidget(log_widget)
-        
+
         lay.addWidget(self.log_stack, stretch=1)
-    
+
     def _get_sample_log(self, category, color):
         samples = {
             "github": f"[{color}] 2026-11-01 11:40:15 [INFO]  Push to main branch\n"
@@ -1140,7 +1140,7 @@ class BackupCodeLogs(QFrame):
                   f"[{color}] 2026-11-01 11:42:00 [INFO]  Pull from origin/main successful\n"
         }
         return samples.get(category, "")
-    
+
     def _on_tab_changed(self, index):
         self.log_stack.setCurrentIndex(index)
 
@@ -1162,7 +1162,7 @@ class CodeNode:
 
 class CodeExplorer(QFrame):
     node_clicked = pyqtSignal(str, int, int)
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("code_explorer")
@@ -1170,11 +1170,11 @@ class CodeExplorer(QFrame):
             "QFrame#code_explorer { background:#ffffff; border:1px solid #e0e0e0; "
             "border-radius:6px; }"
         )
-        
+
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 10, 12, 10)
         lay.setSpacing(8)
-        
+
         head = QHBoxLayout()
         head.addWidget(QLabel("<b>🎮 Navigatore di codice Interattivo</b>"))
         head.addStretch()
@@ -1219,11 +1219,11 @@ class CodeExplorer(QFrame):
         head.addWidget(reset_btn)
 
         lay.addLayout(head)
-        
+
         self.file_label = QLabel("Nessun file caricato")
         self.file_label.setStyleSheet("color:#666; font-size:11px;")
         lay.addWidget(self.file_label)
-        
+
         self.scene = QGraphicsScene()
         self.view = QGraphicsView(self.scene)
         self.view.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -1235,15 +1235,15 @@ class CodeExplorer(QFrame):
             "border-radius:6px; }"
         )
         lay.addWidget(self.view)
-        
+
         legend = QHBoxLayout()
         legend.addWidget(self._legend_item("Classe", "#89b4fa"))
         legend.addWidget(self._legend_item("Funzione", "#a6e3a1"))
         legend.addWidget(self._legend_item("Variabile", "#fab387"))
         lay.addLayout(legend)
-        
+
         self.nodes = []
-    
+
     def _legend_item(self, label, color):
         widget = QWidget()
         lay = QHBoxLayout(widget)
@@ -1276,7 +1276,7 @@ class CodeExplorer(QFrame):
         self.file_label.setText(os.path.basename(file_path))
         self.nodes = []
         self.scene.clear()
-        
+
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 source = f.read()
@@ -1286,11 +1286,11 @@ class CodeExplorer(QFrame):
             self._render_nodes()
         except Exception as e:
             self.scene.addText(f"Errore parsing: {e}")
-    
+
     def _parse_ast(self, tree, file_path):
         module_node = CodeNode(os.path.basename(file_path), "module", 1, len(tree.body), [])
         self.nodes.append(module_node)
-        
+
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
                 class_node = CodeNode(node.name, "class", node.lineno, node.end_lineno or node.lineno + 10, [])
@@ -1306,7 +1306,7 @@ class CodeExplorer(QFrame):
                     func_node = CodeNode(node.name, "function", node.lineno, node.end_lineno or node.lineno + 5, [])
                     module_node.children.append(func_node)
                     self.nodes.append(func_node)
-    
+
     def _layout_nodes(self):
         y_spacing = 80
         x_spacing = 200
@@ -1324,7 +1324,7 @@ class CodeExplorer(QFrame):
                         gc.x = grandchild_x
                         gc.y = child.y
                         grandchild_x += x_spacing
-    
+
     def _render_nodes(self):
         colors = {"module": "#cdd6f4", "class": "#89b4fa", "function": "#a6e3a1", "variable": "#fab387"}
         for node in self.nodes:
@@ -1332,7 +1332,7 @@ class CodeExplorer(QFrame):
                 for child in node.children:
                     line = self.scene.addLine(node.x + 60, node.y + 20, child.x + 60, child.y + 20, QPen(QColor("#6c7086"), 1.5))
                     line.setZValue(-1)
-        
+
         for node in self.nodes:
             color = colors.get(node.node_type, "#cdd6f4")
             rect = QGraphicsRectItem(node.x, node.y, 140, 40)
@@ -1340,21 +1340,21 @@ class CodeExplorer(QFrame):
             rect.setPen(QPen(QColor("#1e1e2e"), 2))
             rect.setZValue(0)
             self.scene.addItem(rect)
-            
+
             text = self.scene.addText(f"{node.name}")
             text.setDefaultTextColor(QColor("#1e1e2e"))
             text.setPos(node.x + 10, node.y + 8)
             text.setZValue(1)
-            
+
             line_info = self.scene.addText(f"L{node.line_start}-{node.line_end}")
             line_info.setDefaultTextColor(QColor("#6c7086"))
             line_info.setPos(node.x + 10, node.y + 24)
             line_info.setScale(0.7)
             line_info.setZValue(1)
-            
+
             rect.setAcceptHoverEvents(True)
             rect.mousePressEvent = lambda e, n=node: self._on_node_click(n)
-    
+
     def _on_node_click(self, node):
         node.expanded = not node.expanded
         self.scene.clear()
@@ -1369,27 +1369,27 @@ class FileEditorWidget(QFrame):
     closed = pyqtSignal()
     dock_requested = pyqtSignal()
     undock_requested = pyqtSignal()
-    
+
     def __init__(self, file_path, docked=False, parent=None):
         super().__init__(parent)
         self.file_path = file_path
         self._docked = docked
         self.setObjectName("editor_widget")
-        
+
         if docked:
             self.setStyleSheet("QFrame#editor_widget { background:#ffffff; border-left:1px solid #e0e0e0; }")
         else:
             self.setFixedSize(700, 500)
             self.setStyleSheet("QFrame#editor_widget { background:#ffffff; border:1px solid #e0e0e0; border-radius:12px; }")
-        
+
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 10, 12, 10)
         lay.setSpacing(6)
-        
+
         head = QHBoxLayout()
         head.addWidget(QLabel(f"<b>📝 {os.path.basename(file_path)}</b>"))
         head.addStretch()
-        
+
         self.dock_btn = QPushButton("📌 Dock" if not docked else "📌 Undock")
         self.dock_btn.setFixedHeight(28)
         self.dock_btn.setObjectName("dock_btn")
@@ -1399,42 +1399,42 @@ class FileEditorWidget(QFrame):
         )
         self.dock_btn.clicked.connect(self._on_dock_toggle)
         head.addWidget(self.dock_btn)
-        
+
         save_btn = QPushButton("💾 Salva")
         save_btn.setObjectName("primary_btn")
         save_btn.setFixedHeight(28)
         save_btn.clicked.connect(self._save)
         head.addWidget(save_btn)
-        
+
         close_btn = QPushButton("✕")
         close_btn.setFixedSize(28, 28)
         close_btn.clicked.connect(self.closed.emit)
         head.addWidget(close_btn)
         lay.addLayout(head)
-        
+
         path_lbl = QLabel(file_path)
         path_lbl.setStyleSheet("color:#888; font-size:10px; font-family:monospace;")
         lay.addWidget(path_lbl)
-        
+
         self.editor = QTextEdit()
         self.editor.setStyleSheet(
             "QTextEdit { background:#fafafa; color:#1a1a1a; border:1px solid #e0e0e0; "
             "border-radius:6px; font-family:'JetBrains Mono','Consolas',monospace; font-size:12px; padding:8px; }"
         )
         lay.addWidget(self.editor)
-        
+
         self.status = QLabel("Pronto")
         self.status.setStyleSheet("color:#666; font-size:11px;")
         lay.addWidget(self.status)
-        
+
         self._load_file()
-    
+
     def _on_dock_toggle(self):
         if self._docked:
             self.undock_requested.emit()
         else:
             self.dock_requested.emit()
-    
+
     def _load_file(self):
         try:
             with open(self.file_path, "r", encoding="utf-8", errors="replace") as f:
@@ -1443,7 +1443,7 @@ class FileEditorWidget(QFrame):
         except Exception as e:
             self.editor.setPlainText(f"[Errore lettura: {e}]")
             self.status.setText("Errore")
-    
+
     def _save(self):
         try:
             with open(self.file_path, "w", encoding="utf-8") as f:
@@ -1458,38 +1458,38 @@ class FileEditorWidget(QFrame):
 # ═══════════════════════════════════════════════════════════════
 class ConfigPanel(QFrame):
     """Pannello configurazione con tutti i parametri modificabili."""
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("config_panel")
         self._widgets = {}  # path -> widget
         self._build_ui()
-    
+
     def _build_ui(self):
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 12, 12, 12)
         lay.setSpacing(8)
-        
+
         # Header
         title = QLabel("⚙ Configurazione BYTE-SWARMY")
         title.setStyleSheet("font-size:18px; font-weight:bold; color:#1a1a1a;")
         lay.addWidget(title)
-        
+
         sub = QLabel("Modifica i parametri e premi 'Salva' per applicare. "
                      "Backup automatico in config.toml.bak")
         sub.setStyleSheet("font-size:11px; color:#666;")
         sub.setWordWrap(True)
         lay.addWidget(sub)
-        
+
         # Scroll area con i parametri
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet("QScrollArea { border: none; }")
-        
+
         container = QWidget()
         container_lay = QVBoxLayout(container)
         container_lay.setSpacing(12)
-        
+
         # Carica config
         try:
             from GUI.gui_backend import load_config
@@ -1497,7 +1497,7 @@ class ConfigPanel(QFrame):
         except Exception as e:
             self._config = {}
             container_lay.addWidget(QLabel(f"Errore lettura config: {e}"))
-        
+
         # Definizione sezioni da mostrare (con campi)
         sections = [
             ("🧠 Modelli LLM", "models", [
@@ -1568,7 +1568,7 @@ class ConfigPanel(QFrame):
                 # Solo informativo — i valori sono commentati nel file
             ]),
         ]
-        
+
         # Lista modelli Ollama disponibili
         try:
             import urllib.request, json
@@ -1578,20 +1578,20 @@ class ConfigPanel(QFrame):
         except Exception:
             self._available_models = ["qwen2.5:1.5b", "qwen2.5-coder:1.5b",
                                       "tev1:4b", "nomic-embed-text"]
-        
+
         # Costruisci le sezioni
         for section_title, section_path, fields in sections:
             section_widget = self._build_section(section_title, section_path, fields)
             container_lay.addWidget(section_widget)
-        
+
         container_lay.addStretch()
         scroll.setWidget(container)
         lay.addWidget(scroll, stretch=1)
-        
+
         # Bottoni Salva / Ripristina / Applica
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
-        
+
         self.save_btn = QPushButton("💾 Salva")
         self.save_btn.setStyleSheet("""
             QPushButton {
@@ -1602,7 +1602,7 @@ class ConfigPanel(QFrame):
         """)
         self.save_btn.clicked.connect(self._save)
         btn_row.addWidget(self.save_btn)
-        
+
         self.reset_btn = QPushButton("↩ Ripristina")
         self.reset_btn.setStyleSheet("""
             QPushButton {
@@ -1613,7 +1613,7 @@ class ConfigPanel(QFrame):
         """)
         self.reset_btn.clicked.connect(self._reset)
         btn_row.addWidget(self.reset_btn)
-        
+
         self.apply_btn = QPushButton("🔄 Applica & Riavvia")
         self.apply_btn.setStyleSheet("""
             QPushButton {
@@ -1624,10 +1624,10 @@ class ConfigPanel(QFrame):
         """)
         self.apply_btn.clicked.connect(self._apply)
         btn_row.addWidget(self.apply_btn)
-        
+
         btn_row.addStretch()
         lay.addLayout(btn_row)
-    
+
     def _build_section(self, title, path, fields):
         """Costruisce una sezione collassabile con i campi."""
         section = CollapsibleSection(title, icon="⚙")
@@ -1635,33 +1635,33 @@ class ConfigPanel(QFrame):
             data = self._get_nested(self._config, path)
         except Exception:
             data = {}
-        
+
         if not data and not fields:
             section.add_widget(QLabel(f"<i>Sezione {path} non presente nel config</i>"))
             return section
-        
+
         form = QFormLayout()
         form.setSpacing(6)
         form.setContentsMargins(8, 8, 8, 8)
-        
+
         for field in fields:
             key, label, widget_type, params = field
             full_path = f"{path}.{key}"
             current_val = data.get(key) if data else None
-            
+
             widget = self._make_widget(widget_type, current_val, params)
             if widget:
                 self._widgets[full_path] = widget
                 form.addRow(label + ":", widget)
-        
+
         section.add_widget(QWidget() if not fields else self._wrap_form(form))
         return section
-    
+
     def _wrap_form(self, form_layout):
         w = QWidget()
         w.setLayout(form_layout)
         return w
-    
+
     def _make_widget(self, wtype, value, params):
         try:
             if wtype == "check":
@@ -1706,12 +1706,12 @@ class ConfigPanel(QFrame):
         except Exception as e:
             print(f"Errore make_widget {wtype}: {e}")
         return None
-    
+
     def _get_nested(self, d, path):
         for part in path.split('.'):
             d = d[part]
         return d
-    
+
     def _set_nested(self, d, path, value):
         parts = path.split('.')
         for part in parts[:-1]:
@@ -1719,7 +1719,7 @@ class ConfigPanel(QFrame):
                 d[part] = {}
             d = d[part]
         d[parts[-1]] = value
-    
+
     def _collect_values(self):
         """Raccoglie i valori dai widget e aggiorna self._config."""
         for path, widget in self._widgets.items():
@@ -1739,7 +1739,7 @@ class ConfigPanel(QFrame):
                 self._set_nested(self._config, path, val)
             except Exception as e:
                 print(f"Errore collect {path}: {e}")
-    
+
     def _save(self):
         self._collect_values()
         try:
@@ -1753,7 +1753,7 @@ class ConfigPanel(QFrame):
                 QMessageBox.warning(self, "Errore", msg)
         except Exception as e:
             QMessageBox.warning(self, "Errore", f"Salvataggio fallito: {e}")
-    
+
     def _reset(self):
         """Ricarica il config dal file."""
         try:
@@ -1769,7 +1769,7 @@ class ConfigPanel(QFrame):
             self._build_ui()
         except Exception as e:
             QMessageBox.warning(self, "Errore", f"Reset fallito: {e}")
-    
+
     def _apply(self):
         """Salva e riavvia l'orchestratore."""
         self._save()
@@ -1949,7 +1949,7 @@ class ControlCenter(QMainWindow):
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick_metrics)
         self._timer.start(1500)
-        
+
         self._editor_overlay = None
         self._editor_docked = None
         self._credits_overlay = None
@@ -2095,7 +2095,7 @@ class ControlCenter(QMainWindow):
         lay.addWidget(self.device_panel)
 
         return bar
-    
+
         # Pulsanti Pausa/Stop orchestratore
         _spacer = QWidget()
         _spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -2114,10 +2114,10 @@ class ControlCenter(QMainWindow):
         """Mostra l'overlay dei ringraziamenti."""
         if self._credits_overlay:
             self._credits_overlay.deleteLater()
-        
+
         self._credits_overlay = CreditsOverlay(self.centralWidget())
         self._credits_overlay.closed.connect(self._close_credits)
-        
+
         # Centra l'overlay
         cw = self.centralWidget().size()
         self._credits_overlay.move(
@@ -2126,7 +2126,7 @@ class ControlCenter(QMainWindow):
         )
         self._credits_overlay.show()
         self._credits_overlay.raise_()
-    
+
     def _close_credits(self):
         if self._credits_overlay:
             self._credits_overlay.deleteLater()
@@ -2152,7 +2152,7 @@ class ControlCenter(QMainWindow):
         menu.addAction(act_settings)
 
         menu.addSeparator()
-        
+
         act_credits = QAction("🐝 Credits", self)
         act_credits.triggered.connect(self._show_credits)
         menu.addAction(act_credits)
@@ -2180,7 +2180,7 @@ class ControlCenter(QMainWindow):
     def _tick_metrics(self):
         self._cpu_temp = get_cpu_temp()
         self._gpu_temp = get_gpu_temp()
-        
+
         metrics = get_metrics()
         self._tok_s = metrics.get("tokens_per_sec", 0) if metrics else 0
 
@@ -2315,22 +2315,22 @@ class ControlCenter(QMainWindow):
             self.cmd_input.clear()
             print("Task aggiunto al database!")
             # Qui potresti aggiungere un aggiornamento della lista task nel drawer
-            # self.drawer.refresh_tasks() 
+            # self.drawer.refresh_tasks()
     def _show_file_editor(self, file_path):
         if self._editor_docked:
             self._editor_docked.file_path = file_path
             self._editor_docked._load_file()
             self.center.code_explorer.load_file(file_path)
             return
-        
+
         if self._editor_overlay:
             self._editor_overlay.close()
             self._editor_overlay.deleteLater()
-        
+
         self._editor_overlay = FileEditorWidget(file_path, docked=False, parent=self.centralWidget())
         self._editor_overlay.closed.connect(self._close_overlay)
         self._editor_overlay.dock_requested.connect(lambda: self._dock_editor(file_path))
-        
+
         cw = self.centralWidget().size()
         self._editor_overlay.move(
             (cw.width() - self._editor_overlay.width()) // 2,
@@ -2338,27 +2338,27 @@ class ControlCenter(QMainWindow):
         )
         self._editor_overlay.show()
         self._editor_overlay.raise_()
-        
+
         self.center.code_explorer.load_file(file_path)
-    
+
     def _close_overlay(self):
         if self._editor_overlay:
             self._editor_overlay.deleteLater()
             self._editor_overlay = None
-    
+
     def _dock_editor(self, file_path):
         self._close_overlay()
         self._editor_docked = FileEditorWidget(file_path, docked=True)
         self._editor_docked.closed.connect(self._undock_editor)
         self._editor_docked.undock_requested.connect(lambda: self._undock_editor_to_float(file_path))
         self.center.attach_editor_column(self._editor_docked)
-    
+
     def _undock_editor(self):
         if self._editor_docked:
             self.center.detach_editor_column()
             self._editor_docked.deleteLater()
             self._editor_docked = None
-    
+
     def _undock_editor_to_float(self, file_path):
         self.center.detach_editor_column()
         self._editor_docked.deleteLater()
@@ -2810,7 +2810,7 @@ class FileTreeDrawer(QFrame):
         self.tree = QTreeView()
         self.tree.setAlternatingRowColors(True)
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        
+
         self.model = QFileSystemModel()
         self.model.setRootPath("./")
         self.model.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.AllDirs | QDir.Filter.Files)
@@ -2823,7 +2823,7 @@ class FileTreeDrawer(QFrame):
         self.tree.setIndentation(14)
         self.tree.header().setStretchLastSection(False)
         self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        
+
         self.tree.clicked.connect(self._on_tree_click)
         self.tree.customContextMenuRequested.connect(self._on_tree_context_menu)
         lay.addWidget(self.tree)
@@ -2841,7 +2841,7 @@ class FileTreeDrawer(QFrame):
         task_header_lbl.setStyleSheet("font-size:11px; font-weight:bold; color:#374151; padding:0; margin:0;")
         task_header_row.addWidget(task_header_lbl)
         task_header_row.addStretch()
-        
+
         # Pulsante riavvio forzato (refresh lista)
         task_refresh_btn = QPushButton("🔄")
         task_refresh_btn.setFixedSize(20, 20)
@@ -2932,30 +2932,30 @@ class FileTreeDrawer(QFrame):
             return
         path = self.model.filePath(index)
         is_file = os.path.isfile(path)
-        
+
         menu = QMenu(self)
         menu.setStyleSheet(
             "QMenu { background:#ffffff; border:1px solid #e0e0e0; border-radius:8px; padding:6px; font-size:12px; }"
             "QMenu::item { padding:6px 20px; border-radius:4px; }"
             "QMenu::item:selected { background:#f0f9ff; }"
         )
-        
+
         if is_file:
             act_edit = QAction("✏️ Modifica file", self)
             act_edit.triggered.connect(lambda: self.main_win._show_file_editor(path))
             menu.addAction(act_edit)
             menu.addSeparator()
-        
+
         act_rename = QAction("📝 Rinomina", self)
         act_rename.triggered.connect(lambda: self._rename_item(path))
         menu.addAction(act_rename)
-        
+
         act_delete = QAction("🗑️ Cancella", self)
         act_delete.triggered.connect(lambda: self._delete_item(path))
         menu.addAction(act_delete)
-        
+
         menu.exec(self.tree.viewport().mapToGlobal(pos))
-    
+
     def _rename_item(self, path):
         old_name = os.path.basename(path)
         new_name, ok = QInputDialog.getText(self, "Rinomina", "Nuovo nome:", text=old_name)
@@ -2966,7 +2966,7 @@ class FileTreeDrawer(QFrame):
                 self.model.setRootPath("./")
             except Exception as e:
                 QMessageBox.warning(self, "Errore", f"Impossibile rinominare:\n{e}")
-    
+
     def _delete_item(self, path):
         name = os.path.basename(path)
         reply = QMessageBox.question(self, "Conferma cancellazione", f"Sei sicuro di voler eliminare '{name}'?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
@@ -3186,20 +3186,20 @@ class FileTreeDrawer(QFrame):
             task_id = item.data(Qt.ItemDataRole.UserRole)
             if not task_id:
                 return
-            
+
             from PyQt6.QtGui import QAction
             menu = QMenu(self)
-            
+
             act_details = QAction("📋 Dettagli task", self)
             act_details.triggered.connect(lambda: self._show_task_details(task_id))
             menu.addAction(act_details)
-            
+
             menu.addSeparator()
-            
+
             act_restart = QAction("🔄 Riavvia task", self)
             act_restart.triggered.connect(lambda: self._restart_task_with_refresh(task_id, item))
             menu.addAction(act_restart)
-            
+
             # Pausa/Riprendi task (singolo)
             cur_status = self._get_task_status(task_id)
             if cur_status == 'paused':
@@ -3210,28 +3210,28 @@ class FileTreeDrawer(QFrame):
                 act_pause = QAction("⏸ Pausa task", self)
                 act_pause.triggered.connect(lambda: self._pause_task_with_refresh(task_id, item))
                 menu.addAction(act_pause)
-            
+
             # Ferma task definitivamente
             act_stop = QAction("🛑 Ferma task", self)
             act_stop.triggered.connect(lambda: self._stop_task_with_refresh(task_id, item))
             menu.addAction(act_stop)
-            
+
             act_copy = QAction("📋 Copia ID task", self)
             act_copy.triggered.connect(lambda: self._copy_task_id(task_id))
             menu.addAction(act_copy)
-            
+
             menu.addSeparator()
-            
+
             act_delete = QAction("🗑 Elimina task", self)
             act_delete.triggered.connect(lambda: self._delete_task_with_refresh(task_id, item))
             menu.addAction(act_delete)
-            
+
             menu.addSeparator()
-            
+
             act_open = QAction("📂 Apri risultato", self)
             act_open.triggered.connect(lambda: self._open_task_result(task_id))
             menu.addAction(act_open)
-            
+
             menu.exec(self.task_list.mapToGlobal(pos))
         except Exception as e:
             print(f"Errore context menu: {e}")
@@ -3273,10 +3273,10 @@ class FileTreeDrawer(QFrame):
     def _show_task_details(self, task_id):
         """Mostra un dialog con i dettagli completi del task."""
         try:
-            from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, 
+            from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout,
                                          QLabel, QPushButton, QHBoxLayout, QTextEdit)
             import sqlite3, os, time
-            
+
             base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             db_path = os.path.join(base, 'tasks', 'queue.db')
             con = sqlite3.connect(db_path)
@@ -3285,25 +3285,25 @@ class FileTreeDrawer(QFrame):
             row = cur.fetchone()
             cols = [d[0] for d in cur.description]
             con.close()
-            
+
             if not row:
                 return
-            
+
             task = dict(zip(cols, row))
-            
+
             dlg = QDialog(self)
             dlg.setWindowTitle(f"📋 Dettagli Task {task_id[:12]}")
             dlg.resize(600, 500)
             lay = QVBoxLayout(dlg)
-            
+
             title = QLabel(f"<b>{task.get('title', '(senza titolo)')[:80]}</b>")
             title.setStyleSheet("font-size:14px; padding:8px; background:#f0f9ff; border-radius:6px;")
             title.setWordWrap(True)
             lay.addWidget(title)
-            
+
             form = QFormLayout()
             form.setSpacing(6)
-            
+
             def fmt_time(ts):
                 if not ts:
                     return "—"
@@ -3311,7 +3311,7 @@ class FileTreeDrawer(QFrame):
                     return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(ts)))
                 except Exception:
                     return str(ts)
-            
+
             st_color = {'done': 'green', 'running': 'orange', 'failed': 'red',
                         'pending': 'gray'}.get(task.get('status'), 'gray')
             form.addRow("ID:", QLabel(task.get('id', '—')))
@@ -3323,12 +3323,12 @@ class FileTreeDrawer(QFrame):
             form.addRow("Created:", QLabel(fmt_time(task.get('created_at'))))
             form.addRow("Started:", QLabel(fmt_time(task.get('started_at'))))
             form.addRow("Completed:", QLabel(fmt_time(task.get('completed_at'))))
-            
+
             if task.get('reason'):
                 form.addRow("Reason:", QLabel(str(task.get('reason'))))
-            
+
             lay.addLayout(form)
-            
+
             for label, field in [("Description", 'description'), ("Result", 'result'), ("Last error", 'last_error')]:
                 val = task.get(field, '')
                 if val:
@@ -3341,14 +3341,14 @@ class FileTreeDrawer(QFrame):
                         te.setStyleSheet("background:#fef2f2; border:1px solid #fecaca;")
                     te.setMaximumHeight(100)
                     lay.addWidget(te)
-            
+
             btn_row = QHBoxLayout()
             btn_row.addStretch()
             close_btn = QPushButton("Chiudi")
             close_btn.clicked.connect(dlg.accept)
             btn_row.addWidget(close_btn)
             lay.addLayout(btn_row)
-            
+
             dlg.exec()
         except Exception as e:
             print(f"Errore show details: {e}")
@@ -3424,15 +3424,15 @@ class FileTreeDrawer(QFrame):
             cur.execute("SELECT result, title FROM tasks WHERE id=?", (task_id,))
             row = cur.fetchone()
             con.close()
-            
+
             if not row:
                 return
             result_text, title = row
-            
+
             file_patterns = []
             if result_text:
                 file_patterns = re.findall(r'[\w/\\]+\.\w+', str(result_text))
-            
+
             candidates = ['project/main.py']
             if title:
                 try:
@@ -3440,7 +3440,7 @@ class FileTreeDrawer(QFrame):
                 except Exception:
                     pass
             candidates.extend(file_patterns[:3])
-            
+
             opened = False
             for f in candidates:
                 full = os.path.join(base, f) if not os.path.isabs(f) else f
@@ -3448,7 +3448,7 @@ class FileTreeDrawer(QFrame):
                     subprocess.Popen(['xdg-open', full])
                     opened = True
                     break
-            
+
             if not opened:
                 QMessageBox.information(self, "Risultato",
                     f"Nessun file trovato per il task.\n\nResult: {result_text}")
@@ -4345,22 +4345,22 @@ class CenterArea(QWidget):
         from PyQt6.QtWidgets import QSizePolicy
         self.main_win = parent
         self._editor_column = None
-        
+
         root = QHBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
-        
+
         self.main_stack = QStackedWidget()
-        
+
         main_scroll = QScrollArea()
         main_scroll.setWidgetResizable(True)
         main_scroll.setStyleSheet("QScrollArea { border:none; background:#ffffff; }")
-        
+
         main_widget = QWidget()
         main_lay = QVBoxLayout(main_widget)
         main_lay.setContentsMargins(16, 16, 16, 16)
         main_lay.setSpacing(12)
-        
+
         self.logs_section = CollapsibleSection("Log - Diario di Bordo", icon="📜")
         self.log_viewer = CategorizedLogViewer()
         self.logs_section.add_widget(self.log_viewer)
@@ -4521,10 +4521,10 @@ class CenterArea(QWidget):
         self.plancia_section.add_widget(tools_container)
 
         main_lay.addWidget(self.plancia_section)
-        
+
         main_scroll.setWidget(main_widget)
         self.main_stack.addWidget(main_scroll)
-        
+
         self.detail_stack = QStackedWidget()
         self.panel_pages = {}
         # Pannello "coda" → TaskSchedulerPanel (Code Task con orari)
@@ -4591,11 +4591,11 @@ class CenterArea(QWidget):
         from GUI.hardware_panel import HardwarePanel
         self.panel_pages["hardware"] = HardwarePanel()
         self.detail_stack.addWidget(self.panel_pages["hardware"])
-        
+
         self.main_stack.addWidget(self.detail_stack)
-        
+
         root.addWidget(self.main_stack, stretch=1)
-    
+
     def open_panel(self, key):
         if key in self.panel_pages:
             self.main_stack.setCurrentIndex(1)
@@ -4622,7 +4622,7 @@ class CenterArea(QWidget):
                 haystack_parts.append(child.text().lower())
             haystack = " ".join(haystack_parts)
             card.show() if query in haystack else card.hide()
-    
+
     def back_to_main(self):
         self.main_stack.setCurrentIndex(0)
 
@@ -4669,13 +4669,13 @@ class CenterArea(QWidget):
         esterno chiama ancora questo metodo non crasha (no-op).
         """
         return
-    
+
     def _build_panel_page(self, title, content, key):
         page = QWidget()
         lay = QVBoxLayout(page)
         lay.setContentsMargins(20, 20, 20, 20)
         lay.setSpacing(14)
-        
+
         head = QHBoxLayout()
         back = QPushButton("← Indietro alla Plancia")
         back.setObjectName("back_btn")
@@ -4690,7 +4690,7 @@ class CenterArea(QWidget):
         head.addWidget(QLabel(f"<b style='font-size:18px;'>{title}</b>"))
         head.addStretch()
         lay.addLayout(head)
-        
+
         body = QTextEdit()
         body.setReadOnly(True)
         body.setPlainText(content)
@@ -4789,7 +4789,7 @@ class CenterArea(QWidget):
         self._editor_column = editor_widget
         self._editor_column.setFixedWidth(500)
         self.layout().addWidget(self._editor_column)
-    
+
     def detach_editor_column(self):
         if self._editor_column:
             self.layout().removeWidget(self._editor_column)

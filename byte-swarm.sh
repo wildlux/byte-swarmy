@@ -73,6 +73,7 @@ Comandi:
   gui               Solo GUI (orchestratore già attivo o no)
   orch              Solo orchestratore in background
   audit             Esegue l'audit mensile del software (report HTML+JSON in logs/audit/)
+  lint              Lint: stile (lint_style) + sicurezza (security_scan) + igiene (git_hygiene)
   map               Mappa dinamica del repo (tools/repo_map.py; vedi DOCS/AGENT.md)
   setup             Forza esecuzione setup.sh (check + install dipendenze)
   help              Mostra questo aiuto
@@ -340,6 +341,15 @@ case "$cmd" in
         echo "🔍 Audit mensile del software..."
         echo
         exec "$SCRIPT_DIR/scripts/audit_mensile.sh" "$@"
+        ;;
+    lint)
+        show_banner
+        echo
+        echo "🧹 Lint: stile + sicurezza + igiene git"
+        echo
+        "$SCRIPT_DIR/.venv/bin/python" "$SCRIPT_DIR/tools/lint_style.py" "$@" || true
+        "$SCRIPT_DIR/.venv/bin/python" "$SCRIPT_DIR/tools/security_scan.py" "$@" || true
+        "$SCRIPT_DIR/.venv/bin/python" "$SCRIPT_DIR/tools/git_hygiene.py" "$@" || true
         ;;
     map)
         show_banner

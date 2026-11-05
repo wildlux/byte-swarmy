@@ -150,5 +150,25 @@ This file tracks every significant feature, fix, and architectural change implem
   disabilitati, screenshot, op sconosciute, json invalido, slug). Suite
   aggiornata: 254 passed (247 + 7).
 
+- [x] **Tooling mantenibilità**: tre nuovi tool in `tools/` (solo stdlib,
+  exit code per CI):
+  - `lint_style.py` — stile/leggibilità + guardia tema. `--fix`
+    auto-pulisce trailing ws + newline finale; `--strict` promuove i
+    warning a errore; `--json`.
+  - `security_scan.py` — pattern pericolosi (eval/exec, os.system,
+    shell=True, pickle/yaml unsafe, segreti hardcoded, SQL stringato,
+    assert in non-test, open() non costante, .bak/.pyc, merge markers,
+    file grandi, segreti nello staged diff). Supporta `# nosec`.
+  - `git_hygiene.py` — igiene repo (spazzatura non tracciata, file
+    grandi, newline finale, trailing ws, .gitignore coverage, commit
+    sospetti, branch senza upstream).
+  - Registrati in `DOCS/AGENT.md → Shell Commands` e come
+    `./byte-swarm.sh lint` (esegue i tre in sequenza).
+  - Effetto collaterale: rimossi 3 duplicati root tracciati
+    (`re_tools.py`, `test_re_tools.py`, `test_functional_swarm.py`,
+    identici a `CORE/` e `tests/`); `--fix` ha pulito trailing ws su
+    ~50 file; `CORE/orchestrator.py` annotato `# nosec` sulle due
+    colonne SQL dinamiche validate.
+
 ## 🔓 Open follow-ups
 UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protocol parser, USB differential analysis, dedicated user `byteswarmy`, usbmon/tshark automation, unification of GUI→SQLite queue (FM14).
