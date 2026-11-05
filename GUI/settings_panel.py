@@ -271,8 +271,9 @@ class SettingsPanel(QWidget):
         form.setContentsMargins(14, 14, 14, 14)
 
         self.theme_combo = QComboBox()
-        self.theme_combo.addItem("🌙 Scuro", "dark")
-        self.theme_combo.addItem("☀️ Chiaro", "light")
+        from GUI.theme import theme as _T
+        for _name in _T.available_themes():
+            self.theme_combo.addItem(_T.theme_display_name(_name), _name)
         self.theme_combo.currentIndexChanged.connect(self._on_theme_changed)
         form.addRow("Tema:", self.theme_combo)
 
@@ -674,7 +675,11 @@ class SettingsPanel(QWidget):
         s = settings_store.load_settings()
         # Tema
         theme = s.get("theme", "dark")
-        idx = 0 if theme == "dark" else 1
+        idx = 0
+        for i in range(self.theme_combo.count()):
+            if self.theme_combo.itemData(i) == theme:
+                idx = i
+                break
         self.theme_combo.setCurrentIndex(idx)
         # Lingua
         lang = s.get("language", "it")
