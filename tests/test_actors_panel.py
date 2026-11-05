@@ -55,12 +55,14 @@ class TestPanel(unittest.TestCase):
         cls.panel = ap.ActorsPanel()
 
     def test_combo_contains_at_least_static_list(self):
-        names = [self.panel.llm_model.itemText(i)
-                 for i in range(self.panel.llm_model.count())]
+        # Con etichette annotate ("nome (uso)") controlliamo i DATI
+        # (nomi reali in itemData), non i testi delle etichette.
+        data = [self.panel.llm_model.itemData(i)
+                for i in range(self.panel.llm_model.count())]
         fallback_first = ap.OLLAMA_MODELS[0]
-        self.assertIn(fallback_first, names,
+        self.assertIn(fallback_first, data,
                       "fallback statico presente anche se ollama è scarso")
-        self.assertTrue(len(names) >= 1)
+        self.assertTrue(len(data) >= 1)
 
     def test_combo_dec_model_populated(self):
         self.assertTrue(self.panel.dec_model.count() >= 1)

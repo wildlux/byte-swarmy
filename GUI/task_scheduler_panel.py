@@ -50,10 +50,28 @@ def save_scheduled(tasks: List[Dict]) -> bool:
         return False
 
 
+def _ollama_installed() -> list:
+    """Modelli realmente installati (per il combo del form)."""
+    try:
+        from GUI.actors_panel import ollama_list_models
+        return ollama_list_models() or []
+    except Exception:
+        return []
+
+
 def add_scheduled_task(task: Dict) -> bool:
     tasks = load_scheduled()
     tasks.append(task)
     return save_scheduled(tasks)
+
+
+def update_scheduled_task(idx: int, task: Dict) -> bool:
+    """Sostituisce il task alla posizione idx (modifica da GUI)."""
+    tasks = load_scheduled()
+    if 0 <= idx < len(tasks):
+        tasks[idx] = task
+        return save_scheduled(tasks)
+    return False
 
 
 def remove_scheduled_task(idx: int) -> bool:
@@ -62,6 +80,9 @@ def remove_scheduled_task(idx: int) -> bool:
         tasks.pop(idx)
         return save_scheduled(tasks)
     return False
+
+
+from GUI.actors_panel import fill_model_combo, combo_current_model  # noqa: E402
 
 
 class TaskSchedulerPanel(QWidget):
@@ -193,17 +214,21 @@ class TaskSchedulerPanel(QWidget):
 
         # Modello da usare (opzionale)
         self.task_model = QComboBox()
-        self.task_model.addItems([
-            "(default)", "qwen2.5:1.5b", "qwen2.5-coder:1.5b",
-            "llama3:8b", "mistral:7b", "phi3:mini",
-        ])
+        try:
+            from GUI.actors_panel import OLLAMA_MODELS as _fallback
+            fill_model_combo(self.task_model,
+                             _ollama_installed() or _fallback,
+                             with_default=True)
+        except Exception:
+            self.task_model.addItem("(default)", "(default)")
         form.addRow("Modello LLM:", self.task_model)
 
         # Pulsante aggiungi (primario dal tema)
-        add_btn = QPushButton("➕ Aggiungi task")
-        _theme_prop(add_btn, "role", "start")
-        add_btn.clicked.connect(self._on_add_task)
-        form.addRow("", add_btn)
+        self.add_btn = QPushButton("➕ Aggiungi task")
+        _theme_prop(self.add_btn, "role", "start")
+        self.add_btn.clicked.connect(self._on_add_task)
+        form.addRow("", self.add_btn)
+        self._editing_index = None   # None = nuova voce; int = modifica
 
         lay.addWidget(form_box)
 
@@ -215,6 +240,10 @@ class TaskSchedulerPanel(QWidget):
 
         self.task_list_widget = QListWidget()
         self.task_list_widget.setObjectName("schedlist")   # stile dal tema QSS
+        self.task_list_widget.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu)
+        self.task_list_widget.customContextMenuRequested.connect(
+            self._on_task_context_menu)
         list_lay.addWidget(self.task_list_widget, stretch=1)
 
         # Pulsante elimina (danger dal tema)
@@ -253,7 +282,7 @@ class TaskSchedulerPanel(QWidget):
             "title": title,
             "prompt": prompt,
             "type": t,
-            "model": self.task_model.currentText(),
+            "model": combo_current_model(self.task_model),
         }
         if t == "oneshot":
             task["datetime"] = (f"{self.task_year.value():04d}-"
@@ -265,15 +294,75 @@ class TaskSchedulerPanel(QWidget):
             task["interval_sec"] = self.task_interval.value()
         elif t == "daily":
             task["time"] = self.task_time.text().strip()
-        ok = add_scheduled_task(task)
-        if ok:
-            self.task_title.clear()
-            self.task_prompt.clear()
-            self._refresh_list()
-            QMessageBox.information(self, "Task aggiunto",
+        if self._editing_index is not None:
+            ok = update_scheduled_task(self._editing_index, task)
+            msg_title, msg_body = "Task aggiornato", (
+                f"Task '{title}' modificato.\n\n"
+                f"Salvato in CONFIG/scheduled_tasks.json.")
+        else:
+            ok = add_scheduled_task(task)
+            msg_title, msg_body = "Task aggiunto", (
                 f"Task '{title}' schedulato ({t}).\n\n"
                 f"Salvato in CONFIG/scheduled_tasks.json.\n"
                 f"L'orchestratore lo eseguirà automaticamente.")
+        if ok:
+            self.task_title.clear()
+            self.task_prompt.clear()
+            self._editing_index = None
+            self.add_btn.setText("➕ Aggiungi task")
+            self._refresh_list()
+            QMessageBox.information(self, msg_title, msg_body)
+
+    def _on_task_context_menu(self, pos):
+        """Tasto destro sulla lista: Modifica / Elimina il task selezionato."""
+        row = self.task_list_widget.indexAt(pos).row()
+        if row < 0:
+            return
+        tasks = load_scheduled()
+        if row >= len(tasks):
+            return
+        from PyQt6.QtWidgets import QMenu
+        menu = QMenu(self)
+        act_edit = menu.addAction("✏️ Modifica")
+        act_del = menu.addAction("🗑️ Elimina")
+        chosen = menu.exec(self.task_list_widget.mapToGlobal(pos))
+        if chosen is act_edit:
+            self._start_edit_task(row)
+        elif chosen is act_del:
+            self.task_list_widget.setCurrentRow(row)
+            self._on_del_task()
+
+    def _start_edit_task(self, row: int):
+        """Carica il task nel form di sopra per modificarlo e risalvarlo."""
+        tasks = load_scheduled()
+        if not (0 <= row < len(tasks)):
+            return
+        t = tasks[row]
+        self._editing_index = row
+        self.task_title.setText(t.get("title", ""))
+        self.task_prompt.setText(t.get("prompt", ""))
+        ttype = t.get("type", "oneshot")
+        pos = self.task_type.findData(ttype)
+        self.task_type.setCurrentIndex(pos if pos >= 0 else 0)
+        self._on_type_changed(0)
+        if ttype == "oneshot":
+            dt = t.get("datetime", "")
+            parts = dt.replace("-", " ").replace(":", " ").split()
+            if len(parts) == 5:
+                y, mo, d, h, mi = (int(x) for x in parts)
+                self.task_year.setValue(y)
+                self.task_month.setValue(mo)
+                self.task_day.setValue(d)
+                self.task_hour.setValue(h)
+                self.task_minute.setValue(mi)
+        elif ttype == "interval":
+            self.task_interval.setValue(int(t.get("interval_sec", 3600)))
+        elif ttype == "daily":
+            self.task_time.setText(t.get("time", "09:00"))
+        idx = self.task_model.findData(t.get("model", "(default)"))
+        self.task_model.setCurrentIndex(idx if idx >= 0 else 0)
+        self.add_btn.setText("💾 Salva modifiche")
+        self.task_title.setFocus()
 
     def _on_del_task(self):
         row = self.task_list_widget.currentRow()

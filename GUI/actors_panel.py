@@ -156,15 +156,66 @@ from GUI.theme.theme import set_prop as _theme_prop
 from GUI.theme.theme import set_banner as _theme_banner
 
 
+def model_use_hint(name: str) -> str:
+    """A cosa è meglio usare un modello (per la nota tra parentesi)."""
+    n = (name or "").lower()
+    if "coder" in n or "code" in n:
+        return "codice"
+    if "deepseek" in n:
+        return "ragionamento/codice"
+    if "phi" in n:
+        return "ragionamento leggero"
+    if "gemma" in n:
+        return "generale leggero"
+    if "mistral" in n:
+        return "generale"
+    if "llama" in n:
+        return "generale"
+    if "qwen" in n:
+        return "generale"
+    return "generale"
+
+
+def sorted_model_choices(models) -> list:
+    """[(etichetta 'nome (uso)', nome)] — ordine ALFABETICO, poi grandezza.
+
+    L'etichetta annota a cosa è meglio usare il modello; il dato reale
+    (nome senza suffisso) resta in currentData per il salvataggio.
+    """
+    from CORE.hardware_detector import _estimate_model_size_gb
+    uniq = sorted(set(models or []),
+                  key=lambda m: (m.lower(), _estimate_model_size_gb(m)))
+    return [(f"{m} ({model_use_hint(m)})", m) for m in uniq]
+
+
+def fill_model_combo(combo, models, with_default: bool = False) -> None:
+    """Riempie un combo modelli con etichette annotate (data = nome reale)."""
+    combo.clear()
+    if with_default:
+        combo.addItem("(default)", "(default)")
+    for label, name in sorted_model_choices(models):
+        combo.addItem(label, name)
+
+
+def combo_current_model(combo) -> str:
+    """Nome REALE del modello selezionato (data, o etichetta ripulita)."""
+    d = combo.currentData()
+    if d:
+        return d
+    return combo.currentText().split(" (")[0]
+
+
 def _set_combo_text(combo, text: str) -> None:
-    """Imposta il testo di un QComboBox NON editabile: aggiunge l'elemento
-    se mancante, poi lo seleziona. Evita setEditText (solo editabili)."""
+    """Seleziona il modello `text` in un combo annotato (data = nome).
+    Se assente lo aggiunge come 'nome (generale)' con data=nome."""
     text = (text or "").strip()
     if not text:
         return
-    if combo.findText(text) < 0:
-        combo.addItem(text)
-    combo.setCurrentText(text)
+    idx = combo.findData(text)
+    if idx < 0:
+        combo.addItem(f"{text} (generale)", text)
+        idx = combo.findData(text)
+    combo.setCurrentIndex(idx)
 
 
 class ActorsPanel(QWidget):
@@ -271,9 +322,10 @@ class ActorsPanel(QWidget):
         form.addRow("Peso:", self.llm_weight)
 
         self.llm_model = QComboBox()
-        # T2.4: prima i modelli installati (ollama list), fallback a lista statica
+        # T2.4: prima i modelli installati (ollama list), fallback a lista
+        # statica. Ordinati alfabeticamente (+ grandezza) con nota d'uso.
         installed = ollama_list_models() or OLLAMA_MODELS
-        self.llm_model.addItems(installed)
+        fill_model_combo(self.llm_model, installed)
         form.addRow("Modello:", self.llm_model)
 
         self.llm_temp = QDoubleSpinBox()
@@ -333,7 +385,7 @@ class ActorsPanel(QWidget):
         form.addRow("Peso:", self.dec_weight)
 
         self.dec_model = QComboBox()
-        self.dec_model.addItems(ollama_list_models() or OLLAMA_MODELS)
+        fill_model_combo(self.dec_model, ollama_list_models() or OLLAMA_MODELS)
         form.addRow("Modello:", self.dec_model)
 
         self.dec_temp = QDoubleSpinBox()
@@ -705,7 +757,7 @@ class ActorsPanel(QWidget):
             return
         # Per il Timestral non c'è UI di peso — è sempre light
         if actor == "llm":
-            current_model = self.llm_model.currentText()
+            current_model = combo_current_model(self.llm_model)
             # Se il modello attuale è uno dei default di un altro peso,
             # sostituiscilo con il default del nuovo peso
             for w in ACTOR_WEIGHTS:
@@ -714,7 +766,7 @@ class ActorsPanel(QWidget):
                     return
             # Se l'utente aveva un modello custom, non toccare — solo hint
         elif actor == "decision_model":
-            current_model = self.dec_model.currentText()
+            current_model = combo_current_model(self.dec_model)
             for w in ACTOR_WEIGHTS:
                 if current_model == weight_default_model("decision_model", w):
                     _set_combo_text(self.dec_model, weight_default_model("decision_model", weight))
@@ -723,14 +775,14 @@ class ActorsPanel(QWidget):
     def _on_save(self):
         a = {
             "llm": {
-                "model": self.llm_model.currentText(),
+                "model": combo_current_model(self.llm_model),
                 "weight": self.llm_weight.currentData(),
                 "temperature": self.llm_temp.value(),
                 "num_ctx": self.llm_ctx.value(),
                 "num_predict": self.llm_predict.value(),
             },
             "decision_model": {
-                "model": self.dec_model.currentText(),
+                "model": combo_current_model(self.dec_model),
                 "weight": self.dec_weight.currentData(),
                 "temperature": self.dec_temp.value(),
                 "num_ctx": self.dec_ctx.value(),
