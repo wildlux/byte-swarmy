@@ -48,29 +48,12 @@ OLLAMA_MODELS = [
 ACTOR_WEIGHTS = ("light", "medium", "heavy")
 
 # Mapping peso → modello consigliato (per ogni attore)
-WEIGHT_DEFAULT_MODELS = {
-    "llm": {
-        "light":  "qwen2.5:1.5b",       # ~1GB RAM, per task semplici
-        "medium": "qwen2.5:3b",         # ~2GB RAM, bilanciato
-        "heavy":  "llama3:8b",         # ~5GB VRAM, per task complessi
-    },
-    "decision_model": {
-        "light":  "qwen2.5:1.5b",       # veloce, per decisioni semplici
-        "medium": "qwen2.5:3b",        # bilanciato, ragionamento medio
-        "heavy":  "qwen2.5:7b",        # ragionamento complesso
-    },
-    "timestral": {
-        # Timestral: SOLO light — gatekeeper in RAM su CPU (H4)
-        "light":  "qwen2.5:0.5b",      # ~500MB RAM, polling leggero
-        "medium": "qwen2.5:0.5b",      # forzato a light
-        "heavy":  "qwen2.5:0.5b",      # forzato a light
-    },
-}
-
-
-def weight_default_model(actor: str, weight: str) -> str:
-    """Ritorna il modello di default per (actor, weight)."""
-    return WEIGHT_DEFAULT_MODELS.get(actor, {}).get(weight, "qwen2.5:1.5b")
+# Unica fonte in CORE/constants.py (usata anche da hardware_detector
+# per il calcolo della capacità): qui solo alias per compatibilità.
+from CORE.constants import (  # noqa: E402
+    ACTOR_WEIGHT_DEFAULT_MODELS as WEIGHT_DEFAULT_MODELS,
+    weight_default_model,
+)
 
 
 def ollama_list_models(timeout: float = 3.0) -> list:

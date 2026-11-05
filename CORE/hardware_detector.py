@@ -390,28 +390,47 @@ def _estimate_model_size_gb(model_name: str) -> float:
     return 2.0  # fallback conservativo
 
 
-def _get_configured_models() -> list[str]:
-    """Legge i modelli configurati in CONFIG/actors.json.
+# Peso di default per attore quando actors.json non lo specifica
+_ACTOR_DEFAULT_WEIGHTS = {"llm": "medium", "decision_model": "light",
+                          "timestral": "light"}
 
-    Ritorna una lista con i nomi dei modelli (LLM + decision_model + timestral).
-    Se actors.json non esiste o non si riesce a leggerlo, ritorna [].
+
+def _resolved_actor_models() -> list[tuple[str, str, bool]]:
+    """Risolve (attore, modello, force_cpu) per i 3 attori del sistema.
+
+    Il software usa 3 LLM con ruoli diversi:
+      - llm:            il "pesante" che scrive il codice
+      - decision_model: decide l'ordine/strategia per codice migliore
+      - timestral:      gatekeeper TERMICO — ferma o rallenta gli altri
+                        (SEMPRE light e SEMPRE su CPU, force_cpu)
+    Il modello esplicito di actors.json vince; altrimenti default per
+    peso (H3). Il Timestral è force_cpu per design (H4).
     """
+    from CORE.constants import ACTOR_FORCE_CPU, weight_default_model
     try:
         import json
         actors_file = _BASE / "CONFIG" / "actors.json"
-        if not actors_file.exists():
-            return []
-        with open(actors_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        models = []
-        for key in ("llm", "decision_model", "timestral"):
-            if key in data and isinstance(data[key], dict):
-                m = data[key].get("model", "")
-                if m:
-                    models.append(m)
-        return models
+        data = {}
+        if actors_file.exists():
+            with open(actors_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
     except Exception:
-        return []
+        data = {}
+
+    out = []
+    for actor in ("llm", "decision_model", "timestral"):
+        a = data.get(actor, {}) if isinstance(data, dict) else {}
+        weight = a.get("weight") or _ACTOR_DEFAULT_WEIGHTS[actor]
+        if actor == "timestral":
+            weight = "light"           # H4: mai altro peso
+        model = a.get("model") or weight_default_model(actor, weight)
+        out.append((actor, model, actor in ACTOR_FORCE_CPU))
+    return out
+
+
+def _get_configured_models() -> list[str]:
+    """Nomi dei modelli dei 3 attori risolti (LLM + Decision + Timestral)."""
+    return [m for (_, m, _) in _resolved_actor_models()]
 
 
 def _largest_configured_model_gb() -> float:
@@ -457,10 +476,14 @@ def compute_capacity(profile: "HardwareProfile") -> "HardwareProfile":
     (più VRAM/RAM) o scegli modelli più piccoli nel pannello Attori,
     basta rieseguire il rilevamento e la capacità si aggiorna.
     """
-    sizes = [_estimate_model_size_gb(m) for m in _get_configured_models()]
-    if not sizes:
-        sizes = [profile.model_size_gb or 2.0]
-    sizes_desc = sorted(sizes, reverse=True)
+    actors = _resolved_actor_models()
+    # (attore, size, force_cpu); Timestral per design NON va mai su GPU:
+    # è il gatekeeper termico, deve girare su CPU anche a VRAM vuota.
+    entries = [(a, _estimate_model_size_gb(m), fc) for (a, m, fc) in actors]
+    if not entries:
+        entries = [("(fallback)", profile.model_size_gb or 2.0, False)]
+    # GPU-first per i NON-force-cpu, dal più grande al più piccolo
+    entries.sort(key=lambda e: (e[2], -e[1]))
 
     vram_usable = (profile.vram_total_gb - _VRAM_OVERHEAD_GB) \
         * _VRAM_HEADROOM_FACTOR
@@ -470,13 +493,18 @@ def compute_capacity(profile: "HardwareProfile") -> "HardwareProfile":
     gpu: list = []
     cpu: list = []
     overflow: list = []
-    for size in sizes_desc:
-        if profile.vram_total_gb > 0 and (sum(gpu) + size) <= vram_usable:
+    force_cpu_actor: str = ""
+    for actor, size, force_cpu in entries:
+        on_gpu = (not force_cpu and profile.vram_total_gb > 0
+                  and (sum(gpu) + size) <= vram_usable)
+        if on_gpu:
             gpu.append(size)
             ram_used += _RAM_RESERVED_PER_GPU_MODEL_GB
         elif (ram_budget - ram_used) >= size * _RAM_RUNTIME_FACTOR:
             cpu.append(size)
             ram_used += size * _RAM_RUNTIME_FACTOR
+            if force_cpu:
+                force_cpu_actor = actor
         else:
             overflow.append(size)
 
@@ -493,6 +521,8 @@ def compute_capacity(profile: "HardwareProfile") -> "HardwareProfile":
     if overflow:
         parts.append(f"{len(overflow)} NON residente (memoria insufficiente)")
     profile.capacity_note = " + ".join(parts) if parts else "—"
+    if force_cpu_actor and cpu:
+        profile.capacity_note += f" ({force_cpu_actor} sempre su CPU)"
     if overflow:
         profile.detection_warnings.append(
             f"capacità: {len(overflow)} modello/i non entrano in memoria — "

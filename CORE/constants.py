@@ -51,3 +51,37 @@ SAFETY_THRESHOLDS = {
     "disk_free_threshold": 1 * 1024**3, # 1 GB
     "cpu_critical_threshold": 95.0,
 }
+
+
+# ═══════════════════════════════════════════════════════════════
+# Attori: modello di default per peso (H3/H4)
+# ═══════════════════════════════════════════════════════════════
+# Unica fonte per CORE e GUI: il Timestral è SEMPRE "light" e SEMPRE su
+# CPU (force_cpu) — è il gatekeeper termico, deve restare reattivo.
+
+ACTOR_WEIGHT_DEFAULT_MODELS = {
+    "llm": {
+        "light":  "qwen2.5:1.5b",       # ~1GB RAM, per task semplici
+        "medium": "qwen2.5:3b",         # ~2GB RAM, bilanciato
+        "heavy":  "llama3:8b",          # ~5GB VRAM, per task complessi
+    },
+    "decision_model": {
+        "light":  "qwen2.5:1.5b",       # veloce, per decisioni semplici
+        "medium": "qwen2.5:3b",         # bilanciato, ragionamento medio
+        "heavy":  "qwen2.5:7b",         # ragionamento complesso
+    },
+    "timestral": {
+        # Timestral: SOLO light — gatekeeper in RAM su CPU (H4)
+        "light":  "qwen2.5:0.5b",       # ~350MB, polling leggero
+        "medium": "qwen2.5:0.5b",       # forzato a light
+        "heavy":  "qwen2.5:0.5b",       # forzato a light
+    },
+}
+
+# Attori che NON vanno MAI su GPU (indipendentemente dalla VRAM libera)
+ACTOR_FORCE_CPU = frozenset({"timestral"})
+
+
+def weight_default_model(actor: str, weight: str) -> str:
+    """Ritorna il modello di default per (attore, peso)."""
+    return ACTOR_WEIGHT_DEFAULT_MODELS.get(actor, {}).get(weight, "qwen2.5:1.5b")

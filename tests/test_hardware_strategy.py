@@ -318,8 +318,9 @@ if __name__ == "__main__":
 # dai modelli REALI in actors.json contro VRAM/RAM. Se cambia l'hardware
 # (o i modelli), basta ridetectare e la capacità si aggiorna.
 
-def _make_profile(vram_gb: float, ram_gb: float, actor_sizes: list):
-    """Profilo sintetico con modelli actors.json simulati."""
+def _make_profile(vram_gb: float, ram_gb: float, actor_sizes: list,
+                  force_cpu_actors: tuple = ()):
+    """Profilo sintetico con i 3 attori simulati (nome, size, force_cpu)."""
     from CORE import hardware_detector as hd
     p = hd.HardwareProfile()
     p.gpu_type = "nvidia_cuda" if vram_gb > 0 else "none"
@@ -328,10 +329,11 @@ def _make_profile(vram_gb: float, ram_gb: float, actor_sizes: list):
     p.cpu_cores = 8
     p.model_size_gb = max(actor_sizes) if actor_sizes else 2.0
     names = [f"m{i}" for i in range(len(actor_sizes))]
-    sizes = list(actor_sizes)
-    with patch.object(hd, "_get_configured_models", return_value=names), \
+    size_map = {n: s for n, s in zip(names, actor_sizes)}
+    actors = [(n, n, n in force_cpu_actors) for n in names]
+    with patch.object(hd, "_resolved_actor_models", return_value=actors), \
          patch.object(hd, "_estimate_model_size_gb",
-                      side_effect=lambda name: sizes[names.index(name)]):
+                      side_effect=lambda m: size_map[m]):
         hd.compute_capacity(p)
     return p
 
@@ -383,6 +385,19 @@ def test_capacity_updates_when_hardware_changes():
     assert p_big.capacity_gpu_models == 3
     assert p_big.capacity_cpu_models == 0
     assert p_big.supports_multi_model
+
+
+def test_capacity_timestral_never_on_gpu():
+    """Il Timestral (gatekeeper termico) è force_cpu: resta su CPU anche
+    se la VRAM libera potrebbe ospitarlo. Il piano conta TUTTI e 3 gli
+    attori (llm + decision + timestral ~0.3GB)."""
+    # llm 1GB, decision 1GB, timestral 0.3GB force-cpu — 4GB VRAM
+    p = _make_profile(4.0, 7.6, [1.0, 1.0, 0.3],
+                      force_cpu_actors=("m2",))
+    assert p.capacity_gpu_models == 2      # llm + decision su GPU
+    assert p.capacity_cpu_models == 1      # timestral su CPU
+    assert p.models_in_ram == 3
+    assert "sempre su CPU" in p.capacity_note
 
 
 def test_capacity_never_below_one_worker():
