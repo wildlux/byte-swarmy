@@ -153,7 +153,19 @@ class TaskQueue:
                 )
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_status ON tasks(status)")
+            self._migrate(conn)
             conn.commit()
+
+    @staticmethod
+    def _migrate(conn) -> None:
+        """Migrazioni additive (idempotenti) per DB esistenti."""
+        tables = {r[0] for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+        if "tasks" not in tables:
+            return
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(tasks)").fetchall()}
+        if "retry_after" not in cols:
+            conn.execute("ALTER TABLE tasks ADD COLUMN retry_after REAL")
 
     def _get_conn(self):
         return sqlite3.connect(self.db_path)
@@ -181,10 +193,16 @@ class TaskQueue:
         return task_id
 
     def next_pending(self) -> Optional[dict]:
+        now = time.time()
         with self._get_conn() as conn:
             conn.row_factory = sqlite3.Row
+            # retry_after: cooldown tra i tentativi — il task "aspetta"
+            # prima di essere ripescato invece di bloccarsi in definitivo.
             res = conn.execute(
-                "SELECT * FROM tasks WHERE status IN ('pending', 'retry') ORDER BY created_at ASC LIMIT 1"
+                "SELECT * FROM tasks WHERE status IN ('pending', 'retry') "
+                "AND (retry_after IS NULL OR retry_after <= ?) "
+                "ORDER BY created_at ASC LIMIT 1",
+                (now,),
             ).fetchone()
             if not res: return None
 
@@ -228,6 +246,8 @@ class TaskQueue:
     # Feedback loop (work order T2): retry con prompt sovrascritto
     # ---------------------------------------------------------------
     RETRY_LIMIT = 3            # fallimenti tollerati; il 4° e' definitivo
+                               # (sovrascrivibile da [orchestrator]
+                               #  max_task_retries in CONFIG/config.toml)
     STATUS_FINAL = "failed_definitively"
 
     def update_prompt(self, task_id: str, prompt: str) -> None:
@@ -269,28 +289,37 @@ class TaskQueue:
             return cur.rowcount
 
     def fail_with_correction(self, task_id: str, reason: str,
-                             correction_prompt: str) -> str:
+                             correction_prompt: str,
+                             retry_limit: Optional[int] = None,
+                             cooldown_sec: int = 0) -> str:
         """Feedback-loop atomico.
 
-        attempt 1..3  -> status 'pending' + description sovrascritta col
-                         prompt di correzione (il loop lo ripesca).
-        attempt 4     -> status 'failed_definitively' + last_error.
+        attempt 1..N  -> status 'pending' + description sovrascritta col
+                         prompt di correzione (il loop lo ripesca). Con
+                         cooldown_sec > 0 il task non viene ripescato
+                         prima che sia passato l'intervallo (retry_after).
+        attempt N+1   -> status 'failed_definitively' + last_error.
+
+        N = retry_limit (default RETRY_LIMIT della classe, sovrascrivibile
+        da [orchestrator] max_task_retries in CONFIG/config.toml).
 
         Returns:
             nuovo status ('pending' | 'failed_definitively').
         """
+        limit = self.RETRY_LIMIT if retry_limit is None else max(1, retry_limit)
         with self._get_conn() as conn:
             curr = conn.execute(
                 "SELECT attempts FROM tasks WHERE id = ?", (task_id,)
             ).fetchone()
             attempts = (curr[0] if curr else 0) + 1
-            if attempts <= self.RETRY_LIMIT:
+            if attempts <= limit:
                 status = "pending"
+                retry_after = (time.time() + cooldown_sec) if cooldown_sec > 0 else None
                 conn.execute(
                     "UPDATE tasks SET attempts = ?, status = ?, "
-                    "description = ?, last_error = ? WHERE id = ?",
+                    "description = ?, last_error = ?, retry_after = ? WHERE id = ?",
                     (attempts, status, str(correction_prompt)[:4000],
-                     reason[:300], task_id),
+                     reason[:300], retry_after, task_id),
                 )
             else:
                 status = self.STATUS_FINAL
@@ -454,6 +483,18 @@ class Planner:
 # WORKER — esegue un singolo task
 # ====================================================================
 
+_PATH_EXT_RE = re.compile(r"\.[A-Za-z0-9]{1,5}$")
+
+
+def _looks_like_file_path(s: str) -> bool:
+    """True se la stringa sembra un path di file (per l'unwrap
+    tool(path, content) dei modelli piccoli)."""
+    return (isinstance(s, str)
+            and 1 <= len(s) <= 200
+            and "\n" not in s
+            and " " not in s.strip()
+            and bool(_PATH_EXT_RE.search(s)))
+
 class Worker:
     """Esegue un task usando i tool e il modello LLM. Loop ReAct base."""
 
@@ -569,7 +610,11 @@ class Worker:
                     model_key=self.model_key,
                     prompt=prompt,
                     system=self.SYSTEM,
-                    max_tokens=400,
+                    # 1024: con 400 il JSON di write_file veniva TRONCATO
+                    # (content lungo → risposta mozzata → parse error → il
+                    # modello "non riusciva a salvare"). Meglio uno step
+                    # più lento che uno sprecato.
+                    max_tokens=1024,
                 ):
                     raw_parts.append(token)
                     token_count += 1
@@ -660,6 +705,18 @@ class Worker:
                 args = list(args[1:])
                 self.log.info(
                     f"[{self.agent_id}] unwrap tool envelope -> {tool_name}")
+
+            # Piccoli modelli che "non salvano": emettono tool(path, codice)
+            # invece di write_file(path, codice). Se il primo argomento è un
+            # path e c'è il contenuto → write_file (il gate AST resta attivo).
+            if (isinstance(tool_name, str)
+                    and tool_name not in self.tools.allowed_tools()
+                    and len(args) == 2
+                    and all(isinstance(a, str) for a in args)
+                    and _looks_like_file_path(args[0])):
+                self.log.info(
+                    f"[{self.agent_id}] envelope (path, content) -> write_file")
+                tool_name, args = "write_file", list(args)
 
             # --- CIRCUIT BREAKER CHECK ---
             action_key = f"{tool_name}:{json.dumps(args)}"
@@ -770,7 +827,19 @@ class Worker:
         try:
             data = json.loads(m.group(0))
         except json.JSONDecodeError:
-            return None
+            # Modelli piccoli: spesso emettono un dict PYTHON-style (apici
+            # singoli, False/null). json rifiuta; proviamo ast.literal_eval
+            # normalizzando i booleani JSON (true/false/null).
+            try:
+                fixed = re.sub(
+                    r"\b(true|false|null)\b",
+                    lambda mm: {"true": "True", "false": "False",
+                                "null": "None"}[mm.group(1)],
+                    m.group(0),
+                )
+                data = ast.literal_eval(fixed)
+            except (ValueError, SyntaxError):
+                return None
         if not isinstance(data, dict):
             return None
         # 🆕 Fix: se il modello ha messo args inlineati in "action",
@@ -1222,6 +1291,19 @@ class Orchestrator:
         self.models = ModelClient(self.config, self.log)
         self.tools = ToolSet(self.config, self.log)
         self.queue = TaskQueue(Path(self.config["paths"]["tasks_dir"]), self.log)
+        # Retry dei task configurabili: [orchestrator] max_task_retries e
+        # retry_cooldown_sec in CONFIG/config.toml (quante volte ritentare
+        # e quanto aspettare tra i tentativi prima del blocco definitivo).
+        self.retry_cooldown_sec = 30
+        try:
+            o_cfg = self.config.get("orchestrator", {})
+            self.queue.RETRY_LIMIT = max(1, int(o_cfg.get("max_task_retries", 3)))
+            self.retry_cooldown_sec = max(0, int(o_cfg.get("retry_cooldown_sec", 30)))
+            self.log.info(
+                f"[orchestrator] max_task_retries={self.queue.RETRY_LIMIT} "
+                f"retry_cooldown_sec={self.retry_cooldown_sec}")
+        except Exception as e:
+            self.log.warning(f"config retry non valida, uso i default: {e}")
         # 🆕 Fix: resetta task "running" a "pending" all'avvio (erano crashati)
         try:
             with self.queue._get_conn() as conn:
@@ -1759,7 +1841,10 @@ class Orchestrator:
             previous_code=previous_code,
             stderr=reason,
         )
-        status = self.queue.fail_with_correction(task["id"], reason, correction)
+        status = self.queue.fail_with_correction(
+            task["id"], reason, correction,
+            cooldown_sec=getattr(self, "retry_cooldown_sec", 30),
+        )
         if status == self.queue.STATUS_FINAL:
             self.log.error(
                 f"task {task['id']} FAILED_DEFINITIVELY after "

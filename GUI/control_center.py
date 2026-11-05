@@ -505,9 +505,20 @@ class CreditsOverlay(QFrame):
             widget.setStyleSheet(template.format(color=color))
 
 
+    def keyPressEvent(self, event):
+        """ESC chiude i ringraziamenti (oltre al pulsante ✕ Chiudi)."""
+        from PyQt6.QtCore import Qt as _Qt
+        if event.key() == _Qt.Key.Key_Escape:
+            self.closed.emit()
+            return
+        super().keyPressEvent(event)
+
     def showEvent(self, event):
         """Animazione fade-in all'apertura."""
         super().showEvent(event)
+        # Focus per ricevere ESC anche senza cliccare prima sull'overlay
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setFocus()
         self.setWindowOpacity(0)
         anim = QPropertyAnimation(self, b"windowOpacity")
         anim.setDuration(250)
@@ -572,6 +583,14 @@ class DevicePanel(QFrame):
 
         self.git_remotes = self._detect_git_remotes()
         self._update_git_tooltip()
+
+    def _open_actors_panel(self):
+        """Le righe CPU/GPU sono cliccabili: portano a Modelli → Attori."""
+        p = self.parent()
+        while p is not None and not hasattr(p, "center"):
+            p = p.parent()
+        if p is not None:
+            p.center.open_panel("modelli")
 
     def _detect_git_remotes(self):
         remotes = []
@@ -861,6 +880,10 @@ class DevicePanel(QFrame):
             f"QFrame#{name.lower()}_row {{ border:1px solid {color}44; "
             f"border-radius:4px; }}"
         )
+        # Cliccabile → apre "Modelli → Attori" per scegliere gli LLM
+        row.setCursor(Qt.CursorShape.PointingHandCursor)
+        row.setToolTip(f"{name}: clicca per configurare i modelli (Modelli → Attori)")
+        row.mousePressEvent = lambda e: self._open_actors_panel()
         lay = QHBoxLayout(row)
         lay.setContentsMargins(6, 2, 6, 2)
         lay.setSpacing(6)
@@ -4607,6 +4630,15 @@ class CenterArea(QWidget):
                                            QComboBox, QSpinBox, QDoubleSpinBox,
                                            QDateTimeEdit))
             key = event.key()
+            # ESC → chiude l'overlay dei ringraziamenti (se aperto)
+            main_esc = getattr(self, "main_win", None)
+            if (key == Qt.Key.Key_Escape and main_esc is not None
+                    and getattr(main_esc, "_credits_overlay", None) is not None):
+                try:
+                    main_esc._close_credits()
+                except Exception:
+                    pass
+                return True
             # Backspace → Indietro alla Plancia (solo fuori dagli editor)
             if key == Qt.Key.Key_Backspace and not is_editor:
                 ms = getattr(self, "main_stack", None)

@@ -25,6 +25,7 @@ Esecuzione:
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 import unittest
@@ -307,3 +308,106 @@ class TestToolbarToggle(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestSmallModelFixes(unittest.TestCase):
+    """I modelli piccoli devono riuscire a salvare e i task a ritentare."""
+
+    def test_parse_action_accepts_python_literal(self):
+        """Risposte dict Python-style (apici singoli, true/false) si parsano."""
+        from CORE.orchestrator import Worker
+        raw = ("{'thought':'t','action':'write_file',"
+               "'args':['project/main.py','print(1)'],'done':false}")
+        a = Worker._parse_action(None, raw)
+        self.assertIsNotNone(a, "dict Python-style deve essere accettato")
+        self.assertEqual(a["action"], "write_file")
+        self.assertEqual(a["args"][0], "project/main.py")
+
+    def test_parse_action_json_still_works(self):
+        from CORE.orchestrator import Worker
+        a = Worker._parse_action(
+            None, '{"thought":"t","action":"analyze_project","args":[],"done":false}')
+        self.assertIsNotNone(a)
+        self.assertEqual(a["action"], "analyze_project")
+
+    def test_envelope_path_content_becomes_write_file(self):
+        """tool(path, code) del modello → write_file (gate AST resta attivo)."""
+        from CORE.orchestrator import _looks_like_file_path
+        self.assertTrue(_looks_like_file_path("project/main.py"))
+        self.assertTrue(_looks_like_file_path("README.md"))
+        self.assertFalse(_looks_like_file_path("analyze_project"))
+        self.assertFalse(_looks_like_file_path("def fib():\n    pass"))
+
+    def test_task_retry_cooldown_and_limit(self):
+        """Retry configurabile: cooldown blocca il ripescaggio, limite ritardi."""
+        import tempfile, shutil as _sh
+        from CORE.orchestrator import TaskQueue
+        tmp = Path(tempfile.mkdtemp(prefix="bswarm_queue_"))
+        try:
+            log = logging.getLogger("test_retry")
+            log.addHandler(logging.NullHandler())
+            q = TaskQueue(tmp, log)
+            q.RETRY_LIMIT = 2                     # configurabile
+            # NB: senza "id" esplicito — add() usa setdefault e ritorna
+            # l'id generato; passandone uno custom il tid non combacia.
+            tid = q.add({"title": "t", "description": "d",
+                         "status": "pending", "attempts": 0})
+            q.update_task(tid, status="running")
+            # 1° fallimento con cooldown 60s: NON ripescabile subito
+            st = q.fail_with_correction(tid, "err1", "fix1", cooldown_sec=60)
+            self.assertEqual(st, "pending")
+            self.assertIsNone(q.next_pending(),
+                              "cooldown: il task non deve essere ripescato")
+            # senza cooldown: ripescabile
+            q.update_task(tid, status="running")
+            st = q.fail_with_correction(tid, "err2", "fix2", cooldown_sec=0)
+            self.assertEqual(st, "pending")
+            self.assertIsNotNone(q.next_pending())
+            # oltre il limite (2): definitivo
+            q.update_task(tid, status="running")
+            st = q.fail_with_correction(tid, "err3", "fix3")
+            self.assertEqual(st, "failed_definitively")
+        finally:
+            _sh.rmtree(tmp, ignore_errors=True)
+
+
+class TestNewShortcuts(unittest.TestCase):
+    """CPU/GPU cliccabili → Attori; ESC chiude i crediti; '/' → comando."""
+
+    def test_device_row_click_opens_actors_panel(self):
+        win = _window()
+        win.center.back_to_main()
+        _app.processEvents()
+        row = win.device_panel.cpu_box
+        row.mousePressEvent(None)          # handler installato dalla patch
+        _app.processEvents()
+        self.assertEqual(win.center.main_stack.currentIndex(), 1)
+        self.assertIs(win.center.detail_stack.currentWidget(),
+                      win.center.panel_pages["modelli"])
+        win.center.back_to_main()
+
+    def test_esc_closes_credits(self):
+        from PyQt6.QtCore import QEvent, Qt as _Qt
+        from PyQt6.QtGui import QKeyEvent
+        win = _window()
+        win._show_credits()
+        _app.processEvents()
+        self.assertIsNotNone(win._credits_overlay)
+        ev = QKeyEvent(QEvent.Type.KeyPress, _Qt.Key.Key_Escape,
+                       _Qt.KeyboardModifier.NoModifier)
+        win.center.eventFilter(win, ev)    # filtro app-level
+        _app.processEvents()
+        self.assertIsNone(win._credits_overlay,
+                          "ESC deve chiudere i ringraziamenti")
+
+    def test_slash_focuses_command_input(self):
+        from PyQt6.QtCore import Qt as _Qt
+        from PyQt6.QtTest import QTest
+        win = _window()
+        win.center.back_to_main()
+        _app.processEvents()
+        win.cmd_input.clear()
+        QTest.keyClick(win, _Qt.Key.Key_Slash)
+        _app.processEvents()
+        self.assertTrue(win.cmd_input.hasFocus(),
+                        "'/' deve portare il focus sul campo comando in basso")

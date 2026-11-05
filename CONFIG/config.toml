@@ -260,3 +260,12 @@ mode = "auto"
 # worker_count = 1
 # keep_alive_sec = 0
 # strategy = "cpu_only"
+
+[orchestrator]
+# Quante volte un task fallito viene ritentato (con prompt di correzione)
+# prima di essere bloccato in modo definitivo. Diminuisci per bloccare
+# prima, aumenta per insistere di più con modelli piccoli.
+max_task_retries = 3
+# Secondi di attesa tra un tentativo e il successivo: il task in errore
+# "aspetta" questo intervallo prima di tornare in coda (0 = subito).
+retry_cooldown_sec = 30
