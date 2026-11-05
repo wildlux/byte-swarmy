@@ -3,16 +3,24 @@
 Servizio IN ASCOLTO dentro il processo Qt: un `QLocalServer` (socket Unix
 locale, solo lo stesso utente) riceve comandi JSON riga-per-riga:
 
-    {"op": "list"}                            → inventario pulsanti
-    {"op": "click", "id": "..."}              → click per id univoco
-    {"op": "click", "text": "..."}            → click per testo (contiene)
-    {"op": "click", "index": 3}               → click per posizione
-    {"op": "screenshot", "path": "/tmp/x.png"} → grab della finestra
+    {"op": "list"}                              → inventario pulsanti
+    {"op": "click", "id": "..."}                → click per id univoco
+    {"op": "click", "text": "..."}              → click per testo (contiene)
+    {"op": "click", "index": 3}                 → click per posizione
+    {"op": "screenshot", "path": "/tmp/x.png"}  → grab della finestra
 
 Client ufficiale: `tools/gui_remote.py` (subcommand list/click/screenshot).
+
 Zero thread dedicati: dispatch via segnale newConnection sull'event loop
 Qt — nessun blocco del main thread. Abilitato di default; per disattivare:
 env BYTE_SWARMY_REMOTE=0.
+
+NOTA SUL SOCKET: su Linux, `QLocalSocket.connectToServer("nome-corto")`
+passa il nome a `QLocalServer::fullServerName()` che lo risolve via
+`QStandardPaths::RuntimeLocation` ($XDG_RUNTIME_DIR). Se quella risoluzione
+ritorna stringa vuota (offscreen, platform plugin mancante, dir non
+scrivibile) Qt stampa "Invalid name" e non connette. Usiamo SEMPRE un path
+assoluto: la risoluzione viene saltata e il socket è deterministico.
 """
 from __future__ import annotations
 
@@ -29,8 +37,39 @@ from PyQt6.QtWidgets import (
     QPushButton, QToolButton, QWidget,
 )
 
-BRIDGE_NAME = "byte-swarmy-remote"
+import os
+SOCKET_BASENAME = "byte-swarmy-remote"
 _CHUNK_LIMIT = 64 * 1024
+
+
+def _socket_path(basename: str = SOCKET_BASENAME) -> str:
+    """Path assoluto del socket Unix.
+
+    Ordine di risoluzione:
+      1. env BYTE_SWARMY_REMOTE_SOCKET (escape hatch esplicito);
+      2. $XDG_RUNTIME_DIR/<basename>.sock — tmpfs per-user, 0700, pulito
+         al logout. È la sede canonica e raccomandata;
+      3. /tmp/<basename>.<uid>.sock — fallback se XDG_RUNTIME_DIR manca
+         o non è scrivibile (es. test CI, container minimali).
+
+    Path assoluti → `QLocalServer.fullServerName()` ritorna il path così
+    com'è, mai vuoto → niente più "Invalid name".
+    """
+    explicit = os.environ.get("BYTE_SWARMY_REMOTE_SOCKET", "").strip()
+    if explicit:
+        return explicit
+
+    xdg = os.environ.get("XDG_RUNTIME_DIR", "").strip()
+    if xdg and Path(xdg).is_dir() and os.access(xdg, os.W_OK):
+        return str(Path(xdg) / f"{basename}.sock")
+
+    return f"/tmp/{basename}.{os.getuid()}.sock"
+
+
+# Path risolto a import-time: server e client lo condividono deterministicamente.
+SOCKET_PATH = _socket_path()
+# Alias legacy per il client (tools/gui_remote.py) e i log.
+BRIDGE_NAME = SOCKET_PATH
 
 
 def _slug(text: str) -> str:
@@ -41,37 +80,45 @@ def _slug(text: str) -> str:
 class ButtonBridge(QObject):
     """Inventario e simulazione click dei pulsanti della finestra."""
 
-    def __init__(self, window: QWidget, name: str = BRIDGE_NAME) -> None:
-        super().__init__(window)
+    def __init__(self, window: QWidget, socket_path: Optional[str] = None) -> None:
+        super().__init__(window)   # parent Qt: vive finché vive la finestra
         self._window = window
         self._server: Optional[QLocalServer] = None
         self._sock: Dict[Any, dict] = {}   # socket -> buffer stato parziale
-        self._name = ""
+        self._path: str = socket_path or SOCKET_PATH
         self._alive = True
         self.destroyed.connect(lambda: setattr(self, "_alive", False))
-        self.listen(name)
+        self.listen(self._path)
 
     # ── Server ──────────────────────────────────────────────────────
-    def listen(self, name: str) -> bool:
-        name = self._cleanup_and_listen(name)
-        if self._server is None:
-            # fallback: nome con pid (istanza multipla)
-            self._cleanup_and_listen(f"{name}-{os.getpid()}")
-        return self._server is not None
+    def listen(self, path: str) -> bool:
+        """Mette il server in ascolto su `path` (assoluto).
 
-    def _cleanup_and_listen(self, name: str) -> None:
-        QLocalServer.removeServer(name)   # elimina socket stantio
+        Ritorna True se il bind è riuscito. Se il path è occupato da un
+        socket stantio di un'altra istanza, prova un fallback con pid.
+        """
+        if self._try_listen(path):
+            return True
+        # Fallback: istanza multipla / socket occupato da un altro processo.
+        return self._try_listen(f"{path}.{os.getpid()}")
+
+    def _try_listen(self, path: str) -> bool:
+        # Path assoluto → removeServer trova il file vero (con nome corto,
+        # se la risoluzione Qt falliva, non lo trovava e listen crashava).
+        QLocalServer.removeServer(path)
         srv = QLocalServer(self)
         srv.newConnection.connect(self._on_connection)
-        if srv.listen(name):
+        if srv.listen(path):
             self._server = srv
-            self._name = name
-        else:
-            srv.deleteLater()
+            self._path = path
+            return True
+        srv.deleteLater()
+        return False
 
     @property
     def name(self) -> str:
-        return self._name
+        """Path assoluto del socket in ascolto (o "" se non in ascolto)."""
+        return self._path if self._server is not None else ""
 
     def close(self) -> None:
         """Arresta il server e disconnette i client ancora aperti."""
@@ -220,7 +267,10 @@ def start_button_bridge(window: QWidget) -> Optional[ButtonBridge]:
     """Avvia il bridge sulla finestra principale del Control Center.
 
     Opt-out via env BYTE_SWARMY_REMOTE=0. Mai raise: la GUI deve partire
-    anche se il socket locale non è disponibile.
+    anche se il socket locale non è disponibile (fail-open).
+
+    Il bridge viene creato con parent=window: Qt ne gestisce il lifetime,
+    niente reference esterna da conservare a mano.
     """
     if os.environ.get("BYTE_SWARMY_REMOTE", "1").strip() == "0":
         return None
@@ -229,8 +279,7 @@ def start_button_bridge(window: QWidget) -> Optional[ButtonBridge]:
         if bridge.name:
             print(f"[remote-bridge] in ascolto su '{bridge.name}' "
                   f"(tools/gui_remote.py)", file=sys.stderr)
-            return bridge
-        return None
+        return bridge
     except Exception as e:   # pragma: no cover - fail-open per la GUI
         print(f"[remote-bridge] non disponibile: {e}", file=sys.stderr)
         return None

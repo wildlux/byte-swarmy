@@ -261,6 +261,15 @@ tail -f logs/byte-swarmy.log &                    # durante un run
 .venv/bin/python tools/travasa_todo.py            # travaso (idempotente)
 # I file vivono in DOCS/todo.md e DOCS/IMPLEMENTED.md.
 
+# ── Ponte remoto pulsanti GUI (simulazione click da script) ─────
+.venv/bin/python tools/gui_remote.py list                   # inventario
+.venv/bin/python tools/gui_remote.py click <id>            # click per id
+.venv/bin/python tools/gui_remote.py click --text "Avvia" # per testo
+.venv/bin/python tools/gui_remote.py click --index 5       # per posizione
+.venv/bin/python tools/gui_remote.py screenshot /tmp/g.png # grab finestra
+# Il servizio è dentro la GUI (QLocalServer su SOCKET_PATH); default ON.
+# Opt-out: env BYTE_SWARMY_REMOTE=0. Socket esplicito: BYTE_SWARMY_REMOTE_SOCKET=/tmp/x.sock.
+
 # ── Mappa dynamic repo (orientamento a inizio sessione) ─────────
 .venv/bin/python tools/repo_map.py                # stampa a stdout
 .venv/bin/python tools/repo_map.py --out state/repo_map.md

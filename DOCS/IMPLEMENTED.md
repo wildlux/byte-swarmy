@@ -134,5 +134,21 @@ This file tracks every significant feature, fix, and architectural change implem
   (`QWidget#panelScrollContent`). Verificato a livello pixel + screenshot
   entrambi i temi; suite verde 247 passed / 131 subtests.
 
+- [x] **Ponte remoto pulsanti GUI**: `GUI/remote_bridge.py` —
+  `QLocalServer` (socket Unix assoluto in `$XDG_RUNTIME_DIR` o
+  `/tmp/uid.sock`, escape hatch `BYTE_SWARMY_REMOTE_SOCKET`) che espone
+  l'inventario di tutti i QPushButton/QToolButton della finestra e
+  simula click per id/testo/index, più grab finestra. Zero thread dedicati
+  (dispatch via newConnection sul loop Qt, nessun blocco del main thread);
+  default ON, opt-out `BYTE_SWARMY_REMOTE=0`. Hook in
+  `GUI/control_center.py` (fail-open).
+- [x] **Client `tools/gui_remote.py`**: subcommand `list` / `click` /
+  `screenshot` (JSON o umano); `--raw` per scripting. Registrato in
+  `DOCS/AGENT.md → Shell Commands`.
+- [x] **Test `tests/test_remote_bridge.py`**: 7 test round-trip
+  in-process (inventario, click id/testo/index, duplicati `#n`,
+  disabilitati, screenshot, op sconosciute, json invalido, slug). Suite
+  aggiornata: 254 passed (247 + 7).
+
 ## 🔓 Open follow-ups
 UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protocol parser, USB differential analysis, dedicated user `byteswarmy`, usbmon/tshark automation, unification of GUI→SQLite queue (FM14).

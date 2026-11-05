@@ -3,6 +3,10 @@
 Round-trip in-process: QLocalServer nel processo di test + QLocalSocket
 client. Offscreen; nessun wait bloccante della suite (busy-loop
 processEvents con scadenza via QElapsedTimer).
+
+I socket vengono creati in tmp_path (path assoluti ermetici): niente
+dipendenza da $XDG_RUNTIME_DIR, niente collisioni tra test, niente
+socket stantii tra esecuzioni.
 """
 from __future__ import annotations
 
@@ -29,13 +33,13 @@ _app = QApplication.instance() or QApplication(sys.argv)
 class _Client:
     """Client sincrono minimal per i test (non usa tools/gui_remote)."""
 
-    def __init__(self, name: str, window: QWidget):
+    def __init__(self, socket_path: str):
         from PyQt6.QtNetwork import QLocalSocket
         self.sock = QLocalSocket()
-        self.sock.connectToServer(name)
+        self.sock.connectToServer(socket_path)
         _app.processEvents()
         ok = self.sock.waitForConnected(2000)
-        assert ok, f"client non connesso a {name}: {self.sock.errorString()}"
+        assert ok, f"client non connesso a {socket_path}: {self.sock.errorString()}"
 
     def ask(self, cmd: dict, timeout_ms: int = 3000) -> dict:
         self.sock.write((json.dumps(cmd) + "\n").encode("utf-8"))
@@ -54,7 +58,11 @@ class _Client:
 
 @pytest.fixture()
 def bridge_and_window(tmp_path):
-    """Finestra con pulsanti noti + bridge in ascolto (teardown pulito)."""
+    """Finestra con pulsanti noti + bridge in ascolto (teardown pulito).
+
+    socket_path in tmp_path: ermetico, niente $XDG_RUNTIME_DIR, niente
+    collisioni tra test paralleli.
+    """
     w = QWidget()
     clicks: list[str] = []
     b1 = QPushButton("Avvia")
@@ -69,7 +77,10 @@ def bridge_and_window(tmp_path):
         lay.addWidget(b)
     w.show()
     _app.processEvents()
-    br = ButtonBridge(w, name=f"t-bridge-{os.getpid()}")
+
+    sock = str(tmp_path / "t-bridge.sock")
+    br = ButtonBridge(w, socket_path=sock)
+    assert br.name, f"bridge non in ascolto su {sock}"
     try:
         yield w, br, clicks, tmp_path
     finally:
@@ -81,7 +92,7 @@ def bridge_and_window(tmp_path):
 
 def test_list_inventory(bridge_and_window):
     w, br, _clicks, _tp = bridge_and_window
-    r = _Client(br.name, w).ask({"op": "list"})
+    r = _Client(br.name).ask({"op": "list"})
     assert r["ok"]
     ids = [b["id"] for b in r["buttons"]]
     # slug da testo: due "Avvia" → avvia e avvia#1; il disabled c'è
@@ -92,7 +103,7 @@ def test_list_inventory(bridge_and_window):
 
 def test_click_by_id_and_duplicate(bridge_and_window):
     w, br, clicks, _tp = bridge_and_window
-    c = _Client(br.name, w)
+    c = _Client(br.name)
     assert c.ask({"op": "click", "id": "avvia"})["ok"]
     assert clicks == ["b1"]
     assert c.ask({"op": "click", "id": "avvia#1"})["ok"]
@@ -101,7 +112,7 @@ def test_click_by_id_and_duplicate(bridge_and_window):
 
 def test_click_by_index_and_disabled(bridge_and_window):
     w, br, clicks, _tp = bridge_and_window
-    c = _Client(br.name, w)
+    c = _Client(br.name)
     r = c.ask({"op": "click", "index": 2})   # "Fermo"
     assert r["ok"] is False and "disabilitato" in r["error"]
     assert clicks == []
@@ -110,7 +121,7 @@ def test_click_by_index_and_disabled(bridge_and_window):
 
 def test_click_by_text_and_screenshot(bridge_and_window, tmp_path):
     w, br, clicks, _tp = bridge_and_window
-    c = _Client(br.name, w)
+    c = _Client(br.name)
     assert c.ask({"op": "click", "text": "Fermo"})["ok"] is False
     out = str(tmp_path / "grab.png")
     r = c.ask({"op": "screenshot", "path": out})
@@ -119,7 +130,7 @@ def test_click_by_text_and_screenshot(bridge_and_window, tmp_path):
 
 def test_bad_ops(bridge_and_window):
     w, br, _clicks, _tp = bridge_and_window
-    c = _Client(br.name, w)
+    c = _Client(br.name)
     assert c.ask({"op": "nope"})["ok"] is False
     r = c.ask({"op": "click", "id": "inesistente"})
     assert r["ok"] is False and "non trovato" in r["error"]
@@ -137,6 +148,30 @@ def test_bad_ops(bridge_and_window):
     resp = json.loads(buf.split(b"\n")[0].decode("utf-8"))  # noqa: E203
     assert resp["ok"] is False and "json invalido" in resp["error"]
 
+
 def test_slug():
     assert _slug("  Rileva hardware di nuovo! ") == "rileva_hardware_di_nuovo"
     assert _slug("—") == "btn"
+
+
+def test_socket_path_resolution(monkeypatch):
+    """Verifica la risoluzione deterministica del path del socket."""
+    from GUI.remote_bridge import _socket_path, BRIDGE_NAME
+
+    # 1. env override vince su tutto
+    monkeypatch.setenv("BYTE_SWARMY_REMOTE_SOCKET", "/custom/path.sock")
+    assert _socket_path() == "/custom/path.sock"
+
+    # 2. XDG_RUNTIME_DIR scrivibile → tmpfs per-user
+    monkeypatch.delenv("BYTE_SWARMY_REMOTE_SOCKET", raising=False)
+    monkeypatch.setenv("XDG_RUNTIME_DIR", "/run/user/1000")
+    assert _socket_path() == "/run/user/1000/byte-swarmy-remote.sock"
+
+    # 3. basename custom
+    assert _socket_path("altro") == "/run/user/1000/altro.sock"
+
+    # 4. fallback /tmp se XDG non è scrivibile
+    monkeypatch.setenv("XDG_RUNTIME_DIR", "/nonexistent/xyz")
+    p = _socket_path()
+    assert p.startswith("/tmp/") and p.endswith(".sock")
+    assert str(os.getuid()) in p or BRIDGE_NAME in p
