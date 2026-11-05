@@ -63,6 +63,11 @@ class HardwareProfile:
     model_size_gb: float = 0.0       # dimensione stimata del modello più grande
     model_fits_vram: bool = False    # True se il modello entra in VRAM disponibile
 
+    # ── Capacità calcolata dai modelli REALI (compute_capacity) ──
+    capacity_gpu_models: int = 0     # attori che stanno in VRAM
+    capacity_cpu_models: int = 0     # attori che stanno in RAM (CPU)
+    capacity_note: str = ""          # nota umana sul piano di carico
+
     # ── Stato rilevamento ─────────────────────────────────────────
     detection_ok: bool = True        # False se rilevamento fallito (fallback a cpu_only)
     detection_warnings: list = field(default_factory=list)  # warning non fatali
@@ -428,6 +433,71 @@ def _largest_configured_model_gb() -> float:
 
 # Overhead di sicurezza per VRAM (Ollama ha bisogno di ~1GB per KV cache + compute)
 _VRAM_OVERHEAD_GB = 1.0
+# Margine extra sulla VRAM utile: le KV cache crescono col contesto e i
+# buffer compute variano; senza margine un piano "esatto" finisce in OOM.
+_VRAM_HEADROOM_FACTOR = 0.85
+# RAM riservata a OS + GUI + orchestratore quando si calcola quanto resta
+# ai modelli su CPU (conservativo: chi svuota la RAM va in swap).
+_RAM_OS_OVERHEAD_GB = 2.5
+# Overhead runtime di un modello caricato su CPU (~20% sopra il peso file)
+_RAM_RUNTIME_FACTOR = 1.2
+# Ogni modello su GPU usa comunque un po' di RAM di sistema (buffer/copy)
+_RAM_RESERVED_PER_GPU_MODEL_GB = 0.3
+
+
+def compute_capacity(profile: "HardwareProfile") -> "HardwareProfile":
+    """Ricalcola models_in_ram e il piano GPU/CPU dai MODELLI REALI.
+
+    La tabella STRATEGIES dà valori fissi conservativi per fascia (es.
+    nvidia_light = 1 modello); qui si affina col calcolo vero: si stima
+    la dimensione di ogni attore configurato in actors.json e si riempiono
+    VRAM e RAM finché c'è spazio, con margini di sicurezza.
+
+    Così il multi-modello NON è più vietato per firma: se cambi hardware
+    (più VRAM/RAM) o scegli modelli più piccoli nel pannello Attori,
+    basta rieseguire il rilevamento e la capacità si aggiorna.
+    """
+    sizes = [_estimate_model_size_gb(m) for m in _get_configured_models()]
+    if not sizes:
+        sizes = [profile.model_size_gb or 2.0]
+    sizes_desc = sorted(sizes, reverse=True)
+
+    vram_usable = (profile.vram_total_gb - _VRAM_OVERHEAD_GB) \
+        * _VRAM_HEADROOM_FACTOR
+    ram_budget = max(0.0, profile.ram_total_gb - _RAM_OS_OVERHEAD_GB)
+    ram_used = 0.0
+
+    gpu: list = []
+    cpu: list = []
+    overflow: list = []
+    for size in sizes_desc:
+        if profile.vram_total_gb > 0 and (sum(gpu) + size) <= vram_usable:
+            gpu.append(size)
+            ram_used += _RAM_RESERVED_PER_GPU_MODEL_GB
+        elif (ram_budget - ram_used) >= size * _RAM_RUNTIME_FACTOR:
+            cpu.append(size)
+            ram_used += size * _RAM_RUNTIME_FACTOR
+        else:
+            overflow.append(size)
+
+    profile.capacity_gpu_models = len(gpu)
+    profile.capacity_cpu_models = len(cpu)
+    # models_in_ram = quanti attori possono restare RESIDENTI insieme.
+    # Non scende mai sotto 1 (almeno il Worker deve girare).
+    profile.models_in_ram = max(1, len(gpu) + len(cpu))
+    parts = []
+    if gpu:
+        parts.append(f"{len(gpu)} su GPU")
+    if cpu:
+        parts.append(f"{len(cpu)} su CPU")
+    if overflow:
+        parts.append(f"{len(overflow)} NON residente (memoria insufficiente)")
+    profile.capacity_note = " + ".join(parts) if parts else "—"
+    if overflow:
+        profile.detection_warnings.append(
+            f"capacità: {len(overflow)} modello/i non entrano in memoria — "
+            "usa modelli più piccoli o aumenta keep_alive a 0")
+    return profile
 
 
 def _select_strategy(gpu_type: str, ram_gb: float, vram_gb: float,
@@ -556,6 +626,10 @@ def detect() -> HardwareProfile:
             profile.vram_total_gb > 0 and profile.model_size_gb <= vram_available
         )
 
+        # Capacità REALE: quanti attori stanno residenti e dove (GPU/CPU),
+        # calcolata dai modelli in actors.json — non dalla tabella fissa.
+        compute_capacity(profile)
+
     except Exception as e:
         # Fail-safe: cpu_only conservativo
         profile.detection_ok = False
@@ -566,6 +640,9 @@ def detect() -> HardwareProfile:
         profile.keep_alive_sec = strat["keep_alive_sec"]
         profile.models_in_ram = strat["models_in_ram"]
         profile.description = strat["description"]
+        profile.capacity_gpu_models = 0
+        profile.capacity_cpu_models = 1
+        profile.capacity_note = "1 su CPU (rilevamento fallito, piano conservativo)"
 
     return profile
 

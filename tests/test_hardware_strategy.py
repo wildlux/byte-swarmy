@@ -311,3 +311,81 @@ if __name__ == "__main__":
             print(f"  ✗ {t.__name__}: {e}")
             traceback.print_exc()
     print(f"\n=== {passed}/{len(tests)} test passati ===")
+
+
+# ============ Capacità adattiva (compute_capacity, commit 2026-11-05) ============
+# Il multi-modello non è più vietato per firma della strategia: è calcolato
+# dai modelli REALI in actors.json contro VRAM/RAM. Se cambia l'hardware
+# (o i modelli), basta ridetectare e la capacità si aggiorna.
+
+def _make_profile(vram_gb: float, ram_gb: float, actor_sizes: list):
+    """Profilo sintetico con modelli actors.json simulati."""
+    from CORE import hardware_detector as hd
+    p = hd.HardwareProfile()
+    p.gpu_type = "nvidia_cuda" if vram_gb > 0 else "none"
+    p.vram_total_gb = vram_gb
+    p.ram_total_gb = ram_gb
+    p.cpu_cores = 8
+    p.model_size_gb = max(actor_sizes) if actor_sizes else 2.0
+    names = [f"m{i}" for i in range(len(actor_sizes))]
+    sizes = list(actor_sizes)
+    with patch.object(hd, "_get_configured_models", return_value=names), \
+         patch.object(hd, "_estimate_model_size_gb",
+                      side_effect=lambda name: sizes[names.index(name)]):
+        hd.compute_capacity(p)
+    return p
+
+
+def test_capacity_gtx1050_three_small_models_multi_model():
+    """4GB VRAM + 3 modelli ~1GB: 2 su GPU + 1 su CPU, multi-modello OK."""
+    p = _make_profile(4.0, 7.6, [1.0, 1.0, 1.0])
+    assert p.capacity_gpu_models == 2, p.capacity_note
+    assert p.capacity_cpu_models == 1
+    assert p.models_in_ram == 3
+    assert p.supports_multi_model
+
+
+def test_capacity_bigger_gpu_all_on_gpu():
+    """12GB VRAM: tutti e 3 i modelli da 1GB stanno su GPU."""
+    p = _make_profile(12.0, 16.0, [1.0, 1.0, 1.0])
+    assert p.capacity_gpu_models == 3
+    assert p.capacity_cpu_models == 0
+    assert p.models_in_ram == 3
+
+
+def test_capacity_huge_model_not_resident():
+    """Modello 4.5GB su 4GB VRAM / 7.6GB RAM: non resta residente, ma
+    models_in_ram non scende mai sotto 1 (il Worker deve girare)."""
+    p = _make_profile(4.0, 7.6, [4.5])
+    assert p.capacity_gpu_models == 0
+    assert p.models_in_ram == 1
+    assert not p.supports_multi_model
+
+
+def test_capacity_no_gpu_all_on_cpu():
+    """Solo CPU (16GB RAM): 2 modelli da 1GB residenti su CPU."""
+    p = _make_profile(0.0, 16.0, [1.0, 1.0])
+    assert p.capacity_gpu_models == 0
+    assert p.capacity_cpu_models == 2
+    assert p.models_in_ram == 2
+    assert p.supports_multi_model
+
+
+def test_capacity_updates_when_hardware_changes():
+    """Cambio hardware: stesso actors.json, basta ridetectare.
+
+    4GB VRAM → 2 su GPU + 1 su CPU; aggiornando a 8GB VRAM → 3 su GPU.
+    Il piano segue l'hardware, non è bloccato dalla strategia.
+    """
+    p_small = _make_profile(4.0, 7.6, [1.0, 1.0, 1.0])
+    assert (p_small.capacity_gpu_models, p_small.capacity_cpu_models) == (2, 1)
+    p_big = _make_profile(8.0, 7.6, [1.0, 1.0, 1.0])
+    assert p_big.capacity_gpu_models == 3
+    assert p_big.capacity_cpu_models == 0
+    assert p_big.supports_multi_model
+
+
+def test_capacity_never_below_one_worker():
+    """Anche con memoria minima il Worker deve poter girare (>= 1)."""
+    p = _make_profile(0.0, 2.0, [1.5])
+    assert p.models_in_ram >= 1
