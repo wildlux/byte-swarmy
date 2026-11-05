@@ -177,5 +177,13 @@ This file tracks every significant feature, fix, and architectural change implem
     ~50 file; `CORE/orchestrator.py` annotato `# nosec` sulle due
     colonne SQL dinamiche validate.
 
+- [x] **Guardia tema (test)**: `tests/test_theme_sync.py` — regola
+  generale: statico (nessun colore muted inline senza bg, nessun
+  declaration-only transparent, nessun colore light-only hardcoded) +
+  runtime (ogni pannello si istanzia in tema scuro e chiaro) +
+  helper (`set_banner` accetta i 4 stati). 24 test, tutti verdi.
+  Corretti 2 residui muted in `main_window.py` (#909090, #999 →
+  role="muted").
+
 ## 🔓 Open follow-ups
 UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protocol parser, USB differential analysis, dedicated user `byteswarmy`, usbmon/tshark automation, unification of GUI→SQLite queue (FM14).
