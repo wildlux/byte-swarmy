@@ -3302,12 +3302,71 @@ class FileTreeDrawer(QFrame):
         except Exception as e:
             print(f"Errore stop task: {e}")
 
+    @staticmethod
+    def _collect_task_files(task: dict, base_dir: str) -> list:
+        """File di progetto prodotti da un task.
+
+        1) via git: il worker committa con messaggio 'task <id>: ...' →
+           file toccati da quei commit;
+        2) fallback: file in project/ modificati nell'intervallo di vita
+           del task (started_at..completed_at, ±120s di margine).
+        Ritorna path RELATIVI a project/, ordinati.
+        """
+        import subprocess
+        from pathlib import Path
+        proj = Path(base_dir) / "project"
+        if not proj.exists():
+            return []
+        files: list = []
+
+        tid = str(task.get("id") or "")
+        if tid:
+            try:
+                out = subprocess.run(
+                    ["git", "-C", str(base_dir), "log", "--all",
+                     "--format=%H", "--grep", f"task {tid}"],
+                    capture_output=True, text=True, timeout=8,
+                )
+                hashes = [h for h in out.stdout.split() if h]
+                seen = set()
+                for h in hashes[:10]:
+                    out2 = subprocess.run(
+                        ["git", "-C", str(base_dir), "show",
+                         "--name-only", "--format=", h],
+                        capture_output=True, text=True, timeout=8,
+                    )
+                    for line in out2.stdout.splitlines():
+                        rel = line.strip()
+                        if (rel and ".." not in rel
+                                and (proj / rel).exists()
+                                and rel not in seen):
+                            seen.add(rel)
+                            files.append(rel)
+            except Exception:
+                pass
+
+        if not files:
+            try:
+                start = float(task.get("started_at") or 0)
+                end = float(task.get("completed_at") or 0) or time.time()
+                if start > 0:
+                    margin = 120
+                    for pth in proj.rglob("*"):
+                        if (pth.is_file()
+                                and start - margin <= pth.stat().st_mtime
+                                <= end + margin):
+                            files.append(str(pth.relative_to(proj)))
+            except Exception:
+                pass
+        return sorted(set(files))
+
     def _show_task_details(self, task_id):
         """Mostra un dialog con i dettagli completi del task."""
         try:
             from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout,
                                          QLabel, QPushButton, QHBoxLayout, QTextEdit)
             import sqlite3, os, time
+            from pathlib import Path
 
             base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             db_path = os.path.join(base, 'tasks', 'queue.db')
@@ -3373,6 +3432,56 @@ class FileTreeDrawer(QFrame):
                         te.setStyleSheet("border:1px solid rgba(128,128,128,0.35); border-radius:4px;")
                     te.setMaximumHeight(100)
                     lay.addWidget(te)
+
+            # ── Codice prodotto dal task (navigabile se multi-file) ──
+            try:
+                task_files = self._collect_task_files(task, base)
+            except Exception as _e:
+                print(f"raccolta file task: {_e}")
+                task_files = []
+            if task_files:
+                lay.addWidget(QLabel("<b>📄 Codice prodotto:</b>"))
+                from PyQt6.QtWidgets import (QSplitter, QListWidget,
+                                             QPlainTextEdit,
+                                             QAbstractItemView)
+                from PyQt6.QtCore import Qt as _Qt
+
+                code_split = QSplitter(_Qt.Orientation.Horizontal)
+                file_list = QListWidget()
+                file_list.addItems(task_files)
+                file_list.setMaximumWidth(260)
+                viewer = QPlainTextEdit()
+                viewer.setReadOnly(True)
+                viewer.setStyleSheet(
+                    "font-family:'JetBrains Mono','Consolas',monospace; "
+                    "font-size:11px;")
+                code_split.addWidget(file_list)
+                code_split.addWidget(viewer)
+                code_split.setStretchFactor(0, 0)
+                code_split.setStretchFactor(1, 1)
+                lay.addWidget(code_split, stretch=1)
+
+                def _load_file(item):
+                    rel = item.text()
+                    try:
+                        full = Path(base) / "project" / rel
+                        content = full.read_text(encoding="utf-8",
+                                                 errors="replace")
+                        if len(content) > 30000:
+                            content = (content[:30000]
+                                       + "\n...[troncato — apri il file "
+                                         "dall'Archivio per tutto]...")
+                        viewer.setPlainText(content)
+                    except Exception as e:
+                        viewer.setPlainText(f"ERRORE lettura {rel}: {e}")
+
+                file_list.currentItemChanged.connect(_load_file)
+                file_list.setCurrentRow(0)      # carica il primo
+                if len(task_files) > 1:
+                    dlg.resize(980, 680)        # spazio per la navigazione
+            elif task.get("status") == "done":
+                lay.addWidget(QLabel("<span style='color:gray'>"
+                                     "Nessun file di progetto associato.</span>"))
 
             btn_row = QHBoxLayout()
             btn_row.addStretch()

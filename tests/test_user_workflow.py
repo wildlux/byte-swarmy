@@ -454,3 +454,41 @@ class TestSmallWindowFixes(unittest.TestCase):
         finally:
             win.center.detach_editor_column()
             _app.processEvents()
+
+
+class TestTaskDetailsCode(unittest.TestCase):
+    """Il dialog Dettagli Task mostra i file prodotti (navigabili)."""
+
+    def test_collect_task_files_by_mtime_fallback(self):
+        """File creati in project/ nell'intervallo di vita del task → trovati."""
+        import sqlite3
+        import shutil
+        import time as _time
+        from GUI.control_center import FileTreeDrawer
+
+        root = ROOT
+        now = _time.time()
+        probe = root / "project" / "TEST_dialog_probe"
+        probe.mkdir(exist_ok=True)
+        (probe / "main.py").write_text("print('x')\n")
+        (probe / "avvia.sh").write_text("#!/bin/bash\ntrue\n")
+        con = sqlite3.connect(root / "tasks" / "queue.db")
+        tid = "dialog-probe-test"
+        con.execute("DELETE FROM tasks WHERE id=?", (tid,))
+        con.commit(); con.close()
+        task = {"id": tid, "started_at": now - 5, "completed_at": now}
+        try:
+            files = FileTreeDrawer._collect_task_files(task, str(root))
+            ours = {f for f in files if f.startswith("TEST_dialog_probe/")}
+            self.assertEqual(ours, {"TEST_dialog_probe/main.py",
+                                    "TEST_dialog_probe/avvia.sh"})
+        finally:
+            shutil.rmtree(probe, ignore_errors=True)
+
+    def test_collect_unknown_task_is_empty(self):
+        from GUI.control_center import FileTreeDrawer
+        task = {"id": "task-inesistente-xyz", "started_at": 0,
+                "completed_at": 0}
+        files = FileTreeDrawer._collect_task_files(task, str(ROOT))
+        ours = [f for f in files if "dialog_probe" in f]
+        self.assertEqual(ours, [])
