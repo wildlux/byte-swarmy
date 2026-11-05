@@ -480,8 +480,9 @@ class TestTaskDetailsCode(unittest.TestCase):
         try:
             files = FileTreeDrawer._collect_task_files(task, str(root))
             ours = {f for f in files if f.startswith("TEST_dialog_probe/")}
-            self.assertEqual(ours, {"TEST_dialog_probe/main.py",
-                                    "TEST_dialog_probe/avvia.sh"})
+            # subset: la finestra ±120s può includere file di test adiacenti
+            self.assertLessEqual({"TEST_dialog_probe/main.py",
+                                  "TEST_dialog_probe/avvia.sh"}, ours)
         finally:
             shutil.rmtree(probe, ignore_errors=True)
 
@@ -516,3 +517,33 @@ class TestRunGeneratedCodeAndEscalation(unittest.TestCase):
         self.assertIn("heavy", suggest_escalation("medium"))
         self.assertIn("llama3:8b", suggest_escalation("medium"))
         self.assertIn("peso massimo", suggest_escalation("heavy"))
+
+
+class TestTaskFileJunkFilter(unittest.TestCase):
+    """'Apri risultato' non deve più finire in project/.git/objects/12/."""
+
+    def test_git_and_pycache_excluded(self):
+        import shutil as _sh
+        import time as _time
+        from GUI.control_center import FileTreeDrawer
+        probe = ROOT / "project" / "TEST_dialog_probe"
+        probe.mkdir(exist_ok=True)
+        # spazzatura: oggetti git toccati dal commit del task + pycache
+        junk = probe / ".git" / "objects" / "12"
+        junk.mkdir(parents=True, exist_ok=True)
+        (junk / "abc123").write_text("blob")
+        pyc_dir = probe / "__pycache__"
+        pyc_dir.mkdir(parents=True, exist_ok=True)
+        (pyc_dir / "main.cpython-314.pyc").write_text("junk")
+        (probe / "main.py").write_text("print('x')\n")
+        (probe / "avvia.sh").write_text("#!/bin/bash\ntrue\n")
+        task = {"id": "dialog-probe-junk", "started_at": _time.time() - 5,
+                "completed_at": _time.time()}
+        try:
+            files = FileTreeDrawer._collect_task_files(task, str(ROOT))
+            ours = [f for f in files if f.startswith("TEST_dialog_probe/")]
+            self.assertEqual(ours, ["TEST_dialog_probe/main.py",
+                                    "TEST_dialog_probe/avvia.sh"],
+                             "solo i file reali, niente .git/pycache")
+        finally:
+            _sh.rmtree(probe, ignore_errors=True)

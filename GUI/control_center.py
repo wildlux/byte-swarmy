@@ -6,6 +6,7 @@ PyQt6, single-file
 
 import sys
 import os
+from pathlib import Path
 import random
 import subprocess
 import ast
@@ -2821,6 +2822,17 @@ class ProjectTabBar(QTabBar):
             self.setCurrentIndex(new_idx)
 
 
+def _is_junk_project_path(rel: str) -> bool:
+    """True per percorsi interni da NON mostrare come 'codice prodotto':
+    .git/.venv/nascosti, __pycache__, .pyc — il commit del task tocca
+    .git/objects DURANTE la finestra temporale e prima inquinava la lista
+    ('Apri risultato' apriva project/.git/objects/12/)."""
+    parts = Path(rel).parts
+    if any(pp.startswith(".") or pp == "__pycache__" for pp in parts):
+        return True
+    return rel.endswith(".pyc")
+
+
 def build_run_command(file_path):
     """Flusso utente 3: comando per eseguire il codice generato dal task
     FUORI dal sandbox (è codice dell'utente, sulla sua macchina).
@@ -3360,6 +3372,7 @@ class FileTreeDrawer(QFrame):
                     for line in out2.stdout.splitlines():
                         rel = line.strip()
                         if (rel and ".." not in rel
+                                and not _is_junk_project_path(rel)
                                 and (proj / rel).exists()
                                 and rel not in seen):
                             seen.add(rel)
@@ -3374,13 +3387,21 @@ class FileTreeDrawer(QFrame):
                 if start > 0:
                     margin = 120
                     for pth in proj.rglob("*"):
-                        if (pth.is_file()
-                                and start - margin <= pth.stat().st_mtime
-                                <= end + margin):
-                            files.append(str(pth.relative_to(proj)))
+                        if not pth.is_file():
+                            continue
+                        rel = str(pth.relative_to(proj))
+                        if _is_junk_project_path(rel):
+                            continue
+                        if start - margin <= pth.stat().st_mtime <= end + margin:
+                            files.append(rel)
             except Exception:
                 pass
-        return sorted(set(files))
+        # Ordine: prima i file "di ingresso" (main, avvio, requirements),
+        # così 'Apri risultato' apre la cartella del PROGRAMMA e il dialog
+        # mostra subito il file principale.
+        prio = {"main.py": 0, "app.py": 1, "avvia.sh": 2, "requirements.txt": 3}
+        return sorted(set(files),
+                      key=lambda f: (prio.get(Path(f).name, 10), f))
 
     def _show_task_details(self, task_id):
         """Mostra un dialog con i dettagli completi del task."""
