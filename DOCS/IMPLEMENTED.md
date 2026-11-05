@@ -192,5 +192,11 @@ This file tracks every significant feature, fix, and architectural change implem
   `task_scheduler_panel` (lista task stretch=1). Eliminati gli
   `addStretch()` finali che lasciavano area morta.
 
+- [x] **Crediti: loghi dei contributori**: in `CreditsOverlay`, le emoji di
+  GLM/Qwen/DeepSeek sono state sostituite dai rispettivi loghi in
+  `IMG/` (`GLM_AI_logo.webp`, `QWEN_AI_logo.webp`,
+  `DEEPSEEK_AI_logo.webp`), scalati a 40×24 px (aspect ratio mantenuto).
+  Paolo Lo Bello mantiene l'emoji 👤. Verificato in entrambi i temi.
+
 ## 🔓 Open follow-ups
 UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protocol parser, USB differential analysis, dedicated user `byteswarmy`, usbmon/tshark automation, unification of GUI→SQLite queue (FM14).

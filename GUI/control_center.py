@@ -182,6 +182,13 @@ class CreditsOverlay(QFrame):
             ("🔍", "DeepSeek", "Analisi della sicurezza", "#f38ba8"),
         ]
 
+        # Mappa contributore → logo in IMG/ (se presente, sostituisce l'emoji)
+        _LOGOS = {
+            "GLM 5.2": "GLM_AI_logo.webp",
+            "Qwen": "QWEN_AI_logo.webp",
+            "DeepSeek": "DEEPSEEK_AI_logo.webp",
+        }
+
         for icon, name, role, color in contributors:
             card = QFrame()
             card.setObjectName("contrib_card")
@@ -198,10 +205,32 @@ class CreditsOverlay(QFrame):
             card_lay.setContentsMargins(8, 4, 8, 4)
             card_lay.setSpacing(10)
 
-            icon_lbl = QLabel(icon)
-            icon_lbl.setStyleSheet(f"font-size: 20px;")
-            icon_lbl.setFixedWidth(28)
-            icon_lbl.setMinimumHeight(20)
+            logo_file = _LOGOS.get(name)
+            logo_path = None
+            if logo_file:
+                import os
+                candidate = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                    "IMG", logo_file,
+                )
+                if os.path.exists(candidate):
+                    logo_path = candidate
+
+            if logo_path:
+                from PyQt6.QtGui import QPixmap
+                icon_lbl = QLabel()
+                pix = QPixmap(logo_path)
+                pix = pix.scaled(40, 24, Qt.AspectRatioMode.KeepAspectRatio,
+                                 Qt.TransformationMode.SmoothTransformation)
+                icon_lbl.setPixmap(pix)
+                icon_lbl.setFixedWidth(44)
+                icon_lbl.setMinimumHeight(24)
+                icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            else:
+                icon_lbl = QLabel(icon)
+                icon_lbl.setStyleSheet(f"font-size: 20px;")
+                icon_lbl.setFixedWidth(28)
+                icon_lbl.setMinimumHeight(20)
             card_lay.addWidget(icon_lbl)
 
             info = QWidget()
