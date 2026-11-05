@@ -1611,13 +1611,9 @@ class ConfigPanel(QFrame):
         btn_row.addWidget(self.save_btn)
 
         self.reset_btn = QPushButton("↩ Ripristina")
-        self.reset_btn.setStyleSheet("""
-            QPushButton {
-                background:#f5f5f5; color:#333; border:1px solid #ccc;
-                padding:8px 20px; border-radius:6px;
-            }
-            QPushButton:hover { background:#e5e5e5; }
-        """)
+        self.reset_btn.setStyleSheet(
+            "QPushButton { padding:8px 20px; }"
+        )
         self.reset_btn.clicked.connect(self._reset)
         btn_row.addWidget(self.reset_btn)
 
@@ -2932,11 +2928,6 @@ class FileTreeDrawer(QFrame):
         is_file = os.path.isfile(path)
 
         menu = QMenu(self)
-        menu.setStyleSheet(
-            "QMenu { background:#ffffff; border:1px solid #e0e0e0; border-radius:8px; padding:6px; font-size:12px; }"
-            "QMenu::item { padding:6px 20px; border-radius:4px; }"
-            "QMenu::item:selected { background:#f0f9ff; }"
-        )
 
         if is_file:
             act_edit = QAction("✏️ Modifica file", self)
@@ -3295,7 +3286,7 @@ class FileTreeDrawer(QFrame):
             lay = QVBoxLayout(dlg)
 
             title = QLabel(f"<b>{task.get('title', '(senza titolo)')[:80]}</b>")
-            title.setStyleSheet("font-size:14px; padding:8px; background:#f0f9ff; border-radius:6px;")
+            title.setStyleSheet("font-size:14px; padding:8px; border-radius:6px;")
             title.setWordWrap(True)
             lay.addWidget(title)
 
@@ -3336,7 +3327,7 @@ class FileTreeDrawer(QFrame):
                     te.setReadOnly(True)
                     te.setPlainText(str(val)[:2000])
                     if 'error' in label.lower():
-                        te.setStyleSheet("background:#fef2f2; border:1px solid #fecaca;")
+                        te.setStyleSheet("border:1px solid rgba(128,128,128,0.35); border-radius:4px;")
                     te.setMaximumHeight(100)
                     lay.addWidget(te)
 
@@ -3484,10 +3475,6 @@ class IntegrityTestsPanel(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("integrity_panel")
-        self.setStyleSheet(
-            "QFrame#integrity_panel { background:#ffffff; border:1px solid #e0e0e0; "
-            "border-radius:6px; }"
-        )
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 10, 12, 10)
@@ -3526,9 +3513,8 @@ class IntegrityTestsPanel(QFrame):
             "Risultato: elenco PASS/FAIL con dettagli."
         )
         self.output.setStyleSheet(
-            "QPlainTextEdit { background:#fafafa; color:#1a1a1a; border:1px solid #e0e0e0; "
-            "border-radius:6px; font-family:'JetBrains Mono','Consolas',monospace; "
-            "font-size:11px; padding:8px; }"
+            "font-family:'JetBrains Mono','Consolas',monospace; "
+            "font-size:11px; padding:8px;"
         )
         # Collega la search bar al target (ora che self.output esiste)
         self.search_bar.target = self.output
@@ -3680,10 +3666,6 @@ class SoftwareSecurityPanel(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("security_panel")
-        self.setStyleSheet(
-            "QFrame#security_panel { background:#ffffff; border:1px solid #e0e0e0; "
-            "border-radius:6px; }"
-        )
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 10, 12, 10)
@@ -3737,9 +3719,8 @@ class SoftwareSecurityPanel(QFrame):
             "Salva baseline la prima volta."
         )
         self.output.setStyleSheet(
-            "QPlainTextEdit { background:#fafafa; color:#1a1a1a; border:1px solid #e0e0e0; "
-            "border-radius:6px; font-family:'JetBrains Mono','Consolas',monospace; "
-            "font-size:11px; padding:8px; }"
+            "font-family:'JetBrains Mono','Consolas',monospace; "
+            "font-size:11px; padding:8px;"
         )
         self.search_bar.target = self.output
         lay.addWidget(self.output, stretch=1)
@@ -3946,10 +3927,9 @@ class CICDPipelinePanel(QWidget):
             "manualmente o lascia che l'orchestratore li triggeri ad ogni commit."
         )
         expl.setWordWrap(True)
-        expl.setStyleSheet(
-            "background:#fef2f2; border:1px solid #fecaca; border-radius:8px; "
-            "padding:10px; font-size:11px; color:#991b1b;"
-        )
+        expl.setStyleSheet("padding:10px; font-size:11px; border-radius:8px;")
+        from GUI.theme.theme import set_banner as _set_banner
+        _set_banner(expl, "warn")
         lay.addWidget(expl)
 
         # Stages: 3 card con stato
@@ -4004,9 +3984,8 @@ class CICDPipelinePanel(QWidget):
         self.output.setReadOnly(True)
         self.output.setPlaceholderText("Clicca 'Esegui Build/Test/Deploy' per avviare la pipeline.")
         self.output.setStyleSheet(
-            "QPlainTextEdit { background:#fafafa; color:#1a1a1a; border:1px solid #e0e0e0; "
-            "border-radius:6px; font-family:'JetBrains Mono','Consolas',monospace; "
-            "font-size:11px; padding:8px; }"
+            "font-family:'JetBrains Mono','Consolas',monospace; "
+            "font-size:11px; padding:8px;"
         )
         self.search_bar.target = self.output
         log_lay.addWidget(self.output)
@@ -4102,15 +4081,14 @@ class CICDPipelinePanel(QWidget):
             p.back_to_main()
 
     def _group_style(self) -> str:
+        # Solo geometria: i colori di QGroupBox e ::title arrivano dal
+        # QSS del tema (i fondi bianchi hardcoded rompevano i temi scuri).
         return (
             "QGroupBox {"
-            "  background:#ffffff; border:1px solid #e0e0e0; border-radius:8px;"
-            "  margin-top:14px; padding-top:8px;"
-            "  font-weight:bold; color:#1a1a1a;"
+            "  margin-top:14px; padding-top:8px; font-weight:bold;"
             "}"
             "QGroupBox::title {"
             "  subcontrol-origin: margin; left:14px; padding:0 6px;"
-            "  background:#ffffff;"
             "}"
         )
 
@@ -4216,9 +4194,8 @@ class CleanCodePanel(QWidget):
             "duplicazione e linee di codice dei moduli."
         )
         self.output.setStyleSheet(
-            "QPlainTextEdit { background:#fafafa; color:#1a1a1a; border:1px solid #e0e0e0; "
-            "border-radius:6px; font-family:'JetBrains Mono','Consolas',monospace; "
-            "font-size:11px; padding:8px; }"
+            "font-family:'JetBrains Mono','Consolas',monospace; "
+            "font-size:11px; padding:8px;"
         )
         self.search_bar.target = self.output
         lay.addWidget(self.output, stretch=1)
@@ -4365,10 +4342,7 @@ class CenterArea(QWidget):
             "🔍 Cerca tra le card…  (es. \"task\", \"git\", \"ci/cd\", \"sicurezza\")"
         )
         self.global_search.setStyleSheet(
-            "QLineEdit { background:#ffffff; color:#1a1a1a; "
-            "border:1px solid #d0d0d0; padding:10px 14px; border-radius:8px; "
-            "font-size:13px; }"
-            "QLineEdit:focus { border-color:#16a34a; }"
+            "QLineEdit { padding:10px 14px; border-radius:8px; font-size:13px; }"
         )
         self.global_search.textChanged.connect(self._on_global_search)
         self.plancia_section.add_widget(self.global_search)
@@ -4687,7 +4661,14 @@ class CenterArea(QWidget):
         head.addStretch()
         lay.addLayout(head)
 
-        # Content: il widget vero e proprio (già dimensionato a 300px)
+        # Content: il widget vero e proprio. NB: i 5 pannelli strumenti
+        # arrivano con altezza FISSA 300px (per la griglia della Plancia):
+        # qui nel detail page deve invece riempire la pagina, altrimenti
+        # il layout lo centra verticalmente lasciando mezzo buco.
+        widget.setMaximumHeight(16777215)   # QWIDGETSIZE_MAX
+        widget.setMinimumHeight(480)
+        widget.setSizePolicy(QSizePolicy.Policy.Expanding,
+                             QSizePolicy.Policy.Expanding)
         lay.addWidget(widget, stretch=1)
         return page
 

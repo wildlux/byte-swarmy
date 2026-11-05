@@ -100,3 +100,5 @@ QFrame#code_explorer { background: #44475a; border: 1px solid #6272a4; border-ra
 QFrame#editor_widget { background: #282a36; border-left: 1px solid #6272a4; }
 QScrollArea { border: none; background: #282a36; }
 QGraphicsView { background: #282a36; border: 1px solid #6272a4; border-radius: 6px; }
+QFrame#integrity_panel { background: #44475a; border: 1px solid #6272a4; border-radius: 6px; }
+QFrame#security_panel { background: #44475a; border: 1px solid #6272a4; border-radius: 6px; }
