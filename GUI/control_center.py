@@ -2821,6 +2821,28 @@ class ProjectTabBar(QTabBar):
             self.setCurrentIndex(new_idx)
 
 
+def build_run_command(file_path):
+    """Flusso utente 3: comando per eseguire il codice generato dal task
+    FUORI dal sandbox (è codice dell'utente, sulla sua macchina).
+
+    .py → python3 | .sh → bash | .c/.cpp → compila in /tmp ed esegui.
+    Ritorna None per estensioni non eseguibili direttamente (es. .html:
+    il chiamante lo apre nel browser).
+    """
+    from shlex import quote as _q
+    ext = file_path.suffix.lower()
+    fp = str(file_path)
+    if ext == ".py":
+        return ["python3", fp]
+    if ext == ".sh":
+        return ["bash", fp]
+    if ext == ".c":
+        return ["bash", "-c", f"gcc {_q(fp)} -o /tmp/bswarm_run && /tmp/bswarm_run"]
+    if ext == ".cpp":
+        return ["bash", "-c", f"g++ {_q(fp)} -o /tmp/bswarm_run && /tmp/bswarm_run"]
+    return None
+
+
 class FileTreeDrawer(QFrame):
     def __init__(self, parent):
         super().__init__()
@@ -3477,6 +3499,73 @@ class FileTreeDrawer(QFrame):
 
                 file_list.currentItemChanged.connect(_load_file)
                 file_list.setCurrentRow(0)      # carica il primo
+
+                # ── Flusso utente 3: ESEGUIRE il codice generato ──
+                from PyQt6.QtCore import QProcess, QUrl
+                run_row = QHBoxLayout()
+                run_btn = QPushButton("▶ Esegui")
+                run_hint = QLabel("")
+                run_hint.setStyleSheet("font-size:10px;")
+                run_row.addWidget(run_btn)
+                run_row.addWidget(run_hint, stretch=1)
+                lay.addLayout(run_row)
+
+                proc_holder = []
+
+                def _refresh_run_btn(item):
+                    rel = item.text() if item else ""
+                    full = Path(base) / "project" / rel
+                    ext = full.suffix.lower()
+                    if ext == ".html":
+                        run_btn.setEnabled(True)
+                        run_btn.setText("🌐 Apri nel browser")
+                        run_hint.setText("configurazione web")
+                        return
+                    cmd = build_run_command(full)
+                    run_btn.setEnabled(cmd is not None)
+                    run_btn.setText(f"▶ Esegui {rel}" if cmd else "▶ Esegui")
+                    run_hint.setText("" if cmd
+                                     else "estensione non eseguibile direttamente")
+
+                def _start_run():
+                    item = file_list.currentItem()
+                    if not item or proc_holder:
+                        return
+                    rel = item.text()
+                    full = Path(base) / "project" / rel
+                    if full.suffix.lower() == ".html":
+                        QDesktopServices.openUrl(QUrl.fromLocalFile(str(full)))
+                        return
+                    cmd = build_run_command(full)
+                    if not cmd:
+                        return
+                    viewer.appendPlainText(f"$ {' '.join(cmd)}")
+                    proc = QProcess(dlg)
+                    proc.setWorkingDirectory(str(full.parent))
+                    proc.readyReadStandardOutput.connect(
+                        lambda: viewer.appendPlainText(bytes(
+                            proc.readAllStandardOutput()).decode(
+                            "utf-8", errors="replace").rstrip()))
+                    proc.readyReadStandardError.connect(
+                        lambda: viewer.appendPlainText(bytes(
+                            proc.readAllStandardError()).decode(
+                            "utf-8", errors="replace").rstrip()))
+                    proc.finished.connect(
+                        lambda code, _st: (viewer.appendPlainText(
+                            f"[uscita: {code}]"), _rearm()))
+                    proc.start(cmd[0], cmd[1:])
+                    proc_holder.append(proc)
+                    run_btn.setEnabled(False)
+
+                def _rearm(*_a):
+                    if proc_holder:
+                        proc_holder.clear()
+                        _refresh_run_btn(file_list.currentItem())
+
+                run_btn.clicked.connect(_start_run)
+                file_list.currentItemChanged.connect(_refresh_run_btn)
+                _refresh_run_btn(file_list.currentItem())
+
                 if len(task_files) > 1:
                     dlg.resize(980, 680)        # spazio per la navigazione
             elif task.get("status") == "done":

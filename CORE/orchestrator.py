@@ -495,6 +495,26 @@ def _looks_like_file_path(s: str) -> bool:
             and " " not in s.strip()
             and bool(_PATH_EXT_RE.search(s)))
 
+_WEIGHT_ORDER = ("light", "medium", "heavy")
+
+
+def suggest_escalation(llm_weight: str) -> str:
+    """Consiglio di escalation quando un task fallisce in modo definitivo:
+    'alzare la posta in gioco' passando a un LLM più potente."""
+    from CORE.constants import weight_default_model
+    w = (llm_weight or "medium").lower()
+    if w in _WEIGHT_ORDER:
+        idx = _WEIGHT_ORDER.index(w)
+        if idx < len(_WEIGHT_ORDER) - 1:
+            nxt = _WEIGHT_ORDER[idx + 1]
+            return (f"💡 Alza la posta: porta l'attore LLM al peso '{nxt}' "
+                    f"(modello suggerito: {weight_default_model('llm', nxt)}) "
+                    "nel pannello Modelli → Attori, poi riavvia il task.")
+    return ("💡 Il LLM è già al peso massimo ('heavy'): prova un modello più "
+            "grande installato (es. qwen2.5:7b o llama3:8b) nel pannello "
+            "Modelli → Attori, o semplifica il task.")
+
+
 class Worker:
     """Esegue un task usando i tool e il modello LLM. Loop ReAct base."""
 
@@ -1857,6 +1877,21 @@ class Orchestrator:
                 f"task {task['id']} FAILED_DEFINITIVELY after "
                 f"{self.queue.RETRY_LIMIT + 1} attempts"
             )
+            # Alzare la posta in gioco: suggerisci un LLM più potente.
+            try:
+                import json as _json
+                actors = Path(self.config["paths"]["project_root"]).parent \
+                    / "CONFIG" / "actors.json"
+                llm_w = "medium"
+                if actors.exists():
+                    llm_w = (_json.loads(actors.read_text(encoding="utf-8"))
+                             .get("llm", {}).get("weight", "medium"))
+                tip = suggest_escalation(llm_w)
+                if tip:
+                    self.queue.update_task(task["id"], reason=tip)
+                    self.log.info(f"task {task['id']} escalation: {tip}")
+            except Exception as _e:
+                self.log.debug(f"suggerimento escalation non salvato: {_e}")
         else:
             self.log.warning(
                 f"task {task['id']} -> {status} "

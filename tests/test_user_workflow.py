@@ -492,3 +492,27 @@ class TestTaskDetailsCode(unittest.TestCase):
         files = FileTreeDrawer._collect_task_files(task, str(ROOT))
         ours = [f for f in files if "dialog_probe" in f]
         self.assertEqual(ours, [])
+
+
+class TestRunGeneratedCodeAndEscalation(unittest.TestCase):
+    """Flusso 3 (eseguire il codice generato) + escalation LLM sui fallimenti."""
+
+    def test_build_run_command_by_extension(self):
+        from GUI.control_center import build_run_command
+        f = ROOT / "project" / "x"
+        self.assertEqual(build_run_command(f / "main.py"),
+                         ["python3", str(f / "main.py")])
+        self.assertEqual(build_run_command(f / "avvia.sh"),
+                         ["bash", str(f / "avvia.sh")])
+        self.assertEqual(build_run_command(f / "prog.c")[0], "bash")
+        self.assertIn("gcc", build_run_command(f / "prog.c")[2])
+        self.assertIn("g++", build_run_command(f / "prog.cpp")[2])
+        self.assertIsNone(build_run_command(f / "README.md"))
+
+    def test_escalation_suggestion_by_weight(self):
+        from CORE.orchestrator import suggest_escalation
+        self.assertIn("medium", suggest_escalation("light"))
+        self.assertIn("qwen2.5:3b", suggest_escalation("light"))
+        self.assertIn("heavy", suggest_escalation("medium"))
+        self.assertIn("llama3:8b", suggest_escalation("medium"))
+        self.assertIn("peso massimo", suggest_escalation("heavy"))
