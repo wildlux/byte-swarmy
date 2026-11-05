@@ -82,6 +82,50 @@ class TestPanel(unittest.TestCase):
         self.assertTrue(hasattr(self.panel, "ts_interval"))
 
 
+class TestParamReset(unittest.TestCase):
+    """I pulsanti '↺ Ripristina' riportano temperature/ctx/predict ai default."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.panel = ap.ActorsPanel()
+
+    def _reset_buttons(self):
+        from PyQt6.QtWidgets import QPushButton
+        return [b for b in self.panel.findChildren(QPushButton)
+                if "Ripristina" in b.text()]
+
+    def test_two_reset_buttons_exist(self):
+        self.assertEqual(len(self._reset_buttons()), 2,
+                         "attesi reset per Worker e per Decision Model")
+
+    def test_reset_restores_all_defaults(self):
+        from PyQt6.QtWidgets import QPushButton
+        p = self.panel
+        # Sporca i valori
+        p.llm_temp.setValue(1.7); p.llm_ctx.setValue(16384)
+        p.llm_predict.setValue(4096)
+        p.dec_temp.setValue(1.9); p.dec_ctx.setValue(32768)
+        p.dec_predict.setValue(8192)
+        # Click su ENTRAMBI i reset (ordine del findChildren è irrilevante)
+        for b in self._reset_buttons():
+            b.click()
+        dl, dd = ap.DEFAULTS["llm"], ap.DEFAULTS["decision_model"]
+        self.assertEqual(p.llm_temp.value(), dl["temperature"])
+        self.assertEqual(p.llm_ctx.value(), dl["num_ctx"])
+        self.assertEqual(p.llm_predict.value(), dl["num_predict"])
+        self.assertEqual(p.dec_temp.value(), dd["temperature"])
+        self.assertEqual(p.dec_ctx.value(), dd["num_ctx"])
+        self.assertEqual(p.dec_predict.value(), dd["num_predict"])
+
+    def test_reset_keeps_model_and_weight(self):
+        """Il reset non tocca le scelte utente (modello, peso)."""
+        p = self.panel
+        model_before = p.llm_model.currentText()
+        for b in self._reset_buttons():
+            b.click()
+        self.assertEqual(p.llm_model.currentText(), model_before)
+
+
 if __name__ == "__main__":
     print("Actors panel test → GUI/actors_panel.py")
     print("=" * 60)

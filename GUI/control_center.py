@@ -1941,12 +1941,11 @@ class ControlCenter(QMainWindow):
         super().__init__()
         self.setWindowTitle("BYTE-SWARMY · Control Center")
         self.resize(1450, 900)
-        # Tema: legge da CONFIG/settings.json (default: dark)
-        saved_theme = settings_store.get_theme()
-        if saved_theme == "dark":
-            self.setStyleSheet(self._dark_theme())
-        else:
-            self.setStyleSheet(self._light_theme())
+        # Tema: legge da CONFIG/settings.json e carica il QSS completo.
+        # I temi sono 10+ (nord, dracula, hacker, ...): non più binario
+        # dark/light. Il QSS si applica live anche senza riavvio.
+        from GUI.theme import theme as _theme_mod
+        self.setStyleSheet(_theme_mod.load_stylesheet(settings_store.get_theme()))
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -4937,27 +4936,27 @@ class CenterArea(QWidget):
         return page
 
     def _apply_theme_live(self, theme: str):
-        """Applica il tema (chiaro/scuro) all'app principale + credits overlay.
+        """Applica il tema scelto LIVE (nome completo, es. "nord").
 
-        Nota: questo metodo è dentro CenterArea, ma il tema stylesheet va
-        applicato al ControlCenter (il parent, accessibile via
-        ``self.main_win``), perché è lì che sono definiti _light_theme()
-        e _dark_theme(). Il tema dei credits overlay viene applicato
-        chiamando credits.apply_theme(theme) se l'overlay è aperto.
+        Il QSS del tema va alla finestra ControlCenter (self.main_win);
+        il credits overlay usa solo il "kind" (light/dark) perché ha
+        due varianti colore, non 10.
         """
         # self = CenterArea; self.main_win = ControlCenter (QMainWindow)
+        from GUI.theme import theme as _theme_mod
         main = getattr(self, "main_win", None)
         if main is None:
             print("[tema] main_win non disponibile, salto applicazione live")
             return
-        if theme == "dark":
-            main.setStyleSheet(main._dark_theme())
-        else:
-            main.setStyleSheet(main._light_theme())
-        # Applica il tema anche al credits overlay se è aperto
+        try:
+            main.setStyleSheet(_theme_mod.load_stylesheet(theme))
+        except Exception as e:
+            print(f"[tema] applicazione '{theme}' fallita: {e}")
+            return
+        # Applica il kind del tema anche al credits overlay se è aperto
         if hasattr(main, "_credits_overlay") and main._credits_overlay is not None:
             try:
-                main._credits_overlay.apply_theme(theme)
+                main._credits_overlay.apply_theme(_theme_mod.theme_kind(theme))
             except Exception as e:
                 print(f"[tema] credits overlay apply_theme fallito: {e}")
 

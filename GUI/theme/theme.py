@@ -57,6 +57,51 @@ def theme_display_name(name):
     return name.replace("_", " ").title()
 
 
+_HEX_COLOR = __import__("re").compile(r"#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b")
+
+
+def _luminance(hex_color: str) -> float:
+    """Luminanza percettiva 0..1 di un colore #rrggbb (o #rgb)."""
+    h = hex_color.strip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    try:
+        r, g, b = (int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4))
+    except ValueError:
+        return 0.0
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def theme_kind(name: str) -> str:
+    """Classifica un tema come "light" o "dark".
+
+    Analizza i colori di sfondo del .qss (luminanza media dei hex che
+    appaiono accanto a "background"): se il fondo è più scuro della
+    metà della scala, il tema è scuro. Fallback euristico sul nome
+    (prefisso light_/chiaro) per qss senza colori riconoscibili.
+    """
+    try:
+        qss = _load(name)
+    except OSError:
+        return "dark"
+    bgs = []
+    for m in _HEX_COLOR.finditer(qss):
+        start = max(0, m.start() - 40)
+        if "background" in qss[start:m.start()].lower():
+            bgs.append(_luminance(m.group(0)))
+    if bgs:
+        return "light" if (sum(bgs) / len(bgs)) > 0.5 else "dark"
+    lower = name.lower()
+    return "light" if ("light" in lower or "chiaro" in lower) else "dark"
+
+
+def load_stylesheet(name: str) -> str:
+    """Contenuto QSS del tema `name`, con fallback al tema dark."""
+    if name not in available_themes():
+        name = "dark"
+    return _load(name)
+
+
 def current_theme():
     t = QSettings(*SETTINGS).value("theme", "dark")
     if t not in available_themes():

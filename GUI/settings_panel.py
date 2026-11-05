@@ -272,8 +272,29 @@ class SettingsPanel(QWidget):
 
         self.theme_combo = QComboBox()
         from GUI.theme import theme as _T
+        from PyQt6.QtCore import Qt as _Qt
+        # Temi divisi in due gruppi (chiari / scuri) con intestazioni non
+        # selezionabili. La classificazione è automatica dal .qss.
+        groups = {"light": [], "dark": []}
         for _name in _T.available_themes():
-            self.theme_combo.addItem(_T.theme_display_name(_name), _name)
+            groups[_T.theme_kind(_name)].append(_name)
+        for label, kind in (("— Temi chiari —", "light"),
+                            ("— Temi scuri —", "dark")):
+            if not groups[kind]:
+                continue
+            if self.theme_combo.count():
+                self.theme_combo.insertSeparator(self.theme_combo.count())
+            self.theme_combo.addItem(label)
+            idx = self.theme_combo.count() - 1
+            item = self.theme_combo.model().item(idx)
+            item.setFlags(item.flags() & ~_Qt.ItemFlag.ItemIsEnabled)
+            for _name in groups[kind]:
+                self.theme_combo.addItem(_T.theme_display_name(_name), _name)
+        # Preseleziona il tema salvato (non il primo della lista)
+        cur = settings_store.get_theme()
+        pos = self.theme_combo.findData(cur)
+        if pos >= 0:
+            self.theme_combo.setCurrentIndex(pos)
         self.theme_combo.currentIndexChanged.connect(self._on_theme_changed)
         form.addRow("Tema:", self.theme_combo)
 

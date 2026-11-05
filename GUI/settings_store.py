@@ -106,8 +106,17 @@ def get_theme() -> str:
 
 
 def set_theme(theme: str) -> bool:
+    # Valida contro i temi realmente disponibili (10+ temi, non solo
+    # dark/light): un tema sconosciuto cade su "dark".
+    try:
+        from GUI.theme import theme as _T
+        if theme not in _T.available_themes():
+            theme = "dark"
+    except Exception:
+        if theme not in ("dark", "light"):
+            theme = "dark"
     s = load_settings()
-    s["theme"] = theme if theme in ("dark", "light") else "dark"
+    s["theme"] = theme
     return save_settings(s)
 
 

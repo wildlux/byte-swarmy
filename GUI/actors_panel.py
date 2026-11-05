@@ -297,17 +297,38 @@ class ActorsPanel(QWidget):
         self.llm_temp.setRange(0.0, 2.0)
         self.llm_temp.setSingleStep(0.1)
         self.llm_temp.setDecimals(2)
+        self.llm_temp.setToolTip(
+            "Creatività delle risposte del modello:\n"
+            "• 0.0–0.2 → deterministiche, ideali per codice e patch\n"
+            "• 0.3–0.6 → bilanciate, per pianificazione e analisi\n"
+            "• > 0.7   → creative, sconsigliate per un coding agent")
         form.addRow("Temperature:", self.llm_temp)
 
         self.llm_ctx = QSpinBox()
         self.llm_ctx.setRange(512, 32768)
         self.llm_ctx.setSingleStep(512)
+        self.llm_ctx.setToolTip(
+            "Token di contesto che il modello vede (prompt + codice + storico).\n"
+            "Più contesto = più memoria di lavoro, ma più RAM e più lento.\n"
+            "Suggerito: 2048 con modelli piccoli su CPU; 4096+ su GPU con\n"
+            "4+ GB VRAM. Su GPU piccola (es. GTX 1050 4 GB) non superare 4096.")
         form.addRow("num_ctx (token contesto):", self.llm_ctx)
 
         self.llm_predict = QSpinBox()
         self.llm_predict.setRange(64, 8192)
         self.llm_predict.setSingleStep(64)
+        self.llm_predict.setToolTip(
+            "Numero massimo di token generati in output (lunghezza risposta).\n"
+            "256–512 bastano per patch e correzioni; 1024+ per file interi.\n"
+            "Valori alti allungano i tempi di generazione a parità di output.")
         form.addRow("num_predict (token max output):", self.llm_predict)
+
+        reset_llm = QPushButton("↺ Ripristina valori predefiniti")
+        reset_llm.setToolTip(
+            "Reimposta temperature, num_ctx e num_predict della sezione "
+            "Worker ai valori predefiniti del sistema.")
+        reset_llm.clicked.connect(self._reset_llm_params)
+        form.addRow("", reset_llm)
 
         return box
 
@@ -336,17 +357,36 @@ class ActorsPanel(QWidget):
         self.dec_temp.setRange(0.0, 2.0)
         self.dec_temp.setSingleStep(0.1)
         self.dec_temp.setDecimals(2)
+        self.dec_temp.setToolTip(
+            "Creatività del Decision Model (pianificatore):\n"
+            "• 0.1–0.3 → scelte stabili e ripetibili (consigliato)\n"
+            "• 0.4–0.6 → più flessibile, ma decisioni meno prevedibili\n"
+            "• > 0.7   → sconsigliato: il planner deve essere deterministico")
         form.addRow("Temperature:", self.dec_temp)
 
         self.dec_ctx = QSpinBox()
         self.dec_ctx.setRange(512, 32768)
         self.dec_ctx.setSingleStep(512)
+        self.dec_ctx.setToolTip(
+            "Token di contesto del Decision Model (stato sistema + task).\n"
+            "Suggerito: 3072–4096 per vedere più task in coda; di più non\n"
+            "aiuta il planner e consuma RAM.")
         form.addRow("num_ctx:", self.dec_ctx)
 
         self.dec_predict = QSpinBox()
         self.dec_predict.setRange(64, 8192)
         self.dec_predict.setSingleStep(64)
+        self.dec_predict.setToolTip(
+            "Token massimi in output del Decision Model (JSON di decisione).\n"
+            "512 basta per la pianificazione; valori più alti sprecano tempo.")
         form.addRow("num_predict:", self.dec_predict)
+
+        reset_dec = QPushButton("↺ Ripristina valori predefiniti")
+        reset_dec.setToolTip(
+            "Reimposta temperature, num_ctx e num_predict della sezione "
+            "Decision Model ai valori predefiniti del sistema.")
+        reset_dec.clicked.connect(self._reset_dec_params)
+        form.addRow("", reset_dec)
 
         hint = QLabel(
             "Il Decision Model riceve lo stato del sistema dal Timestral e "
@@ -653,6 +693,22 @@ class ActorsPanel(QWidget):
         self.ts_interval.setValue(t["monitor_interval_sec"])
         self.ts_check_only_if_gpu.setChecked(t["check_only_if_gpu"])
         self.ts_pause_decision_too.setChecked(t["pause_decision_model_too"])
+
+    # ── Reset parametri ai valori predefiniti ────────────────────────
+    # Reimpostano SOLO i parametri di tuning (temperature/num_ctx/
+    # num_predict): modello e peso scelte dall'utente restano invariati.
+
+    def _reset_llm_params(self) -> None:
+        d = DEFAULTS["llm"]
+        self.llm_temp.setValue(d["temperature"])
+        self.llm_ctx.setValue(d["num_ctx"])
+        self.llm_predict.setValue(d["num_predict"])
+
+    def _reset_dec_params(self) -> None:
+        d = DEFAULTS["decision_model"]
+        self.dec_temp.setValue(d["temperature"])
+        self.dec_ctx.setValue(d["num_ctx"])
+        self.dec_predict.setValue(d["num_predict"])
 
     def _apply_weight(self, actor: str, weight: str):
         """H3: quando l'utente cambia il peso di un attore, propone il

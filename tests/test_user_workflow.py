@@ -193,6 +193,41 @@ class TestPageTour(unittest.TestCase):
                                 f"pulsanti sicuri clickati: {clicked} (attesi >= 3)")
 
 
+class TestThemeLiveSwitch(unittest.TestCase):
+    """Il tema scelto (10+ temi) si applica LIVE e resta persistito."""
+
+    def test_combo_has_light_and_dark_groups(self):
+        panel = _window().center.panel_pages["config"]
+        combo = panel.theme_combo
+        headers = [combo.itemText(i) for i in range(combo.count())
+                   if combo.itemData(i) is None
+                   and combo.itemText(i).startswith("—")]
+        self.assertEqual(headers, ["— Temi chiari —", "— Temi scuri —"])
+
+    def test_switch_via_combo_applies_live(self):
+        """Percorso utente reale: selezione nel combo → QSS live + persist."""
+        from GUI import settings_store as store
+        from GUI.theme import theme as T
+        win = _window()
+        center = win.center
+        panel = center.panel_pages["config"]
+        saved = store.get_theme()
+        other = next(t for t in T.available_themes() if t != saved)
+        try:
+            pos = panel.theme_combo.findData(other)
+            self.assertGreaterEqual(pos, 0)
+            panel.theme_combo.setCurrentIndex(pos)   # camino utente reale
+            _app.processEvents()
+            self.assertEqual(win.styleSheet(), T.load_stylesheet(other),
+                             "il QSS della finestra deve cambiare subito")
+            self.assertEqual(store.get_theme(), other,
+                             "il tema scelto deve persistere per nome")
+        finally:
+            store.set_theme(saved)
+            center._apply_theme_live(saved)
+            _app.processEvents()
+
+
 class TestToolbarToggle(unittest.TestCase):
     """Il pulsante ▶/⏸ della toolbar è collegato e fa la pausa REALE."""
 
