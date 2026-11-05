@@ -108,7 +108,7 @@ class SettingsPanel(QWidget):
         # Header con pulsante Indietro + titolo
         head = QHBoxLayout()
         head.setSpacing(10)
-        back = QPushButton("← Indietro alla Plancia")
+        back = QPushButton("← Indietro alla Plancia (Backspace)")
         back.setObjectName("back_btn")
         back.clicked.connect(self._back_to_main)
         head.addWidget(back)

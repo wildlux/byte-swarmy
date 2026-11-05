@@ -51,7 +51,7 @@ class HardwarePanel(QWidget):
         # Header: pulsante Indietro + titolo (stile dal tema app-level QSS)
         head = QHBoxLayout()
         head.setSpacing(10)
-        back = QPushButton("← Indietro alla Plancia")
+        back = QPushButton("← Indietro alla Plancia (Backspace)")
         back.setObjectName("back_btn")
         back.clicked.connect(self._back_to_main)
         head.addWidget(back)
