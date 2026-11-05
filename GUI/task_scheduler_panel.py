@@ -215,7 +215,7 @@ class TaskSchedulerPanel(QWidget):
 
         self.task_list_widget = QListWidget()
         self.task_list_widget.setObjectName("schedlist")   # stile dal tema QSS
-        list_lay.addWidget(self.task_list_widget)
+        list_lay.addWidget(self.task_list_widget, stretch=1)
 
         # Pulsante elimina (danger dal tema)
         del_row = QHBoxLayout()

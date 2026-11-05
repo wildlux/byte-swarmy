@@ -178,8 +178,8 @@ class SettingsPanel(QWidget):
         _add_section("git", self._build_git_section())
         _add_section("audit", self._build_audit_section())
 
-        # Stretch finale per tenere le sezioni in alto
-        lay.addStretch()
+        # Le sezioni riempiono lo spazio disponibile (niente stretch finale
+        # che lasciava area vuota): l'audit_output usa il posto in più.
 
         scroll.setWidget(content)
         outer.addWidget(scroll, stretch=1)

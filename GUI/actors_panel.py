@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
     QComboBox, QLineEdit, QSpinBox, QDoubleSpinBox, QGroupBox,
     QFormLayout, QScrollArea, QCheckBox, QMessageBox, QSizePolicy,
+    QPlainTextEdit,
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
@@ -253,6 +254,18 @@ class ActorsPanel(QWidget):
         _theme_prop(save_btn, "role", "start")
         save_btn.clicked.connect(self._on_save)
         lay.addWidget(save_btn)
+
+        # Log configurazione (usa lo spazio vuoto per testo utile)
+        self.actors_log = QPlainTextEdit()
+        self.actors_log.setReadOnly(True)
+        self.actors_log.setMaximumBlockCount(100)
+        self.actors_log.setStyleSheet(
+            "font-family:'JetBrains Mono','Consolas',monospace; font-size:10.5px;"
+        )
+        self.actors_log.setPlaceholderText(
+            "Log delle operazioni (salvataggio, refresh Ollama, …)…"
+        )
+        lay.addWidget(self.actors_log, stretch=1)
 
         scroll.setWidget(content)
         outer.addWidget(scroll, stretch=1)
@@ -700,13 +713,21 @@ class ActorsPanel(QWidget):
             },
         }
         ok = save_actors(a)
+        import time as _t
         if ok:
+            self.actors_log.appendPlainText(
+                f"[{_t.strftime('%H:%M:%S')}] Configurazione salvata OK "
+                f"(LLM: {a['llm']['model']}, Decision: {a['decision_model']['model']})"
+            )
             QMessageBox.information(
                 self, "Salvato",
                 "Configurazione attori salvata in CONFIG/actors.json.\n\n"
                 "Riavvia l'orchestratore per applicare le modifiche."
             )
         else:
+            self.actors_log.appendPlainText(
+                f"[{_t.strftime('%H:%M:%S')}] ERRORE salvataggio"
+            )
             QMessageBox.critical(self, "Errore", "Salvataggio fallito (vedi console).")
 
     def _back_to_main(self):

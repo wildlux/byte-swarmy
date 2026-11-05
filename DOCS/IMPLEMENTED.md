@@ -185,5 +185,12 @@ This file tracks every significant feature, fix, and architectural change implem
   Corretti 2 residui muted in `main_window.py` (#909090, #999 →
   role="muted").
 
+- [x] **Uso dello spazio vuoto nei pannelli**: `hardware_panel`
+  (log rilevamento in QPlainTextEdit stretch), `settings_panel`
+  (rimosso addStretch interno, audit_output più ampio),
+  `actors_panel` (log configurazione stretch),
+  `task_scheduler_panel` (lista task stretch=1). Eliminati gli
+  `addStretch()` finali che lasciavano area morta.
+
 ## 🔓 Open follow-ups
 UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protocol parser, USB differential analysis, dedicated user `byteswarmy`, usbmon/tshark automation, unification of GUI→SQLite queue (FM14).

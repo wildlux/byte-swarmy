@@ -16,7 +16,7 @@ from pathlib import Path
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
-    QGroupBox, QSizePolicy,
+    QGroupBox, QSizePolicy, QPlainTextEdit,
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
@@ -160,8 +160,19 @@ class HardwarePanel(QWidget):
         self.summary_lbl.setWordWrap(True)
         outer.addWidget(self.summary_lbl)
 
-        # Stretch finale
-        outer.addStretch()
+        # Log rilevamento (usa lo spazio vuoto per testo utile)
+        log_box = QGroupBox("📜 Log rilevamento")
+        log_lay = QVBoxLayout(log_box)
+        log_lay.setContentsMargins(10, 10, 10, 10)
+        self.hw_log = QPlainTextEdit()
+        self.hw_log.setReadOnly(True)
+        self.hw_log.setMaximumBlockCount(200)
+        self.hw_log.setStyleSheet(
+            "font-family:'JetBrains Mono','Consolas',monospace; font-size:10.5px;"
+        )
+        self.hw_log.setPlaceholderText("Il log del rilevamento apparirà qui...")
+        log_lay.addWidget(self.hw_log)
+        outer.addWidget(log_box, stretch=1)
 
     # ──────────────────────────────────────────────────────────────────
     # Handler
@@ -249,12 +260,43 @@ class HardwarePanel(QWidget):
             # Summary
             self.summary_lbl.setText(f"📊 {profile.summary}")
 
+            # Log rilevamento (usa lo spazio vuoto per testo utile)
+            import time as _t
+            self.hw_log.appendPlainText(
+                f"[{_t.strftime('%H:%M:%S')}] Rilevamento OK"
+            )
+            self.hw_log.appendPlainText(
+                f"  Piattaforma: {profile.platform}"
+            )
+            self.hw_log.appendPlainText(
+                f"  GPU: {profile.gpu_type} — {profile.gpu_name or '—'}"
+            )
+            self.hw_log.appendPlainText(
+                f"  RAM: {profile.ram_total_gb:.1f} GB  "
+                f"VRAM: {profile.vram_total_gb:.1f} GB  "
+                f"BW: {profile.bandwidth_gbps:.0f} GB/s"
+            )
+            self.hw_log.appendPlainText(
+                f"  Strategia: {profile.strategy}  "
+                f"worker={profile.worker_count}  "
+                f"keep_alive={profile.keep_alive_sec}s"
+            )
+            self.hw_log.appendPlainText(f"  {profile.summary}")
+            self.hw_log.appendPlainText("")
+
         except Exception as e:
             self.strat_badge.setText(f"✗ Errore rilevamento: {e}")
             self.strat_badge.setStyleSheet(
                 "padding:16px; font-size:14px; font-weight:bold;"
             )
             _theme_banner(self.strat_badge, "error")
+            try:
+                import time as _t
+                self.hw_log.appendPlainText(
+                    f"[{_t.strftime('%H:%M:%S')}] ERRORE: {e}"
+                )
+            except Exception:
+                pass
 
     def _back_to_main(self):
         """Torna alla plancia di controllo."""
