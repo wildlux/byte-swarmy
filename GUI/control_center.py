@@ -82,7 +82,7 @@ class CreditsOverlay(QFrame):
         # a destra le Tecnologie & Progetti Open Source in griglia 2-colonne.
         # Prima era 620x520 fisso e le card venivano compresse a 0px
         # (i nomi di Paolo Lo Bello, GLM 5.2, Qwen, DeepSeek sparivano).
-        self.setFixedSize(1000, 640)
+        self.setFixedSize(1180, 600)
         # Il tema (chiaro/scuro) viene letto da settings_store e applicato
         # dinamicamente. Per cambiare tema live: apply_theme("light"|"dark").
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -147,7 +147,14 @@ class CreditsOverlay(QFrame):
         left_col.setSpacing(6)
         left_col.setContentsMargins(0, 0, 0, 0)
 
-        # Immagine ringraziamenti (più grande ora che ha la colonna dedicata)
+        # Titolo (header della colonna sinistra)
+        credits_title = QLabel("✨ Ringraziamenti ✨")
+        credits_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        credits_title.setStyleSheet("font-size: 18px; color: #f9e2af; font-weight: bold;")
+        credits_title.setFixedHeight(26)
+        left_col.addWidget(credits_title)
+
+        # Immagine ringraziamenti
         try:
             import os
             from PyQt6.QtGui import QPixmap
@@ -155,8 +162,7 @@ class CreditsOverlay(QFrame):
             if os.path.exists(img_path):
                 img_label = QLabel()
                 pix = QPixmap(img_path)
-                # Più grande: 380px di larghezza (prima era 220)
-                pix = pix.scaledToWidth(420, Qt.TransformationMode.SmoothTransformation)
+                pix = pix.scaledToWidth(360, Qt.TransformationMode.SmoothTransformation)
                 img_label.setPixmap(pix)
                 img_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 img_label.setFixedHeight(int(pix.height()))
@@ -168,11 +174,7 @@ class CreditsOverlay(QFrame):
         except Exception as e:
             print(f"Errore caricamento immagine credits: {e}")
 
-        credits_title = QLabel("✨ Ringraziamenti ✨")
-        credits_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        credits_title.setStyleSheet("font-size: 15px; color: #f9e2af; font-weight: bold;")
-        credits_title.setFixedHeight(22)
-        left_col.addWidget(credits_title)
+        left_col.addSpacing(6)
 
         # Lista contributori
         contributors = [
