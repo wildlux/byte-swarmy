@@ -856,7 +856,7 @@ class DevicePanel(QFrame):
         lay.addWidget(lbl)
 
         model_lbl = QLabel(model_name)
-        model_lbl.setStyleSheet("color:#555; font-size:10px;")
+        model_lbl.setStyleSheet("font-size:10px;")
         model_lbl.setFixedWidth(72)
         lay.addWidget(model_lbl)
 
@@ -867,7 +867,7 @@ class DevicePanel(QFrame):
         bus_lbl = QLabel("800M")
 
         for w in (temp_lbl, tok_lbl, kv_lbl, mem_lbl, bus_lbl):
-            w.setStyleSheet("color:#333; font-size:11px; font-weight:500;")
+            w.setStyleSheet("font-size:11px; font-weight:500;")
             w.setFixedWidth(38)
             lay.addWidget(w)
 
@@ -913,7 +913,7 @@ class CollapsibleSection(QFrame):
         header_lay.setSpacing(8)
 
         self.title_lbl = QLabel(f"{icon} {title}")
-        self.title_lbl.setStyleSheet("font-size:13px; font-weight:bold; color:#1a1a1a;")
+        self.title_lbl.setStyleSheet("font-size:13px; font-weight:bold; ")
         header_lay.addWidget(self.title_lbl, stretch=1)
 
         self.toggle_btn = QPushButton("▾")
@@ -995,7 +995,7 @@ class PlanciaCard(QFrame):
         head.setSpacing(6)
 
         title_lbl = QLabel(title)
-        title_lbl.setStyleSheet("font-size:14px; font-weight:bold; color:#1a1a1a;")
+        title_lbl.setStyleSheet("font-size:14px; font-weight:bold; ")
         # Il titolo NON deve espandere orizzontalmente né forzare la larghezza
         # minima della card. word-wrap attivo così i titoli lunghi vanno a capo
         # invece di allargare la card.
@@ -1019,7 +1019,7 @@ class PlanciaCard(QFrame):
         # word-wrap attivo: la descrizione va a capo ma NON espande la card
         # (l'altezza è fissata a 110px e il testo in eccesso viene troncato).
         sub_lbl.setWordWrap(True)
-        sub_lbl.setStyleSheet("font-size:11px; color:#666;")
+        sub_lbl.setStyleSheet("font-size:11px; ")
         sub_lbl.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         lay.addWidget(sub_lbl, stretch=1)
 
@@ -1067,14 +1067,8 @@ class CategorizedLogViewer(QFrame):
         self.tab_bar.setExpanding(False)
         self.tab_bar.setMovable(False)
         self.tab_bar.addTab("🐝 ByteSwarm GUI")
-        self.tab_bar.setStyleSheet(
-            "QTabBar::tab { background:#f0f0f0; color:#555; border:1px solid #d0d0d0; "
-            "border-bottom:none; border-top-left-radius:6px; border-top-right-radius:6px; "
-            "padding:6px 12px; margin-right:2px; font-size:11px; }"
-            "QTabBar::tab:selected { background:#ffffff; color:#16a34a; "
-            "border-bottom:2px solid #16a34a; font-weight:bold; }"
-            "QTabBar::tab:hover { background:#e8e8ec; }"
-        )
+        # Stile del tab bar dal tema app-level (QTabBar nei .qss) — segue
+        # il tema live; niente colori hardcoded light-only.
         self.tab_bar.currentChanged.connect(self._on_tab_changed)
         lay.addWidget(self.tab_bar)
 
@@ -1087,11 +1081,8 @@ class CategorizedLogViewer(QFrame):
         for cat in categories:
             log_widget = QTextEdit()
             log_widget.setReadOnly(True)
-            log_widget.setStyleSheet(
-                f"QTextEdit {{ background:#fafafa; color:#1a1a1a; border:none; "
-                f"font-family:'JetBrains Mono','Consolas',monospace; font-size:11px; "
-                f"padding:8px; }}"
-            )
+            # Stile dal tema app-level (QTextEdit nei .qss).
+            pass
             sample = self._get_sample_log(cat, colors[cat])
             log_widget.setPlainText(sample)
             self.logs[cat] = log_widget
@@ -1153,11 +1144,7 @@ class BackupCodeLogs(QFrame):
         for cat in categories:
             log_widget = QTextEdit()
             log_widget.setReadOnly(True)
-            log_widget.setStyleSheet(
-                f"QTextEdit {{ background:#fafafa; color:#1a1a1a; border:none; "
-                f"font-family:'JetBrains Mono','Consolas',monospace; font-size:11px; "
-                f"padding:8px; }}"
-            )
+            # Stile dal tema app-level (QTextEdit nei .qss).
             sample = self._get_sample_log(cat, colors[cat])
             log_widget.setPlainText(sample)
             self.logs[cat] = log_widget
@@ -1262,7 +1249,7 @@ class CodeExplorer(QFrame):
         lay.addLayout(head)
 
         self.file_label = QLabel("Nessun file caricato")
-        self.file_label.setStyleSheet("color:#666; font-size:11px;")
+        self.file_label.setStyleSheet("font-size:11px;")
         lay.addWidget(self.file_label)
 
         self.scene = QGraphicsScene()
@@ -1294,7 +1281,7 @@ class CodeExplorer(QFrame):
         indicator.setStyleSheet(f"color:{color}; font-size:14px;")
         lay.addWidget(indicator)
         text = QLabel(label)
-        text.setStyleSheet("font-size:10px; color:#666;")
+        text.setStyleSheet("font-size:10px; ")
         lay.addWidget(text)
         return widget
 
@@ -1454,7 +1441,7 @@ class FileEditorWidget(QFrame):
         lay.addLayout(head)
 
         path_lbl = QLabel(file_path)
-        path_lbl.setStyleSheet("color:#888; font-size:10px; font-family:monospace;")
+        path_lbl.setStyleSheet("font-size:10px; font-family:monospace;")
         lay.addWidget(path_lbl)
 
         self.editor = QTextEdit()
@@ -1465,7 +1452,7 @@ class FileEditorWidget(QFrame):
         lay.addWidget(self.editor)
 
         self.status = QLabel("Pronto")
-        self.status.setStyleSheet("color:#666; font-size:11px;")
+        self.status.setStyleSheet("font-size:11px;")
         lay.addWidget(self.status)
 
         self._load_file()
@@ -1513,12 +1500,12 @@ class ConfigPanel(QFrame):
 
         # Header
         title = QLabel("⚙ Configurazione BYTE-SWARMY")
-        title.setStyleSheet("font-size:18px; font-weight:bold; color:#1a1a1a;")
+        title.setStyleSheet("font-size:18px; font-weight:bold; ")
         lay.addWidget(title)
 
         sub = QLabel("Modifica i parametri e premi 'Salva' per applicare. "
                      "Backup automatico in config.toml.bak")
-        sub.setStyleSheet("font-size:11px; color:#666;")
+        sub.setStyleSheet("font-size:11px; ")
         sub.setWordWrap(True)
         lay.addWidget(sub)
 
@@ -2649,7 +2636,7 @@ class ProjectTabBar(QTabBar):
         btn.setContentsMargins(15, 0, 15, 0)
         btn.setStyleSheet(
             "QPushButton {"
-            "  background:transparent; border:none; color:#888;"
+            "  background:transparent; border:none; "
             "  font-size:13px; font-weight:bold; padding:0;"
             "  margin:0;"
             "}"
@@ -2931,7 +2918,7 @@ class FileTreeDrawer(QFrame):
         self.path_label = QLabel("byte-swarmy/")
         self.path_label.setObjectName("sidebar_path")
         self.path_label.setStyleSheet(
-            "padding:0 16px 4px 16px; color:#666; font-size:10px; "
+            "padding:0 16px 4px 16px; font-size:10px; "
             "font-family:'JetBrains Mono','Consolas',monospace;"
         )
         self.path_label.setWordWrap(True)
@@ -2968,7 +2955,7 @@ class FileTreeDrawer(QFrame):
         task_header_row.setContentsMargins(0, 0, 0, 0)
         task_header_row.setSpacing(4)
         task_header_lbl = QLabel("<b>📋 Lavori e compiti</b>")
-        task_header_lbl.setStyleSheet("font-size:11px; font-weight:bold; color:#374151; padding:0; margin:0;")
+        task_header_lbl.setStyleSheet("font-size:11px; font-weight:bold; padding:0; margin:0;")
         task_header_row.addWidget(task_header_lbl)
         task_header_row.addStretch()
 
@@ -4047,11 +4034,7 @@ class CICDPipelinePanel(QWidget):
         head.setSpacing(10)
         back = QPushButton("← Indietro alla Plancia (Backspace)")
         back.setObjectName("back_btn")
-        back.setStyleSheet(
-            "QPushButton#back_btn { background:#e8e8ec; color:#1a1a1a; "
-            "border:none; padding:8px 16px; border-radius:6px; font-size:12px; }"
-            "QPushButton#back_btn:hover { background:#d0d0d0; }"
-        )
+        # Stile dal tema app-level — segue il tema live.
         back.clicked.connect(self._back_to_main)
         head.addWidget(back)
         head.addStretch()
@@ -4286,11 +4269,7 @@ class CleanCodePanel(QWidget):
         head.setSpacing(10)
         back = QPushButton("← Indietro alla Plancia (Backspace)")
         back.setObjectName("back_btn")
-        back.setStyleSheet(
-            "QPushButton#back_btn { background:#e8e8ec; color:#1a1a1a; "
-            "border:none; padding:8px 16px; border-radius:6px; font-size:12px; }"
-            "QPushButton#back_btn:hover { background:#d0d0d0; }"
-        )
+        # Stile dal tema app-level — segue il tema live.
         back.clicked.connect(self._back_to_main)
         head.addWidget(back)
         head.addStretch()
@@ -4565,7 +4544,7 @@ class CenterArea(QWidget):
         # distinti ma coerenti nello stile.
         tools_label = QLabel("🧰 Strumenti di analisi")
         tools_label.setStyleSheet(
-            "color:#888; font-size:11px; font-weight:bold; "
+            "font-size:11px; font-weight:bold; "
             "padding:14px 4px 6px 4px; letter-spacing:1px;"
         )
         self.plancia_section.add_widget(tools_label)
@@ -4818,11 +4797,8 @@ class CenterArea(QWidget):
         head.setSpacing(10)
         back = QPushButton("← Indietro alla Plancia (Backspace)")
         back.setObjectName("back_btn")
-        back.setStyleSheet(
-            "QPushButton#back_btn { background:#e8e8ec; color:#1a1a1a; "
-            "border:none; padding:8px 16px; border-radius:6px; font-size:12px; }"
-            "QPushButton#back_btn:hover { background:#d0d0d0; }"
-        )
+        # Stile dal tema app-level (QPushButton#back_btn nei .qss se
+        # presente, altrimenti QPushButton base) — segue il tema live.
         back.clicked.connect(self.back_to_main)
         head.addWidget(back)
         head.addStretch()
@@ -4853,11 +4829,7 @@ class CenterArea(QWidget):
         head = QHBoxLayout()
         back = QPushButton("← Indietro alla Plancia (Backspace)")
         back.setObjectName("back_btn")
-        back.setStyleSheet(
-            "QPushButton#back_btn { background:#e8e8ec; color:#1a1a1a; border:none; "
-            "padding:8px 16px; border-radius:6px; font-size:12px; }"
-            "QPushButton#back_btn:hover { background:#d0d0d0; }"
-        )
+        # Stile dal tema app-level — segue il tema live.
         back.clicked.connect(self.back_to_main)
         head.addWidget(back)
         head.addStretch()
@@ -4868,9 +4840,9 @@ class CenterArea(QWidget):
         body = QTextEdit()
         body.setReadOnly(True)
         body.setPlainText(content)
+        # Stile dal tema app-level (QTextEdit nei .qss) — segue il tema live.
         body.setStyleSheet(
-            "QTextEdit { font-size:13px; color:#333; padding:20px; "
-            "background:#f8f9fa; border-radius:8px; border:1px solid #e0e0e0; "
+            "QTextEdit { font-size:13px; padding:20px; "
             "font-family:'JetBrains Mono','Consolas',monospace; }"
         )
         lay.addWidget(body, stretch=1)
