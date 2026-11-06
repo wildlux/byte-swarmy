@@ -39,7 +39,11 @@ _COLOR_INLINE = re.compile(
     r"setStyleSheet\s*\([^)]*color\s*:\s*#[0-9a-fA-F]{3,6}[^)]*\)",
     re.IGNORECASE | re.DOTALL,
 )
-_COLOR_WITH_BG = re.compile(r"background\s*:", re.IGNORECASE)
+_COLOR_WITH_BG = re.compile(r"background(?:-color)?\s*:", re.IGNORECASE)
+
+# File esclusi dall'audit (debito noto, junk candidate — non riparare a
+# mano: decidere la cancellazione con l'utente, vedi DOCS/AGENT.md).
+SKIP_FILES: set = {"GUI/TEST_GUI_QT_12.py"}
 
 
 @dataclass
@@ -176,15 +180,23 @@ def _check_file(path: Path, findings: List[Finding]) -> None:
                                         f"nesting profondo ({maxd})"))
 
     # guardia tema: setStyleSheet con colore di testo hardcodato senza bg
+    # Una riga del blocco setStyleSheet con marcatore `# nolint <motivo>`
+    # (stesso schema di `# nosec` in security_scan.py) sopprime W010 —
+    # si usa per le eccezioni visive intenzionali (overlay crediti, brand…).
     if rel.startswith("GUI/") and rel.endswith(".py"):
         for m in _COLOR_INLINE.finditer(src):
             chunk = m.group(0)
-            if not _COLOR_WITH_BG.search(chunk):
-                ln = src[:m.start()].count("\n") + 1
-                findings.append(Finding(rel, ln, "warn", "W010",
-                                        "setStyleSheet con colore hardcodato "
-                                        "senza background → non sincronizzato "
-                                        "col tema"))
+            if _COLOR_WITH_BG.search(chunk):
+                continue
+            ln = src[:m.start()].count("\n") + 1
+            endln = ln + chunk.count("\n")
+            block = lines[ln - 1:endln]
+            if any("# nolint" in l for l in block):
+                continue
+            findings.append(Finding(rel, ln, "warn", "W010",
+                                    "setStyleSheet con colore hardcodato "
+                                    "senza background → non sincronizzato "
+                                    "col tema"))
 
     # import potenzialmente inutilizzati (euristica, solo nomi semplici)
     imported: List[tuple] = []
@@ -243,8 +255,14 @@ def main(argv: List[str]) -> int:
         print(f"fixed {fixed} file (trailing ws + newline finale)")
 
     findings: List[Finding] = []
+    skipped = [f for f in files if str(f.relative_to(ROOT)) in SKIP_FILES]
+    files = [f for f in files if f not in skipped]
     for f in files:
         _check_file(f, findings)
+    if skipped:
+        for s in skipped:
+            print(f"[skip] {s.relative_to(ROOT)}  (file noto come debito: "
+                  "vedi SKIP_FILES in tools/lint_style.py)")
 
     errors = [f for f in findings if f.level == "error"]
     warns = [f for f in findings if f.level == "warn"]

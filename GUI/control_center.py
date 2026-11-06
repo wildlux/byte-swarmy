@@ -144,7 +144,7 @@ class CreditsOverlay(QFrame):
         # Titolo (l'ape è già nel pulsante della toolbar, evitiamo duplicato)
         title = QLabel("<b>BYTE-SWARMY</b>")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet(
+        title.setStyleSheet(  # nolint: brand verde del logo, overlay crediti
             "font-size: 22px; color: #4ade80; font-weight: bold;"
         )
         title.setFixedHeight(28)
@@ -179,7 +179,7 @@ class CreditsOverlay(QFrame):
         # Titolo (header della colonna sinistra)
         credits_title = QLabel("✨ Ringraziamenti ✨")
         credits_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        credits_title.setStyleSheet("font-size: 18px; color: #f9e2af; font-weight: bold;")
+        credits_title.setStyleSheet("font-size: 18px; color: #f9e2af; font-weight: bold;")  # nolint: oro crediti
         credits_title.setFixedHeight(26)
         self._colored.append(
             (credits_title, "font-size: 18px; color: {color}; font-weight: bold;",
@@ -279,7 +279,7 @@ class CreditsOverlay(QFrame):
 
         tech_title = QLabel("🧩 Tecnologie & Progetti Open Source")
         tech_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        tech_title.setStyleSheet(
+        tech_title.setStyleSheet(  # nolint: oro crediti (overlay su immagine)
             "font-size: 13px; color: #f9e2af; font-weight: bold;"
         )
         tech_title.setFixedHeight(20)
@@ -2108,7 +2108,7 @@ class ControlCenter(QMainWindow):
         # Nome del progetto accanto al logo ape (richiesto dall'utente)
         brand_lbl = QLabel("<b>Byte SwarmY</b>")
         brand_lbl.setObjectName("brand_label")
-        brand_lbl.setStyleSheet(
+        brand_lbl.setStyleSheet(  # nolint: brand verde accanto al logo ape
             "QLabel#brand_label {"
             "  color:#16a34a; font-size:14px; font-weight:bold;"
             "  padding:0 6px 0 4px;"
@@ -2202,7 +2202,7 @@ class ControlCenter(QMainWindow):
 
         quit_action = QWidgetAction(self)
         quit_label = QLabel("✕ Esci")
-        quit_label.setStyleSheet("color:#dc2626; font-weight:bold; padding:6px 20px;")
+        quit_label.setStyleSheet("color:#dc2626; font-weight:bold; padding:6px 20px;")  # nolint: Azione Esci = rosso di pericolo
         quit_label.mousePressEvent = lambda e: self.close()
         quit_action.setDefaultWidget(quit_label)
         menu.addAction(quit_action)
@@ -2867,7 +2867,7 @@ class FileTreeDrawer(QFrame):
         # Header dinamico: mostra "📁 Archivio progetto" + path corrente
         self.header = QLabel("<b>📁 Archivio progetto</b>")
         self.header.setObjectName("sidebar_header")
-        self.header.setStyleSheet(
+        self.header.setStyleSheet(  # nolint: header verde accordion Archivio
             "padding:8px 16px; color:#16a34a; font-size:13px;"
         )
         lay.addWidget(self.header)

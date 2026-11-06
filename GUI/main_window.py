@@ -283,6 +283,11 @@ def load_theme() -> str:
     except Exception:
         return "dark"
 
+
+def pal() -> dict:
+    """Palette attiva per lo stato corrente (colori runtime inline)."""
+    return _THEMES.get(load_theme(), _THEMES["dark"])
+
 def save_theme(theme: str) -> None:
     try:
         _theme_file().parent.mkdir(parents=True, exist_ok=True)
@@ -679,7 +684,7 @@ class LiveActivityPanel(QWidget):
         row1.addStretch()
         self.spinner_label = QLabel("")
         self.spinner_label.setStyleSheet(
-            "font-size: 14pt; color: #4a9eff;"
+            f"font-size: 14pt; color: {pal()['accent']};"
         )
         row1.addWidget(self.spinner_label)
         gl.addLayout(row1)
@@ -698,7 +703,7 @@ class LiveActivityPanel(QWidget):
         # Riga 3: pensiero del LLM
         self.thought_label = QLabel("")
         self.thought_label.setStyleSheet(
-            "color: #7ab8e6; font-style: italic; font-size: 9pt; "
+            f"color: {pal()['text_soft']}; font-style: italic; font-size: 9pt; "
             "padding: 2px 0;"
         )
         self.thought_label.setWordWrap(True)
@@ -801,7 +806,7 @@ class LiveActivityPanel(QWidget):
         # Aggiorna UI
         self.status_label.setText(f"⏳ Elaborazione ({elapsed}s)")
         self.status_label.setStyleSheet(
-            "font-weight: bold; color: #4a9eff; font-size: 10pt;"
+            f"font-weight: bold; color: {pal()['accent']}; font-size: 10pt;"
         )
 
         details_parts = [f"Task: {task_id}", f"Modello: {model_name}"]
@@ -830,7 +835,7 @@ class LiveActivityPanel(QWidget):
                     if hasattr(self, 'thought_label'):
                         self.thought_label.setText(f"⚡ Streaming: {display}")
                         self.thought_label.setStyleSheet(
-                            "color: #50fa7b; font-family: monospace; "
+                            f"color: {pal()['ok']}; font-family: monospace; "
                             "font-size: 9pt; padding: 2px 0;"
                         )
         except Exception:
@@ -863,7 +868,7 @@ class LiveActivityPanel(QWidget):
                 if tuner_status:
                     self.tuner_label.setText(tuner_status)
                     self.tuner_label.setStyleSheet(
-                        "color: #ff79c6; font-family: monospace; "
+                        f"color: {pal()['warn']}; font-family: monospace; "
                         "font-size: 9pt; padding: 2px 0;"
                     )
                 else:
@@ -3295,10 +3300,12 @@ class ModelsTab(QWidget):
             eval_count = result.get("eval_count", 0)
             tps = eval_count / elapsed if elapsed > 0 else 0
             self.role_info_labels[role].setText(f"✓ {elapsed:.1f}s | {tps:.1f} tok/s | \"{content}\"")
-            self.role_info_labels[role].setStyleSheet("color: #50fa7b; font-size: 9pt;")
+            self.role_info_labels[role].setStyleSheet(
+                f"color: {pal()['ok']}; font-size: 9pt;")
         except Exception as e:
             self.role_info_labels[role].setText(f"❌ {str(e)[:60]}")
-            self.role_info_labels[role].setStyleSheet("color: #ff5555; font-size: 9pt;")
+            self.role_info_labels[role].setStyleSheet(
+                f"color: {pal()['err']}; font-size: 9pt;")
         finally:
             btn.setText("🧪 Test")
             btn.setEnabled(True)
