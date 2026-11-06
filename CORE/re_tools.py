@@ -44,6 +44,11 @@ import json
 import tempfile
 from pathlib import Path
 from typing import Optional, Union, List, Dict
+import logging
+_OUT = sys.stdout
+
+log = logging.getLogger("byte-swarmy.re_tools")
+
 
 # === ANSI Colors (for CLI output) ===
 GREEN = "\033[92m"
@@ -82,7 +87,7 @@ def _check_tool(name: str) -> bool:
 
 def _file_exists(path: str) -> bool:
     if not Path(path).exists():
-        print(f"ERROR: file not found: {path}", file=sys.stderr)
+        log.error(f"ERROR: file not found: {path}")
         return False
     return True
 
@@ -602,6 +607,7 @@ def check_re_environment() -> Dict[str, bool]:
 # === CLI (self-test) ===
 
 if __name__ == "__main__":
+    logging.basicConfig(stream=_OUT, format="%(message)s", level=logging.INFO)
     import argparse
 
     parser = argparse.ArgumentParser(description="byte-swarmy RE tools")
@@ -612,23 +618,23 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.check or (not args.list and not args.call):
-        print("=" * 60)
-        print("  RE tools environment check")
-        print("=" * 60)
+        log.info("=" * 60)
+        log.info("  RE tools environment check")
+        log.info("=" * 60)
         env = check_re_environment()
         for k, v in env.items():
             status = f"{GREEN}✓{RESET}" if v else f"{RED}✗{RESET}"
-            print(f"  {status} {k}")
+            log.info(f"  {status} {k}")
         available = sum(1 for v in env.values() if v)
         total = len(env)
-        print(f"\n  {available}/{total} tools available")
+        log.info(f"\n  {available}/{total} tools available")
 
     if args.list:
-        print("\n=== Available RE tools ===\n")
-        print(get_re_tool_descriptions())
+        log.info("\n=== Available RE tools ===\n")
+        log.info(get_re_tool_descriptions())
 
     if args.call:
         tool_name, file_path = args.call
-        print(f"\n=== Calling {tool_name}({file_path!r}) ===\n")
+        log.info(f"\n=== Calling {tool_name}({file_path!r}) ===\n")
         result = call_re_tool(tool_name, [file_path])
-        print(result)
+        log.info(result)

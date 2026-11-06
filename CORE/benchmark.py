@@ -20,6 +20,12 @@ import time
 import urllib.request
 from pathlib import Path
 from typing import Optional
+import logging
+import sys
+_OUT = sys.stdout
+
+log = logging.getLogger("byte-swarmy.benchmark")
+
 
 
 BENCHMARK_FILE = Path("state/model_benchmarks.json")
@@ -133,7 +139,7 @@ def run_benchmarks(models: list = None, host: str = "http://localhost:11434") ->
 
     all_results = {}
     for model in models:
-        print(f"  Benchmarking {model}...")
+        log.info(f"  Benchmarking {model}...")
         all_results[model] = benchmark_model(model, host)
 
     # Salva
@@ -170,16 +176,17 @@ def format_results(results: dict) -> str:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(stream=_OUT, format="%(message)s", level=logging.INFO)
     import sys
     models = None
     if "--model" in sys.argv:
         idx = sys.argv.index("--model")
         models = [sys.argv[idx + 1]]
 
-    print("=" * 60)
-    print("MODEL BENCHMARK SUITE")
-    print("=" * 60)
+    log.info("=" * 60)
+    log.info("MODEL BENCHMARK SUITE")
+    log.info("=" * 60)
 
     results = run_benchmarks(models)
-    print("\n" + format_results(results))
-    print(f"\nSaved to {BENCHMARK_FILE}")
+    log.info("\n" + format_results(results))
+    log.info(f"\nSaved to {BENCHMARK_FILE}")

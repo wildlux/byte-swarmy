@@ -24,6 +24,11 @@ import sys
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Optional
+import logging
+_OUT = sys.stdout
+
+log = logging.getLogger("byte-swarmy.audit_gate")
+
 
 _BASE = Path(__file__).resolve().parent.parent
 
@@ -260,6 +265,7 @@ def load_gate_status(project_path: str | Path) -> Optional[GateResult]:
 # ═══════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
+    logging.basicConfig(stream=_OUT, format="%(message)s", level=logging.INFO)
     import argparse
     parser = argparse.ArgumentParser(description="Audit gate check")
     parser.add_argument("project", help="Path del progetto da auditare")
@@ -267,15 +273,15 @@ if __name__ == "__main__":
                         default=None, help="Modalità gate (default: da config.toml)")
     args = parser.parse_args()
     result = check_audit_gate(args.project, mode=args.mode)
-    print(f"Project: {result.project_name}")
-    print(f"Gate:    {result.gate} (mode={result.mode})")
-    print(f"Totale:  {result.total_findings} (critical={result.critical_count}, warning={result.warning_count})")
+    log.info(f"Project: {result.project_name}")
+    log.info(f"Gate:    {result.gate} (mode={result.mode})")
+    log.info(f"Totale:  {result.total_findings} (critical={result.critical_count}, warning={result.warning_count})")
     if result.error:
-        print(f"Error:   {result.error}")
-    print()
+        log.error(f"Error:   {result.error}")
+    log.info("")
     for cat in result.categories:
         icon = "🔒" if cat.blocking else "  "
-        print(f"  {icon} {cat.icon} {cat.name:<26s} {cat.status:<6s} "
+        log.info(f"  {icon} {cat.icon} {cat.name:<26s} {cat.status:<6s} "
               f"crit={cat.critical} warn={cat.warning}")
-    print()
-    print(f"blocks_execution: {result.blocks_execution}")
+    log.info("")
+    log.info(f"blocks_execution: {result.blocks_execution}")

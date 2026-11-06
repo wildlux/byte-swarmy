@@ -15,6 +15,11 @@ import os
 import socket
 import sys
 from pathlib import Path
+import logging
+_OUT = sys.stdout
+
+log = logging.getLogger("byte-swarmy.sandbox_selftest")
+
 
 CHECKS: list[dict] = []
 
@@ -179,13 +184,14 @@ def main() -> int:
         "checks": CHECKS,
     }
     if "--json" in sys.argv:
-        print(json.dumps(payload, ensure_ascii=False))
+        log.info(json.dumps(payload, ensure_ascii=False))
     else:
         for item in CHECKS:
-            print(f"[{item['status']}] {item['name']}: {item['detail']}")
-        print("OK" if ok else "FAIL")
+            log.info(f"[{item['status']}] {item['name']}: {item['detail']}")
+        log.info("OK" if ok else "FAIL")
     return 0 if ok else 1
 
 
 if __name__ == "__main__":
+    logging.basicConfig(stream=_OUT, format="%(message)s", level=logging.INFO)
     raise SystemExit(main())

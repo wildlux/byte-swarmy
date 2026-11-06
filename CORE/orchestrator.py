@@ -41,7 +41,7 @@ except ImportError:
     try:
         import tomli as tomllib
     except ImportError:
-        print("ERROR: serve Python 3.11+ o `pip install tomli`")
+        log.error("ERROR: serve Python 3.11+ o `pip install tomli`")
         sys.exit(1)
 
 from CORE.tools import ToolSet
@@ -1291,6 +1291,10 @@ from CORE.constants import TaskStatus, TaskType, ThermalState, AuditDecision, Se
 from MONITORING.lifecycle_manager import LifecycleManager
 from MONITORING.system_monitor import SystemMonitor
 from CORE.task_dispatcher import TaskDispatcher
+_OUT = sys.stdout
+
+log = logging.getLogger("byte-swarmy")
+
 
 class Orchestrator:
     """
@@ -2308,4 +2312,5 @@ def main():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(stream=_OUT, format="%(message)s", level=logging.INFO)
     main()

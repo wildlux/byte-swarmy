@@ -27,6 +27,10 @@ if str(BASE_DIR) not in sys.path:
 
 from CORE.decision_feedback import DecisionValidator  # noqa: E402
 from CORE.orchestrator import TaskQueue  # noqa: E402
+_OUT = sys.stdout
+
+log = logging.getLogger("byte-swarmy.preflight_cli")
+
 
 
 def main() -> int:
@@ -56,9 +60,10 @@ def main() -> int:
     except Exception as e:  # mai traceback crudo su stdout
         result = {"ok": False, "error": str(e)[:200]}
 
-    print(json.dumps(result, ensure_ascii=False))
+    log.info(json.dumps(result, ensure_ascii=False))
     return 0
 
 
 if __name__ == "__main__":
+    logging.basicConfig(stream=_OUT, format="%(message)s", level=logging.INFO)
     raise SystemExit(main())

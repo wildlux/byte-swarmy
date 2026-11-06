@@ -27,6 +27,12 @@ import json
 from collections import Counter
 
 from CORE.usb_protocol import decode_setup, summarize
+import logging
+import sys
+_OUT = sys.stdout
+
+log = logging.getLogger("byte-swarmy.usb_differential")
+
 
 
 def _setup_key(ev: dict) -> str | None:
@@ -157,13 +163,14 @@ def explain_diff(diff: dict) -> str:
 # Mini-CLI
 # -----------------------------------------------------------------------
 if __name__ == "__main__":
+    logging.basicConfig(stream=_OUT, format="%(message)s", level=logging.INFO)
     import sys
     if len(sys.argv) == 3:
         with open(sys.argv[1], encoding="utf-8") as f:
             a = json.load(f)
         with open(sys.argv[2], encoding="utf-8") as f:
             b = json.load(f)
-        print(explain_diff(diff_captures(a, b)))
+        log.info(explain_diff(diff_captures(a, b)))
     else:
-        print("uso: python -m CORE.usb_differential "
+        log.info("uso: python -m CORE.usb_differential "
               "cattura_before.json cattura_after.json")

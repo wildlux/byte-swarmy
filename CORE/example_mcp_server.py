@@ -27,6 +27,12 @@ from mcp.server.sse import SseServerTransport
 from starlette.applications import Starlette
 from starlette.routing import Mount, Route
 import uvicorn
+import logging
+import sys
+_OUT = sys.stdout
+
+log = logging.getLogger("byte-swarmy.example_mcp_server")
+
 
 
 server = Server("byte-swarmy-example")
@@ -146,6 +152,7 @@ app = Starlette(
 
 
 if __name__ == "__main__":
+    logging.basicConfig(stream=_OUT, format="%(message)s", level=logging.INFO)
     import os
 
     # Default: solo loopback. Non esporre il server sulla LAN senza auth:
@@ -153,17 +160,17 @@ if __name__ == "__main__":
     host = os.environ.get("MCP_HOST", "127.0.0.1")
     port = int(os.environ.get("MCP_PORT", "8080"))
     if host not in ("127.0.0.1", "localhost", "::1"):
-        print(f"⚠️  ATTENZIONE: server in ascolto su {host} (raggiungibile dalla rete).")
-        print("   Nessuna autenticazione: usalo solo su rete fidata.")
+        log.warning(f"⚠️  ATTENZIONE: server in ascolto su {host} (raggiungibile dalla rete).")
+        log.info("   Nessuna autenticazione: usalo solo su rete fidata.")
 
-    print("=== Example MCP Server ===")
-    print(f"Endpoint SSE: http://{host}:{port}/sse")
-    print(f"Outbox file: {TASKS_OUTBOX.absolute()}")
-    print("Tool esposti: get_pending_tasks, add_task, clear_outbox")
-    print()
-    print("Nella GUI BYTE-SWARMY:")
-    print("  Tab MCP Servers → Aggiungi Server")
-    print("  Nome: example")
-    print(f"  URL:  http://{host}:{port}/sse")
-    print()
+    log.info("=== Example MCP Server ===")
+    log.info(f"Endpoint SSE: http://{host}:{port}/sse")
+    log.info(f"Outbox file: {TASKS_OUTBOX.absolute()}")
+    log.info("Tool esposti: get_pending_tasks, add_task, clear_outbox")
+    log.info("")
+    log.info("Nella GUI BYTE-SWARMY:")
+    log.info("  Tab MCP Servers → Aggiungi Server")
+    log.info("  Nome: example")
+    log.info(f"  URL:  http://{host}:{port}/sse")
+    log.info("")
     uvicorn.run(app, host=host, port=port, log_level="info")

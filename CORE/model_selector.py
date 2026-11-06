@@ -24,6 +24,9 @@ import urllib.request
 from pathlib import Path
 from typing import Optional
 import logging
+import sys
+_OUT = sys.stdout
+
 
 log = logging.getLogger("byte-swarmy.model_selector")
 
@@ -457,17 +460,18 @@ def format_recommendations(recs: dict) -> str:
 # ====================================================================
 
 if __name__ == "__main__":
+    logging.basicConfig(stream=_OUT, format="%(message)s", level=logging.INFO)
     import sys
-    print("=" * 60)
-    print("MODEL SELECTOR - TEST")
-    print("=" * 60)
+    log.info("=" * 60)
+    log.info("MODEL SELECTOR - TEST")
+    log.info("=" * 60)
 
     recs = get_recommendations()
-    print(format_recommendations(recs))
+    log.info(format_recommendations(recs))
 
     if "--apply" in sys.argv:
-        print("\n→ Applicazione al config.toml...")
+        log.info("\n→ Applicazione al config.toml...")
         if apply_recommendations(recs):
-            print("✓ Config aggiornato. Riavvia l'orchestratore.")
+            log.info("✓ Config aggiornato. Riavvia l'orchestratore.")
         else:
-            print("✗ Applicazione fallita.")
+            log.error("✗ Applicazione fallita.")

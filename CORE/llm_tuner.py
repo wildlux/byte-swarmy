@@ -13,6 +13,9 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from typing import Optional
+import sys
+_OUT = sys.stdout
+
 
 log = logging.getLogger("byte-swarmy.llm_tuner")
 
@@ -223,13 +226,14 @@ class TimestralLLMTuner:
 # ====================================================================
 
 if __name__ == "__main__":
-    print("=" * 60)
-    print("LLM TUNER - TEST")
-    print("=" * 60)
+    logging.basicConfig(stream=_OUT, format="%(message)s", level=logging.INFO)
+    log.info("=" * 60)
+    log.info("LLM TUNER - TEST")
+    log.info("=" * 60)
 
     tuner = TimestralLLMTuner(timestral_manager=None, config={})
 
-    print("\nProfiles (no timestral → normal):")
+    log.info("\nProfiles (no timestral → normal):")
     for action in ["fast", "normal", "slow", "pause"]:
         # Simulate timestral
         class FakeTimestral:
@@ -243,13 +247,13 @@ if __name__ == "__main__":
         tuner.timestral = FakeTimestral()
         profile = tuner.get_profile()
         params = tuner.get_params("worker_coder")
-        print(f"\n  [{action}] {profile.reason}")
-        print(f"    temperature={params['temperature']:.2f}  top_p={params['top_p']:.2f}  "
+        log.info(f"\n  [{action}] {profile.reason}")
+        log.info(f"    temperature={params['temperature']:.2f}  top_p={params['top_p']:.2f}  "
               f"top_k={params['top_k']}")
-        print(f"    num_predict={params['num_predict']}  num_ctx={params['num_ctx']}  "
+        log.info(f"    num_predict={params['num_predict']}  num_ctx={params['num_ctx']}  "
               f"max_steps={profile.max_steps}")
-        print(f"    repeat_penalty={params['repeat_penalty']:.2f}")
+        log.info(f"    repeat_penalty={params['repeat_penalty']:.2f}")
 
-    print("\n" + "=" * 60)
-    print("Status line:")
-    print("  " + tuner.format_status())
+    log.info("\n" + "=" * 60)
+    log.info("Status line:")
+    log.info("  " + tuner.format_status())

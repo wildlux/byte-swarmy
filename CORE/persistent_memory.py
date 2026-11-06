@@ -44,7 +44,7 @@ def save_memory(memory: dict) -> None:
             encoding="utf-8"
         )
     except Exception as e:
-        print(f"WARNING: cannot save persistent memory: {e}")
+        log.warning(f"WARNING: cannot save persistent memory: {e}")
 
 
 def _default_memory() -> dict:
@@ -204,6 +204,12 @@ def update_project_context() -> None:
 # ====================================================================
 
 import re as _re
+import logging
+import sys
+_OUT = sys.stdout
+
+log = logging.getLogger("byte-swarmy.persistent_memory")
+
 
 _PATTERNS = {
     "type_hints": [

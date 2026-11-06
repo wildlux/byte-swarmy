@@ -27,6 +27,11 @@ import sys
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Optional
+import logging
+_OUT = sys.stdout
+
+log = logging.getLogger("byte-swarmy.hardware_detector")
+
 
 # Path della root del progetto (parent di CORE/)
 _BASE = Path(__file__).resolve().parent.parent
@@ -731,6 +736,7 @@ def get_worker_count_override(config: dict = None) -> int:
 # ═══════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
+    logging.basicConfig(stream=_OUT, format="%(message)s", level=logging.INFO)
     import argparse
     parser = argparse.ArgumentParser(description="Hardware detector per BYTE-SWARMY")
     parser.add_argument("--json", action="store_true", help="Output JSON")
@@ -739,37 +745,37 @@ if __name__ == "__main__":
 
     profile = detect()
     if args.json:
-        print(json.dumps(profile.to_dict(), indent=2, default=str))
+        log.info(json.dumps(profile.to_dict(), indent=2, default=str))
     else:
-        print("=" * 60)
-        print("  HARDWARE DETECTION — BYTE-SWARMY")
-        print("=" * 60)
-        print()
-        print(f"  Platform:         {profile.platform}")
-        print(f"  GPU type:         {profile.gpu_type}")
-        print(f"  GPU name:         {profile.gpu_name}")
-        print(f"  Memory unified:   {profile.memory_unified}")
-        print(f"  RAM total:        {profile.ram_total_gb:.1f} GB")
-        print(f"  VRAM total:       {profile.vram_total_gb:.1f} GB")
-        print(f"  Bandwidth:        {profile.bandwidth_gbps:.0f} GB/s")
-        print(f"  CPU cores:        {profile.cpu_cores}")
-        print()
-        print(f"  ─── Strategia suggerita ───")
-        print(f"  Strategy:         {profile.strategy}")
-        print(f"  Worker count:     {profile.worker_count}")
-        print(f"  Keep alive:       {profile.keep_alive_sec}s")
-        print(f"  Models in RAM:    {profile.models_in_ram}")
-        print(f"  Model size:       {profile.model_size_gb:.1f} GB")
-        print(f"  Model fits VRAM:  {'✓ sì' if profile.model_fits_vram else '✗ no'}")
-        print(f"  Description:      {profile.description}")
-        print()
+        log.info("=" * 60)
+        log.info("  HARDWARE DETECTION — BYTE-SWARMY")
+        log.info("=" * 60)
+        log.info("")
+        log.info(f"  Platform:         {profile.platform}")
+        log.info(f"  GPU type:         {profile.gpu_type}")
+        log.info(f"  GPU name:         {profile.gpu_name}")
+        log.info(f"  Memory unified:   {profile.memory_unified}")
+        log.info(f"  RAM total:        {profile.ram_total_gb:.1f} GB")
+        log.info(f"  VRAM total:       {profile.vram_total_gb:.1f} GB")
+        log.info(f"  Bandwidth:        {profile.bandwidth_gbps:.0f} GB/s")
+        log.info(f"  CPU cores:        {profile.cpu_cores}")
+        log.info("")
+        log.info(f"  ─── Strategia suggerita ───")
+        log.info(f"  Strategy:         {profile.strategy}")
+        log.info(f"  Worker count:     {profile.worker_count}")
+        log.info(f"  Keep alive:       {profile.keep_alive_sec}s")
+        log.info(f"  Models in RAM:    {profile.models_in_ram}")
+        log.info(f"  Model size:       {profile.model_size_gb:.1f} GB")
+        log.error(f"  Model fits VRAM:  {'✓ sì' if profile.model_fits_vram else '✗ no'}")
+        log.info(f"  Description:      {profile.description}")
+        log.info("")
         if not profile.detection_ok:
-            print(f"  ⚠️ Detection warnings:")
+            log.warning(f"  ⚠️ Detection warnings:")
             for w in profile.detection_warnings:
-                print(f"    - {w}")
-            print()
+                log.info(f"    - {w}")
+            log.info("")
         if args.verbose:
-            print(f"  ─── Raw data ───")
-            print(json.dumps(profile.raw_data, indent=2, default=str))
-        print(f"  Summary: {profile.summary}")
-        print()
+            log.info(f"  ─── Raw data ───")
+            log.info(json.dumps(profile.raw_data, indent=2, default=str))
+        log.info(f"  Summary: {profile.summary}")
+        log.info("")
