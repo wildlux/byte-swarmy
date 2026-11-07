@@ -3059,10 +3059,29 @@ class FileTreeDrawer(QFrame):
         task_refresh_btn.clicked.connect(self._force_refresh_tasks)
         task_header_row.addWidget(task_refresh_btn)
 
-        # Spazietto tra refresh e elimina
-        _sp = QFrame()
-        _sp.setFixedWidth(12)
-        task_header_row.addWidget(_sp)
+        # Spazietto tra refresh e aggiungi
+        _sp1 = QFrame()
+        _sp1.setFixedWidth(8)
+        task_header_row.addWidget(_sp1)
+
+        # Pulsante aggiungi task
+        task_add_btn = QPushButton("➕")
+        task_add_btn.setFixedSize(20, 20)
+        task_add_btn.setToolTip("Aggiungi un nuovo task")
+        task_add_btn.setStyleSheet(
+            "QPushButton { background:transparent; border:none; font-size:13px; padding:0; }"
+            "QPushButton:hover { background:#e2e8f0; border-radius:4px; }"
+        )
+        task_add_btn.clicked.connect(
+            lambda: self.main_win.center.open_panel("coda")
+            if hasattr(self.main_win, "center") else None
+        )
+        task_header_row.addWidget(task_add_btn)
+
+        # Spazietto tra aggiungi e elimina
+        _sp2 = QFrame()
+        _sp2.setFixedWidth(8)
+        task_header_row.addWidget(_sp2)
 
         # Pulsante elimina task selezionati
         task_del_btn = QPushButton("🗑️")
