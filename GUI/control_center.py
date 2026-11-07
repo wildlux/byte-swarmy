@@ -83,7 +83,11 @@ class CreditsOverlay(QFrame):
         # a destra le Tecnologie & Progetti Open Source in griglia 2-colonne.
         # Prima era 620x520 fisso e le card venivano compresse a 0px
         # (i nomi di Paolo Lo Bello, GLM 5.2, Qwen, DeepSeek sparivano).
-        self.setFixedSize(1180, 600)
+        # Dimensioni minime garantite; la larghezza/altezza effettiva viene
+        # impostata in percentuale della finestra da scale_to() (niente
+        # tagli quando si massimizza/riduce).
+        self.setMinimumSize(560, 380)
+        self._max_w, self._max_h = 1280, 720
         # Il tema (nome completo, es. "nord") viene letto da settings_store
         # e applicato dinamicamente: vedi apply_theme() in fondo all'init.
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -516,14 +520,17 @@ class CreditsOverlay(QFrame):
         super().keyPressEvent(event)
 
     def scale_to(self, width: int, height: int):
-        """Ridimensiona l'overlay alla finestra (se più piccola di 1180x600).
+        """Ridimensiona l'overlay alla finestra in percentuale.
 
-        Senza questo, su una finestra non massimizzata l'overlay fissato a
-        1180x600 veniva tagliato ai bordi (bug di "ingrandimento").
+        Si adatta alla finestra centrale (massimo ~92% larghezza, ~78%
+        altezza), clampato tra le dimensioni minime e i massimi consentiti,
+        così non ci sono tagli né artefatti quando si massimizza/riduce.
         """
-        width = max(480, min(1180, int(width)))
-        height = max(360, min(600, int(height)))
-        self.setFixedSize(width, height)
+        width = int(width * 0.92)
+        height = int(height * 0.78)
+        width = max(self.minimumWidth(), min(self._max_w, width))
+        height = max(self.minimumHeight(), min(self._max_h, height))
+        self.resize(width, height)
         self._bg_label.setGeometry(0, 0, width, height)
         if getattr(self, "_bg_pixmap_original", None) is not None:
             self._bg_label.setPixmap(self._bg_pixmap_original.scaled(
@@ -553,7 +560,7 @@ class DevicePanel(QFrame):
     def __init__(self):
         super().__init__()
         self.setObjectName("device_panel")
-        self.setFixedHeight(56)
+        self.setMinimumHeight(56)
         lay = QHBoxLayout(self)
         lay.setContentsMargins(6, 4, 6, 4)
         lay.setSpacing(8)
@@ -575,7 +582,7 @@ class DevicePanel(QFrame):
         lay.addWidget(sep)
 
         self.git_btn = QPushButton("💾")
-        self.git_btn.setFixedWidth(36)
+        self.git_btn.setMinimumWidth(36)
         self.git_btn.setFixedHeight(46)
         self.git_btn.setObjectName("git_btn")
         self.git_btn.setToolTip("Salva su tutti i remote Git configurati")
@@ -588,7 +595,7 @@ class DevicePanel(QFrame):
         lay.addWidget(self.git_btn)
 
         self.toggle_btn = QPushButton("▶")
-        self.toggle_btn.setFixedWidth(44)
+        self.toggle_btn.setMinimumWidth(44)
         self.toggle_btn.setFixedHeight(46)
         self.toggle_btn.setObjectName("primary_btn")
         self.toggle_btn.setToolTip("Avvia/Ferma Orchestratore")
@@ -893,7 +900,7 @@ class DevicePanel(QFrame):
     def _device_row(self, name, color, model_name):
         row = QFrame()
         row.setObjectName(f"{name.lower()}_row")
-        row.setFixedHeight(24)
+        row.setMinimumHeight(24)
         row.setStyleSheet(
             f"QFrame#{name.lower()}_row {{ border:1px solid {color}44; "
             f"border-radius:4px; }}"
@@ -908,12 +915,12 @@ class DevicePanel(QFrame):
 
         lbl = QLabel(name)
         lbl.setStyleSheet(f"color:{color}; font-size:12px; font-weight:bold;")
-        lbl.setFixedWidth(32)
+        lbl.setMinimumWidth(32)
         lay.addWidget(lbl)
 
         model_lbl = QLabel(model_name)
         model_lbl.setStyleSheet("font-size:10px;")
-        model_lbl.setFixedWidth(72)
+        model_lbl.setMinimumWidth(72)
         lay.addWidget(model_lbl)
 
         temp_lbl = QLabel("45°C")
@@ -924,7 +931,7 @@ class DevicePanel(QFrame):
 
         for w in (temp_lbl, tok_lbl, kv_lbl, mem_lbl, bus_lbl):
             w.setStyleSheet("font-size:11px; font-weight:500;")
-            w.setFixedWidth(38)
+            w.setMinimumWidth(38)
             lay.addWidget(w)
 
         row._temp = temp_lbl
@@ -952,19 +959,23 @@ class CollapsibleSection(QFrame):
 
         self.header = QFrame()
         self.header.setObjectName("section_header")
-        # Altezza fissa su tutti gli header: uniformità visiva tra le 5 sezioni
+        # Altezza minima su tutti gli header: uniformità visiva tra le 5 sezioni
         # collassabili (Navigatore, Backup, Log, Integrità, Sicurezza).
-        self.header.setFixedHeight(48)
+        # minHeight invece di setFixedHeight così non si comprimono a 0
+        # quando la finestra si restringe.
+        self.header.setMinimumHeight(48)
         header_lay = QHBoxLayout(self.header)
         header_lay.setContentsMargins(14, 10, 14, 10)
         header_lay.setSpacing(8)
 
         self.title_lbl = QLabel(f"{icon} {title}")
         self.title_lbl.setStyleSheet("font-size:13px; font-weight:bold; ")
-        header_lay.addWidget(self.title_lbl, stretch=1)
+        # Titolo senza stretch: resta compatto a sinistra, non si espande
+        # creando spazio vuoto quando la finestra è larga o cambia stato.
+        header_lay.addWidget(self.title_lbl, stretch=0)
 
         self.toggle_btn = QPushButton("▾")
-        self.toggle_btn.setFixedSize(28, 28)
+        self.toggle_btn.setMinimumSize(28, 28)
         self.toggle_btn.setStyleSheet(
             "QPushButton { background:#e8e8ec; border:none; border-radius:4px; "
             "font-size:12px; font-weight:bold; }"
@@ -1041,9 +1052,11 @@ class PlanciaCard(QFrame):
         super().__init__(parent)
         self.setObjectName("card")
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        # Altezza fissa uniforme per tutte le card: 110px bastano per
+        # Altezza minima uniforme per tutte le card: 110px bastano per
         # titolo + 2 righe di descrizione (word-wrap tronca al bisogno).
-        self.setFixedHeight(110)
+        # minHeight invece di setFixedHeight così le card si espandono se
+        # la finestra cresce e non creano artefatti al ridimensionamento.
+        self.setMinimumHeight(110)
         # Size policy Expanding orizzontale: la card RIEMPIE la cella della
         # grid, qualunque sia la lunghezza del titolo. Nessun MinimumWidth
         # (sennò invalidate il ColumnStretch e le colonne diventano disuguali).
@@ -1446,7 +1459,7 @@ class FileEditorWidget(QFrame):
         self.setObjectName("editor_widget")
 
         if not docked:
-            self.setFixedSize(700, 500)
+            self.setMinimumSize(420, 320)
             self.setStyleSheet("QFrame#editor_widget { border-radius:12px; }")
 
         lay = QVBoxLayout(self)
@@ -2430,10 +2443,15 @@ class ControlCenter(QMainWindow):
         self._editor_overlay.closed.connect(self._close_overlay)
         self._editor_overlay.dock_requested.connect(lambda: self._dock_editor(file_path))
 
+        # Ridimensiona l'overlay editor in percentuale della finestra centrale
+        # (come CreditsOverlay): non esce mai dai bordi, si adatta a massimizza/riduci.
         cw = self.centralWidget().size()
+        ew = max(420, int(cw.width() * 0.55))
+        eh = max(320, int(cw.height() * 0.55))
+        self._editor_overlay.resize(ew, eh)
         self._editor_overlay.move(
-            (cw.width() - self._editor_overlay.width()) // 2,
-            (cw.height() - self._editor_overlay.height()) // 2,
+            max(12, (cw.width() - ew) // 2),
+            max(12, (cw.height() - eh) // 2),
         )
         self._editor_overlay.show()
         self._editor_overlay.raise_()
@@ -4617,10 +4635,11 @@ class CenterArea(QWidget):
         self.global_search.textChanged.connect(self._on_global_search)
         # Nella riga del titolo "Plancia di controllo" (sempre visibile,
         # anche a sezione collassata) invece di occupare una riga intera.
-        # Min 340px ≈ 30+ caratteri visibili; stretch=2 lo fa crescere
-        # insieme alla finestra (il titolo resta con stretch=1).
+        # Nessun min_width fisso: si restringe/espande in percentuale con la
+        # finestra (come bootstrap desktop→mobile). stretch=2 lo fa crescere
+        # insieme alla finestra (il titolo resta con stretch=0).
         self.plancia_section.add_header_widget(
-            self.global_search, max_width=520, min_width=340, stretch=2)
+            self.global_search, max_width=700, stretch=2)
 
         cards_grid = QGridLayout()
         cards_grid.setSpacing(12)
@@ -5079,7 +5098,10 @@ class CenterArea(QWidget):
         if self._editor_column:
             self._editor_column.deleteLater()
         self._editor_column = editor_widget
-        self._editor_column.setFixedWidth(500)
+        self._editor_column.setMinimumWidth(300)
+        self._editor_column.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Policy.Expanding
+        )
         self.layout().addWidget(self._editor_column)
 
         # Bug di ingrandimento: su finestra NON massimizzata l'aggiunta dei

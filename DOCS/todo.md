@@ -68,3 +68,37 @@ il log storico dettagliato. In particolare:
 - Planner SQLite bug fix (subtask ora persistono correttamente).
 - Migrazione a package maiuscoli (CORE/INTENT/SAFETY/MONITORING/GUI/CONFIG).
 - 58/58 test pass.
+
+## 📐 Responsive a proporzioni (Atomica 2 aperta — sessione corrente)
+
+Obiettivo utente: le aree "no-scroll/schermate fisse" devono comportarsi come
+griglie in percentuale (stile bootstrap: desktop→mobile) al maximize/resize,
+senza artefatti né contenuti tagliati. NON implementare bootstrap.
+
+Censimento `setFixed*` (fontsize completo in `grep -n "setFixed\|setMinimum\|setMaximumHeight" GUI/*.py`):
+- `GUI/control_center.py`: 54 occorrenze — chiave:
+  - `UNIFORM_CONTENT_HEIGHT = 300` (riga ~4693, `_force_content_size`) i 5
+    preview strumenti in Plancia; le detail page poi forzano min 480/max MAX
+    (riga ~4952) → doppia dimens. da unificare in proporzione.
+  - `PlanciaCard.setFixedHeight(110)` (riga ~1046) + policy verticale Fixed.
+  - `setFixedWidth(280)` sidebar coda (riga ~2880), `setFixedWidth(500)`
+    colonna editor (riga ~5082) → su finestre strette taglia il centro.
+  - barre fisse: top bar 64px (2096), command bar 52px (2392), header
+    sezione 48px (957) — accettabili come "bar" ma da verificare a fine.
+- `GUI/main_window.py`: 8 occorrenze (da censire una a una).
+- Verificato con probe geometry: Plancia e detail stack si adattano
+  (viewport = window), quindi gli artefatti visibili sono nelle aree
+  sopra elencate (width fisse o content colllassabile) — chiedere
+  all'utente quali vedi realmente.
+
+Task atomici da eseguire (uno per commit, test tema verdi a ogni passo):
+1. **T-R1 Sidebar/colonne fisse larghezza** → `setMinimumWidth` ridotto +
+   stretch factor sui split: 280px coda e 500px editor devono restringersi
+   (es. min 200px) e crescere in % del container.
+2. **T-R2 `_force_content_size` 300px** → da hardcode a min-height adattiva:
+   min 220px e policy Expanding verticale laddove non rompe la grid card.
+3. **T-R3 PlanciaCard 110px** → valutare con l'utente: minHeight 110 con
+   eventuale crescita proporzionale a schermi molto alti (o resta fissa
+   se preferisce compattezza).
+4. **T-R4 `main_window.py`**: censire le 8 occorrenze e convertire le
+   problematiche (probabile: altezze fisse di zone non-scroll).

@@ -131,6 +131,8 @@ class SettingsPanel(QWidget):
         self.search_input.setToolTip(
             "Cerca nelle impostazioni: titolo sezione + contenuto"
         )
+        # Campo ricerca minimo ~30 caratteri (non collassa sotto quella soglia)
+        self.search_input.setMinimumWidth(400)
         self.search_input.textChanged.connect(self._on_search)
         search_row.addWidget(self.search_input, stretch=1)
 

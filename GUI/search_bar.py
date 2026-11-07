@@ -57,6 +57,8 @@ class SearchBar(QWidget):
         )
         # font inline only — bg/border/colore dal tema app-level
         self.input.setStyleSheet("font-size:12px;")
+        # Campo ricerca minimo ~30 caratteri (non collassa sotto quella soglia)
+        self.input.setMinimumWidth(320)
         self.input.textChanged.connect(self._on_text_changed)
         self.input.returnPressed.connect(self._on_enter)
         lay.addWidget(self.input, stretch=1)
