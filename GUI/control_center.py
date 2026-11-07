@@ -1012,16 +1012,23 @@ class CollapsibleSection(QFrame):
     def add_widget(self, widget):
         self.content_lay.addWidget(widget)
 
-    def add_header_widget(self, widget, max_width: int = 260):
+    def add_header_widget(self, widget, max_width: int = 260,
+                          min_width: int = 0, stretch: int = 0):
         """Aggiunge un widget COMPATTO nella riga di titolo (header).
 
         Va prima del pulsante toggle; utile per azioni/surface di ricerca
-        sempre visibili anche a sezione collassata.
+        sempre visibili anche a sezione collassata. `min_width` garantisce
+        la larghezza minima (il sizeHint del widget altrimenti vince sul
+        max, lasciando il campo troppo stretto); `stretch` > 0 lo fa
+        crescere con la finestra.
         """
         lay = self.header.layout()
         idx = lay.indexOf(self.toggle_btn)
-        widget.setMaximumWidth(max_width)
-        lay.insertWidget(idx, widget)
+        if max_width:
+            widget.setMaximumWidth(max_width)
+        if min_width:
+            widget.setMinimumWidth(min_width)
+        lay.insertWidget(idx, widget, stretch)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -4610,7 +4617,10 @@ class CenterArea(QWidget):
         self.global_search.textChanged.connect(self._on_global_search)
         # Nella riga del titolo "Plancia di controllo" (sempre visibile,
         # anche a sezione collassata) invece di occupare una riga intera.
-        self.plancia_section.add_header_widget(self.global_search, 240)
+        # Min 340px ≈ 30+ caratteri visibili; stretch=2 lo fa crescere
+        # insieme alla finestra (il titolo resta con stretch=1).
+        self.plancia_section.add_header_widget(
+            self.global_search, max_width=520, min_width=340, stretch=2)
 
         cards_grid = QGridLayout()
         cards_grid.setSpacing(12)
