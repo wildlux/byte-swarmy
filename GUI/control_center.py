@@ -2977,12 +2977,23 @@ class FileTreeDrawer(QFrame):
         lay.setSpacing(0)
 
         # Header dinamico: mostra "📁 Archivio progetto" + path corrente
+        header_row = QHBoxLayout()
+        header_row.setContentsMargins(16, 8, 16, 8)
+        header_row.setSpacing(8)
         self.header = QLabel("<b>📁 Archivio progetto</b>")
         self.header.setObjectName("sidebar_header")
         self.header.setStyleSheet(  # nolint: header verde accordion Archivio
-            "padding:8px 16px; color:#16a34a; font-size:13px;"
+            "padding:0; color:#16a34a; font-size:13px;"
         )
-        lay.addWidget(self.header)
+        header_row.addWidget(self.header)
+        header_row.addStretch()
+        # Pulsante elimina selezionati (archivio progetto) — in alto a destra
+        self.del_btn = QPushButton("🗑️")
+        self.del_btn.setFixedSize(24, 24)
+        self.del_btn.setToolTip("Elimina file/cartelle selezionate con la colonna ✓")
+        self.del_btn.clicked.connect(self._delete_selected_items)
+        header_row.addWidget(self.del_btn)
+        lay.addLayout(header_row)
 
         # Sotto-titolo: path della cartella corrente (si aggiorna col tab)
         self.path_label = QLabel("byte-swarmy/")
@@ -3018,24 +3029,6 @@ class FileTreeDrawer(QFrame):
         self.tree.customContextMenuRequested.connect(self._on_tree_context_menu)
         self.model.dataChanged.connect(self._on_model_data_changed)
         lay.addWidget(self.tree)
-
-        # Tasto elimina selezionati (archivio progetto)
-        del_row = QHBoxLayout()
-        del_row.setContentsMargins(0, 0, 0, 0)
-        del_row.setSpacing(4)
-        del_row.addStretch()
-        del_btn = QPushButton("🗑️")
-        del_btn.setFixedSize(24, 24)
-        del_btn.setToolTip("Elimina file/cartelle selezionate con la colonna ✓")
-        del_btn.clicked.connect(self._delete_selected_items)
-        del_row.addWidget(del_btn)
-        lay.addLayout(del_row)
-
-        # Istruzione per l'utente: selezione + elimina
-        instr = QLabel("💡 Seleziona con ✓ poi premi 🗑️ per cancellare file/cartelle")
-        instr.setStyleSheet("font-size:9px; font-style:italic; padding:2px 8px;")
-        instr.setWordWrap(True)
-        lay.addWidget(instr)
 
         sep = QFrame()
         sep.setFixedHeight(1)
