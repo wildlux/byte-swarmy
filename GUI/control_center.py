@@ -2989,8 +2989,13 @@ class FileTreeDrawer(QFrame):
         header_row.addStretch()
         # Pulsante elimina selezionati (archivio progetto) — in alto a destra
         self.del_btn = QPushButton("🗑️")
-        self.del_btn.setFixedSize(24, 24)
+        self.del_btn.setFixedSize(28, 28)
         self.del_btn.setToolTip("Elimina file/cartelle selezionate con la colonna ✓")
+        self.del_btn.setStyleSheet(
+            "QPushButton { font-size:16px; border:none; background:transparent; "
+            "border-radius:4px; padding:0; }"
+            "QPushButton:hover { background:#fee2e2; border-radius:4px; }"
+        )
         self.del_btn.clicked.connect(self._delete_selected_items)
         header_row.addWidget(self.del_btn)
         lay.addLayout(header_row)
@@ -3061,8 +3066,13 @@ class FileTreeDrawer(QFrame):
 
         # Pulsante elimina task selezionati
         task_del_btn = QPushButton("🗑️")
-        task_del_btn.setFixedSize(24, 24)
+        task_del_btn.setFixedSize(28, 28)
         task_del_btn.setToolTip("Elimina task selezionati con la colonna ✓")
+        task_del_btn.setStyleSheet(
+            "QPushButton { font-size:16px; border:none; background:transparent; "
+            "border-radius:4px; padding:0; }"
+            "QPushButton:hover { background:#fee2e2; border-radius:4px; }"
+        )
         task_del_btn.clicked.connect(self._delete_checked_tasks)
         task_header_row.addWidget(task_del_btn)
         lay.addLayout(task_header_row)
