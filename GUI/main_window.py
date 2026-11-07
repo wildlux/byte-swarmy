@@ -452,14 +452,39 @@ def add_task(title: str, description: str, context: str = "",
     return task
 
 def delete_task(task_id: str, project_path: str | None = None) -> None:
-    tasks = load_tasks(project_path)
+    # Prima prova nel progetto specificato
+    if project_path:
+        tasks = load_tasks(project_path)
+        before = len(tasks)
+        tasks = [t for t in tasks if t["id"] != task_id]
+        if len(tasks) < before:
+            save_tasks(tasks, project_path)
+            return
+    # Fallback: coda globale
+    tasks = load_tasks(None)
     tasks = [t for t in tasks if t["id"] != task_id]
-    save_tasks(tasks, project_path)
+    save_tasks(tasks, None)
 
 def reset_task(task_id: str, project_path: str | None = None) -> None:
     """Resetta un task a pending, qualunque sia lo stato attuale.
     Pulisce tentativi, errori, risultato. Funziona anche su 'done' e 'planned'."""
-    tasks = load_tasks(project_path)
+    # Prima prova nel progetto specificato
+    if project_path:
+        tasks = load_tasks(project_path)
+        found = False
+        for t in tasks:
+            if t["id"] == task_id:
+                found = True
+                t["status"] = "pending"
+                t["attempts"] = 0
+                for k in ("last_error", "failure_reason", "result",
+                          "completed_at", "started_at", "reason"):
+                    t.pop(k, None)
+        if found:
+            save_tasks(tasks, project_path)
+            return
+    # Fallback: coda globale
+    tasks = load_tasks(None)
     for t in tasks:
         if t["id"] == task_id:
             t["status"] = "pending"
@@ -467,21 +492,40 @@ def reset_task(task_id: str, project_path: str | None = None) -> None:
             for k in ("last_error", "failure_reason", "result",
                       "completed_at", "started_at", "reason"):
                 t.pop(k, None)
-    save_tasks(tasks, project_path)
+    save_tasks(tasks, None)
 
 def force_rerun_task(task_id: str, project_path: str | None = None) -> None:
     """Forza re-run: resetta il task E elimina i suoi sottotask (se presenti).
     Utile per ripartire da capo con un task già 'planned' o 'done'."""
-    tasks = load_tasks(project_path)
-    # Trova il task
+    # Prima prova nel progetto specificato
+    if project_path:
+        tasks = load_tasks(project_path)
+        target = next((t for t in tasks if t["id"] == task_id), None)
+        if target:
+            # Elimina i sottotask associati
+            subtask_ids = target.get("subtask_ids", [])
+            if subtask_ids:
+                tasks = [t for t in tasks if t["id"] not in subtask_ids]
+            # Resetta il task
+            for t in tasks:
+                if t["id"] == task_id:
+                    t["status"] = "pending"
+                    t["attempts"] = 0
+                    t["subtasks"] = []
+                    t.pop("subtask_ids", None)
+                    for k in ("last_error", "failure_reason", "result",
+                              "completed_at", "started_at", "reason"):
+                        t.pop(k, None)
+            save_tasks(tasks, project_path)
+            return
+    # Fallback: coda globale
+    tasks = load_tasks(None)
     target = next((t for t in tasks if t["id"] == task_id), None)
     if not target:
         return
-    # Elimina i sottotask associati
     subtask_ids = target.get("subtask_ids", [])
     if subtask_ids:
         tasks = [t for t in tasks if t["id"] not in subtask_ids]
-    # Resetta il task
     for t in tasks:
         if t["id"] == task_id:
             t["status"] = "pending"
@@ -491,35 +535,62 @@ def force_rerun_task(task_id: str, project_path: str | None = None) -> None:
             for k in ("last_error", "failure_reason", "result",
                       "completed_at", "started_at", "reason"):
                 t.pop(k, None)
-    save_tasks(tasks, project_path)
+    save_tasks(tasks, None)
 
 def cleanup_done_tasks(project_path: str | None = None) -> int:
     """Elimina tutti i task in stato 'done'. Ritorna il numero eliminati."""
-    tasks = load_tasks(project_path)
+    total_removed = 0
+    # Prima prova nel progetto specificato
+    if project_path:
+        tasks = load_tasks(project_path)
+        before = len(tasks)
+        tasks = [t for t in tasks if t["status"] != "done"]
+        after = len(tasks)
+        save_tasks(tasks, project_path)
+        total_removed += before - after
+    # Fallback: coda globale
+    tasks = load_tasks(None)
     before = len(tasks)
     tasks = [t for t in tasks if t["status"] != "done"]
     after = len(tasks)
-    save_tasks(tasks, project_path)
-    return before - after
+    save_tasks(tasks, None)
+    total_removed += before - after
+    return total_removed
 
 def delete_subtasks(task_id: str, project_path: str | None = None) -> int:
     """Elimina i sottotask di un task. Ritorna il numero eliminati."""
-    tasks = load_tasks(project_path)
+    # Prima prova nel progetto specificato
+    if project_path:
+        tasks = load_tasks(project_path)
+        target = next((t for t in tasks if t["id"] == task_id), None)
+        if target:
+            subtask_ids = target.get("subtask_ids", [])
+            if not subtask_ids:
+                # Fallback: cerca task con parent == task_id
+                subtask_ids = [t["id"] for t in tasks if t.get("parent") == task_id]
+            before = len(tasks)
+            tasks = [t for t in tasks if t["id"] not in subtask_ids]
+            for t in tasks:
+                if t["id"] == task_id:
+                    t["subtasks"] = []
+                    t.pop("subtask_ids", None)
+            save_tasks(tasks, project_path)
+            return before - len(tasks)
+    # Fallback: coda globale
+    tasks = load_tasks(None)
     target = next((t for t in tasks if t["id"] == task_id), None)
     if not target:
         return 0
     subtask_ids = target.get("subtask_ids", [])
     if not subtask_ids:
-        # Fallback: cerca task con parent == task_id
         subtask_ids = [t["id"] for t in tasks if t.get("parent") == task_id]
     before = len(tasks)
     tasks = [t for t in tasks if t["id"] not in subtask_ids]
-    # Pulisce il riferimento nel parent
     for t in tasks:
         if t["id"] == task_id:
             t["subtasks"] = []
             t.pop("subtask_ids", None)
-    save_tasks(tasks, project_path)
+    save_tasks(tasks, None)
     return before - len(tasks)
 
 # ====================================================================
@@ -1047,8 +1118,9 @@ class LiveMetricsBar(QWidget):
 class TaskQueueTab(QWidget):
     """Tab 1: visualizzazione e gestione della coda task."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, project_path: str | None = None):
         super().__init__(parent)
+        self._project_path = project_path
         self._build_ui()
         self._refresh()
         self._last_refresh_ts = None
@@ -1174,7 +1246,7 @@ class TaskQueueTab(QWidget):
         self.table.itemSelectionChanged.connect(self._on_selection_changed)
 
     def _refresh(self) -> None:
-        tasks = load_tasks()
+        tasks = load_tasks(self._project_path)
         from collections import Counter
         stats = Counter(t["status"] for t in tasks)
         stats_str = " | ".join(f"{k}: {v}" for k, v in sorted(stats.items()))
@@ -1313,7 +1385,7 @@ class TaskQueueTab(QWidget):
             self, "Conferma eliminazione",
             f"Eliminare il task '{title}'?\n(ID: {task_id})"
         ) == QMessageBox.StandardButton.Yes:
-            delete_task(task_id)
+            delete_task(task_id, self._project_path)
             self._refresh()
 
     def _on_reset_selected(self) -> None:
@@ -1330,7 +1402,7 @@ class TaskQueueTab(QWidget):
         msg = f"Resettare il task '{title}' a 'pending'?\nStato attuale: {current_status}\n\n"
         msg += "Verranno azzerati: tentativi, errori, risultato."
         if QMessageBox.question(self, "Conferma reset", msg) == QMessageBox.StandardButton.Yes:
-            reset_task(task_id)
+            reset_task(task_id, self._project_path)
             self._refresh()
 
     def _on_rerun_selected(self) -> None:
@@ -1347,7 +1419,7 @@ class TaskQueueTab(QWidget):
                "Verranno eliminati i sottotask precedenti e il task torna a 'pending'. "
                "Il planner lo ri-decomporrà da capo.")
         if QMessageBox.question(self, "Conferma re-run", msg) == QMessageBox.StandardButton.Yes:
-            force_rerun_task(task_id)
+            force_rerun_task(task_id, self._project_path)
             self._refresh()
 
     def _on_delete_subtasks(self) -> None:
@@ -1360,7 +1432,7 @@ class TaskQueueTab(QWidget):
         task_id = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
         title = self.table.item(row, 2).text()
 
-        n = delete_subtasks(task_id)
+        n = delete_subtasks(task_id, self._project_path)
         if n > 0:
             QMessageBox.information(self, "OK", f"Eliminati {n} sottotask del task '{title}'.")
         else:
@@ -1378,7 +1450,7 @@ class TaskQueueTab(QWidget):
         msg = f"Eliminare {done_count} task completati (stato 'done')?\n"
         msg += "Il codice prodotto resta in project/, viene solo pulita la coda."
         if QMessageBox.question(self, "Conferma pulizia", msg) == QMessageBox.StandardButton.Yes:
-            n = cleanup_done_tasks()
+            n = cleanup_done_tasks(self._project_path)
             QMessageBox.information(self, "OK", f"Eliminati {n} task completati.")
             self._refresh()
 

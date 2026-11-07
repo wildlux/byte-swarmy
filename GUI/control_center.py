@@ -32,7 +32,7 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtCore import (
     Qt, QPropertyAnimation, QEasingCurve, pyqtSignal, QDir, QTimer,
-    QUrl, QEvent,
+    QUrl, QEvent, QItemSelectionModel, QModelIndex,
 )
 
 from GUI.gui_backend import (
@@ -1508,6 +1508,14 @@ class FileEditorWidget(QFrame):
 
         self._load_file()
 
+    def keyPressEvent(self, event):
+        """ESC chiude l'editor overlay."""
+        from PyQt6.QtCore import Qt as _Qt
+        if event.key() == _Qt.Key.Key_Escape:
+            self.closed.emit()
+            return
+        super().keyPressEvent(event)
+
     def _on_dock_toggle(self):
         if self._docked:
             self.undock_requested.emit()
@@ -2903,6 +2911,60 @@ def build_run_command(file_path):
     return None
 
 
+class CheckableFileSystemModel(QFileSystemModel):
+    """QFileSystemModel con colonna 0 checkbox per selezione multipla file/cartelle."""
+    def __init__(self):
+        super().__init__()
+        self._checked_paths = set()
+
+    def columnCount(self, parent=QModelIndex()):
+        return super().columnCount(parent) + 1
+
+    def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
+        if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
+            if section == 0:
+                return "✓"
+            return super().headerData(section - 1, orientation, role)
+        return super().headerData(section, orientation, role)
+
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
+        if index.column() == 0:
+            if role == Qt.ItemDataRole.CheckStateRole:
+                return Qt.CheckState.Checked if self.filePath(index) in self._checked_paths else Qt.CheckState.Unchecked
+            if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
+                return None
+        if index.column() > 0:
+            orig = self.index(index.row(), index.column() - 1, index.parent())
+            return super().data(orig, role)
+        return super().data(index, role)
+
+    def setData(self, index, value, role=Qt.ItemDataRole.EditRole):
+        if index.column() == 0 and role == Qt.ItemDataRole.CheckStateRole:
+            fp = self.filePath(index)
+            if value == Qt.CheckState.Checked:
+                self._checked_paths.add(fp)
+            else:
+                self._checked_paths.discard(fp)
+            self.dataChanged.emit(index, index, [role])
+            return True
+        if index.column() > 0:
+            orig = self.index(index.row(), index.column() - 1, index.parent())
+            return super().setData(orig, value, role)
+        return False
+
+    def flags(self, index):
+        f = super().flags(index)
+        if index.column() == 0:
+            f |= Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEnabled
+        return f
+
+    def checked_paths(self):
+        return set(self._checked_paths)
+
+    def clear_checks(self):
+        self._checked_paths.clear()
+
+
 class FileTreeDrawer(QFrame):
     def __init__(self, parent):
         super().__init__()
@@ -2934,32 +2996,54 @@ class FileTreeDrawer(QFrame):
         self.tree.setAlternatingRowColors(True)
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
 
-        self.model = QFileSystemModel()
+        self.model = CheckableFileSystemModel()
         self.model.setRootPath("./")
         self.model.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.AllDirs | QDir.Filter.Files)
         self.tree.setModel(self.model)
         self.tree.setRootIndex(self.model.index("./"))
-        self.tree.hideColumn(1)
+        # Colonna 0 = checkbox, colonna 1 = nome file. Nascondo dimensione/tipo/data (ora 2,3,4).
         self.tree.hideColumn(2)
         self.tree.hideColumn(3)
+        self.tree.hideColumn(4)
         self.tree.setAnimated(True)
         self.tree.setIndentation(14)
+        self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.tree.header().setStretchLastSection(False)
-        self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
 
         self.tree.clicked.connect(self._on_tree_click)
         self.tree.customContextMenuRequested.connect(self._on_tree_context_menu)
+        self.model.dataChanged.connect(self._on_model_data_changed)
         lay.addWidget(self.tree)
+
+        # Tasto elimina selezionati (archivio progetto)
+        del_row = QHBoxLayout()
+        del_row.setContentsMargins(0, 0, 0, 0)
+        del_row.setSpacing(4)
+        del_row.addStretch()
+        del_btn = QPushButton("🗑️")
+        del_btn.setFixedSize(24, 24)
+        del_btn.setToolTip("Elimina file/cartelle selezionate con la colonna ✓")
+        del_btn.clicked.connect(self._delete_selected_items)
+        del_row.addWidget(del_btn)
+        lay.addLayout(del_row)
+
+        # Istruzione per l'utente: selezione + elimina
+        instr = QLabel("💡 Seleziona con ✓ poi premi 🗑️ per cancellare file/cartelle")
+        instr.setStyleSheet("font-size:9px; font-style:italic; padding:2px 8px;")
+        instr.setWordWrap(True)
+        lay.addWidget(instr)
 
         sep = QFrame()
         sep.setFixedHeight(1)
         sep.setStyleSheet("margin:8px 12px;")
         lay.addWidget(sep)
 
-        # Layout header "Lavori e compiti" con pulsante refresh
+        # Layout header "Lavori e compiti" con pulsante refresh + elimina
         task_header_row = QHBoxLayout()
         task_header_row.setContentsMargins(0, 0, 0, 0)
-        task_header_row.setSpacing(4)
+        task_header_row.setSpacing(10)
         task_header_lbl = QLabel("<b>📋 Lavori e compiti</b>")
         task_header_lbl.setStyleSheet("font-size:11px; font-weight:bold; padding:0; margin:0;")
         task_header_row.addWidget(task_header_lbl)
@@ -2974,6 +3058,18 @@ class FileTreeDrawer(QFrame):
         )
         task_refresh_btn.clicked.connect(self._force_refresh_tasks)
         task_header_row.addWidget(task_refresh_btn)
+
+        # Spazietto tra refresh e elimina
+        _sp = QFrame()
+        _sp.setFixedWidth(12)
+        task_header_row.addWidget(_sp)
+
+        # Pulsante elimina task selezionati
+        task_del_btn = QPushButton("🗑️")
+        task_del_btn.setFixedSize(24, 24)
+        task_del_btn.setToolTip("Elimina task selezionati con la colonna ✓")
+        task_del_btn.clicked.connect(self._delete_checked_tasks)
+        task_header_row.addWidget(task_del_btn)
         lay.addLayout(task_header_row)
 
         self.task_list = QListWidget()
@@ -2981,10 +3077,12 @@ class FileTreeDrawer(QFrame):
         self.task_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.task_list.itemDoubleClicked.connect(self._on_task_double_clicked)
         self.task_list.customContextMenuRequested.connect(self._on_task_context_menu)
-        # Popola con task reali dal DB
+        self.task_list.itemChanged.connect(self._on_task_item_changed)
+        # Popola con task reali del progetto attivo
+        project_path = self.main_win.get_current_project_path() if hasattr(self, 'main_win') and self.main_win else None
         try:
-            from GUI import gui_backend as gb
-            tasks = gb.get_tasks()
+            from GUI.main_window import load_tasks
+            tasks = load_tasks(project_path)
             for t in tasks:
                 title = t.get("title", t.get("description", "?"))[:50]
                 st = t.get("status", "?")
@@ -2992,19 +3090,20 @@ class FileTreeDrawer(QFrame):
                         "failed": "✗", "queued": "○",
                         "paused": "⏸", "thermal_paused": "🌡"}.get(st, "?")
                 item = QListWidgetItem(f"{icon} {title}")
-                item.setData(Qt.ItemDataRole.UserRole, t.get("id", ""))
+                tid = t.get("id") or ""
+                if tid:
+                    item.setData(Qt.ItemDataRole.UserRole, tid)
                 color = {"done": "#16a34a", "running": "#f59e0b",
                          "pending": "#888", "failed": "#dc2626",
                          "paused": "#6b7280", "thermal_paused": "#f97316"}.get(st, "#888")
                 item.setForeground(QColor(color))
+                # Checkbox per selezione multipla (colonna di selezione)
+                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                item.setCheckState(Qt.CheckState.Unchecked)
                 self.task_list.addItem(item)
         except Exception as e:
             print(f"Errore popolamento task_list: {e}")
         lay.addWidget(self.task_list, stretch=1)
-        # NB: il pulsante "🔄" qui sotto è stato rimosso perché duplicato —
-        # c'è già il pulsante 🔄 in alto accanto a "📋 Lavori e compiti" (rifa lo stesso
-        # lavoro di refresh della file tree). Lasciato solo quello in alto,
-        # che è quello visivamente atteso. Niente più pulsante in basso.
 
         self._anim = QPropertyAnimation(self, b"maximumWidth")
         self._anim.setDuration(220)
@@ -3041,9 +3140,36 @@ class FileTreeDrawer(QFrame):
         self.tree.scrollToTop()
 
     def _on_tree_click(self, index):
-        path = self.model.filePath(index)
-        if os.path.isfile(path):
-            self.main_win._show_file_editor(path)
+        """Click sull'albero file: toggle checkbox su colonna 0, apre editor su file."""
+        try:
+            if not index.isValid():
+                return
+            if index.column() == 0:
+                # Toggle manuale della checkbox sulla colonna 0
+                fp = self.model.filePath(index)
+                if fp in self.model.checked_paths():
+                    self.model.setData(
+                        index,
+                        Qt.CheckState.Unchecked,
+                        Qt.ItemDataRole.CheckStateRole,
+                    )
+                    self._debug_log("deselezionato", fp, "Archivio progetto (click ✓)")
+                else:
+                    self.model.setData(
+                        index,
+                        Qt.CheckState.Checked,
+                        Qt.ItemDataRole.CheckStateRole,
+                    )
+                    self._debug_log("selezionato", fp, "Archivio progetto (click ✓)")
+                return
+            path = self.model.filePath(index)
+            if not path or not os.path.exists(path):
+                return
+            if os.path.isfile(path):
+                self._debug_log("aperto", path, "Archivio progetto (click file)")
+                self.main_win._show_file_editor(path)
+        except Exception as e:
+            print(f"Errore click albero: {e}")
 
     def _on_tree_context_menu(self, pos):
         index = self.tree.indexAt(pos)
@@ -3094,6 +3220,161 @@ class FileTreeDrawer(QFrame):
                 self.model.setRootPath("./")
             except Exception as e:
                 QMessageBox.warning(self, "Errore", f"Impossibile eliminare:\n{e}")
+
+    def _debug_log(self, azione: str, elemento: str, sezione: str = "Archivio progetto"):
+        """Stampa un messaggio di debug nel terminale per aiutare a tracciare
+        quali elementi vengono selezionati/cliccati e da quale sezione."""
+        print(f"[DEBUG] {sezione}: {azione} elemento='{elemento}'")
+
+    def _on_model_data_changed(self, top_left, bottom_right, roles):
+        """Sincronizza selezione visiva QTreeView con stato checkbox del model."""
+        if Qt.ItemDataRole.CheckStateRole not in roles:
+            return
+        if top_left.column() != 0:
+            return
+        fp = self.model.filePath(top_left)
+        stato = "selezionato" if fp in self.model.checked_paths() else "deselezionato"
+        self._debug_log(stato, fp, "Archivio progetto (colonna ✓)")
+        # setCurrentIndex garantisce il feedback visivo (highlight della riga),
+        # select() aggiorna il selection model. Usiamo Rows flag così
+        # viene selezionata l'intera riga, non solo la cella checkbox.
+        if fp in self.model.checked_paths():
+            self.tree.setCurrentIndex(top_left)
+            self.tree.selectionModel().select(
+                top_left,
+                QItemSelectionModel.SelectionFlag.Select
+                | QItemSelectionModel.SelectionFlag.Rows,
+            )
+        else:
+            self.tree.selectionModel().select(
+                top_left,
+                QItemSelectionModel.SelectionFlag.Deselect
+                | QItemSelectionModel.SelectionFlag.Rows,
+            )
+
+    def _delete_selected_items(self):
+        """Elimina file/cartelle selezionate (colonna ✓ o selezione visiva)."""
+        paths = self.model.checked_paths()
+        if not paths:
+            selection = self.tree.selectionModel().selectedRows()
+            paths = {self.model.filePath(idx) for idx in selection if idx.column() == 1}
+        if not paths:
+            QMessageBox.information(self, "Nessuna selezione",
+                                    "Seleziona almeno un elemento con la colonna ✓.")
+            return
+        n = len(paths)
+        # Protezione: non cancellare MAI la radice del progetto byte-swarmy
+        # né la radice del progetto attivo (corromperebbe il progetto).
+        import os as _os
+        base_dir = str(BASE_DIR.resolve())
+        protected = {base_dir}
+        cur = self.get_current_project_path()
+        if cur:
+            protected.add(str(Path(cur).resolve()))
+        to_delete = set()
+        for fp in paths:
+            rfp = str(Path(fp).resolve())
+            if rfp in protected:
+                continue
+            to_delete.add(fp)
+        skipped = n - len(to_delete)
+        if skipped:
+            QMessageBox.information(
+                self, "Protetto",
+                f"{skipped} elemento(i) protetto(i) non cancellato(i)\n"
+                "(la radice del progetto non può essere eliminata).")
+        if not to_delete:
+            self.model.clear_checks()
+            self.tree.selectionModel().clearSelection()
+            return
+        reply = QMessageBox.question(self, "Conferma cancellazione",
+            f"Sei sicuro di voler eliminare {len(to_delete)} elemento(i)?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        for fp in sorted(to_delete, reverse=True):
+            self._debug_log("eliminato", fp, "Archivio progetto (pulsante 🗑️)")
+            try:
+                if os.path.isdir(fp):
+                    import shutil
+                    shutil.rmtree(fp)
+                else:
+                    os.remove(fp)
+            except Exception as e:
+                QMessageBox.warning(self, "Errore", f"Impossibile eliminare {fp}:\n{e}")
+        self.model.clear_checks()
+        self.tree.selectionModel().clearSelection()
+
+    def _on_task_item_changed(self, item: QListWidgetItem):
+        """Sincronizza selezione visiva QListWidget con stato checkbox."""
+        if not item:
+            return
+        stato = "selezionato" if item.checkState() == Qt.CheckState.Checked else "deselezionato"
+        tid = item.data(Qt.ItemDataRole.UserRole)
+        self._debug_log(stato, f"{tid} - {item.text()}", "Lavori e compiti (colonna ✓)")
+        if item.checkState() == Qt.CheckState.Checked:
+            item.setSelected(True)
+        else:
+            item.setSelected(False)
+
+    def _delete_checked_tasks(self):
+        """Elimina i task selezionati con checkbox dalla lista Lavori e compiti."""
+        checked_ids = []
+        for i in range(self.task_list.count()):
+            item = self.task_list.item(i)
+            if item and item.checkState() == Qt.CheckState.Checked:
+                tid = item.data(Qt.ItemDataRole.UserRole)
+                if tid:
+                    checked_ids.append(tid)
+        if not checked_ids:
+            QMessageBox.information(self, "Nessuna selezione",
+                                    "Seleziona almeno un task con la colonna ✓.")
+            return
+        n = len(checked_ids)
+        reply = QMessageBox.question(self, "Conferma cancellazione",
+            f"Sei sicuro di voler eliminare {n} task selezionato(i)?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        from GUI.main_window import delete_task
+        project_path = self.main_win.get_current_project_path() if hasattr(self, 'main_win') and self.main_win else None
+        for tid in checked_ids:
+            # Recupera il titolo del task per il log
+            titolo = ""
+            for i in range(self.task_list.count()):
+                it = self.task_list.item(i)
+                if it and it.data(Qt.ItemDataRole.UserRole) == tid:
+                    titolo = it.text()
+                    break
+            self._debug_log("eliminato", f"{tid} - {titolo}", "Lavori e compiti (pulsante 🗑️)")
+            try:
+                delete_task(tid, project_path)
+            except Exception as e:
+                QMessageBox.warning(self, "Errore", f"Impossibile eliminare task {tid}:\n{e}")
+        # Ricarica lista
+        self.task_list.clear()
+        try:
+            from GUI.main_window import load_tasks
+            tasks = load_tasks(project_path)
+            for t in tasks:
+                title = t.get("title", t.get("description", "?"))[:50]
+                st = t.get("status", "?")
+                icon = {"done": "✓", "running": "▶", "pending": "○",
+                        "failed": "✗", "queued": "○",
+                        "paused": "⏸", "thermal_paused": "🌡"}.get(st, "?")
+                item = QListWidgetItem(f"{icon} {title}")
+                tid = t.get("id") or ""
+                if tid:
+                    item.setData(Qt.ItemDataRole.UserRole, tid)
+                color = {"done": "#16a34a", "running": "#f59e0b",
+                         "pending": "#888", "failed": "#dc2626",
+                         "paused": "#6b7280", "thermal_paused": "#f97316"}.get(st, "#888")
+                item.setForeground(QColor(color))
+                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                item.setCheckState(Qt.CheckState.Unchecked)
+                self.task_list.addItem(item)
+        except Exception as e:
+            print(f"Errore ricarica task_list: {e}")
 
     def toggle(self):
         self._open = not self._open
@@ -4954,8 +5235,11 @@ class CenterArea(QWidget):
                 except Exception:
                     pass
                 return True
-            # Backspace → Indietro alla Plancia (solo fuori dagli editor)
-            if key == Qt.Key.Key_Backspace and not is_editor:
+            # Backspace → Indietro alla Plancia (solo fuori dagli editor,
+            # oppure dentro un QLineEdit di ricerca vuoto).
+            if key == Qt.Key.Key_Backspace:
+                if is_editor and isinstance(focus, QLineEdit) and focus.text():
+                    return False  # lascia che QLineEdit cancelli il carattere
                 ms = getattr(self, "main_stack", None)
                 if ms is not None and ms.currentIndex() != 0:
                     self.back_to_main()
@@ -5144,7 +5428,7 @@ class CenterArea(QWidget):
         self._editor_column = editor_widget
         self._editor_column.setMinimumWidth(300)
         self._editor_column.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Policy.Expanding
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
         self.layout().addWidget(self._editor_column)
 
