@@ -16,7 +16,7 @@ from pathlib import Path
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
-    QGroupBox, QSizePolicy, QPlainTextEdit,
+    QGroupBox, QSizePolicy, QPlainTextEdit, QScrollArea,
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
@@ -56,7 +56,17 @@ class HardwarePanel(QWidget):
     # UI
     # ──────────────────────────────────────────────────────────────────
     def _build_ui(self):
-        outer = QVBoxLayout(self)
+        # Scroll area di contorno: evita che il contenuto venga tagliato
+        # quando la finestra è ridotta o non è a tutto schermo.
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setStyleSheet("QScrollArea { background:transparent; border:none; }")
+
+        content = QWidget()
+        content.setObjectName("panelScrollContent")
+        content.setStyleSheet("QWidget#panelScrollContent { background: transparent; }")
+        outer = QVBoxLayout(content)
         outer.setContentsMargins(20, 16, 20, 16)
         outer.setSpacing(14)
 
@@ -81,7 +91,6 @@ class HardwarePanel(QWidget):
             "NVIDIA CUDA (VRAM dedicata), AMD ROCm, o solo CPU."
         )
         expl.setWordWrap(True)
-        # tema: colore dal QSS (role="muted"), solo la dimensione inline
         expl.setStyleSheet("font-size:11px;")
         _theme_prop(expl, "role", "muted")
         outer.addWidget(expl)
@@ -123,8 +132,6 @@ class HardwarePanel(QWidget):
             lbl.setFixedWidth(160)
             row.addWidget(lbl)
             val = QLabel("—")
-            # NB: nessun colore inline — segue il tema (il vecchio
-            # #1a1a1a era invisibile nel tema scuro)
             val.setStyleSheet("font-size:12px;")
             row.addWidget(val, stretch=1)
             self.info_labels[key] = val
@@ -183,12 +190,17 @@ class HardwarePanel(QWidget):
             "font-family:'JetBrains Mono','Consolas',monospace; font-size:10.5px;"
         )
         self.hw_log.setPlaceholderText("Il log del rilevamento apparirà qui...")
-        # NB: cappato — prima con stretch=1 si allungava su tutto lo spazio
-        # vuoto della pagina anche per 3 righe di testo (bug segnalato).
         self.hw_log.setMaximumHeight(170)
         log_lay.addWidget(self.hw_log)
         outer.addWidget(log_box, stretch=0)
         outer.addStretch()
+
+        scroll.setWidget(content)
+
+        main_lay = QVBoxLayout(self)
+        main_lay.setContentsMargins(0, 0, 0, 0)
+        main_lay.setSpacing(0)
+        main_lay.addWidget(scroll)
 
     # ──────────────────────────────────────────────────────────────────
     # Handler

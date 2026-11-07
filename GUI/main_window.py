@@ -362,27 +362,40 @@ PID_FILE = BASE_DIR / "state" / "orchestrator.pid"
 # TASK QUEUE I/O (shared with orchestrator)
 # ====================================================================
 
-def load_tasks() -> list:
-    if not TASKS_FILE.exists():
+def _tasks_file(project_path: str | None = None) -> Path:
+    """Ritorna il path del file queue.json per il progetto indicato.
+    Se project_path è None usa la coda globale (backward compat)."""
+    if project_path:
+        p = Path(project_path) / "tasks" / "queue.json"
+    else:
+        p = TASKS_FILE
+    p.parent.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def load_tasks(project_path: str | None = None) -> list:
+    f = _tasks_file(project_path)
+    if not f.exists():
         return []
     try:
-        return json.loads(TASKS_FILE.read_text())
+        return json.loads(f.read_text())
     except Exception:
         return []
 
-def save_tasks(tasks: list) -> None:
-    TASKS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    tmp = TASKS_FILE.with_suffix(".tmp")
+def save_tasks(tasks: list, project_path: str | None = None) -> None:
+    f = _tasks_file(project_path)
+    tmp = f.with_suffix(".tmp")
     tmp.write_text(json.dumps(tasks, ensure_ascii=False, indent=2))
-    tmp.replace(TASKS_FILE)
+    tmp.replace(f)
 
 def add_task(title: str, description: str, context: str = "",
-             task_type: str = "code") -> dict:
+             task_type: str = "code",
+             project_path: str | None = None) -> dict:
     """Aggiunge un task sia al JSON (per la GUI) che al DB SQLite (per l'orchestrator)."""
     import sqlite3 as _sqlite3
     import time as _time
 
-    tasks = load_tasks()
+    tasks = load_tasks(project_path)
     task = {
         "id": f"task-{int(_time.time()*1000)}-{len(tasks)}",
         "title": title,
@@ -397,9 +410,9 @@ def add_task(title: str, description: str, context: str = "",
         "type": task_type,
     }
     tasks.append(task)
-    save_tasks(tasks)
+    save_tasks(tasks, project_path)
 
-    # 🆕 Scrivi anche nel DB SQLite che l'orchestrator legge
+    # 🆕 Scrivi anche nel DB SQLite che l'orchestrator legge (globale)
     try:
         db_path = BASE_DIR / "tasks" / "queue.db"
         db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -438,15 +451,15 @@ def add_task(title: str, description: str, context: str = "",
 
     return task
 
-def delete_task(task_id: str) -> None:
-    tasks = load_tasks()
+def delete_task(task_id: str, project_path: str | None = None) -> None:
+    tasks = load_tasks(project_path)
     tasks = [t for t in tasks if t["id"] != task_id]
-    save_tasks(tasks)
+    save_tasks(tasks, project_path)
 
-def reset_task(task_id: str) -> None:
+def reset_task(task_id: str, project_path: str | None = None) -> None:
     """Resetta un task a pending, qualunque sia lo stato attuale.
     Pulisce tentativi, errori, risultato. Funziona anche su 'done' e 'planned'."""
-    tasks = load_tasks()
+    tasks = load_tasks(project_path)
     for t in tasks:
         if t["id"] == task_id:
             t["status"] = "pending"
@@ -454,12 +467,12 @@ def reset_task(task_id: str) -> None:
             for k in ("last_error", "failure_reason", "result",
                       "completed_at", "started_at", "reason"):
                 t.pop(k, None)
-    save_tasks(tasks)
+    save_tasks(tasks, project_path)
 
-def force_rerun_task(task_id: str) -> None:
+def force_rerun_task(task_id: str, project_path: str | None = None) -> None:
     """Forza re-run: resetta il task E elimina i suoi sottotask (se presenti).
     Utile per ripartire da capo con un task già 'planned' o 'done'."""
-    tasks = load_tasks()
+    tasks = load_tasks(project_path)
     # Trova il task
     target = next((t for t in tasks if t["id"] == task_id), None)
     if not target:
@@ -478,20 +491,20 @@ def force_rerun_task(task_id: str) -> None:
             for k in ("last_error", "failure_reason", "result",
                       "completed_at", "started_at", "reason"):
                 t.pop(k, None)
-    save_tasks(tasks)
+    save_tasks(tasks, project_path)
 
-def cleanup_done_tasks() -> int:
+def cleanup_done_tasks(project_path: str | None = None) -> int:
     """Elimina tutti i task in stato 'done'. Ritorna il numero eliminati."""
-    tasks = load_tasks()
+    tasks = load_tasks(project_path)
     before = len(tasks)
     tasks = [t for t in tasks if t["status"] != "done"]
     after = len(tasks)
-    save_tasks(tasks)
+    save_tasks(tasks, project_path)
     return before - after
 
-def delete_subtasks(task_id: str) -> int:
+def delete_subtasks(task_id: str, project_path: str | None = None) -> int:
     """Elimina i sottotask di un task. Ritorna il numero eliminati."""
-    tasks = load_tasks()
+    tasks = load_tasks(project_path)
     target = next((t for t in tasks if t["id"] == task_id), None)
     if not target:
         return 0
@@ -506,7 +519,7 @@ def delete_subtasks(task_id: str) -> int:
         if t["id"] == task_id:
             t["subtasks"] = []
             t.pop("subtask_ids", None)
-    save_tasks(tasks)
+    save_tasks(tasks, project_path)
     return before - len(tasks)
 
 # ====================================================================
@@ -1038,6 +1051,7 @@ class TaskQueueTab(QWidget):
         super().__init__(parent)
         self._build_ui()
         self._refresh()
+        self._last_refresh_ts = None
 
         # Auto-refresh ogni 2s
         self.timer = QTimer(self)
@@ -1091,6 +1105,14 @@ class TaskQueueTab(QWidget):
         btn_cleanup = QPushButton("Pulisci completati")
         btn_cleanup.clicked.connect(self._on_cleanup_done)
         toolbar.addWidget(btn_refresh)
+
+        # Indicatore ultimo refresh (utile per capire se l'orchestratore
+        # sta scrivendo nuovi task e la GUI li sta leggendo).
+        self.last_refresh_label = QLabel("Mai aggiornato")
+        self.last_refresh_label.setStyleSheet("padding: 2px 6px;")
+        self.last_refresh_label.setProperty("role", "muted")
+        toolbar.addWidget(self.last_refresh_label)
+
         toolbar.addWidget(btn_delete)
         toolbar.addWidget(btn_reset)
         toolbar.addWidget(btn_rerun)
@@ -1157,6 +1179,12 @@ class TaskQueueTab(QWidget):
         stats = Counter(t["status"] for t in tasks)
         stats_str = " | ".join(f"{k}: {v}" for k, v in sorted(stats.items()))
         self.stats_label.setText(f"Totale: {len(tasks)}   |   {stats_str}")
+
+        # Aggiorna indicatore ultimo refresh
+        import time as _time
+        self._last_refresh_ts = _time.time()
+        ts = _time.strftime("%H:%M:%S", _time.localtime(self._last_refresh_ts))
+        self.last_refresh_label.setText(f"Ultimo refresh: {ts}")
 
         # Mantieni selezione
         selected_id = None

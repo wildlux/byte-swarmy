@@ -195,26 +195,34 @@ class SettingsPanel(QWidget):
     def _on_search(self, text: str):
         """Filtra le sezioni in base al testo cercato.
 
-        Match case-insensitive su:
-          - nome interno della sezione (tema, lingua, hardware, git, audit)
-          - titolo della QGroupBox (es. '🎨 Tema interfaccia')
-          - tutto il testo contenuto: label, pulsanti, placeholder, tooltip
+        Non nasconde nulla: tutte le sezioni restano visibili per preservare
+        la memoria visiva. Quelle che matchano vengono evidenziate (bordo
+        accent + sfondo leggero), le altre restano in opacità ridotta.
         """
         query = text.strip().lower()
         if not query:
-            # Reset: mostra tutte
             for _name, section in self._sections:
-                section.show()
+                if hasattr(section, "_search_orig_style"):
+                    section.setStyleSheet(section._search_orig_style)
+                else:
+                    section.setStyleSheet("")
             self._update_search_count(len(self._sections), len(self._sections))
             return
 
         visible = 0
         for name, section in self._sections:
+            if not hasattr(section, "_search_orig_style"):
+                section._search_orig_style = section.styleSheet()
             if self._section_matches(name, section, query):
-                section.show()
+                section.setStyleSheet(
+                    "QGroupBox { border: 2px solid #2563eb; border-radius: 8px; "
+                    "background: rgba(37,99,235,0.06); }"
+                )
                 visible += 1
             else:
-                section.hide()
+                section.setStyleSheet(
+                    "QGroupBox { border: 1px solid #555; opacity: 0.65; }"
+                )
 
         self._update_search_count(visible, len(self._sections))
 

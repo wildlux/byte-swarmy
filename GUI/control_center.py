@@ -2004,6 +2004,7 @@ class ControlCenter(QMainWindow):
         root.setSpacing(0)
 
         self.drawer = FileTreeDrawer(self)
+        self._current_project_path = None
         self.center = CenterArea(self)
 
         root.addWidget(self._build_toolbar())
@@ -2163,6 +2164,9 @@ class ControlCenter(QMainWindow):
         self.project_tabs.current_project_changed.connect(
             self.drawer.set_current_folder
         )
+        self.project_tabs.current_project_changed.connect(
+            self._on_current_project_changed
+        )
         # Forza emissione iniziale per il tab corrente (all'avvio il
         # currentChanged non scatta se setCurrentIndex(0) non cambia indice)
         initial_path = self.project_tabs._path_for_tab(0) if self.project_tabs.count() > 0 else None
@@ -2288,6 +2292,14 @@ class ControlCenter(QMainWindow):
             btn.setStyleSheet(
                 "QPushButton#primary_btn { background:#f59e0b; color:white; "
                 "font-weight:bold; font-size:14px; border-radius:6px; border:none; }")
+
+    def _on_current_project_changed(self, path: str):
+        """Salva il percorso del progetto attivo (per task per-progetto)."""
+        self._current_project_path = path
+
+    def get_current_project_path(self) -> str | None:
+        """Ritorna il percorso assoluto del progetto attivo, o None."""
+        return getattr(self, "_current_project_path", None)
 
     def _tick_metrics(self):
         self._cpu_temp = get_cpu_temp()
@@ -4633,6 +4645,7 @@ class CenterArea(QWidget):
             "QLineEdit { padding:6px 12px; border-radius:8px; font-size:12px; }"
         )
         self.global_search.textChanged.connect(self._on_global_search)
+        self.global_search.returnPressed.connect(self._on_global_search_enter)
         # Nella riga del titolo "Plancia di controllo" (sempre visibile,
         # anche a sezione collassata) invece di occupare una riga intera.
         # Nessun min_width fisso: si restringe/espande in percentuale con la
@@ -4859,26 +4872,57 @@ class CenterArea(QWidget):
             self.detail_stack.setCurrentWidget(self.panel_pages[key])
 
     def _on_global_search(self, text: str):
-        """Filtra le 10 card (plancia + strumenti) in base al testo cercato.
+        """Filtra le card (plancia + strumenti) in base al testo cercato.
 
-        Match case-insensitive sul titolo, sottotitolo e badge di ogni
-        PlanciaCard. Le card non matchanti vengono nascoste (hide), non
-        rimosse, così preservano il loro stato.
+        Non nasconde nulla: tutte le card restano visibili per preservare
+        la memoria visiva. Quelle che matchano vengono evidenziate
+        (bordo accent + sfondo leggero), le altre restano in opacità ridotta.
         """
         query = text.strip().lower()
-        # Combina tutte le card: 5 plancia + 5 strumenti
         all_cards = list(self.cards.values()) + list(self.tools_cards.values())
         for card in all_cards:
             if not query:
-                card.show()
+                if hasattr(card, "_search_orig_style"):
+                    card.setStyleSheet(card._search_orig_style)
+                else:
+                    card.setStyleSheet("")
                 continue
-            # Estrai tutto il testo dalla card (titolo + sottotitolo + badge)
-            from PyQt6.QtWidgets import QLabel as _QLabel
+            if not hasattr(card, "_search_orig_style"):
+                card._search_orig_style = card.styleSheet()
             haystack_parts: list[str] = []
+            from PyQt6.QtWidgets import QLabel as _QLabel
             for child in card.findChildren(_QLabel):
                 haystack_parts.append(child.text().lower())
             haystack = " ".join(haystack_parts)
-            card.show() if query in haystack else card.hide()
+            if query in haystack:
+                card.setStyleSheet(
+                    "QFrame#card { border: 2px solid #2563eb; border-radius: 8px; "
+                    "background: rgba(37,99,235,0.06); }"
+                )
+            else:
+                card.setStyleSheet(
+                    "QFrame#card { border: 1px solid #555; opacity: 0.65; }"
+                )
+
+    def _on_global_search_enter(self):
+        """Premi Invio nella ricerca globale: se c'è un solo match,
+        apri direttamente quel pannello (menù specifico)."""
+        query = self.global_search.text().strip().lower()
+        if not query:
+            return
+        all_cards = list(self.cards.items()) + list(self.tools_cards.items())
+        matches = []
+        for key, card in all_cards:
+            haystack_parts: list[str] = []
+            from PyQt6.QtWidgets import QLabel as _QLabel
+            for child in card.findChildren(_QLabel):
+                haystack_parts.append(child.text().lower())
+            haystack = " ".join(haystack_parts)
+            if query in haystack:
+                matches.append((key, card))
+        if len(matches) == 1:
+            key, _card = matches[0]
+            self.open_panel(key)
 
     def back_to_main(self):
         self.main_stack.setCurrentIndex(0)
@@ -5046,7 +5090,7 @@ class CenterArea(QWidget):
         ricorrenti (ogni N secondi), oppure giornalieri alle HH:MM.
         La schedulazione è salvata in CONFIG/scheduled_tasks.json.
         """
-        page = TaskSchedulerPanel()
+        page = TaskSchedulerPanel(get_project_path=self.main_win.get_current_project_path)
         return page
 
     def _build_cicd_page(self):

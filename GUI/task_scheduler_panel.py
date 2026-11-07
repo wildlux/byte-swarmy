@@ -88,9 +88,10 @@ from GUI.actors_panel import fill_model_combo, combo_current_model  # noqa: E402
 class TaskSchedulerPanel(QWidget):
     """Pannello per schedulare task (Code Task) a orari specifici."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, get_project_path=None):
         super().__init__(parent)
         self.setObjectName("task_scheduler_panel")
+        self.get_project_path = get_project_path
         self._build_ui()
         self._refresh_list()
 
@@ -233,7 +234,7 @@ class TaskSchedulerPanel(QWidget):
         lay.addWidget(form_box)
 
         # Lista task schedulati
-        list_box = QGroupBox("📋 Task schedulati")
+        list_box = QGroupBox("📋 Lavori e compiti (coda principale)")
         list_lay = QVBoxLayout(list_box)
         list_lay.setContentsMargins(14, 14, 14, 14)
         list_lay.setSpacing(6)
@@ -277,41 +278,42 @@ class TaskSchedulerPanel(QWidget):
             QMessageBox.warning(self, "Dati mancanti",
                                 "Inserisci almeno titolo e prompt del task.")
             return
-        t = self.task_type.currentData()
-        task = {
-            "title": title,
-            "prompt": prompt,
-            "type": t,
-            "model": combo_current_model(self.task_model),
-        }
-        if t == "oneshot":
-            task["datetime"] = (f"{self.task_year.value():04d}-"
-                                f"{self.task_month.value():02d}-"
-                                f"{self.task_day.value():02d} "
-                                f"{self.task_hour.value():02d}:"
-                                f"{self.task_minute.value():02d}")
-        elif t == "interval":
-            task["interval_sec"] = self.task_interval.value()
-        elif t == "daily":
-            task["time"] = self.task_time.text().strip()
-        if self._editing_index is not None:
-            ok = update_scheduled_task(self._editing_index, task)
-            msg_title, msg_body = "Task aggiornato", (
-                f"Task '{title}' modificato.\n\n"
-                f"Salvato in CONFIG/scheduled_tasks.json.")
-        else:
-            ok = add_scheduled_task(task)
-            msg_title, msg_body = "Task aggiunto", (
-                f"Task '{title}' schedulato ({t}).\n\n"
-                f"Salvato in CONFIG/scheduled_tasks.json.\n"
-                f"L'orchestratore lo eseguirà automaticamente.")
+        project_path = self.get_project_path() if self.get_project_path else None
+        # Aggiunge direttamente alla coda principale ("Lavori e compiti")
+        try:
+            from GUI.main_window import add_task
+            t = self.task_type.currentData()
+            context = f"schedulato: tipo={t}"
+            if t == "oneshot":
+                context += f" data={self.task_year.value():04d}-{self.task_month.value():02d}-{self.task_day.value():02d} {self.task_hour.value():02d}:{self.task_minute.value():02d}"
+            elif t == "interval":
+                context += f" ogni {self.task_interval.value()}s"
+            elif t == "daily":
+                context += f" giornaliero alle {self.task_time.text().strip()}"
+            model = combo_current_model(self.task_model)
+            if model and model != "(default)":
+                context += f" modello={model}"
+            ok = add_task(
+                title=title,
+                description=prompt,
+                context=context,
+                task_type="code",
+                project_path=project_path,
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Errore", f"Impossibile aggiungere il task:\n{e}")
+            return
         if ok:
             self.task_title.clear()
             self.task_prompt.clear()
             self._editing_index = None
             self.add_btn.setText("➕ Aggiungi task")
             self._refresh_list()
-            QMessageBox.information(self, msg_title, msg_body)
+            QMessageBox.information(
+                self, "Task aggiunto",
+                f"Task '{title}' aggiunto alla coda principale (Lavori e compiti).\n\n"
+                f"L'orchestratore lo preleverà automaticamente."
+            )
 
     def _on_task_context_menu(self, pos):
         """Tasto destro sulla lista: Modifica / Elimina il task selezionato."""
@@ -373,38 +375,51 @@ class TaskSchedulerPanel(QWidget):
         item = self.task_list_widget.item(row)
         if not item:
             return
-        title = item.data(Qt.ItemDataRole.UserRole) or {}
-        title_str = title.get("title", "?") if isinstance(title, dict) else "?"
+        task_id = item.data(Qt.ItemDataRole.UserRole)
+        if not task_id:
+            return
+        title = item.text().split(" — ")[1] if " — " in item.text() else "?"
         reply = QMessageBox.question(self, "Conferma",
-            f"Eliminare il task '{title_str}'?",
+            f"Eliminare il task '{title}' ({task_id}) dalla coda principale?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
-            remove_scheduled_task(row)
+            project_path = self.get_project_path() if self.get_project_path else None
+            try:
+                from GUI.main_window import delete_task
+                delete_task(task_id, project_path)
+            except Exception as e:
+                QMessageBox.critical(self, "Errore", f"Impossibile eliminare:\n{e}")
+                return
             self._refresh_list()
 
     def _refresh_list(self):
         self.task_list_widget.clear()
-        tasks = load_scheduled()
+        # Stessa lista di "Lavori e compiti" del progetto attivo
+        project_path = self.get_project_path() if self.get_project_path else None
+        try:
+            from GUI.main_window import load_tasks
+            tasks = load_tasks(project_path)
+        except Exception:
+            tasks = []
         if not tasks:
-            item = QListWidgetItem("📭 Nessun task schedulato. Aggiungine uno sopra. ↑")
+            item = QListWidgetItem("📭 Nessun task in coda. Aggiungine uno sopra. ↑")
             item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsSelectable)
             self.task_list_widget.addItem(item)
             return
+        status_icon = {
+            "pending": "⏳", "running": "▶️", "done": "✅",
+            "failed": "❌", "retry": "🔄", "stuck": "⚠️",
+            "needs_human": "🙋", "thermal_paused": "🌡️",
+        }
         for i, t in enumerate(tasks):
-            type_icon = {"oneshot": "🕐", "interval": "🔁", "daily": "📅"}.get(
-                t.get("type", ""), "•"
+            icon = status_icon.get(t.get("status", ""), "•")
+            text = (
+                f"{icon} [{i+1}] {str(t.get('id',''))[:12]} — "
+                f"{t.get('title', '?')} — {t.get('status', '?')} "
+                f"— tipo: {t.get('type', '?')}"
             )
-            when = ""
-            if t.get("type") == "oneshot":
-                when = t.get("datetime", "")
-            elif t.get("type") == "interval":
-                when = f"ogni {t.get('interval_sec', '?')}s"
-            elif t.get("type") == "daily":
-                when = f"ogni giorno alle {t.get('time', '?')}"
-            model = t.get("model", "(default)")
-            text = f"{type_icon} [{i+1}] {t.get('title', '?')} — {when} — modello: {model}"
             item = QListWidgetItem(text)
-            item.setData(Qt.ItemDataRole.UserRole, t)
+            item.setData(Qt.ItemDataRole.UserRole, t.get("id", ""))
             self.task_list_widget.addItem(item)
 
     def _back_to_main(self):
@@ -413,6 +428,11 @@ class TaskSchedulerPanel(QWidget):
             parent = parent.parent()
         if parent and hasattr(parent, "back_to_main"):
             parent.back_to_main()
+
+    def showEvent(self, event):
+        """Refresh forzato della lista quando si entra nella scheda."""
+        super().showEvent(event)
+        self._refresh_list()
 
     # ──────────────────────────────────────────────────────────────────
     # Stili
