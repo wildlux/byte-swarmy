@@ -1,4 +1,5 @@
 """Gestione temi QSS per BYTE-SWARMY."""
+import re
 from pathlib import Path
 from PyQt6.QtCore import QSettings
 
@@ -140,6 +141,20 @@ def set_prop(widget, prop, value):
     widget.setProperty(prop, value)
     widget.style().unpolish(widget)
     widget.style().polish(widget)
+
+
+# Colore di un token semantico (property `role=` per QLabel) dal QSS corrente.
+_ROLE_RE = re.compile(
+    r'QLabel\[role="([a-z]+)"\]\s*\{[^}]*?color:\s*(#[0-9a-fA-F]{6})')
+
+
+def token_color(name: str):
+    """Colore `#rrggbb` del token `role=name` nel tema corrente (o None)."""
+    m = _ROLE_RE.search(_load(current_theme()))
+    for m in _ROLE_RE.finditer(_load(current_theme())):
+        if m.group(1) == name:
+            return m.group(2)
+    return None
 
 
 # Mappatura semantica → property `banner` usata dai .qss

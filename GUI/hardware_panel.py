@@ -23,8 +23,20 @@ from PyQt6.QtGui import QFont
 
 from GUI.theme.theme import set_prop as _theme_prop
 from GUI.theme.theme import set_banner as _theme_banner
+from GUI.theme.theme import token_color as _token_color
 
 _BASE = Path(__file__).resolve().parent.parent
+
+
+def _rgba(hex_color: str, alpha: float) -> str:
+    """Converte `#rrggbb` in `rgba(r,g,b,alpha)` per QSS Qt.
+
+    NB: in QSS Qt un hex a 8 cifre è #AARRGGBB (alpha PRIMA), quindi
+    `{color}11` non fa ciò che sembra — si usa rgba() esplicita.
+    """
+    h = hex_color.lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return f"rgba({r},{g},{b},{alpha:g})"
 
 
 class HardwarePanel(QWidget):
@@ -217,30 +229,46 @@ class HardwarePanel(QWidget):
                 self.info_labels["model_size"].setText("— (nessun actors.json)")
             if profile.vram_total_gb > 0:
                 fits_text = "✓ Sì — GPU verrà usata" if profile.model_fits_vram else "✗ No — userà CPU"
-                color = "#16a34a" if profile.model_fits_vram else "#dc2626"
+                color = _token_color("ok") if profile.model_fits_vram else _token_color("alert")
                 self.info_labels["model_fits"].setText(
                     f'<span style="color:{color};font-weight:bold">{fits_text}</span>'
                 )
             else:
                 self.info_labels["model_fits"].setText("— (no GPU)")
 
-            # Badge strategia
-            strat_colors = {
-                "unified_parallel": ("#16a34a", "🚀 unified_parallel"),
-                "unified_light":    ("#16a34a", "⚡ unified_light"),
-                "nvidia_dual":      ("#2563eb", "🎮 nvidia_dual"),
-                "nvidia_cpu_split": ("#2563eb", "🔀 nvidia_cpu_split"),
-                "nvidia_light":     ("#0891b2", "💡 nvidia_light"),
-                "amd_dual":         ("#dc2626", "🎮 amd_dual"),
-                "amd_light":        ("#dc2626", "💡 amd_light"),
-                "cpu_only":         ("#666666", "💻 cpu_only"),
+            # Badge strategia — token semantici dal tema (role), così il
+            # colore resta sempre leggibile nel tema corrente.
+            strat_tokens = {
+                "unified_parallel": "ok",
+                "unified_light":    "ok",
+                "nvidia_dual":      "accent",
+                "nvidia_cpu_split": "accent",
+                "nvidia_light":     "accent",
+                "amd_dual":         "alert",
+                "amd_light":        "alert",
+                "cpu_only":         "muted",
             }
-            color, label = strat_colors.get(
-                profile.strategy, ("#666666", profile.strategy))
-            self.strat_badge.setText(f"Strategia: {label}")
+            labels = {
+                "unified_parallel": "🚀 unified_parallel",
+                "unified_light":    "⚡ unified_light",
+                "nvidia_dual":      "🎮 nvidia_dual",
+                "nvidia_cpu_split": "🔀 nvidia_cpu_split",
+                "nvidia_light":     "💡 nvidia_light",
+                "amd_dual":         "🎮 amd_dual",
+                "amd_light":        "💡 amd_light",
+                "cpu_only":         "💻 cpu_only",
+            }
+            tok = strat_tokens.get(profile.strategy, "muted")
+            color = _token_color(tok) or "#8f99ab"
+            self.strat_badge.setText(
+                f"Strategia: {labels.get(profile.strategy, profile.strategy)}")
+            # NB: QSS Qt = #AARRGGBB: usiamo rgba() esplicita (l'hex a
+            # 8 cifre {color}11 produrrebbe un bg oliva + testo illeggibile).
             self.strat_badge.setStyleSheet(
-                f"background:{color}11; border:2px solid {color}; border-radius:8px; "
-                f"padding:8px; font-size:14px; font-weight:bold; color:{color};"
+                f"background:{_rgba(color, 0.10)}; "
+                f"border:2px solid {_rgba(color, 0.55)}; border-radius:8px; "
+                f"padding:8px; font-size:14px; font-weight:bold; "
+                f"color:{color};"
             )
 
             # Descrizione

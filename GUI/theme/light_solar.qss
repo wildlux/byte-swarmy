@@ -60,6 +60,8 @@ QLabel[banner="ok"] { background: #c9e8d8; color: #ebff66; border-radius: 6px; p
 QLabel[banner="error"] { background: #e8c6c2; color: #d02623; border-radius: 6px; padding: 8px 12px; }
 QLabel[banner="warn"] { background: #efe1c2; color: #ffd34a; border-radius: 6px; padding: 8px 12px; }
 QLabel[role="alert"] { color: #d02623; }
+QLabel[role="accent"] { color: #2780bf; }
+QLabel[role="ok"] { color: #327b5a; }
 QLabel[role="wip"] { color: #ffd34a; }
 QProgressBar { background: #8aa0a7; border: none; border-radius: 4px; height: 8px; text-align: center; color: transparent; }
 QProgressBar::chunk { background: #57d59b; border-radius: 4px; }

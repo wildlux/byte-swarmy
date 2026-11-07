@@ -61,6 +61,8 @@ QLabel[banner="error"] { background: #3d1b17; color: #ff0040; border-radius: 6px
 QLabel[banner="warn"] { background: #3d2f10; color: #ffff00; border-radius: 6px; padding: 8px 12px; }
 QLabel[role="alert"] { color: #ff0040; }
 QLabel[role="wip"] { color: #ffff00; }
+QLabel[role="accent"] { color: #00ff41; }
+QLabel[role="ok"] { color: #2aa86e; }
 QProgressBar { background: #00ff41; border: none; border-radius: 4px; height: 8px; text-align: center; color: transparent; }
 QProgressBar::chunk { background: #2aa86e; border-radius: 4px; }
 QSlider::groove:horizontal { height: 4px; background: #363d4a; border-radius: 2px; }
