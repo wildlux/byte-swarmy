@@ -1012,6 +1012,17 @@ class CollapsibleSection(QFrame):
     def add_widget(self, widget):
         self.content_lay.addWidget(widget)
 
+    def add_header_widget(self, widget, max_width: int = 260):
+        """Aggiunge un widget COMPATTO nella riga di titolo (header).
+
+        Va prima del pulsante toggle; utile per azioni/surface di ricerca
+        sempre visibili anche a sezione collassata.
+        """
+        lay = self.header.layout()
+        idx = lay.indexOf(self.toggle_btn)
+        widget.setMaximumWidth(max_width)
+        lay.insertWidget(idx, widget)
+
 
 # ═══════════════════════════════════════════════════════════════
 # CARD PLANCIA
@@ -4594,10 +4605,12 @@ class CenterArea(QWidget):
             "🔍 Cerca tra le card…  (es. \"task\", \"git\", \"ci/cd\", \"sicurezza\")"
         )
         self.global_search.setStyleSheet(
-            "QLineEdit { padding:10px 14px; border-radius:8px; font-size:13px; }"
+            "QLineEdit { padding:6px 12px; border-radius:8px; font-size:12px; }"
         )
         self.global_search.textChanged.connect(self._on_global_search)
-        self.plancia_section.add_widget(self.global_search)
+        # Nella riga del titolo "Plancia di controllo" (sempre visibile,
+        # anche a sezione collassata) invece di occupare una riga intera.
+        self.plancia_section.add_header_widget(self.global_search, 240)
 
         cards_grid = QGridLayout()
         cards_grid.setSpacing(12)
