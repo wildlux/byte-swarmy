@@ -2987,6 +2987,23 @@ class FileTreeDrawer(QFrame):
         )
         header_row.addWidget(self.header)
         header_row.addStretch()
+        # Pulsante aggiungi nuovo file di testo
+        self.add_file_btn = QPushButton("➕")
+        self.add_file_btn.setFixedSize(28, 28)
+        self.add_file_btn.setToolTip("Crea un nuovo file di testo nella cartella corrente")
+        self.add_file_btn.setStyleSheet(
+            "QPushButton { font-size:16px; border:none; background:transparent; "
+            "border-radius:4px; padding:0; }"
+            "QPushButton:hover { background:#e2e8f0; border-radius:4px; }"
+        )
+        self.add_file_btn.clicked.connect(self._add_text_file)
+        header_row.addWidget(self.add_file_btn)
+
+        # Spazietto tra aggiungi e elimina
+        _sp_del = QFrame()
+        _sp_del.setFixedWidth(8)
+        header_row.addWidget(_sp_del)
+
         # Pulsante elimina selezionati (archivio progetto) — in alto a destra
         self.del_btn = QPushButton("🗑️")
         self.del_btn.setFixedSize(28, 28)
@@ -3398,6 +3415,57 @@ class FileTreeDrawer(QFrame):
                 self.task_list.addItem(item)
         except Exception as e:
             print(f"Errore ricarica task_list: {e}")
+
+    def _add_text_file(self):
+        """Crea un nuovo file di testo nella cartella corrente del progetto."""
+        from PyQt6.QtWidgets import QInputDialog
+        import os
+
+        # Determina cartella di destinazione
+        target_dir = ""
+        idx = self.tree.currentIndex()
+        if idx.isValid():
+            fp = self.model.filePath(idx)
+            if os.path.isdir(fp):
+                target_dir = fp
+            else:
+                target_dir = os.path.dirname(fp)
+        if not target_dir:
+            target_dir = self.model.rootPath()
+        if not target_dir or not os.path.isdir(target_dir):
+            target_dir = str(BASE_DIR.resolve())
+
+        # Chiedi nome file
+        name, ok = QInputDialog.getText(
+            self, "Nuovo file di testo",
+            "Nome del file (es. note.txt):",
+            text="nuovo_file.txt",
+        )
+        if not ok or not name.strip():
+            return
+        name = name.strip()
+        if not any(name.endswith(ext) for ext in (".txt", ".md", ".py", ".sh",
+                                                   ".log", ".json", ".csv")):
+            name += ".txt"
+
+        new_path = os.path.join(target_dir, name)
+        if os.path.exists(new_path):
+            QMessageBox.warning(self, "Esiste già",
+                                f"Il file '{name}' esiste già.")
+            return
+
+        try:
+            with open(new_path, "w", encoding="utf-8") as f:
+                f.write("")
+            self._debug_log("creato", new_path,
+                            "Archivio progetto (pulsante ➕)")
+            # Refresh del model per far apparire il nuovo file
+            self.model.setRootPath("")
+            self.model.setRootPath(target_dir)
+            self.tree.setRootIndex(self.model.index(target_dir))
+        except Exception as e:
+            QMessageBox.warning(self, "Errore",
+                                f"Impossibile creare il file:\n{e}")
 
     def toggle(self):
         self._open = not self._open
