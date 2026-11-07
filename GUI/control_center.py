@@ -14,6 +14,8 @@ import re
 import json
 import time
 
+BASE_DIR = Path(__file__).parent.parent.resolve()
+
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QFormLayout, QGridLayout, QStackedWidget, QPushButton, QLabel,
@@ -3265,10 +3267,9 @@ class FileTreeDrawer(QFrame):
         n = len(paths)
         # Protezione: non cancellare MAI la radice del progetto byte-swarmy
         # né la radice del progetto attivo (corromperebbe il progetto).
-        import os as _os
         base_dir = str(BASE_DIR.resolve())
         protected = {base_dir}
-        cur = self.get_current_project_path()
+        cur = self.main_win.get_current_project_path() if getattr(self, 'main_win', None) else None
         if cur:
             protected.add(str(Path(cur).resolve()))
         to_delete = set()
