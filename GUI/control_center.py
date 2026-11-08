@@ -3056,6 +3056,9 @@ class FileSystemModel(QStandardItemModel):
         except Exception:
             return
         for name in entries:
+            # Salta i file __init__.py (non devono apparire nell'albero)
+            if name == "__init__.py":
+                continue
             full_path = os.path.join(folder_path, name)
             is_dir = os.path.isdir(full_path)
             checkbox, name_item = self._make_items(full_path, is_dir)
@@ -3080,6 +3083,9 @@ class FileSystemModel(QStandardItemModel):
         except Exception:
             return
         for name in entries:
+            # Salta i file __init__.py (non devono apparire nell'albero)
+            if name == "__init__.py":
+                continue
             child_full = os.path.join(full_path, name)
             is_dir = os.path.isdir(child_full)
             checkbox, name_item = self._make_items(child_full, is_dir)
@@ -3743,19 +3749,20 @@ class FileTreeDrawer(QFrame):
         import os
 
         # Determina cartella di destinazione.
-        # Usa sempre la colonna 0 per filePath (QFileSystemModel restituisce
-        # il percorso completo solo sulla colonna 0; su altre colonne
-        # filePath() puo' essere inesatto).
+        # Usa la colonna 0 per ottenere il path completo da QStandardItemModel
+        # (il path e' memorizzato in UserRole sull'item della colonna 0).
         sel = self.tree.selectionModel().currentIndex()
         idx0 = sel.siblingAtColumn(0) if sel.isValid() else sel
 
         target_dir = ""
         if idx0.isValid():
-            fp = self.model.filePath(idx0)
-            if os.path.isdir(fp):
-                target_dir = fp
-            else:
-                target_dir = os.path.dirname(fp)
+            item = self.model.itemFromIndex(idx0)
+            if item is not None:
+                fp = item.data(Qt.ItemDataRole.UserRole)
+                if fp and os.path.isdir(fp):
+                    target_dir = fp
+                elif fp:
+                    target_dir = os.path.dirname(fp)
         if not target_dir:
             target_dir = self.model._root_path if hasattr(self.model, '_root_path') and self.model._root_path else str(BASE_DIR.resolve())
         if not target_dir or not os.path.isdir(target_dir):
@@ -3812,17 +3819,20 @@ class FileTreeDrawer(QFrame):
         import os
 
         # Determina cartella di destinazione (come per _add_text_file).
-        # Usa sempre la colonna 0 per filePath.
+        # Usa la colonna 0 per ottenere il path completo da QStandardItemModel
+        # (il path e' memorizzato in UserRole sull'item della colonna 0).
         sel = self.tree.selectionModel().currentIndex()
         idx0 = sel.siblingAtColumn(0) if sel.isValid() else sel
 
         target_dir = ""
         if idx0.isValid():
-            fp = self.model.filePath(idx0)
-            if os.path.isdir(fp):
-                target_dir = fp
-            else:
-                target_dir = os.path.dirname(fp)
+            item = self.model.itemFromIndex(idx0)
+            if item is not None:
+                fp = item.data(Qt.ItemDataRole.UserRole)
+                if fp and os.path.isdir(fp):
+                    target_dir = fp
+                elif fp:
+                    target_dir = os.path.dirname(fp)
         if not target_dir:
             target_dir = self.model._root_path if hasattr(self.model, '_root_path') and self.model._root_path else str(BASE_DIR.resolve())
         if not target_dir or not os.path.isdir(target_dir):
