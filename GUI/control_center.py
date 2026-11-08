@@ -3673,8 +3673,9 @@ class FileTreeDrawer(QFrame):
                 if it and it.data(Qt.ItemDataRole.UserRole) == tid:
                     titolo = it.text()
                     break
-            _click_log("task", "elimina", self._current_project_path or "",
-                            f"{tid} - {titolo}")
+            _click_log("task", "elimina",
+                        self.main_win.get_current_project_path() if self.main_win else "",
+                        f"{tid} - {titolo}")
             try:
                 delete_task(tid, project_path)
             except Exception as e:
