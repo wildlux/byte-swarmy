@@ -1056,10 +1056,10 @@ class PlanciaCard(QFrame):
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         # Altezza minima uniforme per tutte le card: 110px bastano per
         # titolo + 2 righe di descrizione (word-wrap tronca al bisogno).
-        # minHeight invece di setFixedHeight così le card si espandono se
-        # la finestra cresce e non creano artefatti al ridimensionamento.
-        self.setMinimumHeight(110)
-        # Size policy Expanding orizzontale: la card RIEMPIE la cella della
+        # Size policy orizzontale Expanding: la card RIEMPIE la cella della
+        # grid, qualunque sia la lunghezza del titolo.
+        # Altezza: lasciato al layout natural expansion (no fixed/minimum
+        # imposti così la card cresce proporzionalmente con la finestra).
         # grid, qualunque sia la lunghezza del titolo. Nessun MinimumWidth
         # (sennò invalidate il ColumnStretch e le colonne diventano disuguali).
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -1502,6 +1502,8 @@ class FileEditorWidget(QFrame):
         self.editor.setStyleSheet(
             "font-family:'JetBrains Mono','Consolas',monospace; font-size:12px; padding:8px;"
         )
+        # ESC chiude l'editor anche quando il focus è sul campo di testo
+        self.editor.installEventFilter(self)
         lay.addWidget(self.editor)
 
         self.status = QLabel("Pronto")
@@ -1509,6 +1511,14 @@ class FileEditorWidget(QFrame):
         lay.addWidget(self.status)
 
         self._load_file()
+
+    def eventFilter(self, obj, event):
+        from PyQt6.QtCore import Qt as _Qt, QEvent
+        if obj is self.editor and event.type() == QEvent.Type.KeyPress:
+            if event.key() == _Qt.Key.Key_Escape:
+                self.closed.emit()
+                return True
+        return super().eventFilter(obj, event)
 
     def keyPressEvent(self, event):
         """ESC chiude l'editor overlay."""
@@ -3047,7 +3057,10 @@ class FileTreeDrawer(QFrame):
         self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
 
+        self._pending_editor_path = None
+        self._editor_open_timer = None
         self.tree.clicked.connect(self._on_tree_click)
+        self.tree.doubleClicked.connect(self._on_tree_double_click)
         self.tree.customContextMenuRequested.connect(self._on_tree_context_menu)
         self.model.dataChanged.connect(self._on_model_data_changed)
         lay.addWidget(self.tree)
@@ -3113,10 +3126,12 @@ class FileTreeDrawer(QFrame):
         task_header_row.addWidget(task_del_btn)
         lay.addLayout(task_header_row)
 
+        self._refreshing_tasks = False
         self.task_list = QListWidget()
         self.task_list.setObjectName("task_list")
         self.task_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.task_list.itemDoubleClicked.connect(self._on_task_double_clicked)
+        self.task_list.itemClicked.connect(self._on_task_item_clicked)
         self.task_list.customContextMenuRequested.connect(self._on_task_context_menu)
         self.task_list.itemChanged.connect(self._on_task_item_changed)
         # Popola con task reali del progetto attivo
@@ -3180,9 +3195,41 @@ class FileTreeDrawer(QFrame):
         # Scrolla in cima
         self.tree.scrollToTop()
 
+    def _debug_call_info(self, handler_name, extra=""):
+        import inspect, os
+        frames = inspect.stack()
+        # Cerca il frame chiamante (il primo fuori da questo metodo)
+        caller = frames[1] if len(frames) > 1 else None
+        if caller:
+            fn = caller.function
+            mod = inspect.getmodule(caller.frame)
+            modname = mod.__name__ if mod else "?"
+            fname = os.path.basename(caller.filename)
+            line = caller.lineno
+            cls = None
+            # Cerca self class
+            selfobj = caller.frame.f_locals.get("self")
+            if selfobj is not None:
+                cls = type(selfobj).__name__
+            parts = [f"{cls or '?'}" , f"{fn}", f"({fname}:{line})"]
+            if extra:
+                parts.append(str(extra))
+            return " | ".join(parts)
+        return f"{handler_name} | {extra}"
+
     def _on_tree_click(self, index):
-        """Click sull'albero file: toggle checkbox su colonna 0, apre editor su file."""
+        """Click sull'albero file: toggle checkbox su colonna 0, apre editor su file.
+        Con Shift premuto: copia negli appunti la classe/riga di chiamata."""
         try:
+            from PyQt6.QtWidgets import QApplication
+            from PyQt6.QtCore import Qt as _Qt
+            if QApplication.keyboardModifiers() & _Qt.KeyboardModifier.ShiftModifier:
+                path = self.model.filePath(index) if index.isValid() else ""
+                info = self._debug_call_info("FileTreeDrawer._on_tree_click", path)
+                QApplication.clipboard().setText(info)
+                if self._GUI_DEBUG:
+                    print(f"[DEBUG] Shift+click copiato negli appunti: {info}")
+                return
             if not index.isValid():
                 return
             if index.column() == 0:
@@ -3207,10 +3254,43 @@ class FileTreeDrawer(QFrame):
             if not path or not os.path.exists(path):
                 return
             if os.path.isfile(path):
-                self._debug_log("aperto", path, "Archivio progetto (click file)")
-                self.main_win._show_file_editor(path)
+                # Ritarda l'apertura dell'editor: se arriva un doppio click
+                # (rinomina) annulla l'apertura per non aprire l'editor inutilmente.
+                self._pending_editor_path = path
+                if self._editor_open_timer is None:
+                    from PyQt6.QtCore import QTimer
+                    self._editor_open_timer = QTimer(self)
+                    self._editor_open_timer.setSingleShot(True)
+                    self._editor_open_timer.timeout.connect(self._open_pending_editor)
+                self._editor_open_timer.start(250)
         except Exception as e:
             print(f"Errore click albero: {e}")
+
+    def _open_pending_editor(self):
+        path = getattr(self, "_pending_editor_path", None)
+        if path and os.path.isfile(path):
+            self._debug_log("aperto", path, "Archivio progetto (click file)")
+            self.main_win._show_file_editor(path)
+        self._pending_editor_path = None
+
+    def _on_tree_double_click(self, index):
+        """Doppio click su un file: apre il campo di rinomina con il nome
+        attuale già inserito, così l'utente può cambiarlo direttamente."""
+        try:
+            if not index.isValid():
+                return
+            path = self.model.filePath(index)
+            if not path or not os.path.exists(path):
+                return
+            if os.path.isdir(path):
+                return
+            # Annulla l'apertura dell'editor in attesa (era un doppio click)
+            if getattr(self, "_editor_open_timer", None) is not None:
+                self._editor_open_timer.stop()
+            self._pending_editor_path = None
+            self._rename_item(path)
+        except Exception as e:
+            print(f"Errore doppio click albero: {e}")
 
     def _on_tree_context_menu(self, pos):
         index = self.tree.indexAt(pos)
@@ -3262,10 +3342,14 @@ class FileTreeDrawer(QFrame):
             except Exception as e:
                 QMessageBox.warning(self, "Errore", f"Impossibile eliminare:\n{e}")
 
+    # Debug click/selezioni SOLO su richiesta (BSWARM_GUI_DEBUG=1): di
+    # default niente spam su stdout mentre usi la GUI.
+    _GUI_DEBUG = os.environ.get("BSWARM_GUI_DEBUG", "").strip() == "1"
+
     def _debug_log(self, azione: str, elemento: str, sezione: str = "Archivio progetto"):
-        """Stampa un messaggio di debug nel terminale per aiutare a tracciare
-        quali elementi vengono selezionati/cliccati e da quale sezione."""
-        print(f"[DEBUG] {sezione}: {azione} elemento='{elemento}'")
+        """Traccia selezioni/click (terminale) — solo con BSWARM_GUI_DEBUG=1."""
+        if self._GUI_DEBUG:
+            print(f"[DEBUG] {sezione}: {azione} elemento='{elemento}'")
 
     def _on_model_data_changed(self, top_left, bottom_right, roles):
         """Sincronizza selezione visiva QTreeView con stato checkbox del model."""
@@ -3345,14 +3429,32 @@ class FileTreeDrawer(QFrame):
         self.model.clear_checks()
         self.tree.selectionModel().clearSelection()
 
+    def _on_task_item_clicked(self, item: QListWidgetItem):
+        from PyQt6.QtWidgets import QApplication
+        from PyQt6.QtCore import Qt as _Qt
+        if QApplication.keyboardModifiers() & _Qt.KeyboardModifier.ShiftModifier:
+            tid = item.data(Qt.ItemDataRole.UserRole) if item else ""
+            info = self._debug_call_info("task_list itemClicked", tid)
+            QApplication.clipboard().setText(info)
+            if self._GUI_DEBUG:
+                print(f"[DEBUG] Shift+click copiato negli appunti: {info}")
+            return
+        # comportamento normale: toggle checkbox già gestito da itemChanged
+
     def _on_task_item_changed(self, item: QListWidgetItem):
         """Sincronizza selezione visiva QListWidget con stato checkbox."""
         if not item:
             return
-        stato = "selezionato" if item.checkState() == Qt.CheckState.Checked else "deselezionato"
+        if getattr(self, "_refreshing_tasks", False):
+            return
+        checked = item.checkState() == Qt.CheckState.Checked
+        mark = "✓" if checked else "✗"
+        stato = "selezionato" if checked else "deselezionato"
         tid = item.data(Qt.ItemDataRole.UserRole)
+        if self._GUI_DEBUG:
+                print(f"[DEBUG] Lavori e compiti (colonna ✓): {mark} {stato} elemento='{tid} - {item.text()}'")
         self._debug_log(stato, f"{tid} - {item.text()}", "Lavori e compiti (colonna ✓)")
-        if item.checkState() == Qt.CheckState.Checked:
+        if checked:
             item.setSelected(True)
         else:
             item.setSelected(False)
@@ -3450,9 +3552,21 @@ class FileTreeDrawer(QFrame):
 
         new_path = os.path.join(target_dir, name)
         if os.path.exists(new_path):
-            QMessageBox.warning(self, "Esiste già",
-                                f"Il file '{name}' esiste già.")
-            return
+            # Suggerisci un nome differente invece di dare errore
+            base, ext = os.path.splitext(name)
+            i = 1
+            while os.path.exists(os.path.join(target_dir, f"{base} ({i}){ext}")):
+                i += 1
+            suggested = f"{base} ({i}){ext}"
+            ans = QMessageBox.question(
+                self, "Esiste già",
+                f"Il file '{name}' esiste già.\nVuoi usare '{suggested}'?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if ans != QMessageBox.StandardButton.Yes:
+                return
+            name = suggested
+            new_path = os.path.join(target_dir, name)
 
         try:
             with open(new_path, "w", encoding="utf-8") as f:
@@ -3539,6 +3653,9 @@ class FileTreeDrawer(QFrame):
     def _force_refresh_tasks(self):
         """Forza il refresh della lista task dal DB."""
         try:
+            self._refreshing_tasks = True
+            if self._GUI_DEBUG:
+                print("[DEBUG] Sidebar-Refresh: refresh (aggiorna lista task)")
             _log_user_action("Sidebar-Refresh", "refresh", details="Refresh manuale lista task")
             if hasattr(self, 'task_list'):
                 self.task_list.clear()
@@ -3568,10 +3685,15 @@ class FileTreeDrawer(QFrame):
                 parent._refresh_coda_card()
         except Exception as e:
             print(f"Errore force refresh: {e}")
+        finally:
+            self._refreshing_tasks = False
 
     def _force_refresh_tasks(self):
         """Forza il refresh della lista task dal DB."""
         try:
+            self._refreshing_tasks = True
+            if self._GUI_DEBUG:
+                print("[DEBUG] Sidebar-Refresh: refresh (aggiorna lista task)")
             _log_user_action("Sidebar-Refresh", "refresh", details="Refresh manuale lista task")
             if hasattr(self, 'task_list'):
                 self.task_list.clear()
@@ -3601,6 +3723,8 @@ class FileTreeDrawer(QFrame):
                 parent._refresh_coda_card()
         except Exception as e:
             print(f"Errore force refresh: {e}")
+        finally:
+            self._refreshing_tasks = False
 
     def _get_task_status(self, task_id):
         """Ritorna lo status corrente di un task."""
@@ -5024,7 +5148,7 @@ class CenterArea(QWidget):
         # finestra (come bootstrap desktop→mobile). stretch=2 lo fa crescere
         # insieme alla finestra (il titolo resta con stretch=0).
         self.plancia_section.add_header_widget(
-            self.global_search, max_width=700, stretch=2)
+            self.global_search, max_width=700, min_width=360, stretch=2)
 
         cards_grid = QGridLayout()
         cards_grid.setSpacing(12)
@@ -5387,10 +5511,8 @@ class CenterArea(QWidget):
         # arrivano con altezza FISSA 300px (per la griglia della Plancia):
         # qui nel detail page deve invece riempire la pagina, altrimenti
         # il layout lo centra verticalmente lasciando mezzo buco.
+        # Minima rimossa: il widget Expanding riempie lo spazio disponibile.
         widget.setMaximumHeight(16777215)   # QWIDGETSIZE_MAX
-        widget.setMinimumHeight(480)
-        widget.setSizePolicy(QSizePolicy.Policy.Expanding,
-                             QSizePolicy.Policy.Expanding)
         lay.addWidget(widget, stretch=1)
         return page
 
