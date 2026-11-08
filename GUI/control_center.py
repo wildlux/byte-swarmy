@@ -36,7 +36,7 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtCore import (
     Qt, QPropertyAnimation, QEasingCurve, pyqtSignal, QDir, QTimer,
-    QUrl, QEvent, QItemSelectionModel, QModelIndex,
+    QUrl, QEvent, QItemSelectionModel, QModelIndex, QSize
 )
 
 from GUI.gui_backend import (
@@ -2269,6 +2269,11 @@ class ControlCenter(QMainWindow):
         initial_path = self.project_tabs._path_for_tab(0) if self.project_tabs.count() > 0 else None
         if initial_path:
             self.drawer.set_current_folder(initial_path)
+        else:
+            # Nessun progetto PR_ selezionato: mostra la root project/ nel
+            # file manager così le cartelle senza prefisso PR_ sono visibili
+            # e navigabili lì (non nelle schede in alto).
+            self.drawer.set_current_folder(str(BASE_DIR / "project"))
         lay.addWidget(self.project_tabs, stretch=1)
 
         sep2 = QFrame()
@@ -2669,7 +2674,8 @@ class ProjectTabBar(QTabBar):
             try:
                 entries = sorted(
                     e for e in os.listdir(projects_dir)
-                    if os.path.isdir(os.path.join(projects_dir, e))
+                    if e.startswith("PR_")
+                    and os.path.isdir(os.path.join(projects_dir, e))
                     and not e.startswith(".")
                     and e != "__pycache__"
                     and e != ".git"
@@ -2678,8 +2684,16 @@ class ProjectTabBar(QTabBar):
             except OSError:
                 entries = []
             for name in entries:
-                if self._find_tab(name) < 0:
-                    idx = self.addTab("📁 " + name)
+                # Mostra nella scheda il nome SENZA il prefisso "PR_"
+                # (regola interna: il prefisso resta solo sul disco).
+                display_name = name[3:] if name.startswith("PR_") else name
+                if self._find_tab(display_name) < 0:
+                    idx = self.addTab("📁 " + display_name)
+                    # Salva il path reale (con "PR_") per ricostruirlo
+                    # correttamente in _path_for_tab.
+                    if not hasattr(self, "_tab_paths"):
+                        self._tab_paths = {}
+                    self._tab_paths[idx] = os.path.join(projects_dir, name)
                     # Sostituisci la × di default con un QPushButton custom
                     # che ha 15px di margine sinistro (dal testo) e 15px di
                     # margine destro (dal bordo). Il CSS di QTabBar::close-button
@@ -2810,6 +2824,11 @@ class ProjectTabBar(QTabBar):
             candidate = os.path.join(projects_dir, name)
             if os.path.isdir(candidate):
                 return candidate
+            # Le schede nascondono il prefisso "PR_": prova ad aggiungerlo
+            # per ricostruire il path reale della cartella su disco.
+            candidate_pr = os.path.join(projects_dir, "PR_" + name)
+            if os.path.isdir(candidate_pr):
+                return candidate_pr
             # Se name contiene path separatori (cartella esterna)
             if os.path.isdir(name):
                 return name
@@ -3019,19 +3038,23 @@ class FileSystemModel(QStandardItemModel):
     """
     def __init__(self):
         super().__init__()
-        self.setColumnCount(2)
+        self.setColumnCount(3)
         self.setHeaderData(0, Qt.Orientation.Horizontal, "✓")
-        self.setHeaderData(1, Qt.Orientation.Horizontal, "Name")
+        self.setHeaderData(1, Qt.Orientation.Horizontal, "📄")
+        self.setHeaderData(2, Qt.Orientation.Horizontal, "Name")
         self._checked_paths = set()
         self._root_path = ""
         self._icon_provider = QFileIconProvider()
+        # Ordinamento: True = cartelle prima poi file; False = file prima poi cartelle
+        self._folders_first = True
 
     def set_root_path(self, path):
         self._root_path = os.path.abspath(path)
         self.clear()
-        self.setColumnCount(2)
+        self.setColumnCount(3)
         self.setHeaderData(0, Qt.Orientation.Horizontal, "✓")
-        self.setHeaderData(1, Qt.Orientation.Horizontal, "Name")
+        self.setHeaderData(1, Qt.Orientation.Horizontal, "📄")
+        self.setHeaderData(2, Qt.Orientation.Horizontal, "Name")
         root_item = self.invisibleRootItem()
         self._populate_folder(self._root_path, root_item)
 
@@ -3043,21 +3066,35 @@ class FileSystemModel(QStandardItemModel):
         checkbox.setData(full_path, Qt.ItemDataRole.UserRole)
         checkbox.setData(is_dir, Qt.ItemDataRole.UserRole + 1)
 
+        # Colonna dedicata all'icona (separata dal nome)
+        icon_item = QStandardItem()
+        icon_item.setEditable(False)
+        icon_item.setData(full_path, Qt.ItemDataRole.UserRole)
+        icon_item.setData(is_dir, Qt.ItemDataRole.UserRole + 1)
+        from PyQt6.QtCore import QFileInfo
+        icon = self._icon_provider.icon(QFileInfo(full_path))
+        icon_item.setIcon(icon)
+
+        # Colonna dedicata al nome (senza icona)
         name = QStandardItem(os.path.basename(full_path))
         name.setData(full_path, Qt.ItemDataRole.UserRole)
         name.setData(is_dir, Qt.ItemDataRole.UserRole + 1)
         name.setEditable(False)
-        from PyQt6.QtCore import QFileInfo
-        icon = self._icon_provider.icon(QFileInfo(full_path))
-        name.setIcon(icon)
+        # Tooltip con il percorso completo: il nome non si legge mai troncato
+        name.setToolTip(full_path)
+        # Anche l'icona riporta il path per comodità
+        icon_item.setToolTip(full_path)
 
-        return checkbox, name
+        return checkbox, icon_item, name
 
     def _populate_folder(self, folder_path, parent_item):
         try:
             entries = sorted(os.listdir(folder_path))
         except Exception:
             return
+        # Separa cartelle e file per poterle ordinare a gruppi
+        dirs = []
+        files = []
         for name in entries:
             # Salta file/cartelle di sistema che non devono apparire nell'albero
             if name == "__init__.py":
@@ -3074,13 +3111,23 @@ class FileSystemModel(QStandardItemModel):
                 continue
             full_path = os.path.join(folder_path, name)
             is_dir = os.path.isdir(full_path)
-            checkbox, name_item = self._make_items(full_path, is_dir)
-            parent_item.appendRow([checkbox, name_item])
             if is_dir:
-                # Placeholder per permettere espansione lazy-loading
-                placeholder = QStandardItem()
-                placeholder.setEnabled(False)
-                checkbox.appendRow([placeholder, QStandardItem()])
+                dirs.append((name, full_path, is_dir))
+            else:
+                files.append((name, full_path, is_dir))
+        if self._folders_first:
+            ordered = dirs + files
+        else:
+            ordered = files + dirs
+        for name, full_path, is_dir in ordered:
+            checkbox, icon_item, name_item = self._make_items(full_path, is_dir)
+            parent_item.appendRow([checkbox, icon_item, name_item])
+            if is_dir:
+                # Placeholder per permettere espansione lazy-loading (3 celle)
+                for _ in range(3):
+                    placeholder = QStandardItem()
+                    placeholder.setEnabled(False)
+                    checkbox.appendRow([placeholder, QStandardItem(), QStandardItem()])
 
     def populate_on_expand(self, parent_item):
         """Chiamato quando una cartella viene espansa: popola i figli reali."""
@@ -3090,11 +3137,13 @@ class FileSystemModel(QStandardItemModel):
         # Rimuovi placeholder esistenti
         while parent_item.rowCount() > 0:
             parent_item.removeRow(0)
-        # Aggiungi figli reali
         try:
             entries = sorted(os.listdir(full_path))
         except Exception:
             return
+        # Separa cartelle e file per ordine (stessa logica di _populate_folder)
+        dirs = []
+        files = []
         for name in entries:
             # Salta file/cartelle di sistema che non devono apparire nell'albero
             if name == "__init__.py":
@@ -3111,12 +3160,23 @@ class FileSystemModel(QStandardItemModel):
                 continue
             child_full = os.path.join(full_path, name)
             is_dir = os.path.isdir(child_full)
-            checkbox, name_item = self._make_items(child_full, is_dir)
-            parent_item.appendRow([checkbox, name_item])
             if is_dir:
-                placeholder = QStandardItem()
-                placeholder.setEnabled(False)
-                checkbox.appendRow([placeholder, QStandardItem()])
+                dirs.append((name, child_full, is_dir))
+            else:
+                files.append((name, child_full, is_dir))
+        if self._folders_first:
+            ordered = dirs + files
+        else:
+            ordered = files + dirs
+        # Aggiungi figli reali (3 colonne: checkbox, icona, nome)
+        for name, child_full, is_dir in ordered:
+            checkbox, icon_item, name_item = self._make_items(child_full, is_dir)
+            parent_item.appendRow([checkbox, icon_item, name_item])
+            if is_dir:
+                for _ in range(3):
+                    placeholder = QStandardItem()
+                    placeholder.setEnabled(False)
+                    checkbox.appendRow([placeholder, QStandardItem(), QStandardItem()])
 
     def checked_paths(self):
         return set(self._checked_paths)
@@ -3202,14 +3262,16 @@ class FileTreeDrawer(QFrame):
 
         # Header dinamico: mostra "📁 Archivio progetto" + path corrente
         header_row = QHBoxLayout()
-        header_row.setContentsMargins(16, 8, 16, 8)
-        header_row.setSpacing(8)
+        header_row.setContentsMargins(8, 6, 8, 6)
+        header_row.setSpacing(4)
         self.header = QLabel("<b>📁 Archivio progetto</b>")
         self.header.setObjectName("sidebar_header")
         self.header.setStyleSheet(  # nolint: header verde accordion Archivio
             "padding:0; color:#16a34a; font-size:13px;"
         )
-        header_row.addWidget(self.header)
+        self.header.setWordWrap(True)
+        self.header.setMinimumHeight(30)  # spazio per due righe se serve
+        header_row.addWidget(self.header, stretch=1)
         header_row.addStretch()
         # Pulsante aggiungi nuovo file di testo
         self.add_file_btn = QPushButton("➕")
@@ -3283,13 +3345,26 @@ class FileTreeDrawer(QFrame):
         self.tree.setModel(self.model)
         self.tree.set_drawer(self)
         # Colonna 0 = checkbox, colonna 1 = nome file
-        self.tree.hideColumn(2) if self.model.columnCount() > 2 else None
         self.tree.setAnimated(True)
         self.tree.setIndentation(14)
+        self.tree.setIconSize(QSize(16, 16))
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.tree.header().setStretchLastSection(False)
         self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.tree.header().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+
+        # Pulsante ordina: cartelle prima / file prima (dopo che self.model esiste)
+        self.sort_btn = QPushButton("📁📄" if self.model._folders_first else "📄📁")
+        self.sort_btn.setFixedSize(28, 28)
+        self.sort_btn.setToolTip("Ordina elementi: cartelle prima / file prima")
+        self.sort_btn.setStyleSheet(
+            "QPushButton { font-size:14px; border:none; background:transparent; "
+            "border-radius:4px; padding:0; }"
+            "QPushButton:hover { background:#e2e8f0; border-radius:4px; }"
+        )
+        self.sort_btn.clicked.connect(self._toggle_sort_order)
+        header_row.addWidget(self.sort_btn)
 
         self._pending_editor_path = None
         self._editor_open_timer = None
@@ -3716,6 +3791,12 @@ class FileTreeDrawer(QFrame):
         self._refresh_file_tree()
         self.model.clear_checks()
         self.tree.selectionModel().clearSelection()
+
+    def _toggle_sort_order(self):
+        """Alterna l'ordinamento: cartelle prima / file prima."""
+        self.model._folders_first = not self.model._folders_first
+        self.sort_btn.setText("📁📄" if self.model._folders_first else "📄📁")
+        self._refresh_file_tree()
 
     def _on_task_item_clicked(self, item: QListWidgetItem):
         from PyQt6.QtWidgets import QApplication
