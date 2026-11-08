@@ -1011,7 +1011,7 @@ class LiveMetricsBar(QWidget):
         self.info_label = QLabel("nessuna chiamata modello")
         self.info_label.setObjectName("metricsBoard")
         self.ctx_bar = QProgressBar()
-        self.ctx_bar.setFixedWidth(90)
+        self.ctx_bar.setMinimumWidth(60)      # si comprime su finestre strette
         self.ctx_bar.setTextVisible(False)
 
         lay.addWidget(self.info_label)
@@ -1238,7 +1238,7 @@ class TaskQueueTab(QWidget):
         details_layout = QVBoxLayout(details_group)
         self.details_text = QPlainTextEdit()
         self.details_text.setReadOnly(True)
-        self.details_text.setMaximumHeight(150)
+        # Altezza massima rimossa: il testo si adatta al contenuto e al layout
         details_layout.addWidget(self.details_text)
         layout.addWidget(details_group)
 
@@ -2646,7 +2646,7 @@ class ThermalTab(QWidget):
         font.setStyleHint(QFont.StyleHint.Monospace)
         font.setPointSize(9)
         self.history_text.setFont(font)
-        self.history_text.setMaximumHeight(150)
+        # Altezza massima rimossa: il testo si adatta al contenuto
         history_layout.addWidget(self.history_text)
         layout.addWidget(history_group)
 
@@ -2877,7 +2877,7 @@ class TestsTab(QWidget):
         layout.addWidget(details_label)
         self.details = QPlainTextEdit()
         self.details.setReadOnly(True)
-        self.details.setMaximumHeight(140)
+        # Altezza massima rimossa: si adatta al contenuto
         font = QFont("Monospace")
         font.setStyleHint(QFont.StyleHint.Monospace)
         font.setPointSize(9)
@@ -3279,7 +3279,7 @@ class ModelsTab(QWidget):
         results_layout = QVBoxLayout(results_group)
         self.results_text = QPlainTextEdit()
         self.results_text.setReadOnly(True)
-        self.results_text.setMaximumHeight(200)
+        # Altezza massima rimossa: si adatta al contenuto
         font = QFont("Monospace")
         font.setStyleHint(QFont.StyleHint.Monospace)
         font.setPointSize(9)
@@ -3644,9 +3644,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("BYTE-SWARMY · Control Center")
-        self._theme = "dark"
         self.setWindowIcon(QIcon(str(BASE_DIR / "IMG" / "icona.ico")))
-        self.setMinimumSize(900, 650)
+        # Minimum size rimosso: la finestra si adatta al contenuto
 
         # Componenti runtime (invariati rispetto alla versione a tab)
         self.orchestrator = OrchestratorProcess()
@@ -3737,6 +3736,12 @@ class MainWindow(QMainWindow):
         self.btn_menu = QPushButton("☰")
         self.btn_menu.setObjectName("hamburger")
         self.btn_menu.setToolTip("Menu")
+        self.btn_menu.setFixedSize(32, 32)
+        self.btn_menu.setStyleSheet(
+            "QPushButton#hamburger { font-size:18px; padding:0; margin:0; "
+            "border:none; background:transparent; }"
+            "QPushButton#hamburger:hover { background:#e2e8f0; border-radius:4px; }"
+        )
         self.btn_menu.clicked.connect(self._open_hamburger)
         bar.addWidget(self.btn_menu)
 
