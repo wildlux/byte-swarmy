@@ -3196,6 +3196,7 @@ class FileTreeDrawer(QFrame):
         # Event filter per intercettare il click sulla colonna 0 PRIMA del
         # toggle nativo di QTreeView, evitando il doppio toggle
         self.tree.installEventFilter(self)
+        self.tree.viewport().installEventFilter(self)
         lay.addWidget(self.tree)
 
         sep = QFrame()
@@ -3523,7 +3524,7 @@ class FileTreeDrawer(QFrame):
         from PyQt6.QtCore import QEvent
         from PyQt6.QtGui import QMouseEvent
 
-        if obj is self.tree and event.type() == QEvent.Type.MouseButtonPress:
+        if (obj is self.tree or obj is self.tree.viewport()) and event.type() == QEvent.Type.MouseButtonPress:
             me = event
             index = self.tree.indexAt(me.pos())
             if index.isValid() and index.column() == 0:
@@ -3606,6 +3607,8 @@ class FileTreeDrawer(QFrame):
                     os.remove(fp)
             except Exception as e:
                 QMessageBox.warning(self, "Errore", f"Impossibile eliminare {fp}:\n{e}")
+        # Refresh dell'albero per riflettere le eliminazioni
+        self._refresh_file_tree()
         self.model.clear_checks()
         self.tree.selectionModel().clearSelection()
 
