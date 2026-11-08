@@ -3506,7 +3506,7 @@ class FileTreeDrawer(QFrame):
             try:
                 os.rename(path, new_path)
                 # Ricarica l'albero per riflettere il nuovo nome
-                self.model.set_root_path(self.model._root_path)
+                self.model.set_root_path(self.model._root_path if hasattr(self.model, '_root_path') and self.model._root_path else str(BASE_DIR.resolve()))
                 self.tree.setRootIndex(self.model.index(0, 0))
             except Exception as e:
                 QMessageBox.warning(self, "Errore", f"Impossibile rinominare:\n{e}")
@@ -3522,7 +3522,7 @@ class FileTreeDrawer(QFrame):
                     import shutil
                     shutil.rmtree(path)
                 # Ricarica l'albero
-                self.model.set_root_path(self.model._root_path)
+                self.model.set_root_path(self.model._root_path if hasattr(self.model, '_root_path') and self.model._root_path else str(BASE_DIR.resolve()))
                 self.tree.setRootIndex(self.model.index(0, 0))
             except Exception as e:
                 QMessageBox.warning(self, "Errore", f"Impossibile eliminare:\n{e}")
@@ -3532,7 +3532,7 @@ class FileTreeDrawer(QFrame):
         Utile dopo creazione/eliminazione di elementi o per allineare il model
         con lo stato reale del disco."""
         try:
-            target_dir = self.model._root_path
+            target_dir = self.model._root_path if hasattr(self.model, '_root_path') and self.model._root_path else str(BASE_DIR.resolve())
             if not target_dir or not os.path.isdir(target_dir):
                 target_dir = str(BASE_DIR.resolve())
             self.model.set_root_path(target_dir)
@@ -3757,7 +3757,7 @@ class FileTreeDrawer(QFrame):
             else:
                 target_dir = os.path.dirname(fp)
         if not target_dir:
-            target_dir = self.model.rootPath()
+            target_dir = self.model._root_path if hasattr(self.model, '_root_path') and self.model._root_path else str(BASE_DIR.resolve())
         if not target_dir or not os.path.isdir(target_dir):
             target_dir = str(BASE_DIR.resolve())
 
@@ -3824,7 +3824,7 @@ class FileTreeDrawer(QFrame):
             else:
                 target_dir = os.path.dirname(fp)
         if not target_dir:
-            target_dir = self.model.rootPath()
+            target_dir = self.model._root_path if hasattr(self.model, '_root_path') and self.model._root_path else str(BASE_DIR.resolve())
         if not target_dir or not os.path.isdir(target_dir):
             target_dir = str(BASE_DIR.resolve())
 
