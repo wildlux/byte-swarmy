@@ -3080,7 +3080,7 @@ class FileTreeDrawer(QFrame):
 
         self.model = CheckableFileSystemModel()
         self.model.setRootPath("./")
-        self.model.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.AllDirs | QDir.Filter.Files)
+        self.model.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.AllDirs)
         self.tree.setModel(self.model)
         self.tree.setRootIndex(self.model.index("./"))
         # Colonna 0 = checkbox, colonna 1 = nome file. Nascondo dimensione/tipo/data (ora 2,3,4).
@@ -3270,22 +3270,11 @@ class FileTreeDrawer(QFrame):
             if not index.isValid():
                 return
             if index.column() == 0:
-                # Toggle manuale della checkbox sulla colonna 0
-                fp = self.model.filePath(index)
-                if fp in self.model.checked_paths():
-                    self.model.setData(
-                        index,
-                        Qt.CheckState.Unchecked,
-                        Qt.ItemDataRole.CheckStateRole,
-                    )
-                    _click_log("Archivio progetto (click ✓)", "deselezionato", fp)
-                else:
-                    self.model.setData(
-                        index,
-                        Qt.CheckState.Checked,
-                        Qt.ItemDataRole.CheckStateRole,
-                    )
-                    _click_log("Archivio progetto (click ✓)", "selezionato", fp)
+                # Checkbox: gestita nativamente da QTreeView
+                # (ItemIsUserCheckable in CheckableFileSystemModel.flags).
+                # Il log viene scritto da _on_model_data_changed su dataChanged.
+                # NON fare toggle manuale qui: causerebbe un doppio toggle
+                # (nativo + manuale) e la checkbox sembrerebbe non funzionare.
                 return
             path = self.model.filePath(index)
             if not path or not os.path.exists(path):
@@ -3684,7 +3673,7 @@ class FileTreeDrawer(QFrame):
             print(f"Errore double-click task: {e}")
 
     def _force_refresh_tasks(self):
-        """Forza il refresh della lista task dal DB."""
+        """Forza il refresh della lista task dal progetto attivo."""
         try:
             self._refreshing_tasks = True
             if self._GUI_DEBUG:
@@ -3693,9 +3682,9 @@ class FileTreeDrawer(QFrame):
             if hasattr(self, 'task_list'):
                 self.task_list.clear()
                 try:
-                    from GUI import gui_backend as gb
-                    from PyQt6.QtGui import QColor
-                    tasks = gb.get_tasks()
+                    from GUI.main_window import load_tasks
+                    project_path = self.main_win.get_current_project_path() if hasattr(self, 'main_win') and self.main_win else None
+                    tasks = load_tasks(project_path)
                     for t in tasks:
                         title = t.get("title", t.get("description", "?"))[:50]
                         st = t.get("status", "?")
@@ -3708,44 +3697,9 @@ class FileTreeDrawer(QFrame):
                                  "pending": "#888", "failed": "#dc2626",
                                  "paused": "#6b7280", "thermal_paused": "#f97316"}.get(st, "#888")
                         item.setForeground(QColor(color))
-                        self.task_list.addItem(item)
-                except Exception as e:
-                    print(f"Errore refresh task: {e}")
-            parent = self.parent()
-            while parent and not hasattr(parent, '_refresh_coda_card'):
-                parent = parent.parent()
-            if parent:
-                parent._refresh_coda_card()
-        except Exception as e:
-            print(f"Errore force refresh: {e}")
-        finally:
-            self._refreshing_tasks = False
-
-    def _force_refresh_tasks(self):
-        """Forza il refresh della lista task dal DB."""
-        try:
-            self._refreshing_tasks = True
-            if self._GUI_DEBUG:
-                print("[DEBUG] Sidebar-Refresh: refresh (aggiorna lista task)")
-            _log_user_action("Sidebar-Refresh", "refresh", details="Refresh manuale lista task")
-            if hasattr(self, 'task_list'):
-                self.task_list.clear()
-                try:
-                    from GUI import gui_backend as gb
-                    from PyQt6.QtGui import QColor
-                    tasks = gb.get_tasks()
-                    for t in tasks:
-                        title = t.get("title", t.get("description", "?"))[:50]
-                        st = t.get("status", "?")
-                        icon = {"done": "✓", "running": "▶", "pending": "○",
-                                "failed": "✗", "queued": "○",
-                                "paused": "⏸", "thermal_paused": "🌡"}.get(st, "?")
-                        item = QListWidgetItem(f"{icon} {title}")
-                        item.setData(Qt.ItemDataRole.UserRole, t.get("id", ""))
-                        color = {"done": "#16a34a", "running": "#f59e0b",
-                                 "pending": "#888", "failed": "#dc2626",
-                                 "paused": "#6b7280", "thermal_paused": "#f97316"}.get(st, "#888")
-                        item.setForeground(QColor(color))
+                        # Checkbox per selezione multipla (come nel caricamento iniziale)
+                        item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                        item.setCheckState(Qt.CheckState.Unchecked)
                         self.task_list.addItem(item)
                 except Exception as e:
                     print(f"Errore refresh task: {e}")
