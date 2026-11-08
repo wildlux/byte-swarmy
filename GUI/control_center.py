@@ -3589,11 +3589,16 @@ class FileTreeDrawer(QFrame):
         from PyQt6.QtWidgets import QInputDialog
         import os
 
-        # Determina cartella di destinazione
+        # Determina cartella di destinazione.
+        # Usa sempre la colonna 0 per filePath (QFileSystemModel restituisce
+        # il percorso completo solo sulla colonna 0; su altre colonne
+        # filePath() puo' essere inesatto).
+        sel = self.tree.selectionModel().currentIndex()
+        idx0 = sel.siblingAtColumn(0) if sel.isValid() else sel
+
         target_dir = ""
-        idx = self.tree.currentIndex()
-        if idx.isValid():
-            fp = self.model.filePath(idx)
+        if idx0.isValid():
+            fp = self.model.filePath(idx0)
             if os.path.isdir(fp):
                 target_dir = fp
             else:
@@ -3613,7 +3618,7 @@ class FileTreeDrawer(QFrame):
             return
         name = name.strip()
         if not any(name.endswith(ext) for ext in (".txt", ".md", ".py", ".sh",
-                                                   ".log", ".json", ".csv")):
+                                                    ".log", ".json", ".csv")):
             name += ".txt"
 
         new_path = os.path.join(target_dir, name)
@@ -3624,9 +3629,9 @@ class FileTreeDrawer(QFrame):
             while os.path.exists(os.path.join(target_dir, f"{base} ({i}){ext}")):
                 i += 1
             suggested = f"{base} ({i}){ext}"
+            msg = "Il file '" + name + "' esiste gi\xe0.\nVuoi usare '" + suggested + "'?"
             ans = QMessageBox.question(
-                self, "Esiste già",
-                f"Il file '{name}' esiste già.\nVuoi usare '{suggested}'?",
+                self, "Esiste già", msg,
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
             if ans != QMessageBox.StandardButton.Yes:
@@ -3641,20 +3646,26 @@ class FileTreeDrawer(QFrame):
                         self.main_win.get_current_project_path() if self.main_win else "", new_path)
             # Refresh del file tree per far apparire il nuovo file
             self._refresh_file_tree()
+            # Apri il nuovo file nell'editor
+            if self.main_win:
+                self.main_win._show_file_editor(new_path)
         except Exception as e:
             QMessageBox.warning(self, "Errore",
-                                f"Impossibile creare il file:\n{e}")
+                                "Impossibile creare il file:\n" + str(e))
 
     def _add_folder(self):
         """Crea una nuova cartella nella cartella corrente del progetto."""
         from PyQt6.QtWidgets import QInputDialog
         import os
 
-        # Determina cartella di destinazione (come per _add_text_file)
+        # Determina cartella di destinazione (come per _add_text_file).
+        # Usa sempre la colonna 0 per filePath.
+        sel = self.tree.selectionModel().currentIndex()
+        idx0 = sel.siblingAtColumn(0) if sel.isValid() else sel
+
         target_dir = ""
-        idx = self.tree.currentIndex()
-        if idx.isValid():
-            fp = self.model.filePath(idx)
+        if idx0.isValid():
+            fp = self.model.filePath(idx0)
             if os.path.isdir(fp):
                 target_dir = fp
             else:
@@ -3688,9 +3699,9 @@ class FileTreeDrawer(QFrame):
             while os.path.exists(os.path.join(target_dir, f"{base} ({i})")):
                 i += 1
             suggested = f"{base} ({i})"
+            msg2 = "La cartella '" + name + "' esiste gi\xe0.\nVuoi usare '" + suggested + "'?"
             ans = QMessageBox.question(
-                self, "Esiste già",
-                f"La cartella '{name}' esiste già.\nVuoi usare '{suggested}'?",
+                self, "Esiste già", msg2,
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
             if ans != QMessageBox.StandardButton.Yes:
@@ -3706,8 +3717,7 @@ class FileTreeDrawer(QFrame):
             self._refresh_file_tree()
         except Exception as e:
             QMessageBox.warning(self, "Errore",
-                                f"Impossibile creare la cartella:\n{e}")
-
+                                "Impossibile creare la cartella:\n" + str(e))
     def _refresh_file_tree(self):
         """Forza il refresh del file tree (cartelle e file della cartella corrente).
         Utile dopo creazione/eliminazione di elementi o per allineare il model
