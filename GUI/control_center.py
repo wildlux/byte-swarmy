@@ -3189,6 +3189,8 @@ class FileTreeDrawer(QFrame):
 
         self._pending_editor_path = None
         self._editor_open_timer = None
+        # Flag per evitare doppio toggle checkbox (nativo + manuale)
+        self._programmatic_toggle = False
         self.tree.clicked.connect(self._on_tree_click)
         self.tree.doubleClicked.connect(self._on_tree_double_click)
         self.tree.customContextMenuRequested.connect(self._on_tree_context_menu)
@@ -3385,11 +3387,30 @@ class FileTreeDrawer(QFrame):
             if not index.isValid():
                 return
             if index.column() == 0:
-                # Checkbox: gestita nativamente da QTreeView
-                # (ItemIsUserCheckable in CheckableFileSystemModel.flags).
-                # Il log viene scritto da _on_model_data_changed su dataChanged.
-                # NON fare toggle manuale qui: causerebbe un doppio toggle
-                # (nativo + manuale) e la checkbox sembrerebbe non funzionare.
+                # Toggle manuale della checkbox su colonna 0.
+                # Il toggle nativo di QTreeView su QFileSystemModel
+                # subclassato non è affidabile, quindi gestiamo noi lo
+                # stato in _checked_paths. Il flag _programmatic_toggle
+                # evita il doppio toggle con _on_model_data_changed.
+                self._programmatic_toggle = True
+                fp = self.model.filePath(index)
+                if fp in self.model.checked_paths():
+                    self.model.setData(
+                        index,
+                        Qt.CheckState.Unchecked,
+                        Qt.ItemDataRole.CheckStateRole,
+                    )
+                    _click_log("filemanager", "deseleziona",
+                                self.parent().get_current_project_path() if self.parent() else "", fp)
+                else:
+                    self.model.setData(
+                        index,
+                        Qt.CheckState.Checked,
+                        Qt.ItemDataRole.CheckStateRole,
+                    )
+                    _click_log("filemanager", "seleziona",
+                                self.parent().get_current_project_path() if self.parent() else "", fp)
+                self._programmatic_toggle = False
                 return
             path = self.model.filePath(index)
             if not path or not os.path.exists(path):
@@ -3490,6 +3511,8 @@ class FileTreeDrawer(QFrame):
 
     def _on_model_data_changed(self, top_left, bottom_right, roles):
         """Sincronizza selezione visiva QTreeView con stato checkbox del model."""
+        if self._programmatic_toggle:
+            return
         if Qt.ItemDataRole.CheckStateRole not in roles:
             return
         if top_left.column() != 0:
@@ -3579,16 +3602,22 @@ class FileTreeDrawer(QFrame):
                 print(f"[DEBUG] Shift+click copiato negli appunti: {info}")
             return
         # Toggle manuale della checkbox sulla riga cliccata.
-        # Il toggle nativo di QListWidgetItem non e' sempre affidabile,
-        # quindi gestiamo noi lo stato (come nel file manager).
+        # Il toggle nativo di QListWidgetItem potrebbe entrare in conflitto
+        # con questo toggle manuale: il flag _programmatic_toggle evita
+        # il doppio toggle con _on_task_item_changed.
         if item:
+            self._programmatic_toggle = True
             if item.checkState() == Qt.CheckState.Checked:
                 item.setCheckState(Qt.CheckState.Unchecked)
             else:
                 item.setCheckState(Qt.CheckState.Checked)
+            self._programmatic_toggle = False
+            return
 
     def _on_task_item_changed(self, item: QListWidgetItem):
         """Sincronizza selezione visiva QListWidget con stato checkbox."""
+        if self._programmatic_toggle:
+            return
         if not item:
             return
         if getattr(self, "_refreshing_tasks", False):
@@ -5311,6 +5340,8 @@ class CenterArea(QWidget):
         from PyQt6.QtWidgets import QSizePolicy
         self.main_win = parent
         self._editor_column = None
+        # Flag per evitare doppio toggle checkbox (nativo + manuale)
+        self._programmatic_toggle = False
 
         root = QHBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
