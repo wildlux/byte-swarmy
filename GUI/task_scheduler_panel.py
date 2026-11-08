@@ -232,7 +232,7 @@ class TaskSchedulerPanel(QWidget):
         _theme_prop(self.add_btn, "role", "start")
         self.add_btn.clicked.connect(self._on_add_task)
         form.addRow("", self.add_btn)
-        self._editing_index = None   # None = nuova voce; int = modifica
+        self._editing_task_id = None   # None = nuova voce; str = ID del task in modifica
 
         lay.addWidget(form_box)
 
@@ -282,20 +282,55 @@ class TaskSchedulerPanel(QWidget):
                                 "Inserisci almeno titolo e prompt del task.")
             return
         project_path = self.get_project_path() if self.get_project_path else None
-        # Aggiunge direttamente alla coda principale ("Lavori e compiti")
+        # Costruisce il contesto di schedulazione (stesso per add e update)
+        t = self.task_type.currentData()
+        context = f"schedulato: tipo={t}"
+        if t == "oneshot":
+            context += f" data={self.task_year.value():04d}-{self.task_month.value():02d}-{self.task_day.value():02d} {self.task_hour.value():02d}:{self.task_minute.value():02d}"
+        elif t == "interval":
+            context += f" ogni {self.task_interval.value()}s"
+        elif t == "daily":
+            context += f" giornaliero alle {self.task_time.text().strip()}"
+        model = combo_current_model(self.task_model)
+        if model and model != "(default)":
+            context += f" modello={model}"
+
+        # Se siamo in modalità modifica, aggiorna il task esistente per ID
+        if getattr(self, "_editing_task_id", None):
+            try:
+                from GUI.main_window import load_tasks, save_tasks
+                tasks = load_tasks(project_path)
+                aggiornato = False
+                for task in tasks:
+                    if task.get("id") == self._editing_task_id:
+                        task["title"] = title
+                        task["description"] = prompt
+                        task["context"] = context
+                        task["type"] = "code"
+                        aggiornato = True
+                        break
+                if not aggiornato:
+                    QMessageBox.warning(self, "Errore",
+                                        "Task da modificare non trovato.")
+                    return
+                save_tasks(tasks, project_path)
+            except Exception as e:
+                QMessageBox.critical(self, "Errore", f"Impossibile modificare il task:\n{e}")
+                return
+            self.task_title.clear()
+            self.task_prompt.clear()
+            self._editing_task_id = None
+            self.add_btn.setText("➕ Aggiungi task")
+            self._refresh_list()
+            QMessageBox.information(
+                self, "Task modificato",
+                f"Task '{title}' aggiornato nella coda principale."
+            )
+            return
+
+        # Altrimenti aggiunge un nuovo task alla coda principale
         try:
             from GUI.main_window import add_task
-            t = self.task_type.currentData()
-            context = f"schedulato: tipo={t}"
-            if t == "oneshot":
-                context += f" data={self.task_year.value():04d}-{self.task_month.value():02d}-{self.task_day.value():02d} {self.task_hour.value():02d}:{self.task_minute.value():02d}"
-            elif t == "interval":
-                context += f" ogni {self.task_interval.value()}s"
-            elif t == "daily":
-                context += f" giornaliero alle {self.task_time.text().strip()}"
-            model = combo_current_model(self.task_model)
-            if model and model != "(default)":
-                context += f" modello={model}"
             ok = add_task(
                 title=title,
                 description=prompt,
@@ -309,7 +344,7 @@ class TaskSchedulerPanel(QWidget):
         if ok:
             self.task_title.clear()
             self.task_prompt.clear()
-            self._editing_index = None
+            self._editing_task_id = None
             self.add_btn.setText("➕ Aggiungi task")
             self._refresh_list()
             QMessageBox.information(
@@ -323,8 +358,33 @@ class TaskSchedulerPanel(QWidget):
         row = self.task_list_widget.indexAt(pos).row()
         if row < 0:
             return
+        item = self.task_list_widget.item(row)
+        if not item:
+            return
         project_path = self.get_project_path() if self.get_project_path else None
-        tasks = load_scheduled(project_path)
+        # Recupera l'ID del task da UserRole (salvato in _refresh_list)
+        task_id = item.data(Qt.ItemDataRole.UserRole)
+        if not task_id:
+            return
+        # Cerca il task per ID nella coda principale (stessa fonte di _refresh_list)
+        try:
+            from GUI.main_window import load_tasks
+            tasks = load_tasks(project_path)
+            task = next((t for t in tasks if task.get("id") == task_id), None)
+        except Exception:
+            task = None
+        if not task:
+            return
+        from PyQt6.QtWidgets import QMenu
+        menu = QMenu(self)
+        act_edit = menu.addAction("✏️ Modifica")
+        act_del = menu.addAction("🗑️ Elimina")
+        chosen = menu.exec(self.task_list_widget.mapToGlobal(pos))
+        if chosen is act_edit:
+            self._start_edit_task(task)
+        elif chosen is act_del:
+            self.task_list_widget.setCurrentRow(row)
+            self._on_del_task()
         if row >= len(tasks):
             return
         from PyQt6.QtWidgets import QMenu
@@ -338,22 +398,19 @@ class TaskSchedulerPanel(QWidget):
             self.task_list_widget.setCurrentRow(row)
             self._on_del_task()
 
-    def _start_edit_task(self, row: int):
+    def _start_edit_task(self, task: dict = None):
         """Carica il task nel form di sopra per modificarlo e risalvarlo."""
-        project_path = self.get_project_path() if self.get_project_path else None
-        tasks = load_scheduled(project_path)
-        if not (0 <= row < len(tasks)):
+        if task is None:
             return
-        t = tasks[row]
-        self._editing_index = row
-        self.task_title.setText(t.get("title", ""))
-        self.task_prompt.setText(t.get("prompt", ""))
-        ttype = t.get("type", "oneshot")
+        self._editing_task_id = task.get("id", "")
+        self.task_title.setText(task.get("title", ""))
+        self.task_prompt.setText(task.get("description", ""))
+        ttype = task.get("type", "oneshot")
         pos = self.task_type.findData(ttype)
         self.task_type.setCurrentIndex(pos if pos >= 0 else 0)
         self._on_type_changed(0)
         if ttype == "oneshot":
-            dt = t.get("datetime", "")
+            dt = task.get("datetime", "")
             parts = dt.replace("-", " ").replace(":", " ").split()
             if len(parts) == 5:
                 y, mo, d, h, mi = (int(x) for x in parts)
@@ -363,10 +420,10 @@ class TaskSchedulerPanel(QWidget):
                 self.task_hour.setValue(h)
                 self.task_minute.setValue(mi)
         elif ttype == "interval":
-            self.task_interval.setValue(int(t.get("interval_sec", 3600)))
+            self.task_interval.setValue(int(task.get("interval_sec", 3600)))
         elif ttype == "daily":
-            self.task_time.setText(t.get("time", "09:00"))
-        idx = self.task_model.findData(t.get("model", "(default)"))
+            self.task_time.setText(task.get("time", "09:00"))
+        idx = self.task_model.findData(task.get("model", "(default)"))
         self.task_model.setCurrentIndex(idx if idx >= 0 else 0)
         self.add_btn.setText("💾 Salva modifiche")
         self.task_title.setFocus()
