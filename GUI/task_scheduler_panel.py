@@ -28,57 +28,60 @@ SCHEDULED_FILE = os.path.join(_BASE, "CONFIG", "scheduled_tasks.json")
 DEFAULTS = {"tasks": []}
 
 
-def load_scheduled() -> List[Dict]:
-    if not os.path.exists(SCHEDULED_FILE):
+def _scheduled_file(project_path: str | None = None) -> str:
+    """Path del file scheduled tasks: per-progetto se project_path è dato,
+    altrimenti globale (backward compat)."""
+    if project_path:
+        return os.path.join(project_path, "tasks", "scheduled_tasks.json")
+    return SCHEDULED_FILE
+
+
+def load_scheduled(project_path: str | None = None) -> List[Dict]:
+    f = _scheduled_file(project_path)
+    if not os.path.exists(f):
         return []
     try:
-        with open(SCHEDULED_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        with open(f, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
         return data.get("tasks", [])
     except (json.JSONDecodeError, OSError):
         return []
 
 
-def save_scheduled(tasks: List[Dict]) -> bool:
+def save_scheduled(tasks: List[Dict], project_path: str | None = None) -> bool:
+    f = _scheduled_file(project_path)
     try:
-        os.makedirs(os.path.dirname(SCHEDULED_FILE), exist_ok=True)
-        with open(SCHEDULED_FILE, "w", encoding="utf-8") as f:
-            json.dump({"tasks": tasks}, f, indent=2, ensure_ascii=False)
+        os.makedirs(os.path.dirname(f), exist_ok=True)
+        with open(f, "w", encoding="utf-8") as fh:
+            json.dump({"tasks": tasks}, fh, indent=2, ensure_ascii=False)
         return True
     except OSError as e:
         print(f"Errore salvataggio scheduled tasks: {e}")
         return False
 
 
-def _ollama_installed() -> list:
-    """Modelli realmente installati (per il combo del form)."""
-    try:
-        from GUI.actors_panel import ollama_list_models
-        return ollama_list_models() or []
-    except Exception:
-        return []
-
-
-def add_scheduled_task(task: Dict) -> bool:
-    tasks = load_scheduled()
+def add_scheduled_task(task: Dict, project_path: str | None = None) -> bool:
+    tasks = load_scheduled(project_path)
     tasks.append(task)
-    return save_scheduled(tasks)
+    return save_scheduled(tasks, project_path)
 
 
-def update_scheduled_task(idx: int, task: Dict) -> bool:
+def update_scheduled_task(idx: int, task: Dict,
+                          project_path: str | None = None) -> bool:
     """Sostituisce il task alla posizione idx (modifica da GUI)."""
-    tasks = load_scheduled()
+    tasks = load_scheduled(project_path)
     if 0 <= idx < len(tasks):
         tasks[idx] = task
-        return save_scheduled(tasks)
+        return save_scheduled(tasks, project_path)
     return False
 
 
-def remove_scheduled_task(idx: int) -> bool:
-    tasks = load_scheduled()
+def remove_scheduled_task(idx: int,
+                          project_path: str | None = None) -> bool:
+    tasks = load_scheduled(project_path)
     if 0 <= idx < len(tasks):
         tasks.pop(idx)
-        return save_scheduled(tasks)
+        return save_scheduled(tasks, project_path)
     return False
 
 
@@ -320,7 +323,8 @@ class TaskSchedulerPanel(QWidget):
         row = self.task_list_widget.indexAt(pos).row()
         if row < 0:
             return
-        tasks = load_scheduled()
+        project_path = self.get_project_path() if self.get_project_path else None
+        tasks = load_scheduled(project_path)
         if row >= len(tasks):
             return
         from PyQt6.QtWidgets import QMenu
@@ -336,7 +340,8 @@ class TaskSchedulerPanel(QWidget):
 
     def _start_edit_task(self, row: int):
         """Carica il task nel form di sopra per modificarlo e risalvarlo."""
-        tasks = load_scheduled()
+        project_path = self.get_project_path() if self.get_project_path else None
+        tasks = load_scheduled(project_path)
         if not (0 <= row < len(tasks)):
             return
         t = tasks[row]
