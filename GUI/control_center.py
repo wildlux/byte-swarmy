@@ -3098,7 +3098,7 @@ class FileTreeDrawer(QFrame):
 
         self.model = CheckableFileSystemModel()
         self.model.setRootPath("./")
-        self.model.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.AllDirs)
+        self.model.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.AllDirs | QDir.Filter.Files)
         self.tree.setModel(self.model)
         self.tree.setRootIndex(self.model.index("./"))
         # Colonna 0 = checkbox, colonna 1 = nome file. Nascondo dimensione/tipo/data (ora 2,3,4).
