@@ -498,6 +498,11 @@ class TaskSchedulerPanel(QWidget):
             item.setData(Qt.ItemDataRole.UserRole, t.get("id", ""))
             self.task_list_widget.addItem(item)
 
+    def refresh(self):
+        """Ricrea la lista task per il progetto corrente.
+        Chiamata quando si apre il pannello o cambia progetto."""
+        self._refresh_list()
+
     def _back_to_main(self):
         parent = self.parent()
         while parent and not hasattr(parent, "back_to_main"):

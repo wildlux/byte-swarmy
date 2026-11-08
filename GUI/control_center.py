@@ -2416,6 +2416,11 @@ class ControlCenter(QMainWindow):
         # set_current_folder si occupa di: aggiornare _current_project_path,
         # aggiornare il file tree e ricaricare i task del progetto.
         self.drawer.set_current_folder(path)
+        # Ricarica il pannello Coda Task se esiste, così mostra i task
+        # del progetto appena selezionato
+        scheduler = self.center.panel_pages.get("coda")
+        if scheduler is not None:
+            scheduler.refresh()
 
     def get_current_project_path(self) -> str | None:
         """Ritorna il percorso assoluto del progetto attivo, o None."""
@@ -5564,6 +5569,10 @@ class CenterArea(QWidget):
         if key in self.panel_pages:
             self.main_stack.setCurrentIndex(1)
             self.detail_stack.setCurrentWidget(self.panel_pages[key])
+            # Refresh della lista task quando si apre il pannello Coda,
+            # così mostra sempre i task del progetto corrente
+            if key == "coda":
+                self.panel_pages["coda"].refresh()
 
     def _on_global_search(self, text: str):
         """Filtra le card (plancia + strumenti) in base al testo cercato.
