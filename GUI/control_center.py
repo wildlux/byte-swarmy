@@ -3876,12 +3876,11 @@ class FileTreeDrawer(QFrame):
         Utile dopo creazione/eliminazione di elementi o per allineare il model
         con lo stato reale del disco."""
         try:
-            target_dir = self.model.rootPath()
+            target_dir = self.model._root_path if hasattr(self.model, '_root_path') and self.model._root_path else str(BASE_DIR.resolve())
             if not target_dir or not os.path.isdir(target_dir):
                 target_dir = str(BASE_DIR.resolve())
-            self.model.setRootPath("")
-            self.model.setRootPath(target_dir)
-            self.tree.setRootIndex(self.model.index(target_dir))
+            self.model.set_root_path(target_dir)
+            self.tree.setRootIndex(self.model.index(0, 0))
             self.tree.scrollToTop()
             _click_log("filemanager", "refresh",
                         self.main_win.get_current_project_path() if self.main_win else "",
