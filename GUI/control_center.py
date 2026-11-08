@@ -3520,7 +3520,14 @@ class FileTreeDrawer(QFrame):
             if self._GUI_DEBUG:
                 print(f"[DEBUG] Shift+click copiato negli appunti: {info}")
             return
-        # comportamento normale: toggle checkbox già gestito da itemChanged
+        # Toggle manuale della checkbox sulla riga cliccata.
+        # Il toggle nativo di QListWidgetItem non e' sempre affidabile,
+        # quindi gestiamo noi lo stato (come nel file manager).
+        if item:
+            if item.checkState() == Qt.CheckState.Checked:
+                item.setCheckState(Qt.CheckState.Unchecked)
+            else:
+                item.setCheckState(Qt.CheckState.Checked)
 
     def _on_task_item_changed(self, item: QListWidgetItem):
         """Sincronizza selezione visiva QListWidget con stato checkbox."""
@@ -3534,7 +3541,7 @@ class FileTreeDrawer(QFrame):
         tid = item.data(Qt.ItemDataRole.UserRole)
         if self._GUI_DEBUG:
                 print(f"[DEBUG] Lavori e compiti (colonna ✓): {mark} {stato} elemento='{tid} - {item.text()}'")
-        _click_log("task", stato, self._current_project_path or "",
+        _click_log("task", stato, self.main_win.get_current_project_path() if self.main_win else "",
                         f"{tid} - {item.text()}")
         if checked:
             item.setSelected(True)
