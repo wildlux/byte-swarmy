@@ -75,30 +75,24 @@ except ImportError:
 _CLICK_COUNT = 0
 
 
-def _click_log(sezione: str, azione: str, elemento: str) -> None:
-    """Traccia ogni click su file manager e task con numero progressivo
-    e architettura di chi chiama (classe.funzione file:riga), scritto
-    sempre su logs/gui_clicks.log (indipendente da BSWARM_GUI_DEBUG)."""
+def _click_log(area: str, pulsante: str, progetto: str = "",
+               elemento: str = "") -> None:
+    """Traccia ogni click con formato:
+    [Nome-Cartella-progetto]- [area] [pulsante premuto]
+    aree: plancia, filemanager, task, logo, amburghermenù
+    Scritto sempre su logs/gui_clicks.log (indipendente da BSWARM_GUI_DEBUG)."""
     global _CLICK_COUNT
     _CLICK_COUNT += 1
-    import inspect, os as _os
-    frames = inspect.stack()
-    caller = frames[1] if len(frames) > 1 else None
-    if caller:
-        fn = caller.function
-        mod = inspect.getmodule(caller.frame)
-        modname = mod.__name__ if mod else "?"
-        fname = _os.path.basename(caller.filename)
-        line = caller.lineno
-        selfobj = caller.frame.f_locals.get("self")
-        cls = type(selfobj).__name__ if selfobj is not None else "?"
-        caller_str = f"{cls}.{fn} ({fname}:{line})"
-    else:
-        caller_str = "?"
     ts = time.strftime("%H:%M:%S")
+    nome_progetto = ""
+    if progetto:
+        try:
+            nome_progetto = Path(progetto).name
+        except Exception:
+            nome_progetto = progetto
     riga = (
-        f"[{ts}] click#{_CLICK_COUNT} | {sezione}: {azione} "
-        f"elemento='{elemento}' | {caller_str}\n"
+        f"[{ts}] click#{_CLICK_COUNT} | [{nome_progetto or 'root'}]- "
+        f"[{area}] [{pulsante}] {elemento}\n"
     )
     try:
         log_path = Path("logs/gui_clicks.log")
@@ -3329,7 +3323,8 @@ class FileTreeDrawer(QFrame):
     def _open_pending_editor(self):
         path = getattr(self, "_pending_editor_path", None)
         if path and os.path.isfile(path):
-            _click_log("Archivio progetto (click file)", "aperto", path)
+            _click_log("filemanager", "apri file",
+                        self.main_win.get_current_project_path() if self.main_win else "", path)
             self.main_win._show_file_editor(path)
         self._pending_editor_path = None
 
@@ -3414,7 +3409,8 @@ class FileTreeDrawer(QFrame):
             return
         fp = self.model.filePath(top_left)
         stato = "selezionato" if fp in self.model.checked_paths() else "deselezionato"
-        _click_log("Archivio progetto (colonna ✓)", stato, fp)
+        _click_log("filemanager", stato,
+                    self.main_win.get_current_project_path() if self.main_win else "", fp)
         # setCurrentIndex garantisce il feedback visivo (highlight della riga),
         # select() aggiorna il selection model. Usiamo Rows flag così
         # viene selezionata l'intera riga, non solo la cella checkbox.
@@ -3472,7 +3468,8 @@ class FileTreeDrawer(QFrame):
         if reply != QMessageBox.StandardButton.Yes:
             return
         for fp in sorted(to_delete, reverse=True):
-            _click_log("Archivio progetto (pulsante 🗑️)", "eliminato", fp)
+            _click_log("filemanager", "elimina",
+                        self.main_win.get_current_project_path() if self.main_win else "", fp)
             try:
                 if os.path.isdir(fp):
                     import shutil
@@ -3508,7 +3505,7 @@ class FileTreeDrawer(QFrame):
         tid = item.data(Qt.ItemDataRole.UserRole)
         if self._GUI_DEBUG:
                 print(f"[DEBUG] Lavori e compiti (colonna ✓): {mark} {stato} elemento='{tid} - {item.text()}'")
-        _click_log("Lavori e compiti (colonna ✓)", stato,
+        _click_log("task", stato, self._current_project_path or "",
                         f"{tid} - {item.text()}")
         if checked:
             item.setSelected(True)
@@ -3544,7 +3541,7 @@ class FileTreeDrawer(QFrame):
                 if it and it.data(Qt.ItemDataRole.UserRole) == tid:
                     titolo = it.text()
                     break
-            _click_log("Lavori e compiti (pulsante 🗑️)", "eliminato",
+            _click_log("task", "elimina", self._current_project_path or "",
                             f"{tid} - {titolo}")
             try:
                 delete_task(tid, project_path)
@@ -3628,7 +3625,8 @@ class FileTreeDrawer(QFrame):
         try:
             with open(new_path, "w", encoding="utf-8") as f:
                 f.write("")
-            _click_log("Archivio progetto (pulsante ➕)", "creato", new_path)
+            _click_log("filemanager", "crea file",
+                        self.main_win.get_current_project_path() if self.main_win else "", new_path)
             # Refresh del model per far apparire il nuovo file
             self.model.setRootPath("")
             self.model.setRootPath(target_dir)
@@ -3692,7 +3690,8 @@ class FileTreeDrawer(QFrame):
 
         try:
             os.makedirs(new_path, exist_ok=True)
-            _click_log("Archivio progetto (pulsante 📁)", "creato", new_path)
+            _click_log("filemanager", "crea cartella",
+                        self.main_win.get_current_project_path() if self.main_win else "", new_path)
             # Refresh del model per far apparire la nuova cartella
             self.model.setRootPath("")
             self.model.setRootPath(target_dir)
