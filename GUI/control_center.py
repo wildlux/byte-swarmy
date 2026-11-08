@@ -6059,6 +6059,43 @@ class CenterArea(QWidget):
 
 
 if __name__ == "__main__":
+    # ── Crash handler: salva traceback su logs/crash.log prima di terminare ──
+    import os as _os, traceback as _traceback
+    from datetime import datetime as _datetime
+    from pathlib import Path as _Path
+
+    _crash_log_dir = _Path("logs")
+    _crash_log_dir.mkdir(parents=True, exist_ok=True)
+    _crash_log_path = _crash_log_dir / "crash.log"
+    _old_excepthook = sys.excepthook
+
+    def _crash_excepthook(_exc_type, _exc_value, _exc_tb):
+        _ts = _datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        _lines = [
+            f"═════════════════════════════════════════════════════════════════════════════════",
+            f"CRASH RILEVATO alle {_ts}",
+            f"Tipo eccezione: {_exc_type.__name__ if _exc_type else 'Sconosciuto'}",
+            f"Messaggio: {_exc_value}",
+            f"",
+            f"Traceback:",
+        ]
+        _lines.extend(_traceback.format_exception(_exc_type, _exc_value, _exc_tb))
+        _lines.append(
+            f"═════════════════════════════════════════════════════════════════════════════════"
+        )
+        _lines.append("")
+        try:
+            with open(_crash_log_path, "a", encoding="utf-8") as _f:
+                _f.write("\n".join(_lines) + "\n")
+        except Exception:
+            pass
+        try:
+            _old_excepthook(_exc_type, _exc_value, _exc_tb)
+        except Exception:
+            pass
+
+    sys.excepthook = _crash_excepthook
+
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     w = ControlCenter()
