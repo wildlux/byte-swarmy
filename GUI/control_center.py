@@ -3124,6 +3124,20 @@ class FileSystemModel(QStandardItemModel):
     def clear_checks(self):
         self._checked_paths.clear()
 
+    def filePath(self, index):
+        """Ritorna il path assoluto memorizzato in UserRole sull'item.
+
+        Compatibile con QStandardItemModel (che non espone filePath come
+        QFileSystemModel): il path viene letto dal ruolo UserRole impostato
+        in _make_items / populate_on_expand.
+        """
+        if not index.isValid():
+            return ""
+        item = self.itemFromIndex(index)
+        if item is None:
+            return ""
+        return item.data(Qt.ItemDataRole.UserRole) or ""
+
     def flags(self, index):
         if not index.isValid():
             return Qt.ItemFlag.NoItemFlags
@@ -3159,8 +3173,7 @@ class CheckableTreeView(QTreeView):
         self._drawer = drawer
 
     def mousePressEvent(self, event):
-        from PyQt6.QtGui import QMouseEvent
-        if event.type() == QMouseEvent.MouseButtonPress:
+        if event.type() == QEvent.Type.MouseButtonPress:
             index = self.indexAt(event.pos())
             if index.isValid() and index.column() == 0:
                 item = self.model().itemFromIndex(index)
@@ -3388,6 +3401,9 @@ class FileTreeDrawer(QFrame):
         self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         self._open = True
         self.main_win = parent
+        # Flag debug sincronizzata con Impostazioni; evita AttributeError
+        # in _force_refresh_tasks / _on_task_item_changed / _on_tree_click.
+        self._GUI_DEBUG = settings_store.get_gui_debug()
 
     def set_current_folder(self, folder_path: str):
         """Aggiorna il file tree per puntare alla cartella del progetto aperto.
@@ -3422,7 +3438,7 @@ class FileTreeDrawer(QFrame):
             self.main_win._current_project_path = folder_path
         # Aggiorna root del modello + rootIndex del QTreeView
         self.model.set_root_path(folder_path)
-        self.tree.setRootIndex(self.model.index(0, 0))
+        self.tree.setRootIndex(QModelIndex())
         # Aggiorna il sottotitolo con il path
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         try:
@@ -3567,7 +3583,7 @@ class FileTreeDrawer(QFrame):
                 os.rename(path, new_path)
                 # Ricarica l'albero per riflettere il nuovo nome
                 self.model.set_root_path(self.model._root_path if hasattr(self.model, '_root_path') and self.model._root_path else str(BASE_DIR.resolve()))
-                self.tree.setRootIndex(self.model.index(0, 0))
+                self.tree.setRootIndex(QModelIndex())
             except Exception as e:
                 QMessageBox.warning(self, "Errore", f"Impossibile rinominare:\n{e}")
 
@@ -3583,7 +3599,7 @@ class FileTreeDrawer(QFrame):
                     shutil.rmtree(path)
                 # Ricarica l'albero
                 self.model.set_root_path(self.model._root_path if hasattr(self.model, '_root_path') and self.model._root_path else str(BASE_DIR.resolve()))
-                self.tree.setRootIndex(self.model.index(0, 0))
+                self.tree.setRootIndex(QModelIndex())
             except Exception as e:
                 QMessageBox.warning(self, "Errore", f"Impossibile eliminare:\n{e}")
 
@@ -3596,7 +3612,7 @@ class FileTreeDrawer(QFrame):
             if not target_dir or not os.path.isdir(target_dir):
                 target_dir = str(BASE_DIR.resolve())
             self.model.set_root_path(target_dir)
-            self.tree.setRootIndex(self.model.index(0, 0))
+            self.tree.setRootIndex(QModelIndex())
             self.tree.scrollToTop()
             _click_log("filemanager", "refresh",
                         self.main_win.get_current_project_path() if self.main_win else "",
@@ -3944,7 +3960,7 @@ class FileTreeDrawer(QFrame):
             if not target_dir or not os.path.isdir(target_dir):
                 target_dir = str(BASE_DIR.resolve())
             self.model.set_root_path(target_dir)
-            self.tree.setRootIndex(self.model.index(0, 0))
+            self.tree.setRootIndex(QModelIndex())
             self.tree.scrollToTop()
             _click_log("filemanager", "refresh",
                         self.main_win.get_current_project_path() if self.main_win else "",

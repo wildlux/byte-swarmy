@@ -152,7 +152,7 @@ def test_file_manager_checkbox_toggle():
         open(os.path.join(proj, "utils.py"), "w").write("def x(): pass")
 
         from PyQt6.QtWidgets import QApplication
-        from PyQt6.QtCore import Qt
+        from PyQt6.QtCore import Qt, QModelIndex
 
         app = QApplication.instance() or QApplication(sys.argv)
 
@@ -166,7 +166,7 @@ def test_file_manager_checkbox_toggle():
         drawer.set_current_folder(proj)
         app.processEvents()
 
-        root_idx = drawer.model.index(proj)
+        root_idx = QModelIndex()
 
         # Trova l'index di main.py
         main_idx = None
@@ -209,7 +209,7 @@ def test_file_manager_create_and_delete():
         proj = _make_project(tmp, "progettoW")
 
         from PyQt6.QtWidgets import QApplication
-        from PyQt6.QtCore import Qt
+        from PyQt6.QtCore import Qt, QModelIndex
         from unittest.mock import patch
 
         app = QApplication.instance() or QApplication(sys.argv)
@@ -224,7 +224,7 @@ def test_file_manager_create_and_delete():
         drawer.set_current_folder(proj)
         app.processEvents()
 
-        root_idx = drawer.model.index(proj)
+        root_idx = QModelIndex()
 
         # --- CREATE file ---
         with patch("PyQt6.QtWidgets.QInputDialog.getText",
