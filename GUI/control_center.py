@@ -1500,7 +1500,20 @@ class FileEditorWidget(QFrame):
         lay.setSpacing(6)
 
         head = QHBoxLayout()
-        head.addWidget(QLabel(f"<b>📝 {os.path.basename(file_path)}</b>"))
+        head.addWidget(QLabel(f"<b>📝</b>"))
+
+        # Nome file modificabile (QLineEdit invece di QLabel statico)
+        self.file_name_edit = QLineEdit(os.path.basename(file_path))
+        self.file_name_edit.setObjectName("editor_filename")
+        self.file_name_edit.setFixedWidth(220)
+        self.file_name_edit.setStyleSheet(
+            "QLineEdit#editor_filename { font-weight:bold; font-size:12px; "
+            "border:1px solid #363d4a; border-radius:4px; padding:2px 8px; "
+            "background:#1b1f27; }"
+            "QLineEdit#editor_filename:focus { border-color:#5b92ff; }"
+        )
+        self.file_name_edit.returnPressed.connect(self._rename_file)
+        head.addWidget(self.file_name_edit)
         head.addStretch()
 
         self.dock_btn = QPushButton("📌 Dock" if not docked else "📌 Undock")
@@ -1564,6 +1577,57 @@ class FileEditorWidget(QFrame):
             self.undock_requested.emit()
         else:
             self.dock_requested.emit()
+
+    def _rename_file(self):
+        """Rinomina il file aperto quando l'utente preme Invio sul nome."""
+        import os, shutil
+        from PyQt6.QtWidgets import QMessageBox
+
+        new_name = self.file_name_edit.text().strip()
+        if not new_name or new_name == os.path.basename(self.file_path):
+            return
+
+        # Sanitizza: niente path traversal
+        new_name = os.path.basename(new_name.replace("/", os.sep).replace("\\", os.sep))
+        if not new_name or new_name in (".", ".."):
+            QMessageBox.warning(self, "Nome non valido", "Inserisci un nome di file valido.")
+            self.file_name_edit.setText(os.path.basename(self.file_path))
+            return
+
+        dir_path = os.path.dirname(self.file_path)
+        new_path = os.path.join(dir_path, new_name)
+
+        if os.path.exists(new_path):
+            ans = QMessageBox.question(
+                self, "Esiste già",
+                f"Il file '{new_name}' esiste già.\nSovrascrivere?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if ans != QMessageBox.StandardButton.Yes:
+                self.file_name_edit.setText(os.path.basename(self.file_path))
+                return
+
+        try:
+            os.rename(self.file_path, new_path)
+            self.file_path = new_path
+            # Aggiorna il path mostrato sotto l'header
+            try:
+                self.path_lbl.setText(new_path)
+            except Exception:
+                pass
+            self.status.setText(f"Rinominato in '{new_name}'")
+            _click_log("filemanager", "rinomina",
+                        self.parent().get_current_project_path() if self.parent() else "",
+                        f"{os.path.basename(self.file_path)} → {new_name}")
+            # Refresh del file tree per far apparire il nuovo nome
+            try:
+                if self.parent() and hasattr(self.parent(), 'drawer'):
+                    self.parent().drawer._refresh_file_tree()
+            except Exception:
+                pass
+        except Exception as e:
+            QMessageBox.warning(self, "Errore", f"Impossibile rinominare il file:\n{e}")
+            self.file_name_edit.setText(os.path.basename(self.file_path))
 
     def _load_file(self):
         try:
