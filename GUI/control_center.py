@@ -3365,25 +3365,27 @@ class FileTreeDrawer(QFrame):
         self.tree.setIconSize(QSize(16, 16))
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.tree.header().setStretchLastSection(False)
-        # Colonna 0: vuota, solo triangolino espandi/collassa (14px fissa)
-        # Colonna 1: checkbox selezione (20px fissa)
-        # Colonna 2: icona (18px fissa)
+        # Colonna 0: vuota, solo triangolino espandi/collassa (12px fissa)
+        # Colonna 1: checkbox selezione (18px fissa)
+        # Colonna 2: icona (16px fissa)
         # Colonna 3: nome (prende tutto lo spazio restante)
         self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        self.tree.header().resizeSection(0, 14)
+        self.tree.header().resizeSection(0, 12)
         self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
-        self.tree.header().resizeSection(1, 20)
+        self.tree.header().resizeSection(1, 18)
         self.tree.header().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        self.tree.header().resizeSection(2, 18)
+        self.tree.header().resizeSection(2, 16)
         self.tree.header().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         self.tree.header().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft)
-        self.tree.setIndentation(4)  # triangolino vicino al bordo, niente spazio vuoto
+        self.tree.header().setMinimumSectionSize(8)
+        self.tree.setIndentation(4)  # triangolino vicino al bordo
         # Elimina padding e margini interni delle celle: niente spazio vuoto
         # tra colonna vuota, checkbox, icona e nome.
         self.tree.setStyleSheet(
             "QTreeView::item { padding: 0px; border: none; }"
             "QTreeView::branch { padding: 0px; margin: 0px; }"
             "QHeaderView::section { padding: 0px; border: none; }"
+            "QTreeView { outline: 0px; }"
         )
 
         # Persistenza larghezze colonne: ricorda come le sposti tu
