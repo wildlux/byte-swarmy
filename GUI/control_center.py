@@ -3193,6 +3193,9 @@ class FileTreeDrawer(QFrame):
         self.tree.doubleClicked.connect(self._on_tree_double_click)
         self.tree.customContextMenuRequested.connect(self._on_tree_context_menu)
         self.model.dataChanged.connect(self._on_model_data_changed)
+        # Event filter per intercettare il click sulla colonna 0 PRIMA del
+        # toggle nativo di QTreeView, evitando il doppio toggle
+        self.tree.installEventFilter(self)
         lay.addWidget(self.tree)
 
         sep = QFrame()
@@ -3512,6 +3515,46 @@ class FileTreeDrawer(QFrame):
                 QItemSelectionModel.SelectionFlag.Deselect
                 | QItemSelectionModel.SelectionFlag.Rows,
             )
+
+    def eventFilter(self, obj, event):
+        """Intercetta il click sulla colonna 0 PRIMA del toggle nativo
+        di QTreeView, evitando il doppio toggle. Gestisce il toggle
+        manuale della checkbox su _checked_paths."""
+        from PyQt6.QtCore import QEvent
+        from PyQt6.QtGui import QMouseEvent
+
+        if obj is self.tree and event.type() == QEvent.Type.MouseButtonPress:
+            me = event
+            index = self.tree.indexAt(me.pos())
+            if index.isValid() and index.column() == 0:
+                fp = self.model.filePath(index)
+                if fp in self.model.checked_paths():
+                    self.model._checked_paths.discard(fp)
+                    _click_log("filemanager", "deseleziona",
+                                self.parent().get_current_project_path() if self.parent() else "", fp)
+                else:
+                    self.model._checked_paths.add(fp)
+                    _click_log("filemanager", "seleziona",
+                                self.parent().get_current_project_path() if self.parent() else "", fp)
+                # Notifica il cambio allo stato della checkbox
+                self.model.dataChanged.emit(index, index, [Qt.ItemDataRole.CheckStateRole])
+                # Aggiorna selezione visiva (highlight riga)
+                if fp in self.model.checked_paths():
+                    self.tree.setCurrentIndex(index)
+                    self.tree.selectionModel().select(
+                        index,
+                        QItemSelectionModel.SelectionFlag.Select
+                        | QItemSelectionModel.SelectionFlag.Rows,
+                    )
+                else:
+                    self.tree.selectionModel().select(
+                        index,
+                        QItemSelectionModel.SelectionFlag.Deselect
+                        | QItemSelectionModel.SelectionFlag.Rows,
+                    )
+                return True  # Blocca l'evento: evita toggle nativo di Qt
+
+        return super().eventFilter(obj, event)
 
     def _delete_selected_items(self):
         """Elimina file/cartelle selezionate (colonna ✓ o selezione visiva)."""
