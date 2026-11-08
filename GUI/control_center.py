@@ -3052,6 +3052,18 @@ class FileTreeDrawer(QFrame):
         self.add_folder_btn.clicked.connect(self._add_folder)
         header_row.addWidget(self.add_folder_btn)
 
+        # Pulsante refresh forzato file tree (cartelle e file)
+        self.refresh_btn = QPushButton("🔄")
+        self.refresh_btn.setFixedSize(28, 28)
+        self.refresh_btn.setToolTip("Aggiorna file tree (cartelle e file della cartella corrente)")
+        self.refresh_btn.setStyleSheet(
+            "QPushButton { font-size:16px; border:none; background:transparent; "
+            "border-radius:4px; padding:0; }"
+            "QPushButton:hover { background:#e2e8f0; border-radius:4px; }"
+        )
+        self.refresh_btn.clicked.connect(self._refresh_file_tree)
+        header_row.addWidget(self.refresh_btn)
+
         # Spazietto tra aggiungi e elimina
         _sp_del = QFrame()
         _sp_del.setFixedWidth(8)
@@ -3627,10 +3639,8 @@ class FileTreeDrawer(QFrame):
                 f.write("")
             _click_log("filemanager", "crea file",
                         self.main_win.get_current_project_path() if self.main_win else "", new_path)
-            # Refresh del model per far apparire il nuovo file
-            self.model.setRootPath("")
-            self.model.setRootPath(target_dir)
-            self.tree.setRootIndex(self.model.index(target_dir))
+            # Refresh del file tree per far apparire il nuovo file
+            self._refresh_file_tree()
         except Exception as e:
             QMessageBox.warning(self, "Errore",
                                 f"Impossibile creare il file:\n{e}")
@@ -3692,13 +3702,30 @@ class FileTreeDrawer(QFrame):
             os.makedirs(new_path, exist_ok=True)
             _click_log("filemanager", "crea cartella",
                         self.main_win.get_current_project_path() if self.main_win else "", new_path)
-            # Refresh del model per far apparire la nuova cartella
-            self.model.setRootPath("")
-            self.model.setRootPath(target_dir)
-            self.tree.setRootIndex(self.model.index(target_dir))
+            # Refresh del file tree per far apparire la nuova cartella
+            self._refresh_file_tree()
         except Exception as e:
             QMessageBox.warning(self, "Errore",
                                 f"Impossibile creare la cartella:\n{e}")
+
+    def _refresh_file_tree(self):
+        """Forza il refresh del file tree (cartelle e file della cartella corrente).
+        Utile dopo creazione/eliminazione di elementi o per allineare il model
+        con lo stato reale del disco."""
+        try:
+            target_dir = self.model.rootPath()
+            if not target_dir or not os.path.isdir(target_dir):
+                target_dir = str(BASE_DIR.resolve())
+            self.model.setRootPath("")
+            self.model.setRootPath(target_dir)
+            self.tree.setRootIndex(self.model.index(target_dir))
+            self.tree.scrollToTop()
+            _click_log("filemanager", "refresh",
+                        self.main_win.get_current_project_path() if self.main_win else "",
+                        target_dir)
+        except Exception as e:
+            QMessageBox.warning(self, "Errore",
+                                f"Impossibile aggiornare il file tree:\n{e}")
 
     def toggle(self):
         self._open = not self._open
