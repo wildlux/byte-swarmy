@@ -2229,6 +2229,9 @@ class ControlCenter(QMainWindow):
         initial_path = self.project_tabs._path_for_tab(0) if self.project_tabs.count() > 0 else None
         if initial_path:
             self.drawer.set_current_folder(initial_path)
+            # Ricarica i task per il progetto iniziale (all'avvio
+            # _on_current_project_changed non scatta, va fatto qui)
+            self.drawer._force_refresh_tasks()
         lay.addWidget(self.project_tabs, stretch=1)
 
         sep2 = QFrame()
@@ -2351,8 +2354,12 @@ class ControlCenter(QMainWindow):
                 "font-weight:bold; font-size:14px; border-radius:6px; border:none; }")
 
     def _on_current_project_changed(self, path: str):
-        """Salva il percorso del progetto attivo (per task per-progetto)."""
+        """Salva il percorso del progetto attivo (per task per-progetto)
+        e ricarica la lista task della sidebar per quel progetto."""
         self._current_project_path = path
+        # Ricarica i task della sidebar per il nuovo progetto:
+        # ogni sottoprogetto (TEST_progetto, sourceCode, ...) ha i propri task.
+        self.drawer._force_refresh_tasks()
 
     def get_current_project_path(self) -> str | None:
         """Ritorna il percorso assoluto del progetto attivo, o None."""
