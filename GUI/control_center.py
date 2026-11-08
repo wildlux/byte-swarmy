@@ -2219,9 +2219,6 @@ class ControlCenter(QMainWindow):
         # Quando si cambia tab, la sidebar 'Archivio progetto' si aggiorna
         # alla cartella del progetto appena selezionato.
         self.project_tabs.current_project_changed.connect(
-            self.drawer.set_current_folder
-        )
-        self.project_tabs.current_project_changed.connect(
             self._on_current_project_changed
         )
         # Forza emissione iniziale per il tab corrente (all'avvio il
@@ -2229,9 +2226,6 @@ class ControlCenter(QMainWindow):
         initial_path = self.project_tabs._path_for_tab(0) if self.project_tabs.count() > 0 else None
         if initial_path:
             self.drawer.set_current_folder(initial_path)
-            # Ricarica i task per il progetto iniziale (all'avvio
-            # _on_current_project_changed non scatta, va fatto qui)
-            self.drawer._force_refresh_tasks()
         lay.addWidget(self.project_tabs, stretch=1)
 
         sep2 = QFrame()
@@ -2356,10 +2350,9 @@ class ControlCenter(QMainWindow):
     def _on_current_project_changed(self, path: str):
         """Salva il percorso del progetto attivo (per task per-progetto)
         e ricarica la lista task della sidebar per quel progetto."""
-        self._current_project_path = path
-        # Ricarica i task della sidebar per il nuovo progetto:
-        # ogni sottoprogetto (TEST_progetto, sourceCode, ...) ha i propri task.
-        self.drawer._force_refresh_tasks()
+        # set_current_folder si occupa di: aggiornare _current_project_path,
+        # aggiornare il file tree e ricaricare i task del progetto.
+        self.drawer.set_current_folder(path)
 
     def get_current_project_path(self) -> str | None:
         """Ritorna il percorso assoluto del progetto attivo, o None."""
@@ -3230,10 +3223,30 @@ class FileTreeDrawer(QFrame):
         'Archivio progetto' deve riflettere la cartella su cui si sta
         lavorando (es. project/sourceCode/ quando si seleziona il tab
         'sourceCode', o la root del repo quando si seleziona byte-swarmy).
+
+        Aggiorna anche _current_project_path su ControlCenter e ricarica
+        i task della sidebar: ogni sottoprogetto ha i propri task.
         """
         import os
-        if not folder_path or not os.path.isdir(folder_path):
+        if not folder_path:
             return
+        # Risolvi path relativo in assoluto (es. "project/TEST_progetto"
+        # passato dalle tab invece del path assoluto).
+        if not os.path.isabs(folder_path):
+            abs_candidate = os.path.join(str(BASE_DIR), folder_path)
+            if os.path.isdir(abs_candidate):
+                folder_path = abs_candidate
+            else:
+                # Prova anche rispetto alla cwd
+                if os.path.isdir(folder_path):
+                    pass  # già valido
+                else:
+                    return
+        if not os.path.isdir(folder_path):
+            return
+        # Aggiorna il percorso progetto corrente su ControlCenter
+        if hasattr(self, 'main_win') and self.main_win is not None:
+            self.main_win._current_project_path = folder_path
         # Aggiorna root del QFileSystemModel + rootIndex del QTreeView
         self.model.setRootPath(folder_path)
         self.tree.setRootIndex(self.model.index(folder_path))
@@ -3250,6 +3263,8 @@ class FileTreeDrawer(QFrame):
         self.path_label.setText(display)
         # Scrolla in cima
         self.tree.scrollToTop()
+        # Ricarica i task della sidebar per questo progetto
+        self._force_refresh_tasks()
 
     def _debug_call_info(self, handler_name, extra=""):
         import inspect, os
