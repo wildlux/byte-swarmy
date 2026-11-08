@@ -3148,6 +3148,36 @@ class FileSystemModel(QStandardItemModel):
         return super().setData(index, value, role)
 
 
+class CheckableTreeView(QTreeView):
+    """QTreeView che intercetta i click sulla checkbox (colonna 0)
+    per gestire toggle + log senza dipendere da dataChanged."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._drawer = None
+
+    def set_drawer(self, drawer):
+        self._drawer = drawer
+
+    def mousePressEvent(self, event):
+        from PyQt6.QtGui import QMouseEvent
+        if event.type() == QMouseEvent.MouseButtonPress:
+            index = self.indexAt(event.pos())
+            if index.isValid() and index.column() == 0:
+                item = self.model().itemFromIndex(index)
+                if item is not None and item.isCheckable():
+                    fp = item.data(Qt.ItemDataRole.UserRole)
+                    current = item.checkState()
+                    new_state = Qt.CheckState.Unchecked if current == Qt.CheckState.Checked else Qt.CheckState.Checked
+                    item.setCheckState(new_state)
+                    # Log del click
+                    _click_log("filemanager", "seleziona" if new_state == Qt.CheckState.Checked else "deseleziona",
+                               self._drawer.main_win.get_current_project_path() if self._drawer and self._drawer.main_win else "",
+                               fp)
+                    event.accept()
+                    return
+        super().mousePressEvent(event)
+
+
 class FileTreeDrawer(QFrame):
     def __init__(self, parent):
         super().__init__()
@@ -3232,12 +3262,13 @@ class FileTreeDrawer(QFrame):
         self.path_label.setWordWrap(True)
         lay.addWidget(self.path_label)
 
-        self.tree = QTreeView()
+        self.tree = CheckableTreeView()
         self.tree.setAlternatingRowColors(True)
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
 
         self.model = FileSystemModel()
         self.tree.setModel(self.model)
+        self.tree.set_drawer(self)
         # Colonna 0 = checkbox, colonna 1 = nome file
         self.tree.hideColumn(2) if self.model.columnCount() > 2 else None
         self.tree.setAnimated(True)
