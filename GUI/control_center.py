@@ -3046,6 +3046,18 @@ class FileTreeDrawer(QFrame):
         self.add_file_btn.clicked.connect(self._add_text_file)
         header_row.addWidget(self.add_file_btn)
 
+        # Pulsante crea nuova cartella
+        self.add_folder_btn = QPushButton("📁")
+        self.add_folder_btn.setFixedSize(28, 28)
+        self.add_folder_btn.setToolTip("Crea una nuova cartella nella cartella corrente")
+        self.add_folder_btn.setStyleSheet(
+            "QPushButton { font-size:16px; border:none; background:transparent; "
+            "border-radius:4px; padding:0; }"
+            "QPushButton:hover { background:#e2e8f0; border-radius:4px; }"
+        )
+        self.add_folder_btn.clicked.connect(self._add_folder)
+        header_row.addWidget(self.add_folder_btn)
+
         # Spazietto tra aggiungi e elimina
         _sp_del = QFrame()
         _sp_del.setFixedWidth(8)
@@ -3602,6 +3614,70 @@ class FileTreeDrawer(QFrame):
         except Exception as e:
             QMessageBox.warning(self, "Errore",
                                 f"Impossibile creare il file:\n{e}")
+
+    def _add_folder(self):
+        """Crea una nuova cartella nella cartella corrente del progetto."""
+        from PyQt6.QtWidgets import QInputDialog
+        import os
+
+        # Determina cartella di destinazione (come per _add_text_file)
+        target_dir = ""
+        idx = self.tree.currentIndex()
+        if idx.isValid():
+            fp = self.model.filePath(idx)
+            if os.path.isdir(fp):
+                target_dir = fp
+            else:
+                target_dir = os.path.dirname(fp)
+        if not target_dir:
+            target_dir = self.model.rootPath()
+        if not target_dir or not os.path.isdir(target_dir):
+            target_dir = str(BASE_DIR.resolve())
+
+        # Chiedi nome cartella
+        name, ok = QInputDialog.getText(
+            self, "Nuova cartella",
+            "Nome della cartella (es. sourceCode):",
+            text="nuova_cartella",
+        )
+        if not ok or not name.strip():
+            return
+        name = name.strip()
+        # Sanitizza: niente caratteri proibiti per nome cartella
+        name = name.replace("/", os.sep).replace("\\", os.sep)
+        name = os.path.basename(name)  # evita path traversal
+        if not name or name in (".", ".."):
+            QMessageBox.warning(self, "Nome non valido",
+                                "Inserisci un nome di cartella valido.")
+            return
+
+        new_path = os.path.join(target_dir, name)
+        if os.path.exists(new_path):
+            base = name
+            i = 1
+            while os.path.exists(os.path.join(target_dir, f"{base} ({i})")):
+                i += 1
+            suggested = f"{base} ({i})"
+            ans = QMessageBox.question(
+                self, "Esiste già",
+                f"La cartella '{name}' esiste già.\nVuoi usare '{suggested}'?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if ans != QMessageBox.StandardButton.Yes:
+                return
+            name = suggested
+            new_path = os.path.join(target_dir, name)
+
+        try:
+            os.makedirs(new_path, exist_ok=True)
+            _click_log("Archivio progetto (pulsante 📁)", "creato", new_path)
+            # Refresh del model per far apparire la nuova cartella
+            self.model.setRootPath("")
+            self.model.setRootPath(target_dir)
+            self.tree.setRootIndex(self.model.index(target_dir))
+        except Exception as e:
+            QMessageBox.warning(self, "Errore",
+                                f"Impossibile creare la cartella:\n{e}")
 
     def toggle(self):
         self._open = not self._open
