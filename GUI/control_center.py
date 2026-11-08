@@ -3365,15 +3365,19 @@ class FileTreeDrawer(QFrame):
         self.tree.setIconSize(QSize(16, 16))
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.tree.header().setStretchLastSection(False)
-        # Colonne dinamiche: le prime tre si adattano al contenuto (triangolino,
-        # checkbox, icona) senza spazio vuoto; la colonna Nome prende tutto lo
-        # spazio rimanente (almeno il 30% della larghezza disponibile).
-        self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        self.tree.header().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        # Colonna 0: vuota, solo triangolino espandi/collassa (14px fissa)
+        # Colonna 1: checkbox selezione (20px fissa)
+        # Colonna 2: icona (18px fissa)
+        # Colonna 3: nome (prende tutto lo spazio restante)
+        self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        self.tree.header().resizeSection(0, 14)
+        self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        self.tree.header().resizeSection(1, 20)
+        self.tree.header().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        self.tree.header().resizeSection(2, 18)
         self.tree.header().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         self.tree.header().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft)
-        self.tree.setIndentation(6)  # triangolino vicino al bordo
+        self.tree.setIndentation(4)  # triangolino vicino al bordo, niente spazio vuoto
         # Elimina padding e margini interni delle celle: niente spazio vuoto
         # tra colonna vuota, checkbox, icona e nome.
         self.tree.setStyleSheet(
@@ -3381,11 +3385,6 @@ class FileTreeDrawer(QFrame):
             "QTreeView::branch { padding: 0px; margin: 0px; }"
             "QHeaderView::section { padding: 0px; border: none; }"
         )
-        self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
-        self.tree.header().resizeSection(1, 22)
-        self.tree.header().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        self.tree.header().resizeSection(2, 20)
-        self.tree.header().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
 
         # Persistenza larghezze colonne: ricorda come le sposti tu
         self.tree.header().sectionResized.connect(self._save_column_widths)
