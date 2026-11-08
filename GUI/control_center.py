@@ -2974,7 +2974,8 @@ class CheckableFileSystemModel(QFileSystemModel):
         if index.column() == 0:
             if role == Qt.ItemDataRole.CheckStateRole:
                 return Qt.CheckState.Checked if self.filePath(index) in self._checked_paths else Qt.CheckState.Unchecked
-            if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole):
+            if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole,
+                        Qt.ItemDataRole.DecorationRole):
                 return None
         if index.column() > 0:
             orig = self.index(index.row(), index.column() - 1, index.parent())
