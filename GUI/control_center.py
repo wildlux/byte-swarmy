@@ -3375,27 +3375,11 @@ class FileTreeDrawer(QFrame):
             if not index.isValid():
                 return
             if index.column() == 0:
-                # Toggle manuale della checkbox sulla colonna 0.
-                # Il toggle nativo di QTreeView su QFileSystemModel
-                # subclassato non è affidabile, quindi gestiamo noi lo
-                # stato in _checked_paths e notifichiamo con dataChanged.
-                fp = self.model.filePath(index)
-                if fp in self.model.checked_paths():
-                    self.model.setData(
-                        index,
-                        Qt.CheckState.Unchecked,
-                        Qt.ItemDataRole.CheckStateRole,
-                    )
-                    _click_log("filemanager", "deseleziona",
-                                self._current_project_path or "", fp)
-                else:
-                    self.model.setData(
-                        index,
-                        Qt.CheckState.Checked,
-                        Qt.ItemDataRole.CheckStateRole,
-                    )
-                    _click_log("filemanager", "seleziona",
-                                self._current_project_path or "", fp)
+                # Checkbox: gestita nativamente da QTreeView
+                # (ItemIsUserCheckable in CheckableFileSystemModel.flags).
+                # Il log viene scritto da _on_model_data_changed su dataChanged.
+                # NON fare toggle manuale qui: causerebbe un doppio toggle
+                # (nativo + manuale) e la checkbox sembrerebbe non funzionare.
                 return
             path = self.model.filePath(index)
             if not path or not os.path.exists(path):
