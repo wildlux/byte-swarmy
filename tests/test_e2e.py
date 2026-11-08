@@ -59,8 +59,53 @@ class TestE2ETaskExecution(unittest.TestCase):
         except ValueError:
             raise unittest.SkipTest("orchestratore non in esecuzione (pid file assente)")
 
+        # NON distruttivo: salva i task dell'utente prima di pulire la coda
+        cls._user_tasks_backup = cls._backup_user_tasks()
+
+    @classmethod
+    def tearDownClass(cls):
+        backup = getattr(cls, "_user_tasks_backup", [])
+        if backup:
+            cls._restore_user_tasks(backup)
+            print(f"\n[e2e] ripristinati {len(backup)} task utente")
+
+    @classmethod
+    def _backup_user_tasks(cls) -> list:
+        """Snapshot dei task NON di test (per ripristinarli alla fine).
+
+        Il test ha bisogno della coda vuota per osservare il proprio task,
+        ma NON DEVE cancellare i task reali dell'utente (è successo:
+        7 task persi il 2026-11-07 perché il setUp faceva DELETE FROM tasks).
+        """
+        if not cls.db_path.exists():
+            return []
+        conn = sqlite3.connect(str(cls.db_path))
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM tasks WHERE id NOT LIKE 'e2e-test-%'").fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+
+    @classmethod
+    def _restore_user_tasks(cls, backup: list) -> None:
+        if not backup or not cls.db_path.exists():
+            return
+        conn = sqlite3.connect(str(cls.db_path))
+        # solo le colonne che esistono DAVVERO nella tabella (tollerante
+        # a schemi diversi, come update_task dell'orchestratore)
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(tasks)")]
+        for r in backup:
+            vals = [r.get(c) for c in cols]
+            ph = ",".join("?" * len(cols))
+            conn.execute(
+                f"INSERT OR REPLACE INTO tasks ({','.join(cols)}) "
+                f"VALUES ({ph})", vals)
+        conn.commit()
+        conn.close()
+
     def setUp(self):
-        # Pulisci DB
+        # La coda deve essere vuota perché il test osservi il PROPRIO task,
+        # ma i task dell'utente vengono salvati e ripristinati in tearDownClass.
         if self.db_path.exists():
             conn = sqlite3.connect(str(self.db_path))
             conn.execute("DELETE FROM tasks")

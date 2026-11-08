@@ -24,8 +24,15 @@ import resource
 import shlex
 import signal
 import subprocess
+import uuid
 from pathlib import Path
 from typing import Optional, Sequence
+
+
+def _tmp_name(base: str, suffix: str = "") -> str:
+    """Nome temp file unguibile: pid + UUID per evitare collisioni fra
+    worker concorrenti nello stesso processo (stesso pid → stesso nome)."""
+    return f".{base}.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp{suffix}"
 
 from CORE import sandbox
 
@@ -180,13 +187,17 @@ class ToolSet:
                         "WARNING")
             return (f"ERROR: {exc}. Write only inside project/ "
                     f"(e.g. 'project/main.py').")
+        # M7: quota disco — non permettere scritture con project/ già saturo.
+        guard = self._disk_guard()
+        if guard:
+            return guard
 
         if full.exists() and full.is_dir():
             return f"ERROR: '{path}' is a directory."
 
         try:
             full.parent.mkdir(parents=True, exist_ok=True)
-            tmp = full.parent / f".{full.name}.{os.getpid()}.tmp"
+            tmp = full.parent / _tmp_name(full.name)
             tmp.write_text(content, encoding="utf-8")
             os.replace(tmp, full)
             self.log.debug(f"wrote {len(content)} bytes -> {path}")
@@ -631,7 +642,7 @@ class ToolSet:
                 if re.search(pattern, content):
                     new_content = re.sub(pattern, new_symbol, content)
                     # Scrittura transazionale
-                    tmp = f.parent / f".{f.name}.rename.{os.getpid()}.tmp"
+                    tmp = f.parent / _tmp_name(f.name, ".rename")
                     tmp.write_text(new_content, encoding="utf-8")
                     os.replace(tmp, f)
                     count += 1
@@ -709,7 +720,7 @@ class ToolSet:
             if len(new_content) > self.max_write_bytes:
                 return "ERROR: file risultante troppo grande."
 
-            tmp = full.parent / f".{full.name}.extract.{os.getpid()}.tmp"
+            tmp = full.parent / _tmp_name(full.name, ".extract")
             tmp.write_text(new_content, encoding="utf-8")
             os.replace(tmp, full)
 
@@ -947,7 +958,7 @@ class ToolSet:
 
             # Scrittura transazionale
             full.parent.mkdir(parents=True, exist_ok=True)
-            tmp = full.parent / f".{full.name}.patch.{os.getpid()}.tmp"
+            tmp = full.parent / _tmp_name(full.name, ".patch")
             tmp.write_text(new_content, encoding="utf-8")
             os.replace(tmp, full)
 

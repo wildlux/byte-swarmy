@@ -48,8 +48,10 @@ sessione 2026-11-05/06 — vedi sezione 🆕 in fondo.
 ## 🧪 Da valutare (aperti di recente)
 
 - [ ] **Audit LLM vero** — `AuditWorker.SYSTEM` è dead code: `audit()` è euristico. Implementare la review LLM reale (con decision APPROVE/REJECT).
++ [x] **Audit LLM vero** — `AuditWorker.audit()` ora implementa review LLM reale con decision APPROVE/REJECT (fallback euristico).
 - [ ] **Escalation automatica per task** — il consiglio di escalation è scritto nei dettagli; valutare override del modello PER task (oggi il modello viene da actors.json/config).
 - [ ] **Minimi verticali Plancia** — la finestra viene forzata in altezza dai minimi interni (~1100px): valutare scroll o collasso di default.
++ [x] **Minimi verticali Plancia** — rimosso `setMinimumSize(900, 650)` da MainWindow; le card e i pannelli si adattano al contenuto. Finestra ridimensionabile liberamente.
 
 ## ✅ Sessione 2026-11-05/06 (completata — 263 test veloci)
 

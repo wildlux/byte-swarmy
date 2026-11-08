@@ -74,6 +74,8 @@ class SchedulerLogic:
     # -- matching ------------------------------------------------
     def is_due(self, task: dict, now: Optional[float] = None) -> bool:
         """True se il task dinamici DEVE essere iniettato adesso."""
+        if not isinstance(task, dict):
+            task = {}
         t = (task or {}).get("type", "")
         if now is None:
             now = self.now_fn()

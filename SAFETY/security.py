@@ -317,13 +317,20 @@ def safe_project_path(path: str, project_root: str | Path,
     """
     if not isinstance(path, (str, os.PathLike)):
         raise SecurityError("invalid path")
-    text = os.fspath(path).strip()
+    raw_text = os.fspath(path)
+    if "\x00" in raw_text:
+        raise SecurityError("path contains NUL")
+    # Caratteri di controllo (es. \n, \r, \t, \x0b, \x7f) nei filename:
+    # legali per il FS MA sfruttabili per log-injection e oscuramento.
+    # Check PRIMA di .strip() perché strip() rimuove già \t,\n,\r,\x0b,\x0c.
+    if any(ord(c) < 32 or ord(c) == 127 or c == "\\" for c in raw_text):
+        raise SecurityError("path contains control characters")
+        raise SecurityError("path contains control characters")
+    text = raw_text.strip()
     if not text:
         raise SecurityError("empty path")
     if len(text) > MAX_PATH_LEN:
         raise SecurityError("path too long")
-    if "\x00" in text:
-        raise SecurityError("path contains NUL")
     if text.startswith("~"):
         raise SecurityError("paths with '~' not allowed")
     if text.startswith("/") or Path(text).is_absolute():

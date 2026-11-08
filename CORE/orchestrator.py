@@ -168,7 +168,11 @@ class TaskQueue:
             conn.execute("ALTER TABLE tasks ADD COLUMN retry_after REAL")
 
     def _get_conn(self):
-        return sqlite3.connect(self.db_path)
+        # timeout=30: busy-wait su lock concorrenti (threads/GUI) invece di
+        # 'database is locked' immediato.
+        conn = sqlite3.connect(self.db_path, timeout=30.0)
+        conn.execute("PRAGMA busy_timeout=30000")
+        return conn
 
     def add(self, task: dict) -> str:
         task_id = f"task-{int(time.time()*1000)}-{self.tasks_count()}"
@@ -198,21 +202,42 @@ class TaskQueue:
             conn.row_factory = sqlite3.Row
             # retry_after: cooldown tra i tentativi — il task "aspetta"
             # prima di essere ripescato invece di bloccarsi in definitivo.
-            res = conn.execute(
-                "SELECT * FROM tasks WHERE status IN ('pending', 'retry') "
-                "AND (retry_after IS NULL OR retry_after <= ?) "
-                "ORDER BY created_at ASC LIMIT 1",
-                (now,),
-            ).fetchone()
-            if not res: return None
-
-            task_id = res["id"]
-            conn.execute(
-                "UPDATE tasks SET status = ?, started_at = ? WHERE id = ?",
-                ("running", time.time(), task_id)
-            )
-            conn.commit()
-            return dict(res)
+            #
+            # CLAIM ATOMICO: SELECT+UPDATE in un solo statement con
+            # UPDATE...RETURNING. Due connessioni concorrenti non possono
+            # più pendenzare lo stesso task: la seconda trova status='running'
+            # nella re-check WHERE e rientra nel loop (o ritorna None).
+            for _ in range(5):
+                cur = conn.execute(
+                    "UPDATE tasks SET status = 'running', started_at = ? "
+                    "WHERE id = ("
+                    "  SELECT id FROM tasks WHERE status IN ('pending', 'retry') "
+                    "  AND (retry_after IS NULL OR retry_after <= ?) "
+                    "  ORDER BY created_at ASC LIMIT 1"
+                    ") AND status IN ('pending', 'retry') "
+                    "RETURNING id",
+                    (time.time(), now),
+                )
+                row = cur.fetchone()
+                if row is not None:
+                    task_id = row["id"]
+                    res = conn.execute(
+                        "SELECT * FROM tasks WHERE id = ?", (task_id,)
+                    ).fetchone()
+                    conn.commit()
+                    return dict(res) if res else None
+                # Nessun claim: verifico SE davvero la coda è vuota,
+                # altrimenti è avvenuta una contesa → riprovo brevemente.
+                still = conn.execute(
+                    "SELECT 1 FROM tasks WHERE status IN ('pending', 'retry') "
+                    "AND (retry_after IS NULL OR retry_after <= ?) LIMIT 1",
+                    (now,),
+                ).fetchone()
+                if still is None:
+                    conn.commit()
+                    return None
+                time.sleep(0.01)
+            return None
 
     def mark_done(self, task_id: str, result: str) -> None:
         with self._get_conn() as conn:
@@ -1042,8 +1067,10 @@ class AuditWorker:
         self.log = logger
 
     def audit(self, task: dict, worker_result: str, worker_history: list) -> dict:
-        """Auditor semplificato: APPROVA solo se il worker ha fatto qualcosa di utile."""
-        # Conta tool utili chiamati
+        """Review worker output using the LLM decision model.
+
+        Returns {"decision": "APPROVE" | "REJECT", "feedback": str, "severity": "LOW"|"MEDIUM"|"HIGH"}.
+        """
         useful_tools = {"write_file", "patch_code", "run_test_suite", "lint_code",
                        "git_commit", "rename_symbol", "extract_method"}
         useful_count = 0
@@ -1054,14 +1081,47 @@ class AuditWorker:
                     if f"tool {tool}(" in content or f"{tool}(" in content:
                         useful_count += 1
                         break
-        # Se ha fatto almeno 1 tool utile, APPROVE
+
         if useful_count > 0:
             return {"decision": "APPROVE",
                    "feedback": f"auto-approved ({useful_count} useful tool calls)",
                    "severity": "LOW"}
-        # Altrimenti REJECT con feedback utile
+
+        # Fallback: usa il decision model LLM per review codice
+        model_name = self.config.get("decision_models", {}).get("active", "tev1:4b")
+        system_prompt = ("You are a senior code reviewer. Review the following "
+                         "worker result for security, correctness, and clean code. "
+                         "Respond ONLY with valid JSON: "
+                         '{"decision": "APPROVE" | "REJECT", "feedback": "string", "severity": "LOW"|"MEDIUM"|"HIGH"}')
+
+        user_prompt = f"Task: {task.get('title','unknown')}\n\n"
+        user_prompt += f"Worker result: {worker_result[:3000]}\n\n"
+        user_prompt += "Review this output and decide APPROVE or REJECT."
+
+        try:
+            raw = self._call_decision_model(
+                model_name=model_name,
+                prompt=user_prompt,
+                system=system_prompt,
+                temperature=0.1,
+                num_ctx=4096,
+                max_tokens=500,
+            )
+            # Try to parse JSON response
+            import json
+            parsed = json.loads(raw)
+            if parsed.get("decision") in ("APPROVE", "REJECT"):
+                return {
+                    "decision": parsed["decision"],
+                    "feedback": parsed.get("feedback", ""),
+                    "severity": parsed.get("severity", "LOW")
+                }
+        except Exception as e:
+            self.log.warning(f"LLM audit failed: {e}")
+
+        # Fallback heuristic
         return {"decision": "REJECT",
-               "feedback": "No useful tools called (write_file, patch_code, etc.). Create or modify a file first.",
+               "feedback": "No useful tools called and LLM review unavailable.",
                "severity": "HIGH"}
 
 

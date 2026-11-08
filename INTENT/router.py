@@ -56,8 +56,10 @@ _EN_HINTS = {
 }
 
 
-def detect_lang(text: str) -> str:
+def detect_lang(text) -> str:
     """Rileva lingua: 'zh', 'it', 'en'. Fallback: 'en'."""
+    if not isinstance(text, str):
+        text = str(text) if text is not None else ""
     if not text or not text.strip():
         return "en"
     if _CJK_RE.search(text):
@@ -99,8 +101,10 @@ class IntentRouter:
         log.info(f"intent_router: loaded {len(self.intents)} intents, "
                  f"{len(self._index)} triggers")
 
-    def parse(self, user_input: str) -> dict:
+    def parse(self, user_input) -> dict:
         """Classifica l'input utente. Ritorna dict strutturato."""
+        if not isinstance(user_input, str):
+            user_input = "" if user_input is None else str(user_input)
         if not user_input or not user_input.strip():
             return {"intent": "fallback", "lang": "en",
                     "params": {}, "confidence": 0, "raw": user_input}

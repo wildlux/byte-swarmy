@@ -547,3 +547,50 @@ class TestTaskFileJunkFilter(unittest.TestCase):
                              "solo i file reali, niente .git/pycache")
         finally:
             _sh.rmtree(probe, ignore_errors=True)
+
+
+class TestE2ENonDestructive(unittest.TestCase):
+    """La suite E2E non deve cancellare i task reali dell'utente.
+
+    Successo il 2026-11-07: il setUp di test_e2e faceva DELETE FROM tasks
+    e 7 task utente sono spariti (recuperati dal mirror queue.json).
+    """
+
+    def test_backup_restore_roundtrip(self):
+        import tempfile
+        import shutil as _sh
+        import sqlite3 as _sq
+        from tests.test_e2e import TestE2ETaskExecution
+
+        tmp = Path(tempfile.mkdtemp(prefix="bswarm_e2e_backup_"))
+        db = tmp / "queue.db"
+        con = _sq.connect(str(db))
+        con.execute("CREATE TABLE tasks (id TEXT PRIMARY KEY, title TEXT, "
+                    "status TEXT)")
+        con.execute("INSERT INTO tasks VALUES ('task-utente-1', 'mio task', "
+                    "'pending')")
+        con.execute("INSERT INTO tasks VALUES ('e2e-test-1', 'di test', "
+                    "'pending')")
+        con.commit(); con.close()
+
+        prev_db = getattr(TestE2ETaskExecution, "db_path", None)
+        TestE2ETaskExecution.db_path = db
+        try:
+            backup = TestE2ETaskExecution._backup_user_tasks()
+            self.assertEqual([b["id"] for b in backup], ["task-utente-1"],
+                             "il backup contiene SOLO i task utente")
+            # simula lo wipe del setUp
+            con = _sq.connect(str(db))
+            con.execute("DELETE FROM tasks")
+            con.commit(); con.close()
+            TestE2ETaskExecution._restore_user_tasks(backup)
+            con = _sq.connect(str(db))
+            ids = {r[0] for r in con.execute("SELECT id FROM tasks")}
+            con.close()
+            self.assertIn("task-utente-1", ids,
+                          "il task utente deve essere ripristinato")
+            self.assertNotIn("e2e-test-1", ids)
+        finally:
+            if prev_db is not None:
+                TestE2ETaskExecution.db_path = prev_db
+            _sh.rmtree(tmp, ignore_errors=True)
