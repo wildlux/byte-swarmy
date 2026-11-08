@@ -89,6 +89,8 @@ class SettingsPanel(QWidget):
 
     # Segnale emesso quando il tema cambia (per applicazione live)
     theme_changed = pyqtSignal(str)  # "dark" | "light"
+    # Segnale emesso quando il debug GUI viene attivato/disattivato
+    gui_debug_changed = pyqtSignal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -176,6 +178,7 @@ class SettingsPanel(QWidget):
 
         _add_section("tema", self._build_theme_section())
         _add_section("lingua", self._build_language_section())
+        _add_section("debug", self._build_debug_section())
         _add_section("hardware", self._build_hardware_section())
         _add_section("git", self._build_git_section())
         _add_section("audit", self._build_audit_section())
@@ -338,6 +341,38 @@ class SettingsPanel(QWidget):
         _theme_prop(wip, "role", "wip")
         wip.setWordWrap(True)
         form.addRow("", wip)
+        return box
+
+    def _build_debug_section(self) -> QFrame:
+        """Sezione Debug GUI: abilita la barra info-widget sotto il mouse."""
+        box = QGroupBox("🐛 Debug GUI")
+
+        form = QFormLayout(box)
+        form.setSpacing(10)
+        form.setContentsMargins(14, 14, 14, 14)
+
+        self.gui_debug_cb = QCheckBox(
+            "Mostra info widget sotto il mouse nella barra in basso")
+        self.gui_debug_cb.setToolTip(
+            "Quando attivo, passa il mouse su qualsiasi bottone/campo/area: "
+            "la barra in basso mostra classe, nome oggetto, gerarchia e "
+            "stack delle chiamate (copiabile per segnalare allo sviluppatore)."
+        )
+        self.gui_debug_cb.setChecked(
+            settings_store.get_gui_debug()
+        )
+        self.gui_debug_cb.stateChanged.connect(self._on_gui_debug_changed)
+        form.addRow("Debug widget:", self.gui_debug_cb)
+
+        hint = QLabel(
+            "Utile per individuare esattamente quale elemento GUI sta "
+            "causando un comportamento inatteso, senza dover analizzare "
+            "tutto il codice."
+        )
+        hint.setStyleSheet("font-size:10px; font-style:italic;")
+        _theme_prop(hint, "role", "muted")
+        hint.setWordWrap(True)
+        form.addRow("", hint)
         return box
 
     def _build_hardware_section(self) -> QFrame:
@@ -716,6 +751,8 @@ class SettingsPanel(QWidget):
         lang = s.get("language", "it")
         idx = 0 if lang == "it" else 1
         self.lang_combo.setCurrentIndex(idx)
+        # Debug GUI
+        self.gui_debug_cb.setChecked(settings_store.get_gui_debug())
         # H1: Strategia hardware
         hw = s.get("hardware_strategy", "cpu_only")
         # Trova l'index della strategia nella combo
@@ -788,6 +825,11 @@ class SettingsPanel(QWidget):
         lang = self.lang_combo.currentData()
         settings_store.set_language(lang)
         # Work in progress — non applichiamo realmente la lingua ora
+
+    def _on_gui_debug_changed(self, state):
+        enabled = state == Qt.CheckState.Checked.value
+        settings_store.set_gui_debug(enabled)
+        self.gui_debug_changed.emit(enabled)
 
     def _on_add_git_remote(self):
         name = self.git_name_edit.text().strip()

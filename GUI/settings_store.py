@@ -31,6 +31,8 @@ DEFAULTS = {
     # mandare i modelli (LLM/Decision/Timestral).
     "hardware_strategy": "cpu_only",
     "detect_gpu_at_startup": True,  # auto-detect all'avvio
+    # Debug GUI: mostra info widget sotto il mouse nella barra in basso
+    "gui_debug": False,
 }
 
 
@@ -194,3 +196,17 @@ def get_effective_strategy_description(strategy: str = None) -> str:
         "cpu_only": "Solo CPU: tutto su CPU (no GPU, più lento ma sicuro)",
         "cpu_then_gpu": "CPU→GPU: default CPU, switcha a GPU se CPU overload",
     }.get(s, "Strategia sconosciuta")
+
+
+# ── Debug GUI ─────────────────────────────────────────────────────────
+
+def get_gui_debug() -> bool:
+    """Ritorna se il debug GUI è attivo (mostra info widget sotto il mouse)."""
+    return bool(load_settings().get("gui_debug", False))
+
+
+def set_gui_debug(enabled: bool) -> bool:
+    """Attiva/disattiva il debug GUI."""
+    s = load_settings()
+    s["gui_debug"] = bool(enabled)
+    return save_settings(s)
