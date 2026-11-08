@@ -928,12 +928,18 @@ class DevicePanel(QFrame):
 
         lbl = QLabel(name)
         lbl.setStyleSheet(f"color:{color}; font-size:12px; font-weight:bold;")
-        lbl.setMinimumWidth(32)
+        lbl.setFixedWidth(40)
+        lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         lay.addWidget(lbl)
 
         model_lbl = QLabel(model_name)
         model_lbl.setStyleSheet("font-size:10px;")
-        model_lbl.setMinimumWidth(72)
+        model_lbl.setFixedWidth(190)
+        model_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        model_lbl.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
+        # Tronca con elipsis se troppo lungo, così non spinge i valori a destra
+        from PyQt6.QtCore import Qt as _Qt
+        model_lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
         lay.addWidget(model_lbl)
 
         temp_lbl = QLabel("45°C")
@@ -944,7 +950,8 @@ class DevicePanel(QFrame):
 
         for w in (temp_lbl, tok_lbl, kv_lbl, mem_lbl, bus_lbl):
             w.setStyleSheet("font-size:11px; font-weight:500;")
-            w.setMinimumWidth(38)
+            w.setFixedWidth(42)
+            w.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             lay.addWidget(w)
 
         row._temp = temp_lbl
@@ -3358,12 +3365,28 @@ class FileTreeDrawer(QFrame):
         self.tree.setIconSize(QSize(16, 16))
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.tree.header().setStretchLastSection(False)
-        # Colonna 0: vuota, solo per il triangolino espandi/collassa (larga minima)
-        # Colonna 1: checkbox selezione (larga fissa minima)
-        # Colonna 2: icona (larga fissa = icona)
+        # Colonna 0: vuota, solo per il triangolino espandi/collassa
+        # Colonna 1: checkbox selezione
+        # Colonna 2: icona
         # Colonna 3: nome (occupa tutto lo spazio restante)
+        # Larghezze minime per lasciare spazio al nome; triangolino e checkbox
+        # devono essere piccoli e allineati, niente spazio vuoto tra le colonne.
         self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        self.tree.header().resizeSection(0, 16)
+        self.tree.header().resizeSection(0, 14)
+        self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        self.tree.header().resizeSection(1, 20)
+        self.tree.header().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        self.tree.header().resizeSection(2, 18)
+        self.tree.header().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        self.tree.header().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft)
+        self.tree.setIndentation(6)  # triangolino vicino al bordo, poco spazio vuoto
+        # Elimina padding e margini interni delle celle: niente spazio vuoto
+        # tra colonna vuota, checkbox, icona e nome.
+        self.tree.setStyleSheet(
+            "QTreeView::item { padding: 0px; border: none; }"
+            "QTreeView::branch { padding: 0px; margin: 0px; }"
+            "QHeaderView::section { padding: 0px; border: none; }"
+        )
         self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
         self.tree.header().resizeSection(1, 22)
         self.tree.header().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
@@ -3373,6 +3396,9 @@ class FileTreeDrawer(QFrame):
         # Persistenza larghezze colonne: ricorda come le sposti tu
         self.tree.header().sectionResized.connect(self._save_column_widths)
         self._load_column_widths()
+
+        # Ordinamento automatico per colonna Name: cartelle prima, poi file, alfabeticamente
+        self.tree.header().sectionClicked.connect(self._on_header_section_clicked)
 
         # Pulsante ordina: cartelle prima / file prima (dopo che self.model esiste)
         self.sort_btn = QPushButton("📁📄" if self.model._folders_first else "📄📁")
@@ -3709,6 +3735,8 @@ class FileTreeDrawer(QFrame):
             self.model.set_root_path(target_dir)
             self.tree.setRootIndex(QModelIndex())
             self.tree.scrollToTop()
+            # Ordina automaticamente: cartelle prima, poi file, alfabeticamente
+            self._sort_by_name()
             _click_log("filemanager", "refresh",
                         self.main_win.get_current_project_path() if self.main_win else "",
                         target_dir)
@@ -3818,6 +3846,49 @@ class FileTreeDrawer(QFrame):
         self.model._folders_first = not self.model._folders_first
         self.sort_btn.setText("📁📄" if self.model._folders_first else "📄📁")
         self._refresh_file_tree()
+
+    def _on_header_section_clicked(self, logicalIndex: int):
+        """Click sull'header di una colonna.
+
+        Se si clicca sulla colonna Name (3): ordina i figli di ogni cartella
+        già espansa (e della radice) mettendo cartelle prima, poi file,
+        in ordine alfabetico."""
+        if logicalIndex == 3:
+            self._sort_by_name()
+
+    def _sort_by_name(self):
+        """Ordina i figli di ogni cartella visibile: cartelle prima, poi file, alfabeticamente."""
+        root = self.model.invisibleRootItem()
+        self._sort_children_recursive(root)
+
+    def _sort_children_recursive(self, parent_item):
+        """Riordina i figli di parent_item: is_dir=True prima, poi nome alfabeticamente."""
+        rows = parent_item.rowCount()
+        if rows <= 1:
+            return
+        # Raccogli tutte le righe (4 item per riga: vuoto, checkbox, icona, nome)
+        row_items = []
+        for r in range(rows):
+            row = [parent_item.child(r, c) for c in range(4)]
+            row_items.append(row)
+        # Ordina: colonna 0 ha is_dir in UserRole+1 (True=cartella),
+        # colonna 3 ha il nome in UserRole
+        row_items.sort(key=lambda row: (
+            not row[0].data(Qt.ItemDataRole.UserRole + 1),  # cartelle prima
+            str(row[3].data(Qt.ItemDataRole.UserRole) or "").lower(),  # nome alfabetico
+        ))
+        # Rimuovi tutte e reinserisci in ordine
+        for _ in range(rows):
+            parent_item.removeRow(0)
+        for row in row_items:
+            parent_item.appendRow(row)
+        # Ordina ricorsivamente le sottocartelle che hanno già figli caricati
+        # (rowCount > 1 significa che ci sono figli reali, non solo placeholder)
+        for row in row_items:
+            col0 = row[0]
+            if col0.data(Qt.ItemDataRole.UserRole + 1):  # è una cartella
+                if col0.rowCount() > 1:  # ha figli reali caricati
+                    self._sort_children_recursive(col0)
 
     def _column_width_file(self) -> Path:
         """Path del file che memorizza le larghezze colonne del file manager."""
@@ -4101,6 +4172,8 @@ class FileTreeDrawer(QFrame):
             self.model.set_root_path(target_dir)
             self.tree.setRootIndex(QModelIndex())
             self.tree.scrollToTop()
+            # Ordina automaticamente: cartelle prima, poi file, alfabeticamente
+            self._sort_by_name()
             _click_log("filemanager", "refresh",
                         self.main_win.get_current_project_path() if self.main_win else "",
                         target_dir)
