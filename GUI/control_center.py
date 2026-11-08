@@ -3056,8 +3056,18 @@ class FileSystemModel(QStandardItemModel):
         except Exception:
             return
         for name in entries:
-            # Salta i file __init__.py (non devono apparire nell'albero)
+            # Salta file/cartelle di sistema che non devono apparire nell'albero
             if name == "__init__.py":
+                continue
+            if name == "__pycache__":
+                continue
+            if name.endswith(".pyc"):
+                continue
+            if name == ".git":
+                continue
+            if name == ".venv":
+                continue
+            if name.startswith(".") and name not in (".", ".."):
                 continue
             full_path = os.path.join(folder_path, name)
             is_dir = os.path.isdir(full_path)
@@ -3083,8 +3093,18 @@ class FileSystemModel(QStandardItemModel):
         except Exception:
             return
         for name in entries:
-            # Salta i file __init__.py (non devono apparire nell'albero)
+            # Salta file/cartelle di sistema che non devono apparire nell'albero
             if name == "__init__.py":
+                continue
+            if name == "__pycache__":
+                continue
+            if name.endswith(".pyc"):
+                continue
+            if name == ".git":
+                continue
+            if name == ".venv":
+                continue
+            if name.startswith(".") and name not in (".", ".."):
                 continue
             child_full = os.path.join(full_path, name)
             is_dir = os.path.isdir(child_full)
