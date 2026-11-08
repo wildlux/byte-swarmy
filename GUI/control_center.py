@@ -3365,21 +3365,15 @@ class FileTreeDrawer(QFrame):
         self.tree.setIconSize(QSize(16, 16))
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.tree.header().setStretchLastSection(False)
-        # Colonna 0: vuota, solo per il triangolino espandi/collassa
-        # Colonna 1: checkbox selezione
-        # Colonna 2: icona
-        # Colonna 3: nome (occupa tutto lo spazio restante)
-        # Larghezze minime per lasciare spazio al nome; triangolino e checkbox
-        # devono essere piccoli e allineati, niente spazio vuoto tra le colonne.
-        self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        self.tree.header().resizeSection(0, 14)
-        self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
-        self.tree.header().resizeSection(1, 20)
-        self.tree.header().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        self.tree.header().resizeSection(2, 18)
+        # Colonne dinamiche: le prime tre si adattano al contenuto (triangolino,
+        # checkbox, icona) senza spazio vuoto; la colonna Nome prende tutto lo
+        # spazio rimanente (almeno il 30% della larghezza disponibile).
+        self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.tree.header().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.tree.header().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         self.tree.header().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft)
-        self.tree.setIndentation(6)  # triangolino vicino al bordo, poco spazio vuoto
+        self.tree.setIndentation(6)  # triangolino vicino al bordo
         # Elimina padding e margini interni delle celle: niente spazio vuoto
         # tra colonna vuota, checkbox, icona e nome.
         self.tree.setStyleSheet(
