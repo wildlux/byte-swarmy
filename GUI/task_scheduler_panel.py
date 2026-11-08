@@ -233,6 +233,7 @@ class TaskSchedulerPanel(QWidget):
         self.add_btn.clicked.connect(self._on_add_task)
         form.addRow("", self.add_btn)
         self._editing_task_id = None   # None = nuova voce; str = ID del task in modifica
+        self._editing_project_path = None  # project_path salvato al momento della modifica
 
         lay.addWidget(form_box)
 
@@ -299,7 +300,10 @@ class TaskSchedulerPanel(QWidget):
         if getattr(self, "_editing_task_id", None):
             try:
                 from GUI.main_window import load_tasks, save_tasks
-                tasks = load_tasks(project_path)
+                # Usa il project_path salvato al momento della modifica
+                # (non ricalcolato da get_project_path che potrebbe essere None)
+                edit_project_path = self._editing_project_path or project_path
+                tasks = load_tasks(edit_project_path)
                 aggiornato = False
                 for task in tasks:
                     if task.get("id") == self._editing_task_id:
@@ -313,13 +317,14 @@ class TaskSchedulerPanel(QWidget):
                     QMessageBox.warning(self, "Errore",
                                         "Task da modificare non trovato.")
                     return
-                save_tasks(tasks, project_path)
+                save_tasks(tasks, edit_project_path)
             except Exception as e:
                 QMessageBox.critical(self, "Errore", f"Impossibile modificare il task:\n{e}")
                 return
             self.task_title.clear()
             self.task_prompt.clear()
             self._editing_task_id = None
+            self._editing_project_path = None
             self.add_btn.setText("➕ Aggiungi task")
             self._refresh_list()
             QMessageBox.information(
@@ -381,7 +386,7 @@ class TaskSchedulerPanel(QWidget):
         act_del = menu.addAction("🗑️ Elimina")
         chosen = menu.exec(self.task_list_widget.mapToGlobal(pos))
         if chosen is act_edit:
-            self._start_edit_task(task)
+            self._start_edit_task(task, project_path)
         elif chosen is act_del:
             self.task_list_widget.setCurrentRow(row)
             self._on_del_task()
@@ -398,11 +403,20 @@ class TaskSchedulerPanel(QWidget):
             self.task_list_widget.setCurrentRow(row)
             self._on_del_task()
 
-    def _start_edit_task(self, task: dict = None):
+    def _start_edit_task(self, task: dict = None,
+                         project_path: str | None = None):
         """Carica il task nel form di sopra per modificarlo e risalvarlo."""
         if task is None:
             return
         self._editing_task_id = task.get("id", "")
+        # Salva il project_path usato per caricare il task, così al salvataggio
+        # usiamo lo stesso percorso (non ricalcolato da get_project_path che
+        # potrebbe restituire None o un valore diverso).
+        self._editing_project_path = (
+            project_path
+            if project_path is not None
+            else (self.get_project_path() if self.get_project_path else None)
+        )
         self.task_title.setText(task.get("title", ""))
         self.task_prompt.setText(task.get("description", ""))
         ttype = task.get("type", "oneshot")
