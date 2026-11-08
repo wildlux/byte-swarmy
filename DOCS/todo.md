@@ -40,8 +40,8 @@ Stato attuale: **sistema operativo end-to-end**, 58/58 test pass
 ## 🧹 Igiene continua
 
 - [ ] **R1.** `py_compile` + boot reale sotto watchdog per modifiche strutturali.
-- [ ] **R2.** Test di interazione reale per i gate di sicurezza.
-- [ ] **R3.** Verificare funzionalità duplicate se un file supera ~500 righe.
+- [x] **R2.** Test di interazione reale per i gate di sicurezza — verify con test security pass.
+- [ ] **R3.** Verificare funzionalità duplicate se un file supera ~500 righe — `control_center.py` è ~5000 righe: da spezzare.
 - [ ] **FM14** — Unificare la coda GUI→SQLite in sola lettura.
 
 ## ✅ Completato (riepilogo)
@@ -91,14 +91,31 @@ Censimento `setFixed*` (fontsize completo in `grep -n "setFixed\|setMinimum\|set
   sopra elencate (width fisse o content colllassabile) — chiedere
   all'utente quali vedi realmente.
 
-Task atomici da eseguire (uno per commit, test tema verdi a ogni passo):
-1. **T-R1 Sidebar/colonne fisse larghezza** → `setMinimumWidth` ridotto +
-   stretch factor sui split: 280px coda e 500px editor devono restringersi
-   (es. min 200px) e crescere in % del container.
-2. **T-R2 `_force_content_size` 300px** → da hardcode a min-height adattiva:
-   min 220px e policy Expanding verticale laddove non rompe la grid card.
-3. **T-R3 PlanciaCard 110px** → valutare con l'utente: minHeight 110 con
-   eventuale crescita proporzionale a schermi molto alti (o resta fissa
-   se preferisce compattezza).
-4. **T-R4 `main_window.py`**: censire le 8 occorrenze e convertire le
-   problematiche (probabile: altezze fisse di zone non-scroll).
+Task atomici responsive (uno per commit, test tema verdi a ogni passo):
+
+[x] **T-R1 (fatto, commit b497335)** `GUI/main_window.py`:
+    `ctx_bar.setFixedWidth(90)` → `setMinimumWidth(60)` così si comprime
+    su finestre strette senza tagliare.
+
+[ ] **T-R2** `GUI/control_center.py` — colonne fisse larghezza:
+    `setFixedWidth(280)` sidebar coda (riga ~2880) → `setMinimumWidth(200)`
+    + stretch; `setFixedWidth(500)` colonna editor (riga ~5082) →
+    `setMinimumWidth(300)` + stretch. Su finestre strette non tagliano più
+    il centro.
+
+[ ] **T-R3** `GUI/control_center.py` — `_force_content_size` 300px
+    (riga ~4693): da `setFixedHeight(300)` triplo a `setMinimumHeight(220)`
+    + policy Expanding verticale, così il content si adatta alla finestra.
+    Verificare che non rompa la grid card della Plancia.
+
+[ ] **T-R4** `GUI/control_center.py` — `PlanciaCard.setFixedHeight(110)`
+    (riga ~1046): valutare con l'utente se tenere 110px fisso (compattezza)
+    o passare a `setMinimumHeight(110)` per crescita su schermi alti.
+
+[ ] **T-R5** `GUI/control_center.py` — barre fisse top bar 64px (2096),
+    command bar 52px (2392), header sezione 48px (957): accettabili come
+    "bar", da verificare a fine se creano artefatti al resize.
+
+Nota: prima di toccare aree con dimensioni fisse, chiedere all'utente
+quali sezioni vede realmente tagliate/artefatte al maximize/resize, per
+non toccare ciò che va già bene.
