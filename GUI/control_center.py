@@ -2671,6 +2671,9 @@ class ProjectTabBar(QTabBar):
                     e for e in os.listdir(projects_dir)
                     if os.path.isdir(os.path.join(projects_dir, e))
                     and not e.startswith(".")
+                    and e != "__pycache__"
+                    and e != ".git"
+                    and e != ".venv"
                 )
             except OSError:
                 entries = []
