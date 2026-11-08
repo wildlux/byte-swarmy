@@ -3038,10 +3038,11 @@ class FileSystemModel(QStandardItemModel):
     """
     def __init__(self):
         super().__init__()
-        self.setColumnCount(3)
-        self.setHeaderData(0, Qt.Orientation.Horizontal, "✓")
-        self.setHeaderData(1, Qt.Orientation.Horizontal, "📄")
-        self.setHeaderData(2, Qt.Orientation.Horizontal, "Name")
+        self.setColumnCount(4)
+        self.setHeaderData(0, Qt.Orientation.Horizontal, "")  # colonna vuota: solo triangolino espandi/collassa
+        self.setHeaderData(1, Qt.Orientation.Horizontal, "✓")
+        self.setHeaderData(2, Qt.Orientation.Horizontal, "📄")
+        self.setHeaderData(3, Qt.Orientation.Horizontal, "Name")
         self._checked_paths = set()
         self._root_path = ""
         self._icon_provider = QFileIconProvider()
@@ -3051,14 +3052,22 @@ class FileSystemModel(QStandardItemModel):
     def set_root_path(self, path):
         self._root_path = os.path.abspath(path)
         self.clear()
-        self.setColumnCount(3)
-        self.setHeaderData(0, Qt.Orientation.Horizontal, "✓")
-        self.setHeaderData(1, Qt.Orientation.Horizontal, "📄")
-        self.setHeaderData(2, Qt.Orientation.Horizontal, "Name")
+        self.setColumnCount(4)
+        self.setHeaderData(0, Qt.Orientation.Horizontal, "")  # colonna vuota: solo triangolino
+        self.setHeaderData(1, Qt.Orientation.Horizontal, "✓")
+        self.setHeaderData(2, Qt.Orientation.Horizontal, "📄")
+        self.setHeaderData(3, Qt.Orientation.Horizontal, "Name")
         root_item = self.invisibleRootItem()
         self._populate_folder(self._root_path, root_item)
 
     def _make_items(self, full_path, is_dir):
+        # Colonna 0: vuota (solo per il triangolino di espansione del QTreeView)
+        empty = QStandardItem()
+        empty.setEditable(False)
+        empty.setData(full_path, Qt.ItemDataRole.UserRole)
+        empty.setData(is_dir, Qt.ItemDataRole.UserRole + 1)
+
+        # Colonna 1: checkbox di selezione
         checkbox = QStandardItem()
         checkbox.setCheckable(True)
         checkbox.setCheckState(Qt.CheckState.Unchecked)
@@ -3066,7 +3075,7 @@ class FileSystemModel(QStandardItemModel):
         checkbox.setData(full_path, Qt.ItemDataRole.UserRole)
         checkbox.setData(is_dir, Qt.ItemDataRole.UserRole + 1)
 
-        # Colonna dedicata all'icona (separata dal nome)
+        # Colonna 2: icona (colonna dedicata, separata dal nome)
         icon_item = QStandardItem()
         icon_item.setEditable(False)
         icon_item.setData(full_path, Qt.ItemDataRole.UserRole)
@@ -3075,17 +3084,16 @@ class FileSystemModel(QStandardItemModel):
         icon = self._icon_provider.icon(QFileInfo(full_path))
         icon_item.setIcon(icon)
 
-        # Colonna dedicata al nome (senza icona)
+        # Colonna 3: nome (senza icona)
         name = QStandardItem(os.path.basename(full_path))
         name.setData(full_path, Qt.ItemDataRole.UserRole)
         name.setData(is_dir, Qt.ItemDataRole.UserRole + 1)
         name.setEditable(False)
         # Tooltip con il percorso completo: il nome non si legge mai troncato
         name.setToolTip(full_path)
-        # Anche l'icona riporta il path per comodità
         icon_item.setToolTip(full_path)
 
-        return checkbox, icon_item, name
+        return empty, checkbox, icon_item, name
 
     def _populate_folder(self, folder_path, parent_item):
         try:
@@ -3120,14 +3128,14 @@ class FileSystemModel(QStandardItemModel):
         else:
             ordered = files + dirs
         for name, full_path, is_dir in ordered:
-            checkbox, icon_item, name_item = self._make_items(full_path, is_dir)
-            parent_item.appendRow([checkbox, icon_item, name_item])
+            empty, checkbox, icon_item, name_item = self._make_items(full_path, is_dir)
+            parent_item.appendRow([empty, checkbox, icon_item, name_item])
             if is_dir:
-                # Placeholder per permettere espansione lazy-loading (3 celle)
-                for _ in range(3):
+                # Placeholder per permettere espansione lazy-loading (4 celle vuote)
+                for _ in range(4):
                     placeholder = QStandardItem()
                     placeholder.setEnabled(False)
-                    checkbox.appendRow([placeholder, QStandardItem(), QStandardItem()])
+                    checkbox.appendRow([placeholder, QStandardItem(), QStandardItem(), QStandardItem()])
 
     def populate_on_expand(self, parent_item):
         """Chiamato quando una cartella viene espansa: popola i figli reali."""
@@ -3168,15 +3176,15 @@ class FileSystemModel(QStandardItemModel):
             ordered = dirs + files
         else:
             ordered = files + dirs
-        # Aggiungi figli reali (3 colonne: checkbox, icona, nome)
+        # Aggiungi figli reali (4 colonne: vuoto, checkbox, icona, nome)
         for name, child_full, is_dir in ordered:
-            checkbox, icon_item, name_item = self._make_items(child_full, is_dir)
-            parent_item.appendRow([checkbox, icon_item, name_item])
+            empty, checkbox, icon_item, name_item = self._make_items(child_full, is_dir)
+            parent_item.appendRow([empty, checkbox, icon_item, name_item])
             if is_dir:
-                for _ in range(3):
+                for _ in range(4):
                     placeholder = QStandardItem()
                     placeholder.setEnabled(False)
-                    checkbox.appendRow([placeholder, QStandardItem(), QStandardItem()])
+                    checkbox.appendRow([placeholder, QStandardItem(), QStandardItem(), QStandardItem()])
 
     def checked_paths(self):
         return set(self._checked_paths)
@@ -3202,12 +3210,12 @@ class FileSystemModel(QStandardItemModel):
         if not index.isValid():
             return Qt.ItemFlag.NoItemFlags
         f = super().flags(index)
-        if index.column() == 0:
+        if index.column() == 1:
             f |= Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEnabled
         return f
 
     def setData(self, index, value, role=Qt.ItemDataRole.EditRole):
-        if index.column() == 0 and role == Qt.ItemDataRole.CheckStateRole:
+        if index.column() == 1 and role == Qt.ItemDataRole.CheckStateRole:
             item = self.itemFromIndex(index)
             if item is None:
                 return False
@@ -3223,7 +3231,7 @@ class FileSystemModel(QStandardItemModel):
 
 
 class CheckableTreeView(QTreeView):
-    """QTreeView che intercetta i click sulla checkbox (colonna 0)
+    """QTreeView che intercetta i click sulla checkbox (colonna 1)
     per gestire toggle + log senza dipendere da dataChanged."""
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -3235,7 +3243,7 @@ class CheckableTreeView(QTreeView):
     def mousePressEvent(self, event):
         if event.type() == QEvent.Type.MouseButtonPress:
             index = self.indexAt(event.pos())
-            if index.isValid() and index.column() == 0:
+            if index.isValid() and index.column() == 1:
                 item = self.model().itemFromIndex(index)
                 if item is not None and item.isCheckable():
                     fp = item.data(Qt.ItemDataRole.UserRole)
@@ -3350,9 +3358,21 @@ class FileTreeDrawer(QFrame):
         self.tree.setIconSize(QSize(16, 16))
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.tree.header().setStretchLastSection(False)
-        self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        self.tree.header().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        # Colonna 0: vuota, solo per il triangolino espandi/collassa (larga minima)
+        # Colonna 1: checkbox selezione (larga fissa minima)
+        # Colonna 2: icona (larga fissa = icona)
+        # Colonna 3: nome (occupa tutto lo spazio restante)
+        self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        self.tree.header().resizeSection(0, 16)
+        self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        self.tree.header().resizeSection(1, 22)
+        self.tree.header().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        self.tree.header().resizeSection(2, 20)
+        self.tree.header().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+
+        # Persistenza larghezze colonne: ricorda come le sposti tu
+        self.tree.header().sectionResized.connect(self._save_column_widths)
+        self._load_column_widths()
 
         # Pulsante ordina: cartelle prima / file prima (dopo che self.model esiste)
         self.sort_btn = QPushButton("📁📄" if self.model._folders_first else "📄📁")
@@ -3703,8 +3723,9 @@ class FileTreeDrawer(QFrame):
         item = self.model.itemFromIndex(index)
         if item is None:
             return
-        # Verifica se c'è un placeholder da sostituire
-        if item.rowCount() == 1:
+        # Verifica se c'è un placeholder da sostituire (placeholder = figli
+        # non abilitati inseriti al momento della creazione della cartella).
+        if item.rowCount() > 0:
             child = item.child(0, 0)
             if child is not None and not child.isEnabled():
                 # È un placeholder, popola i figli reali
@@ -3714,7 +3735,7 @@ class FileTreeDrawer(QFrame):
         """Sincronizza selezione visiva QTreeView con stato checkbox del model."""
         if Qt.ItemDataRole.CheckStateRole not in roles:
             return
-        if top_left.column() != 0:
+        if top_left.column() != 1:
             return
         fp = top_left.data(Qt.ItemDataRole.UserRole)
         stato = "selezionato" if fp in self.model.checked_paths() else "deselezionato"
@@ -3797,6 +3818,43 @@ class FileTreeDrawer(QFrame):
         self.model._folders_first = not self.model._folders_first
         self.sort_btn.setText("📁📄" if self.model._folders_first else "📄📁")
         self._refresh_file_tree()
+
+    def _column_width_file(self) -> Path:
+        """Path del file che memorizza le larghezze colonne del file manager."""
+        return BASE_DIR / "state" / "file_manager_columns.json"
+
+    def _load_column_widths(self):
+        """Ripristina le larghezze colonne salvate dall'utente."""
+        f = self._column_width_file()
+        if not f.exists():
+            return
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            widths = data.get("widths", {})
+            for col in range(self.model.columnCount()):
+                key = str(col)
+                if key in widths:
+                    self.tree.header().resizeSection(col, int(widths[key]))
+        except Exception as e:
+            print(f"Errore caricamento larghezze colonne: {e}")
+
+    def _save_column_widths(self, logicalIndex: int, oldSize: int, newSize: int):
+        """Salva le larghezze colonne ogni volta che l'utente le sposta."""
+        try:
+            f = self._column_width_file()
+            f.parent.mkdir(parents=True, exist_ok=True)
+            widths = {}
+            if f.exists():
+                try:
+                    widths = json.loads(f.read_text(encoding="utf-8"))
+                except Exception:
+                    widths = {}
+            widths.setdefault("widths", {})
+            for col in range(self.model.columnCount()):
+                widths["widths"][str(col)] = self.tree.header().sectionSize(col)
+            f.write_text(json.dumps(widths, indent=2), encoding="utf-8")
+        except Exception as e:
+            print(f"Errore salvataggio larghezze colonne: {e}")
 
     def _on_task_item_clicked(self, item: QListWidgetItem):
         from PyQt6.QtWidgets import QApplication

@@ -168,12 +168,12 @@ def test_file_manager_checkbox_toggle():
 
         root_idx = QModelIndex()
 
-        # Trova l'index di main.py
+        # Trova l'index di main.py (colonna checkbox = 1)
         main_idx = None
         for r in range(drawer.model.rowCount(root_idx)):
-            c0 = drawer.model.index(r, 0, root_idx)
-            if drawer.model.filePath(c0).endswith("main.py"):
-                main_idx = c0
+            c1 = drawer.model.index(r, 1, root_idx)
+            if drawer.model.filePath(c1).endswith("main.py"):
+                main_idx = c1
                 break
 
         assert main_idx is not None, "main.py non trovato nell'albero"
@@ -238,8 +238,8 @@ def test_file_manager_create_and_delete():
         # Verifica che appaia nell'albero
         trovato = False
         for r in range(drawer.model.rowCount(root_idx)):
-            c0 = drawer.model.index(r, 0, root_idx)
-            if drawer.model.filePath(c0) == nuovo_file:
+            c1 = drawer.model.index(r, 1, root_idx)
+            if drawer.model.filePath(c1) == nuovo_file:
                 trovato = True
                 break
         assert trovato, "Nuovo file non appare nell'albero"
@@ -256,18 +256,18 @@ def test_file_manager_create_and_delete():
         # Verifica che appaia nell'albero
         trovato_cartella = False
         for r in range(drawer.model.rowCount(root_idx)):
-            c0 = drawer.model.index(r, 0, root_idx)
-            if drawer.model.filePath(c0) == nuova_cartella:
+            c1 = drawer.model.index(r, 1, root_idx)
+            if drawer.model.filePath(c1) == nuova_cartella:
                 trovato_cartella = True
                 break
         assert trovato_cartella, "Nuova cartella non appare nell'albero"
 
         # --- DELETE file ---
-        # Seleziona il file
+        # Seleziona il file (colonna checkbox = 1)
         for r in range(drawer.model.rowCount(root_idx)):
-            c0 = drawer.model.index(r, 0, root_idx)
-            if drawer.model.filePath(c0) == nuovo_file:
-                drawer.model.setData(c0, Qt.CheckState.Checked, Qt.ItemDataRole.CheckStateRole)
+            c1 = drawer.model.index(r, 1, root_idx)
+            if drawer.model.filePath(c1) == nuovo_file:
+                drawer.model.setData(c1, Qt.CheckState.Checked, Qt.ItemDataRole.CheckStateRole)
                 break
         app.processEvents()
         assert nuovo_file in drawer.model.checked_paths(), "File non selezionato per eliminazione"
@@ -281,8 +281,8 @@ def test_file_manager_create_and_delete():
         assert not os.path.exists(nuovo_file), "File non eliminato"
         trovato_dopo = False
         for r in range(drawer.model.rowCount(root_idx)):
-            c0 = drawer.model.index(r, 0, root_idx)
-            if drawer.model.filePath(c0) == nuovo_file:
+            c1 = drawer.model.index(r, 1, root_idx)
+            if drawer.model.filePath(c1) == nuovo_file:
                 trovato_dopo = True
                 break
         assert not trovato_dopo, "File ancora presente nell'albero dopo eliminazione"
