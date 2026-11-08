@@ -26,11 +26,13 @@ from PyQt6.QtWidgets import (
     QMenu, QToolButton, QStyle, QStyleFactory, QSpacerItem,
     QSizePolicy, QAbstractItemView, QHeaderView, QListWidget,
     QListWidgetItem, QTreeView, QWidgetAction, QGraphicsView,
-    QGraphicsScene, QGraphicsRectItem, QGraphicsTextItem
+    QGraphicsScene, QGraphicsRectItem, QGraphicsTextItem,
+    QFileIconProvider,
 )
 from PyQt6.QtGui import (
     QColor, QCursor, QFont, QIcon, QPixmap, QPalette, QAction,
-    QBrush, QPainter, QPen, QDesktopServices
+    QBrush, QPainter, QPen, QDesktopServices,
+    QStandardItem, QStandardItemModel,
 )
 from PyQt6.QtCore import (
     Qt, QPropertyAnimation, QEasingCurve, pyqtSignal, QDir, QTimer,
@@ -45,28 +47,6 @@ from GUI import settings_store
 from GUI.settings_panel import SettingsPanel
 from GUI.actors_panel import ActorsPanel
 from GUI.task_scheduler_panel import TaskSchedulerPanel
-
-# QFileSystemModel fallback (posizione varia tra versioni PyQt6)
-try:
-    from PyQt6.QtWidgets import QFileSystemModel
-except ImportError:
-    try:
-        from PyQt6.QtCore import QFileSystemModel
-    except ImportError:
-        try:
-            from PyQt6.QtGui import QFileSystemModel
-        except ImportError:
-            from PyQt6.QtGui import QStandardItemModel
-            from PyQt6.QtCore import QModelIndex
-            class QFileSystemModel(QStandardItemModel):
-                """Fallback QFileSystemModel per PyQt6 senza il vero modulo."""
-                def __init__(self, *args, **kwargs):
-                    super().__init__(*args, **kwargs)
-                    self._root_path = ""
-                def setRootPath(self, path):
-                    self._root_path = path
-                def rootPath(self):
-                    return self._root_path
 
 # ════════════════════════════════════════════════════════════════
 # ════════════════════════════════════════════════════════════════
@@ -3028,59 +3008,115 @@ def build_run_command(file_path):
     return None
 
 
-class CheckableFileSystemModel(QFileSystemModel):
-    """QFileSystemModel con colonna 0 checkbox per selezione multipla file/cartelle."""
+class FileSystemModel(QStandardItemModel):
+    """QStandardItemModel con colonna 0 checkbox per selezione multipla file/cartelle.
+    
+    Colonna 0: checkbox + gerarchia (freccette espansione)
+    Colonna 1: nome + icona (solo dati)
+    """
     def __init__(self):
         super().__init__()
+        self.setColumnCount(2)
+        self.setHeaderData(0, Qt.Orientation.Horizontal, "✓")
+        self.setHeaderData(1, Qt.Orientation.Horizontal, "Name")
         self._checked_paths = set()
+        self._root_path = ""
+        self._icon_provider = QFileIconProvider()
 
-    def columnCount(self, parent=QModelIndex()):
-        return super().columnCount(parent) + 1
+    def set_root_path(self, path):
+        self._root_path = os.path.abspath(path)
+        self.clear()
+        self.setColumnCount(2)
+        self.setHeaderData(0, Qt.Orientation.Horizontal, "✓")
+        self.setHeaderData(1, Qt.Orientation.Horizontal, "Name")
+        root_item = self.invisibleRootItem()
+        self._populate_folder(self._root_path, root_item)
 
-    def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
-        if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
-            if section == 0:
-                return "✓"
-            return super().headerData(section - 1, orientation, role)
-        return super().headerData(section, orientation, role)
+    def _make_items(self, full_path, is_dir):
+        checkbox = QStandardItem()
+        checkbox.setCheckable(True)
+        checkbox.setCheckState(Qt.CheckState.Unchecked)
+        checkbox.setEditable(False)
+        checkbox.setData(full_path, Qt.ItemDataRole.UserRole)
+        checkbox.setData(is_dir, Qt.ItemDataRole.UserRole + 1)
 
-    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
-        if index.column() == 0:
-            if role == Qt.ItemDataRole.CheckStateRole:
-                return Qt.CheckState.Checked if self.filePath(index) in self._checked_paths else Qt.CheckState.Unchecked
-            if role in (Qt.ItemDataRole.DisplayRole, Qt.ItemDataRole.EditRole,
-                        Qt.ItemDataRole.DecorationRole):
-                return None
-        if index.column() > 0:
-            orig = self.index(index.row(), index.column() - 1, index.parent())
-            return super().data(orig, role)
-        return super().data(index, role)
+        name = QStandardItem(os.path.basename(full_path))
+        name.setData(full_path, Qt.ItemDataRole.UserRole)
+        name.setData(is_dir, Qt.ItemDataRole.UserRole + 1)
+        name.setEditable(False)
+        from PyQt6.QtCore import QFileInfo
+        icon = self._icon_provider.icon(QFileInfo(full_path))
+        name.setIcon(icon)
 
-    def setData(self, index, value, role=Qt.ItemDataRole.EditRole):
-        if index.column() == 0 and role == Qt.ItemDataRole.CheckStateRole:
-            fp = self.filePath(index)
-            if value == Qt.CheckState.Checked:
-                self._checked_paths.add(fp)
-            else:
-                self._checked_paths.discard(fp)
-            self.dataChanged.emit(index, index, [role])
-            return True
-        if index.column() > 0:
-            orig = self.index(index.row(), index.column() - 1, index.parent())
-            return super().setData(orig, value, role)
-        return False
+        return checkbox, name
 
-    def flags(self, index):
-        f = super().flags(index)
-        if index.column() == 0:
-            f |= Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEnabled
-        return f
+    def _populate_folder(self, folder_path, parent_item):
+        try:
+            entries = sorted(os.listdir(folder_path))
+        except Exception:
+            return
+        for name in entries:
+            full_path = os.path.join(folder_path, name)
+            is_dir = os.path.isdir(full_path)
+            checkbox, name_item = self._make_items(full_path, is_dir)
+            parent_item.appendRow([checkbox, name_item])
+            if is_dir:
+                # Placeholder per permettere espansione lazy-loading
+                placeholder = QStandardItem()
+                placeholder.setEnabled(False)
+                checkbox.appendRow([placeholder, QStandardItem()])
+
+    def populate_on_expand(self, parent_item):
+        """Chiamato quando una cartella viene espansa: popola i figli reali."""
+        full_path = parent_item.data(Qt.ItemDataRole.UserRole)
+        if not full_path or not os.path.isdir(full_path):
+            return
+        # Rimuovi placeholder esistenti
+        while parent_item.rowCount() > 0:
+            parent_item.removeRow(0)
+        # Aggiungi figli reali
+        try:
+            entries = sorted(os.listdir(full_path))
+        except Exception:
+            return
+        for name in entries:
+            child_full = os.path.join(full_path, name)
+            is_dir = os.path.isdir(child_full)
+            checkbox, name_item = self._make_items(child_full, is_dir)
+            parent_item.appendRow([checkbox, name_item])
+            if is_dir:
+                placeholder = QStandardItem()
+                placeholder.setEnabled(False)
+                checkbox.appendRow([placeholder, QStandardItem()])
 
     def checked_paths(self):
         return set(self._checked_paths)
 
     def clear_checks(self):
         self._checked_paths.clear()
+
+    def flags(self, index):
+        if not index.isValid():
+            return Qt.ItemFlag.NoItemFlags
+        f = super().flags(index)
+        if index.column() == 0:
+            f |= Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEnabled
+        return f
+
+    def setData(self, index, value, role=Qt.ItemDataRole.EditRole):
+        if index.column() == 0 and role == Qt.ItemDataRole.CheckStateRole:
+            item = self.itemFromIndex(index)
+            if item is None:
+                return False
+            fp = item.data(Qt.ItemDataRole.UserRole)
+            if value == Qt.CheckState.Checked:
+                self._checked_paths.add(fp)
+            else:
+                self._checked_paths.discard(fp)
+            result = super().setData(index, value, role)
+            self.dataChanged.emit(index, index, [role])
+            return result
+        return super().setData(index, value, role)
 
 
 class FileTreeDrawer(QFrame):
@@ -3171,15 +3207,10 @@ class FileTreeDrawer(QFrame):
         self.tree.setAlternatingRowColors(True)
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
 
-        self.model = CheckableFileSystemModel()
-        self.model.setRootPath("./")
-        self.model.setFilter(QDir.Filter.NoDotAndDotDot | QDir.Filter.AllDirs | QDir.Filter.Files)
+        self.model = FileSystemModel()
         self.tree.setModel(self.model)
-        self.tree.setRootIndex(self.model.index("./"))
-        # Colonna 0 = checkbox, colonna 1 = nome file. Nascondo dimensione/tipo/data (ora 2,3,4).
-        self.tree.hideColumn(2)
-        self.tree.hideColumn(3)
-        self.tree.hideColumn(4)
+        # Colonna 0 = checkbox, colonna 1 = nome file
+        self.tree.hideColumn(2) if self.model.columnCount() > 2 else None
         self.tree.setAnimated(True)
         self.tree.setIndentation(14)
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
@@ -3192,6 +3223,7 @@ class FileTreeDrawer(QFrame):
         self.tree.clicked.connect(self._on_tree_click)
         self.tree.doubleClicked.connect(self._on_tree_double_click)
         self.tree.customContextMenuRequested.connect(self._on_tree_context_menu)
+        self.tree.expanded.connect(self._on_folder_expanded)
         self.model.dataChanged.connect(self._on_model_data_changed)
         lay.addWidget(self.tree)
 
@@ -3328,9 +3360,9 @@ class FileTreeDrawer(QFrame):
         # Aggiorna il percorso progetto corrente su ControlCenter
         if hasattr(self, 'main_win') and self.main_win is not None:
             self.main_win._current_project_path = folder_path
-        # Aggiorna root del QFileSystemModel + rootIndex del QTreeView
-        self.model.setRootPath(folder_path)
-        self.tree.setRootIndex(self.model.index(folder_path))
+        # Aggiorna root del modello + rootIndex del QTreeView
+        self.model.set_root_path(folder_path)
+        self.tree.setRootIndex(self.model.index(0, 0))
         # Aggiorna il sottotitolo con il path
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         try:
@@ -3376,7 +3408,7 @@ class FileTreeDrawer(QFrame):
             from PyQt6.QtWidgets import QApplication
             from PyQt6.QtCore import Qt as _Qt
             if QApplication.keyboardModifiers() & _Qt.KeyboardModifier.ShiftModifier:
-                path = self.model.filePath(index) if index.isValid() else ""
+                path = index.data(Qt.ItemDataRole.UserRole) if index.isValid() else ""
                 info = self._debug_call_info("FileTreeDrawer._on_tree_click", path)
                 QApplication.clipboard().setText(info)
                 if self._GUI_DEBUG:
@@ -3385,11 +3417,18 @@ class FileTreeDrawer(QFrame):
             if not index.isValid():
                 return
             if index.column() == 0:
-                # Checkbox: toggle gestito nativamente da QTreeView
-                # (ItemIsUserCheckable in CheckableFileSystemModel.flags).
-                # Il log viene scritto da _on_model_data_changed su dataChanged.
+                # Toggle manuale della checkbox su colonna 0
+                fp = index.data(Qt.ItemDataRole.UserRole)
+                if fp in self.model.checked_paths():
+                    self.model.setData(index, Qt.CheckState.Unchecked, Qt.ItemDataRole.CheckStateRole)
+                    _click_log("filemanager", "deseleziona",
+                                self.parent().get_current_project_path() if self.parent() else "", fp)
+                else:
+                    self.model.setData(index, Qt.CheckState.Checked, Qt.ItemDataRole.CheckStateRole)
+                    _click_log("filemanager", "seleziona",
+                                self.parent().get_current_project_path() if self.parent() else "", fp)
                 return
-            path = self.model.filePath(index)
+            path = index.data(Qt.ItemDataRole.UserRole)
             if not path or not os.path.exists(path):
                 return
             if os.path.isfile(path):
@@ -3419,7 +3458,7 @@ class FileTreeDrawer(QFrame):
         try:
             if not index.isValid():
                 return
-            path = self.model.filePath(index)
+            path = index.data(Qt.ItemDataRole.UserRole)
             if not path or not os.path.exists(path):
                 return
             if os.path.isdir(path):
@@ -3436,7 +3475,9 @@ class FileTreeDrawer(QFrame):
         index = self.tree.indexAt(pos)
         if not index.isValid():
             return
-        path = self.model.filePath(index)
+        path = index.data(Qt.ItemDataRole.UserRole)
+        if not path:
+            return
         is_file = os.path.isfile(path)
 
         menu = QMenu(self)
@@ -3464,7 +3505,9 @@ class FileTreeDrawer(QFrame):
             new_path = os.path.join(os.path.dirname(path), new_name)
             try:
                 os.rename(path, new_path)
-                self.model.setRootPath("./")
+                # Ricarica l'albero per riflettere il nuovo nome
+                self.model.set_root_path(self.model._root_path)
+                self.tree.setRootIndex(self.model.index(0, 0))
             except Exception as e:
                 QMessageBox.warning(self, "Errore", f"Impossibile rinominare:\n{e}")
 
@@ -3478,13 +3521,43 @@ class FileTreeDrawer(QFrame):
                 else:
                     import shutil
                     shutil.rmtree(path)
-                self.model.setRootPath("./")
+                # Ricarica l'albero
+                self.model.set_root_path(self.model._root_path)
+                self.tree.setRootIndex(self.model.index(0, 0))
             except Exception as e:
                 QMessageBox.warning(self, "Errore", f"Impossibile eliminare:\n{e}")
 
-    # Debug click/selezioni SOLO su richiesta (BSWARM_GUI_DEBUG=1): di
-    # default niente spam su stdout mentre usi la GUI.
-    _GUI_DEBUG = os.environ.get("BSWARM_GUI_DEBUG", "").strip() == "1"
+    def _refresh_file_tree(self):
+        """Forza il refresh del file tree (cartelle e file della cartella corrente).
+        Utile dopo creazione/eliminazione di elementi o per allineare il model
+        con lo stato reale del disco."""
+        try:
+            target_dir = self.model._root_path
+            if not target_dir or not os.path.isdir(target_dir):
+                target_dir = str(BASE_DIR.resolve())
+            self.model.set_root_path(target_dir)
+            self.tree.setRootIndex(self.model.index(0, 0))
+            self.tree.scrollToTop()
+            _click_log("filemanager", "refresh",
+                        self.main_win.get_current_project_path() if self.main_win else "",
+                        target_dir)
+        except Exception as e:
+            QMessageBox.warning(self, "Errore",
+                                f"Impossibile aggiornare il file tree:\n{e}")
+
+    def _on_folder_expanded(self, index):
+        """Quando una cartella viene espansa, popola i suoi figli (lazy loading)."""
+        if not index.isValid() or index.column() != 0:
+            return
+        item = self.model.itemFromIndex(index)
+        if item is None:
+            return
+        # Verifica se c'è un placeholder da sostituire
+        if item.rowCount() == 1:
+            child = item.child(0, 0)
+            if child is not None and not child.isEnabled():
+                # È un placeholder, popola i figli reali
+                self.model.populate_on_expand(item)
 
     def _on_model_data_changed(self, top_left, bottom_right, roles):
         """Sincronizza selezione visiva QTreeView con stato checkbox del model."""
@@ -3492,7 +3565,7 @@ class FileTreeDrawer(QFrame):
             return
         if top_left.column() != 0:
             return
-        fp = self.model.filePath(top_left)
+        fp = top_left.data(Qt.ItemDataRole.UserRole)
         stato = "selezionato" if fp in self.model.checked_paths() else "deselezionato"
         _click_log("filemanager", stato,
                     self.main_win.get_current_project_path() if self.main_win else "", fp)
