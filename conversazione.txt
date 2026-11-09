@@ -1,0 +1,713 @@
+> dimmi i tuoi tool x tool_call {"query":"select:"} [tool_call bridge refused] params must have required property 'name'
+
+
+Listed available tools
+
+🌐
+🌐
+🌐
+🌐
++6
+The error you pasted — [tool_call bridge refused] params must have required property 'name' — comes from a deferred tool-call bridge (as seen in Qwen Code and similar frameworks).  It means the envelope sent to tool_call was missing the required top-level name field. The bridge expects:
+
+{
+  "name": "<deferred_tool_name>",
+  "arguments": { ... }
+}
+
+Your payload {"query":"select:"} has neither name nor arguments at the top level, so the Ajv schema validator rejects it before the target tool is even resolved. 
+
+As for my tools (the ones I can invoke in this conversation):
+
+Tool	Purpose
+web_search	Search the web for current information
+web_results	Return clickable site/destination cards
+news_articles	Recent news cards
+videos	Video results (tutorials, trailers, etc.)
+images	Image grid for visual subjects
+local_results	Local businesses/places (map)
+forum_discussions	Reddit/forum threads for opinions & experience
+shopping	Product cards with price/rating
+infobox	Knowledge panel for a single named entity
+
+If you were trying to list your agent's tools (e.g. in Qwen Code), the correct invocation shape would be something like tool_call(name="tool_search", arguments={"query":"select:"}) — the tool name goes in name, and its parameters go inside arguments. 
+
+
+dimmi tool_call bridge refused params must have required property name site:reddit.com
+
+Visualizza tutto
+
+Copia
+
+
+▄▄▄▄▄▄  ▄▄     ▄▄ ▄▄▄▄▄▄▄ ▄▄▄    ▄▄ ┌──────────────────────────────────────────────────────────┐
+██╔═══██╗██║    ██║██╔════╝████╗  ██║ │ >_ Qwen Code (v0.27.0) │
+██║   ██║██║ █╗ ██║█████╗  ██╔██╗ ██║ │ │
+██║▄▄ ██║██║███╗██║██╔══╝  ██║╚██╗██║ │ API Key | qwen2.5:7b (Ollama) (/model to change) │
+╚██████╔╝╚███╔███╔╝███████╗██║ ╚████║ │ ~/Desktop/byte-swarmy │
+ ╚══▀▀═╝  ╚══╝╚══╝ ╚══════╝╚═╝  ╚═══╝ └──────────────────────────────────────────────────────────┘
+
+Tips: Type / to open the command popup; Tab autocompletes slash commands and saved prompts.
+
+> /plan cerca nella cartella problematiche di programamzione
+x tool_call {"tool_name":"tool_search","arguments":{"query":"cerca nella cartella problematiche di programamazione"}}
+[tool_call bridge refused] params must have required property 'name'
+
+◆︎ It looks like there was an issue with the parameters provided for invoking a tool. Could you please provide the correct details including 
+the name of the tool and the required arguments? For example, if you intended to run a specific skill, you might need to specify the skill name and any necessary arguments. Could you clarify or provide the relevant details?
+●︎ Read context files: ~/.qwen/output-language.md
+
+> dimmi i tuoi tool
+x tool_call {"query":"select:"}
+[tool_call bridge refused] params must have required property 'name'
+
+◆︎ It seems there was an issue with the required parameters for the tool_call function. Let's try again by selecting and invoking an 
+appropriate deferred tool. Could you please provide more details on what you would like to achieve, so I can select the correct tool? If you have a specific tool in mind, please mention its name.
+Mostra altro
+
+
+Diagnosed Qwen Code tool schema mismatch
+Il problema è che qwen2.5:7b è troppo piccolo per gestire affidabilmente il pattern a due step tool_search → tool_call di Qwen Code. Il modello confonde il campo name dell'envelope con tool_name o lo omette del tutto.
+
+Cause
+Modello 7B — il tool calling structured è inaffidabile sotto i ~14B, soprattutto con un envelope a due livelli.
+num_ctx di default Ollama = 2048 — il system prompt e le definizioni dei tool vengono troncato, quindi il modello "dimentica" lo schema corretto. 
+È un bug noto ( #14216 ): l'errore params must have required property 'name' non chiarisce che si tratta dell'envelope del bridge, non dello schema del tool target, quindi il modello non sa come correggersi. 
+Soluzioni
+Priorità	Azione	Dettaglio
+1	Cambia modello	qwen2.5-coder:7b (variante coder, molto migliore nel tool calling) o meglio ancora qwen3-coder:30b / qwen3:8b
+2	Aumenta il contesto Ollama	OLLAMA_CONTEXT_LENGTH=32768 (o 65536) nell'ambiente, oppure deriva un modello con num_ctx più grande: ollama create qwen2.5-32k -f Modelfile con PARAMETER num_ctx 32768
+3	Bypassa il bridge	In ~/.qwen/settings.json aggiungi i tool che ti servono in tools.visible — così vengono dichiarati direttamente nella request e il modello li chiama senza passare per tool_search/tool_call:
+
+{
+  "tools": {
+    "visible": ["find_files", "read_file", "shell"]
+  }
+}
+
+Con tools.visible il modello invoca il tool direttamente (es. find_files(pattern: "…")) e l'envelope a due livelli non esiste più — il 7B gestisce senza problemi.
+
+TL;DR
+Il 7B non è abbastanza capace per il deferred-tool bridge. Usa qwen2.5-coder:7b (minimo) o qwen3-coder:30b (consigliato), alza num_ctx a ≥ 32k, e se vuoi restare sul 7B metti i tool frequenti in tools.visible per evitare il bridge.
+
+
+Copia
+
+
+come devo avviare qwen per usare il qwen3-coder:30b io non posso usare un tool pesante
+
+
+Identificazione modelli leggeri per Qwen Code
+Dato che non puoi girare il 30B, la scelta migliore per Qwen Code è qwen3:8b (5.2 GB, tool calling nativo, ~85% di affidabilità).  Il qwen2.5-coder:7b ha bug noti nel tool calling (ritorna JSON nel content invece di tool_calls strutturati). 
+
+Passi
+# 1. Scarica il modello
+ollama pull qwen3:8b
+
+# 2. Avvia Qwen Code con quel modello
+OLLAMA_CONTEXT_LENGTH=32768 qwen --model qwen3:8b
+
+Se hai problemi di context (errori di truncation), crea una variante con num_ctx più alto:
+
+# Modelfile
+cat > Modelfile <<'EOF'
+FROM qwen3:8b
+PARAMETER num_ctx 32768
+EOF
+ollama create qwen3-8b-32k -f Modelfile
+
+Poi: qwen --model qwen3-8b-32k
+
+⚠️ Bug noto Ollama 0.40.13
+Su Ollama recente c'è un bug (#19524) dove qwen3:8b restituisce content vuoto e nessun tool_calls. Workaround:
+
+OLLAMA_GO_TEMPLATE=false ollama serve
+
+Questo forza il fallback al template Jinja con GBNF constraints, che forza il modello a chiamare un tool noto. 
+
+Riepilogo
+Model	VRAM	Tool calling	Note
+qwen3:8b	~5.2 GB	✅ nativo, ~85%	Migliore per te
+qwen2.5-coder:7b	~4.7 GB	⚠️ inaffidabile	Ritorna JSON in content, non tool_calls
+qwen3-coder:30b	~19 GB	✅	Troppo pesante per te
+
+Con qwen3:8b + tools.visible in ~/.qwen/settings.json (per bypassare il bridge tool_search/tool_call) dovresti avere un'esperienza stabile.
+
+
+Copia
+
+
+wildlux@wildlux-hp15cb0xx:~/Desktop/byte-swarmy$ qwen 
+
+[1]+  Fermato                    qwen
+wildlux@wildlux-hp15cb0xx:~/Desktop/byte-swarmy$ ollama pull qwen3:8b
+pulling manifest 
+pulling a3de86cd1c13: 100% ▕██████████████████████████████████████████████████████████████████████████████████▏ 5.2 GB                         
+pulling ae370d884f10: 100% ▕██████████████████████████████████████████████████████████████████████████████████▏ 1.7 KB                         
+pulling d18a5cc71b84: 100% ▕██████████████████████████████████████████████████████████████████████████████████▏  11 KB                         
+pulling cff3f395ef37: 100% ▕██████████████████████████████████████████████████████████████████████████████████▏  120 B                         
+pulling 05a61d37b084: 100% ▕██████████████████████████████████████████████████████████████████████████████████▏  487 B                         
+verifying sha256 digest 
+writing manifest 
+removing unused layers 
+success 
+wildlux@wildlux-hp15cb0xx:~/Desktop/byte-swarmy$ 
+ ok dimmi come impostarlo
+
+come lo imposto con il tool qwen? devo dirgli il pattern di ollama con il suo modello in locale
+Mostra altro
+
+
+Searching for Qwen Code Ollama configuration
+Sì, devi dire a Qwen Code dove sta Ollama e quale modello usare. Si fa in ~/.qwen/settings.json. 
+
+1. Aumenta il contesto Ollama
+Ollama di default ti dà solo 4k di contesto (con < 24 GB VRAM). Per un agente serve almeno 32k:
+
+# Crea una variante con num_ctx alto
+cat > Modelfile <<'EOF'
+FROM qwen3:8b
+PARAMETER num_ctx 32768
+EOF
+
+ollama create qwen3-8b-32k -f Modelfile
+
+2. Configura Qwen Code
+Modifica ~/.qwen/settings.json (crealo se non esiste):
+
+{
+  "env": {
+    "OLLAMA_API_KEY": "ollama"
+  },
+  "modelProviders": {
+    "openai": [
+      {
+        "id": "qwen3-8b-32k",
+        "name": "Qwen3 8B (Ollama)",
+        "envKey": "OLLAMA_API_KEY",
+        "baseUrl": "http://localhost:11434/v1",
+        "generationConfig": {
+          "timeout": 300000,
+          "streamIdleTimeoutMs": 600000,
+          "maxRetries": 1,
+          "contextWindowSize": 32768,
+          "samplingParams": {
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_tokens": 4096
+          }
+        }
+      }
+    ]
+  }
+}
+
+Campo	Significato
+id	Il tag esatto da ollama list (quello con 32k)
+baseUrl	http://localhost:11434/v1 — nota la /v1
+envKey	Nome della variabile env che contiene la key (puoi mettere qualsiasi stringa, Ollama non richiede auth)
+contextWindowSize	Deve matchare il num_ctx che hai impostato su Ollama
+
+3. Avvia
+qwen
+
+Poi dentro la sessione:
+
+/model
+
+Seleziona Qwen3 8B (Ollama) dal menu. 
+
+Nota
+Non serve il flag --model a riga di comando — il modelProviders è hot-reloaded, quindi anche se Qwen Code è già aperto basta riaprire /model. L'importante è che id coincida esattamente con il nome del modello in Ollama (ollama list per verificarlo). 
+
+
+Copia
+
+
+GNU nano 8.7.1                                                                                    settings.json                                                                                             
+{
+  "env": {
+    "OLLAMA_API_KEY": "ollama",
+    "QWEN_CUSTOM_API_KEY_OPENAI_HTTPS_API_OPENAI_COM_V1_5744383712D8": "ollama"
+  },
+  "model": {
+    "name": "ollama",
+    "baseUrl": "https://api.openai.com/v1"
+  },
+  "modelProviders": {
+    "openai": [
+      {
+        "id": "ollama",
+        "name": "ollama",
+        "baseUrl": "https://api.openai.com/v1",
+        "envKey": "QWEN_CUSTOM_API_KEY_OPENAI_HTTPS_API_OPENAI_COM_V1_5744383712D8",
+        "wireApi": "chat-completions"
+      },
+      { 
+        "baseUrl": "http://localhost:11434/v1",
+        "envKey": "OLLAMA_API_KEY",
+        "id": "qwen2.5:7b",
+        "name": "qwen2.5:7b (Ollama)"
+      }
+    ]
+  },
+  "security": {
+    "auth": {
+      "baseUrl": "http://localhost:11434/v1",
+      "selectedType": "openai"
+    }
+  },
+  "$version": 4,
+  "ui": {
+    "autoModeAcknowledged": true
+  }
+}
+Mostra altro
+
+
+設定ファイルの修正
+Il file ha due problemi: c'è un provider OpenAI residuo (che punta a api.openai.com con id "ollama", molto confuso) e il provider Ollama usa ancora qwen2.5:7b.
+
+Sostituisci tutto il contenuto di ~/.qwen/settings.json con questo:
+
+{
+  "env": {
+    "OLLAMA_API_KEY": "ollama"
+  },
+  "modelProviders": {
+    "openai": [
+      {
+        "id": "qwen3-8b-32k",
+        "name": "Qwen3 8B (Ollama)",
+        "baseUrl": "http://localhost:11434/v1",
+        "envKey": "OLLAMA_API_KEY",
+        "generationConfig": {
+          "timeout": 300000,
+          "contextWindowSize": 32768,
+          "samplingParams": {
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_tokens": 4096
+          }
+        }
+      }
+    ]
+  },
+  "security": {
+    "auth": {
+      "baseUrl": "http://localhost:11434/v1",
+      "selectedType": "openai"
+    }
+  },
+  "$version": 4,
+  "ui": {
+    "autoModeAcknowledged": true
+  }
+}
+
+Cosa ho cambiato
+Prima	Dopo	Perché
+2 provider (OpenAI + Ollama)	Solo 1 (Ollama)	Quello OpenAI puntava a api.openai.com con id "ollama" — era ambiguo
+"id": "qwen2.5:7b"	"id": "qwen3-8b-32k"	Il modello che hai appena creato
+Nessun generationConfig	Aggiunto con contextWindowSize: 32768	Dice a Qwen Code che il modello ha 32k di contesto
+"model" a livello root (punta a OpenAI)	Rimosso	Non serve, il provider è già definito sotto
+
+Poi
+# Verifica che il modello esista in Ollama
+ollama list
+# Deve mostrare: qwen3-8b-32k
+
+# Avvia
+qwen
+
+Dentro Qwen Code, se non viene selezionato automaticamente:
+
+/model
+
+→ scegli Qwen3 8B (Ollama).
+
+
+Copia
+
+
+wildlux@wildlux-hp15cb0xx:~/.qwen$ ollama list
+NAME                                            ID              SIZE      MODIFIED      
+qwen3:8b                                        500a1f067a9f    5.2 GB    8 minutes ago    
+gemma3:270m                                     e7d36fb2c3b3    291 MB    8 days ago       
+codellama:7b                                    8fdf8f752f6e    3.8 GB    12 days ago      
+nomic-embed-text:latest                         0a109f422b47    274 MB    2 weeks ago      
+qwen2.5:1.5b                                    65ec06548149    986 MB    2 weeks ago      
+deepseek-coder:1.3b                             3ddd2d3fc8d2    776 MB    2 weeks ago      
+phi3:mini                                       4f2222927938    2.2 GB    2 weeks ago      
+qwen2.5:0.5b                                    a8b0c5157701    397 MB    2 weeks ago      
+qwen3.5:latest                                  56671c2ab938    6.6 GB    2 weeks ago      
+qwen3.5-16k:latest                              834455170209    3.3 GB    2 weeks ago      
+gemma4:31b-cloud                                ef09f235533c    -         2 weeks ago      
+qwen3.5:4b                                      d8b0f5e9760c    3.3 GB    3 weeks ago      
+qwen3:1.7b                                      8f68893c685c    1.4 GB    3 weeks ago      
+deepseek-r1:1.5b                                e0979632db5a    1.1 GB    3 weeks ago      
+qwen2.5-coder:3b                                f72c60cabf62    1.9 GB    3 weeks ago      
+qwen2.5-coder:1.5b                              d7372fd82851    986 MB    3 weeks ago      
+llama2-uncensored:latest                        44040b922233    3.8 GB    4 weeks ago      
+tev1:4b                                         9b5bb969e46c    4.5 GB    4 weeks ago      
+translategemma:4b                               c49d986b0764    3.3 GB    3 months ago     
+qwen2.5:7b                                      845dbda0ea48    4.7 GB    3 months ago     
+qwen2.5vl:3b                                    fb90415cde1e    3.2 GB    3 months ago     
+antconsales/antonio-gemma3-evo-q4:latest        26d5dd4a1998    720 MB    4 months ago     
+moondream:latest                                55fc3abd3867    1.7 GB    4 months ago     
+llama3.2:latest                                 a80c4f17acd5    2.0 GB    4 months ago     
+hf.co/hwpoison89/gemma-1B-LinuxCLI-GGUF:BF16    b9cfe4a9f474    2.0 GB    4 months ago     
+mistral:7b-instruct                             6577803aa9a0    4.4 GB    4 months ago     
+deepseek-coder:6.7b                             ce298d984115    3.8 GB    4 months ago     
+phi3:3.8b                                       4f2222927938    2.2 GB    4 months ago     
+deepseek-v4-flash:cloud                         ea027821675c    -         4 months ago     
+gemini-3-flash-preview:latest                   ebade0d31690    -         4 months ago     
+qwen3:4b                                        359d7dd4bcda    2.5 GB    4 months ago     
+granite4:1b                                     26e4cb132798    3.3 GB    4 months ago     
+deepseek-coder:6.7b-instruct-q4_K_M             af6da0444f84    4.1 GB    4 months ago     
+llama3.2:3b                                     a80c4f17acd5    2.0 GB    4 months ago     
+embeddinggemma:latest                           85462619ee72    621 MB    4 months ago     
+qwen3-next:80b-cloud                            f5ccd68d2872    -         4 months ago     
+wildlux@wildlux-hp15cb0xx:~/.qwen$
+Mostra altro
+
+
+Explained Ollama context configuration
+Non hai creato la variante con num_ctx alto. Esegui:
+
+cat > Modelfile <<'EOF'
+FROM qwen3:8b
+PARAMETER num_ctx 32768
+EOF
+
+ollama create qwen3-8b-32k -f Modelfile
+
+Poi verifica:
+
+ollama list | grep qwen3-8b-32k
+
+Dopo questo, il settings.json che ti ho dato (con "id": "qwen3-8b-32k") funziona.
+
+
+Copia
+
+
+cosa devo mettere qui ? GNU nano 8.7.1                                                                                                                             settings.json                                                                                                                                       
+{
+  "env": {
+    "OLLAMA_API_KEY": "ollama",
+    "QWEN_CUSTOM_API_KEY_OPENAI_HTTP_LOCALHOST_11434_V1_76873BDAA9B6": "\"http://localhost:11434/v1\","
+  },
+  "modelProviders": {
+    "openai": [
+      {
+        "id": "http://localhost:11434/v1",
+        "name": "http://localhost:11434/v1",
+        "baseUrl": "http://localhost:11434/v1",
+        "envKey": "QWEN_CUSTOM_API_KEY_OPENAI_HTTP_LOCALHOST_11434_V1_76873BDAA9B6",
+        "wireApi": "responses"
+      },
+      { 
+        "id": "qwen3-8b-32k",
+        "name": "Qwen3 8B (Ollama)",
+        "baseUrl": "http://localhost:11434/v1",
+        "envKey": "OLLAMA_API_KEY",
+        "generationConfig": {
+          "timeout": 300000,
+          "contextWindowSize": 32768,
+          "samplingParams": {
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_tokens": 4096
+          }
+        }
+      }
+    ]
+  },
+  "security": {
+    "auth": {
+      "baseUrl": "http://localhost:11434/v1",
+      "selectedType": "openai"
+    }
+  },
+  "$version": 4,
+  "ui": {
+    "autoModeAcknowledged": true
+  },
+  "model": {
+    "name": "qwen3-8b-32k",
+    "baseUrl": "http://localhost:11434/v1"
+  }
+}
+Mostra altro
+
+
+Fixed invalid Ollama provider and env config
+Il primo provider è spazzatura generata automaticamente da Qwen Code quando hai incollato l'URL come API key. Rimuovilo insieme alla voce env corrispondente.
+
+Sostituisci tutto il file con:
+
+{
+  "env": {
+    "OLLAMA_API_KEY": "ollama"
+  },
+  "modelProviders": {
+    "openai": [
+      {
+        "id": "qwen3-8b-32k",
+        "name": "Qwen3 8B (Ollama)",
+        "baseUrl": "http://localhost:11434/v1",
+        "envKey": "OLLAMA_API_KEY",
+        "generationConfig": {
+          "timeout": 300000,
+          "contextWindowSize": 32768,
+          "samplingParams": {
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_tokens": 4096
+          }
+        }
+      }
+    ]
+  },
+  "security": {
+    "auth": {
+      "baseUrl": "http://localhost:11434/v1",
+      "selectedType": "openai"
+    }
+  },
+  "model": {
+    "name": "qwen3-8b-32k",
+    "baseUrl": "http://localhost:11434/v1"
+  },
+  "$version": 4,
+  "ui": {
+    "autoModeAcknowledged": true
+  }
+}
+
+Cosa ho rimosso
+Voce	Perché
+Provider con "id": "http://localhost:11434/v1"	Era un provider "fantasma" creato da Qwen Code quando hai incollato l'URL come API key. Non è un modello.
+"wireApi": "responses"	Ollama usa chat-completions, non responses.
+"QWEN_CUSTOM_API_KEY_OPENAI_HTTP_LOCALHOST_11434_V1_76873BDAA9B6" in env	Era l'URL usato come "API key" — non serve.
+
+Il resto (il provider qwen3-8b-32k, la sezione model, security) era già corretto. Salva con Ctrl+O → Enter → Ctrl+X e avvia:
+
+qwen
+
+
+Copia
+
+
+api key ollama?
+
+
+Verifica chiave API Ollama
+Non esiste una vera API key per Ollama. È un server locale che non richiede autenticazione — qualsiasi stringa non vuota va bene.
+
+Nel settings.json abbiamo messo:
+
+"env": {
+  "OLLAMA_API_KEY": "ollama"
+}
+
+Il valore "ollama" è solo un placeholder per soddisfare il campo envKey che Qwen Code richiede obbligatoriamente. Potresti mettere "abc", "123", "whatever" — Ollama non lo verifica.
+
+
+Copia
+
+
+ma è corretto?
+
+
+Verifica configurazione settings.json
+Sì, è corretto. Confermo dalla documentazione ufficiale di Qwen Code:
+
+Campo	Valore	✅
+env.OLLAMA_API_KEY	"ollama" (placeholder)	✅
+modelProviders.openai[].id	"qwen3-8b-32k" (deve matchare ollama list)	✅
+modelProviders.openai[].envKey	"OLLAMA_API_KEY" (nome della var, non il valore)	✅
+modelProviders.openai[].baseUrl	"http://localhost:11434/v1" (con /v1)	✅
+security.auth.selectedType	"openai"	✅
+model.name	"qwen3-8b-32k" (modello default all'avvio)	✅
+
+L'unico dettaglio: model.baseUrl non è strettamente necessario (viene persistito automaticamente dal picker /model solo per disambiguare se ci sono più provider con lo stesso id). Non fa male a lasciarlo, ma puoi anche rimuoverlo se vuoi un file più pulito. 
+
+Salva e avvia:
+
+qwen
+
+
+Copia
+
+
+e allora perchè mi dice che qwen3-8b-32k non lo trova?
+
+
+Verifica creazione modello Qwen3-8b-32k
+Perché non l'hai ancora creato. Nel tuo ollama list vedo qwen3:8b ma non qwen3-8b-32k.
+
+Esegui:
+
+cat > Modelfile <<'EOF'
+FROM qwen3:8b
+PARAMETER num_ctx 32768
+EOF
+
+ollama create qwen3-8b-32k -f Modelfile
+
+Poi verifica:
+
+ollama list | grep qwen3-8b-32k
+
+Se vedi la riga, riprova qwen.
+
+In alternativa, se non vuoi creare una variante, puoi semplicemente usare qwen3:8b direttamente (con num_ctx di default). In quel caso cambia nel settings.json:
+
+"id": "qwen3:8b",
+"name": "Qwen3 8B (Ollama)",
+
+e in model:
+
+"model": {
+  "name": "qwen3:8b",
+  "baseUrl": "http://localhost:11434/v1"
+}
+
+Funziona, ma avrai solo ~4k di contesto (sufficiente per conversazioni brevi, non per sessioni lunghe con tool).
+
+
+Copia
+
+
+per i tool invece mi serve per programmare
+
+
+🔍 Strumenti di programmazione Qwen Code
+Per programmare con qwen3:8b, aggiungi nella sezione tools del settings.json:
+
+"tools": {
+  "visible": [
+    "read_file",
+    "write_file",
+    "edit",
+    "glob",
+    "grep_search",
+    "run_shell_command"
+  ]
+}
+
+Cosa fanno
+Tool	Funzione
+read_file	Legge il contenuto di un file
+write_file	Crea/sovrascrive un file
+edit	Modifica mirata (diff-based)
+glob	Trova file per pattern (es. **/*.py)
+grep_search	Cerca testo nel codice con regex
+run_shell_command	Esegue comandi (build, test, git, ecc.)
+
+Questi sono i 6 tool essenziali per un workflow di programmazione. Con tools.visible il modello li vede direttamente nella request e li chiama senza passare per il bridge tool_search → tool_call (che è quello che falliva con il 7B). 
+
+File completo
+{
+  "env": {
+    "OLLAMA_API_KEY": "ollama"
+  },
+  "modelProviders": {
+    "openai": [
+      {
+        "id": "qwen3-8b-32k",
+        "name": "Qwen3 8B (Ollama)",
+        "baseUrl": "http://localhost:11434/v1",
+        "envKey": "OLLAMA_API_KEY",
+        "generationConfig": {
+          "timeout": 300000,
+          "contextWindowSize": 32768,
+          "samplingParams": {
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_tokens": 4096
+          }
+        }
+      }
+    ]
+  },
+  "tools": {
+    "visible": [
+      "read_file",
+      "write_file",
+      "edit",
+      "glob",
+      "grep_search",
+      "run_shell_command"
+    ]
+  },
+  "security": {
+    "auth": {
+      "baseUrl": "http://localhost:11434/v1",
+      "selectedType": "openai"
+    }
+  },
+  "model": {
+    "name": "qwen3-8b-32k",
+    "baseUrl": "http://localhost:11434/v1"
+  },
+  "$version": 4,
+  "ui": {
+    "autoModeAcknowledged": true
+  }
+}
+
+Se in futuro ti servono anche read_many_files (lettura batch) o web_fetch (leggere documentazione online), aggiungili all'array. Ma per iniziare questi 6 bastano.
+
+
+Copia
+
+
+quali tool posso metterci?
+
+
+
+🔍 Elenco degli strumenti Qwen Code
+Ecco l'elenco completo dei tool disponibili in Qwen Code, divisi per categoria. 
+
+Eager (già attivi di default, non vanno in tools.visible)
+Tool	Funzione
+read_file	Legge un singolo file
+write_file	Crea/sovrascrive un file
+edit	Modifica diff-based
+glob	Trova file per pattern
+grep_search	Cerca testo con regex
+run_shell_command	Esegue comandi shell
+
+Questi sono già nella request iniziale — non vanno in tools.visible.
+
+Deferred (vanno in tools.visible se li vuoi attivi)
+Tool	Funzione
+read_many_files	Legge più file/directory in batch
+web_fetch	Recupera contenuto da un URL
+web_search	Cerca su web (serve un provider di ricerca)
+save_memory	Salva/ricorda info tra sessioni
+todo_write	Crea e gestisce liste di task strutturate
+monitor	Comandi shell long-running con streaming
+agent	Delega task a sub-agent specializzati
+enter_plan_mode	Entra in modalità pianificazione
+exit_plan_mode	Esce dalla modalità pianificazione
+
+Raccomandato per programmazione
+"tools": {
+  "visible": [
+    "read_many_files",
+    "todo_write",
+    "monitor"
+  ]
+}
+
+read_many_files — utile quando il modello deve analizzare più file insieme (es.  "leggi tutti i file della cartella src/")
+todo_write — il modello crea una checklist di task e la aggiorna mentre lavora; molto utile per task multi-step
+monitor — per comandi che restano attivi a lungo (es.  npm run dev, server in background)
+web_fetch e web_search li puoi aggiungere se il modello deve consultare documentazione online, ma con Ollama locale web_search non funziona (serve un provider di ricerca configurato). agent è avanzato e con un 8B potrebbe confondersi.
+
+Nota
+Puoi verificare in qualsiasi momento i tool attivi digitando /tools dentro una sessione Qwen Code. 

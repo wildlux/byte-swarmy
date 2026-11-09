@@ -3138,11 +3138,13 @@ class FileSystemModel(QStandardItemModel):
             empty, checkbox, icon_item, name_item = self._make_items(full_path, is_dir)
             parent_item.appendRow([empty, checkbox, icon_item, name_item])
             if is_dir:
-                # Placeholder per permettere espansione lazy-loading (4 celle vuote)
-                for _ in range(4):
-                    placeholder = QStandardItem()
-                    placeholder.setEnabled(False)
-                    checkbox.appendRow([placeholder, QStandardItem(), QStandardItem(), QStandardItem()])
+                # UNA sola riga placeholder (disabilitata, non editabile) per far
+                # comparire il triangolino di espansione lazy-loading.
+                # Va appesa all'item di colonna 0: QTreeView mostra il triangolino
+                # in base ai figli dell'item della prima colonna.
+                placeholder = QStandardItem()
+                placeholder.setEnabled(False)
+                empty.appendRow([placeholder, QStandardItem(), QStandardItem(), QStandardItem()])
 
     def populate_on_expand(self, parent_item):
         """Chiamato quando una cartella viene espansa: popola i figli reali."""
@@ -3188,10 +3190,11 @@ class FileSystemModel(QStandardItemModel):
             empty, checkbox, icon_item, name_item = self._make_items(child_full, is_dir)
             parent_item.appendRow([empty, checkbox, icon_item, name_item])
             if is_dir:
-                for _ in range(4):
-                    placeholder = QStandardItem()
-                    placeholder.setEnabled(False)
-                    checkbox.appendRow([placeholder, QStandardItem(), QStandardItem(), QStandardItem()])
+                # UNA sola riga placeholder per il triangolino di espansione
+                # (appesa all'item di colonna 0, vedi _populate_folder)
+                placeholder = QStandardItem()
+                placeholder.setEnabled(False)
+                empty.appendRow([placeholder, QStandardItem(), QStandardItem(), QStandardItem()])
 
     def checked_paths(self):
         return set(self._checked_paths)
@@ -3288,6 +3291,13 @@ class FileTreeDrawer(QFrame):
         self.header.setMinimumHeight(30)  # spazio per due righe se serve
         header_row.addWidget(self.header, stretch=1)
         header_row.addStretch()
+        lay.addLayout(header_row)
+
+        # Riga pulsanti dedicata, sotto il titolo
+        btn_row = QHBoxLayout()
+        btn_row.setContentsMargins(8, 2, 8, 2)
+        btn_row.setSpacing(4)
+
         # Pulsante aggiungi nuovo file di testo
         self.add_file_btn = QPushButton("➕")
         self.add_file_btn.setFixedSize(28, 28)
@@ -3298,7 +3308,7 @@ class FileTreeDrawer(QFrame):
             "QPushButton:hover { background:#e2e8f0; border-radius:4px; }"
         )
         self.add_file_btn.clicked.connect(self._add_text_file)
-        header_row.addWidget(self.add_file_btn)
+        btn_row.addWidget(self.add_file_btn)
 
         # Pulsante crea nuova cartella
         self.add_folder_btn = QPushButton("📁")
@@ -3310,7 +3320,7 @@ class FileTreeDrawer(QFrame):
             "QPushButton:hover { background:#e2e8f0; border-radius:4px; }"
         )
         self.add_folder_btn.clicked.connect(self._add_folder)
-        header_row.addWidget(self.add_folder_btn)
+        btn_row.addWidget(self.add_folder_btn)
 
         # Pulsante refresh forzato file tree (cartelle e file)
         self.refresh_btn = QPushButton("🔄")
@@ -3322,14 +3332,23 @@ class FileTreeDrawer(QFrame):
             "QPushButton:hover { background:#e2e8f0; border-radius:4px; }"
         )
         self.refresh_btn.clicked.connect(self._refresh_file_tree)
-        header_row.addWidget(self.refresh_btn)
+        btn_row.addWidget(self.refresh_btn)
 
-        # Spazietto tra aggiungi e elimina
-        _sp_del = QFrame()
-        _sp_del.setFixedWidth(8)
-        header_row.addWidget(_sp_del)
+        # Pulsante ordina: cartelle prima / file prima (aggiornato dopo che self.model esiste)
+        self.sort_btn = QPushButton("📁📄")
+        self.sort_btn.setFixedSize(28, 28)
+        self.sort_btn.setToolTip("Ordina elementi: cartelle prima / file prima")
+        self.sort_btn.setStyleSheet(
+            "QPushButton { font-size:14px; border:none; background:transparent; "
+            "border-radius:4px; padding:0; }"
+            "QPushButton:hover { background:#e2e8f0; border-radius:4px; }"
+        )
+        self.sort_btn.clicked.connect(self._toggle_sort_order)
+        btn_row.addWidget(self.sort_btn)
 
-        # Pulsante elimina selezionati (archivio progetto) — in alto a destra
+        btn_row.addStretch()
+
+        # Pulsante elimina selezionati (archivio progetto) — a destra
         self.del_btn = QPushButton("🗑️")
         self.del_btn.setFixedSize(28, 28)
         self.del_btn.setToolTip("Elimina file/cartelle selezionate con la colonna ✓")
@@ -3339,8 +3358,8 @@ class FileTreeDrawer(QFrame):
             "QPushButton:hover { background:#fee2e2; border-radius:4px; }"
         )
         self.del_btn.clicked.connect(self._delete_selected_items)
-        header_row.addWidget(self.del_btn)
-        lay.addLayout(header_row)
+        btn_row.addWidget(self.del_btn)
+        lay.addLayout(btn_row)
 
         # Sotto-titolo: path della cartella corrente (si aggiorna col tab)
         self.path_label = QLabel("byte-swarmy/")
@@ -3365,28 +3384,23 @@ class FileTreeDrawer(QFrame):
         self.tree.setIconSize(QSize(16, 16))
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.tree.header().setStretchLastSection(False)
-        # Colonna 0: vuota, solo triangolino espandi/collassa (12px fissa)
-        # Colonna 1: checkbox selezione (18px fissa)
-        # Colonna 2: icona (16px fissa)
-        # Colonna 3: nome (prende tutto lo spazio restante)
-        self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        self.tree.header().resizeSection(0, 12)
-        self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
-        self.tree.header().resizeSection(1, 18)
-        self.tree.header().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        self.tree.header().resizeSection(2, 16)
-        self.tree.header().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
-        self.tree.header().setDefaultAlignment(Qt.AlignmentFlag.AlignLeft)
-        self.tree.header().setMinimumSectionSize(8)
+        self._apply_header_layout()
         self.tree.setIndentation(4)  # triangolino vicino al bordo
         # Elimina padding e margini interni delle celle: niente spazio vuoto
-        # tra colonna vuota, checkbox, icona e nome.
+        # tra colonna vuota, checkbox, icona e nome. Checkbox piccole (13px)
+        # e righe basse (22px) per un aspetto compatto.
         self.tree.setStyleSheet(
-            "QTreeView::item { padding: 0px; border: none; }"
+            "QTreeView { outline: 0px; font-size: 11px; }"
+            "QTreeView::item { padding: 0px; border: none; height: 22px; }"
             "QTreeView::branch { padding: 0px; margin: 0px; }"
-            "QHeaderView::section { padding: 0px; border: none; }"
-            "QTreeView { outline: 0px; }"
+            "QTreeView::indicator { width: 13px; height: 13px; }"
+            "QHeaderView::section { padding: 0px 2px; border: none; font-size: 10px; }"
         )
+        # Ogni reset del model (clear + setColumnCount in set_root_path) riporta
+        # le sezioni dell'header alla larghezza di default (100px): riapplica
+        # il layout compatto dopo ogni reset/inserimento colonne.
+        self.model.modelReset.connect(self._apply_header_layout)
+        self.model.columnsInserted.connect(self._apply_header_layout)
 
         # Persistenza larghezze colonne: ricorda come le sposti tu
         self.tree.header().sectionResized.connect(self._save_column_widths)
@@ -3395,17 +3409,8 @@ class FileTreeDrawer(QFrame):
         # Ordinamento automatico per colonna Name: cartelle prima, poi file, alfabeticamente
         self.tree.header().sectionClicked.connect(self._on_header_section_clicked)
 
-        # Pulsante ordina: cartelle prima / file prima (dopo che self.model esiste)
-        self.sort_btn = QPushButton("📁📄" if self.model._folders_first else "📄📁")
-        self.sort_btn.setFixedSize(28, 28)
-        self.sort_btn.setToolTip("Ordina elementi: cartelle prima / file prima")
-        self.sort_btn.setStyleSheet(
-            "QPushButton { font-size:14px; border:none; background:transparent; "
-            "border-radius:4px; padding:0; }"
-            "QPushButton:hover { background:#e2e8f0; border-radius:4px; }"
-        )
-        self.sort_btn.clicked.connect(self._toggle_sort_order)
-        header_row.addWidget(self.sort_btn)
+        # Aggiorna l'icona del pulsante ordina secondo lo stato attuale del model
+        self.sort_btn.setText("📁📄" if self.model._folders_first else "📄📁")
 
         self._pending_editor_path = None
         self._editor_open_timer = None
@@ -3861,46 +3866,73 @@ class FileTreeDrawer(QFrame):
         rows = parent_item.rowCount()
         if rows <= 1:
             return
-        # Raccogli tutte le righe (4 item per riga: vuoto, checkbox, icona, nome)
+        # Raccogli tutte le righe con takeRow (trasferisce la ownership a Python:
+        # removeRow distruggerebbe gli oggetti C++, rendendo impossibile ri-appendere gli item)
         row_items = []
-        for r in range(rows):
-            row = [parent_item.child(r, c) for c in range(4)]
-            row_items.append(row)
+        for _ in range(rows):
+            row_items.append(parent_item.takeRow(0))
         # Ordina: colonna 0 ha is_dir in UserRole+1 (True=cartella),
         # colonna 3 ha il nome in UserRole
         row_items.sort(key=lambda row: (
             not row[0].data(Qt.ItemDataRole.UserRole + 1),  # cartelle prima
             str(row[3].data(Qt.ItemDataRole.UserRole) or "").lower(),  # nome alfabetico
         ))
-        # Rimuovi tutte e reinserisci in ordine
-        for _ in range(rows):
-            parent_item.removeRow(0)
+        # Reinserisci in ordine
         for row in row_items:
             parent_item.appendRow(row)
         # Ordina ricorsivamente le sottocartelle che hanno già figli caricati
-        # (rowCount > 1 significa che ci sono figli reali, non solo placeholder)
+        # (un placeholder per il lazy-loading ha 1 riga senza UserRole;
+        #  i figli reali hanno sempre UserRole = path completo)
         for row in row_items:
             col0 = row[0]
             if col0.data(Qt.ItemDataRole.UserRole + 1):  # è una cartella
-                if col0.rowCount() > 1:  # ha figli reali caricati
+                first = col0.child(0, 0)
+                if col0.rowCount() > 0 and first is not None and first.data(Qt.ItemDataRole.UserRole) is not None:
                     self._sort_children_recursive(col0)
 
     def _column_width_file(self) -> Path:
         """Path del file che memorizza le larghezze colonne del file manager."""
         return BASE_DIR / "state" / "file_manager_columns.json"
 
+    def _apply_header_layout(self):
+        """Layout colonne compatto del file manager.
+
+        Va richiamata dopo ogni reset del model: clear() + setColumnCount()
+        (dentro set_root_path) ricreano le sezioni dell'header alla larghezza
+        di default di 100px, ignorando le larghezze fisse."""
+        h = self.tree.header()
+        h.setStretchLastSection(False)
+        h.setMinimumSectionSize(8)  # prima del resize: altrimenti il minimo di default (font header) prevale
+        # Colonna 0: vuota, solo triangolino espandi/collassa (10px fissa)
+        # Colonna 1: checkbox selezione (20px fissa)
+        # Colonna 2: icona (18px fissa)
+        # Colonna 3: nome (prende tutto lo spazio restante)
+        h.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        h.resizeSection(0, 10)
+        h.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        h.resizeSection(1, 20)
+        h.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        h.resizeSection(2, 18)
+        h.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        h.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft)
+        # Ripristina l'eventuale larghezza salvata della sola colonna Name
+        self._load_column_widths()
+
     def _load_column_widths(self):
-        """Ripristina le larghezze colonne salvate dall'utente."""
+        """Ripristina la larghezza salvata SOLO per la colonna Name (3).
+
+        Le colonne 0-2 (triangolino, checkbox, icona) hanno larghezze fisse:
+        non devono mai essere sovrascritte da valori salvati in passato,
+        altrimenti ricompaiono i bordi ridimensionabili col doppio cursore."""
         f = self._column_width_file()
         if not f.exists():
             return
         try:
             data = json.loads(f.read_text(encoding="utf-8"))
             widths = data.get("widths", {})
-            for col in range(self.model.columnCount()):
-                key = str(col)
-                if key in widths:
-                    self.tree.header().resizeSection(col, int(widths[key]))
+            key = "3"  # solo colonna Name
+            if key in widths:
+                self.tree.header().resizeSection(3, int(widths[key]))
         except Exception as e:
             print(f"Errore caricamento larghezze colonne: {e}")
 
@@ -3916,8 +3948,8 @@ class FileTreeDrawer(QFrame):
                 except Exception:
                     widths = {}
             widths.setdefault("widths", {})
-            for col in range(self.model.columnCount()):
-                widths["widths"][str(col)] = self.tree.header().sectionSize(col)
+            # Salva solo la colonna Name (3): le altre sono a larghezza fissa
+            widths["widths"] = {"3": self.tree.header().sectionSize(3)}
             f.write_text(json.dumps(widths, indent=2), encoding="utf-8")
         except Exception as e:
             print(f"Errore salvataggio larghezze colonne: {e}")

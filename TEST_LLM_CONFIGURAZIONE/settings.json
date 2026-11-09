@@ -1,0 +1,45 @@
+{
+  "env": {
+    "OLLAMA_API_KEY": "ollama"
+  },
+  "modelProviders": {
+    "openai": [
+      {
+        "id": "qwen3-8b-fast",
+        "name": "Qwen3 8B Fast (Ollama)",
+        "baseUrl": "http://localhost:11434/v1",
+        "envKey": "OLLAMA_API_KEY",
+        "generationConfig": {
+          "timeout": 300000,
+          "contextWindowSize": 8192,
+          "samplingParams": {
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_tokens": 4096
+          }
+        }
+      }
+    ]
+  },
+  "tools": {
+    "visible": [
+      "read_many_files",
+      "todo_write",
+      "monitor"
+    ]
+  },
+  "security": {
+    "auth": {
+      "baseUrl": "http://localhost:11434/v1",
+      "selectedType": "openai"
+    }
+  },
+  "model": {
+    "name": "qwen3-8b-fast",
+    "baseUrl": "http://localhost:11434/v1"
+  },
+  "$version": 4,
+  "ui": {
+    "autoModeAcknowledged": true
+  }
+}   
