@@ -2763,18 +2763,33 @@ class ControlCenter(QMainWindow):
 
             conn.close()
 
-            pct = int(done * 100 / total) if total > 0 else 0
             if hasattr(self, "_completion_bar"):
-                self._completion_bar.setValue(pct)
-                proj_name = os.path.basename((project_path or '').rstrip('/')) or "tutti"
-                self._completion_bar.setFormat(f"{proj_name}: {done}/{total} (%p%)")
-                self._completion_bar.setToolTip(
-                    f"Progetto: {proj_name}\n"
-                    f"Task completati: {done}/{total} ({pct}%)\n"
-                    f"Task attivo: {target_title or '-'}\n"
-                    f"Sotto-task attivi: {sub_done}/{sub_total}\n"
-                    f"Totale storico: {done_all}/{tot_all}"
-                )
+                # Se c'è un task in esecuzione → animazione indeterminata
+                # (la barra "carica" per far capire che qualcosa sta succedendo)
+                if running:
+                    self._completion_bar.setRange(0, 0)  # modalità indeterminata
+                    target_title_short = (target_title or "task")[:28]
+                    self._completion_bar.setFormat(f"⏳ {target_title_short}…")
+                    self._completion_bar.setToolTip(
+                        f"Progetto: {proj_name}\n"
+                        f"Task in esecuzione: {target_title or '-'}\n"
+                        f"Sotto-task attivi: {sub_done}/{sub_total}\n"
+                        f"Totale storico: {done_all}/{tot_all}"
+                    )
+                else:
+                    # Torna a modalità percentuale normale
+                    self._completion_bar.setRange(0, 100)
+                    pct = int(done * 100 / total) if total > 0 else 0
+                    self._completion_bar.setValue(pct)
+                    proj_name = os.path.basename((project_path or '').rstrip('/')) or "tutti"
+                    self._completion_bar.setFormat(f"{proj_name}: {done}/{total} (%p%)")
+                    self._completion_bar.setToolTip(
+                        f"Progetto: {proj_name}\n"
+                        f"Task completati: {done}/{total} ({pct}%)\n"
+                        f"Task attivo: {target_title or '-'}\n"
+                        f"Sotto-task attivi: {sub_done}/{sub_total}\n"
+                        f"Totale storico: {done_all}/{tot_all}"
+                    )
         except Exception:
             pass
 
