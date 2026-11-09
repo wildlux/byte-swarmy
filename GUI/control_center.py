@@ -4975,7 +4975,7 @@ class FileTreeDrawer(QFrame):
             task = dict(zip(cols, row))
 
             dlg = QDialog(self)
-            dlg.setWindowTitle(f"📋 Dettagli Task {task_id[:12]}")
+            dlg.setWindowTitle(f"📋 Dettagli task {task_id[:12]}")
             dlg.resize(600, 500)
             lay = QVBoxLayout(dlg)
 
@@ -4995,32 +4995,42 @@ class FileTreeDrawer(QFrame):
                 except Exception:
                     return str(ts)
 
-            st_color = {'done': 'green', 'running': 'orange', 'failed': 'red',
-                        'pending': 'gray'}.get(task.get('status'), 'gray')
+            st_map = {
+                'done': ('Completato', 'green'),
+                'running': ('In esecuzione', 'orange'),
+                'failed': ('Fallito', 'red'),
+                'pending': ('In attesa', 'gray'),
+                'planned': ('Pianificato', 'gray'),
+                'retry': ('Nuovo tentativo', 'orange'),
+                'stuck': ('Bloccato', 'red'),
+                'paused': ('In pausa', 'gray'),
+                'thermal_paused': ('Pausa termica', 'orange'),
+            }
+            st_label, st_color = st_map.get(task.get('status'), (task.get('status', '—'), 'gray'))
             form.addRow("ID:", QLabel(task.get('id', '—')))
-            form.addRow("Status:", QLabel(f"<b style='color:{st_color}'>{task.get('status', '—')}</b>"))
-            form.addRow("Type:", QLabel(task.get('type', '—')))
-            form.addRow("Source:", QLabel(task.get('source', '—')))
-            form.addRow("Attempts:", QLabel(str(task.get('attempts', 0))))
-            form.addRow("Parent:", QLabel(task.get('parent') or '—'))
-            form.addRow("Created:", QLabel(fmt_time(task.get('created_at'))))
-            form.addRow("Started:", QLabel(fmt_time(task.get('started_at'))))
-            form.addRow("Completed:", QLabel(fmt_time(task.get('completed_at'))))
+            form.addRow("Stato:", QLabel(f"<b style='color:{st_color}'>{st_label}</b>"))
+            form.addRow("Tipo:", QLabel(task.get('type', '—')))
+            form.addRow("Origine:", QLabel(task.get('source', '—')))
+            form.addRow("Tentativi:", QLabel(str(task.get('attempts', 0))))
+            form.addRow("Genitore:", QLabel(task.get('parent') or '—'))
+            form.addRow("Creato il:", QLabel(fmt_time(task.get('created_at'))))
+            form.addRow("Avviato il:", QLabel(fmt_time(task.get('started_at'))))
+            form.addRow("Completato il:", QLabel(fmt_time(task.get('completed_at'))))
 
             if task.get('reason'):
-                form.addRow("Reason:", QLabel(str(task.get('reason'))))
+                form.addRow("Motivo:", QLabel(str(task.get('reason'))))
 
             lay.addLayout(form)
 
-            for label, field in [("Description", 'description'), ("Result", 'result'), ("Last error", 'last_error')]:
+            for label, field in [("Descrizione", 'description'), ("Risultato", 'result'), ("Ultimo errore", 'last_error')]:
                 val = task.get(field, '')
                 if val:
-                    color_style = ' style="color:red"' if 'error' in label.lower() else ''
+                    color_style = ' style="color:red"' if 'error' in field.lower() else ''
                     lay.addWidget(QLabel(f"<b{color_style}>{label}:</b>"))
                     te = QTextEdit()
                     te.setReadOnly(True)
                     te.setPlainText(str(val)[:2000])
-                    if 'error' in label.lower():
+                    if 'error' in field.lower():
                         te.setStyleSheet("border:1px solid rgba(128,128,128,0.35); border-radius:4px;")
                     te.setMaximumHeight(100)
                     lay.addWidget(te)

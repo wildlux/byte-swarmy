@@ -258,6 +258,28 @@ class TaskQueue:
             )
             conn.commit()
 
+            # Se il task appena completato ha un parent, controlla se TUTTI i
+            # subtask del parent sono done: in tal caso marca anche il parent
+            # come done (chiusura automatica del task padre).
+            row = conn.execute(
+                "SELECT parent FROM tasks WHERE id = ?", (task_id,)
+            ).fetchone()
+            if row and row[0]:
+                parent_id = row[0]
+                subtasks = conn.execute(
+                    "SELECT status FROM tasks WHERE parent = ?", (parent_id,)
+                ).fetchall()
+                if subtasks and all(s[0] == "done" for s in subtasks):
+                    conn.execute(
+                        "UPDATE tasks SET status = 'done', completed_at = ? "
+                        "WHERE id = ? AND status NOT IN ('failed', 'stuck')",
+                        (time.time(), parent_id)
+                    )
+                    conn.commit()
+                    self.log.info(
+                        f"task {parent_id} DONE (tutti i subtask completati)"
+                    )
+
     def mark_failed(self, task_id: str, reason: str) -> None:
         with self._get_conn() as conn:
             # Increment attempts
