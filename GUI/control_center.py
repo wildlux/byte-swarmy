@@ -2116,8 +2116,8 @@ class ControlCenter(QMainWindow):
         body = QHBoxLayout()
         body.setContentsMargins(0, 0, 0, 0)
         body.setSpacing(0)
-        body.addWidget(self.drawer)
-        body.addWidget(self.center, stretch=1)
+        body.addWidget(self.drawer, stretch=1)
+        body.addWidget(self.center, stretch=2)
         root.addLayout(body, stretch=1)
 
         root.addWidget(self._build_command_bar())
@@ -3652,7 +3652,10 @@ class FileTreeDrawer(QFrame):
     def __init__(self, parent):
         super().__init__()
         self.setObjectName("drawer")
-        self.setFixedWidth(280)
+        # Larghezza tra 1/4 (minimo) e 1/3 (massimo) della finestra per
+        # rendere il testo dei file leggibile e allineato.
+        self.setMinimumWidth(300)
+        self.setMaximumWidth(500)
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 8, 0, 8)
         lay.setSpacing(0)
