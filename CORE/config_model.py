@@ -214,6 +214,12 @@ class SMLBestConfig:
     fsm_max_transizioni: int = 4
 
 @dataclass
+class GUISettingsConfig:
+    """Preferenze GUI utente."""
+    icon_text_position: str = "below"  # below | above | right | left | icons_only
+
+
+@dataclass
 class LLMTunerConfig:
     fast: Dict[str, Any] = field(default_factory=dict)
     normal: Dict[str, Any] = field(default_factory=dict)
@@ -247,6 +253,7 @@ class AppConfig:
     audit_gates: AuditGatesConfig = field(default_factory=AuditGatesConfig)
     llm_tuner: LLMTunerConfig = field(default_factory=LLMTunerConfig)
     sml_best: SMLBestConfig = field(default_factory=SMLBestConfig)
+    gui: GUISettingsConfig = field(default_factory=GUISettingsConfig)
     raw: Dict[str, Any] = field(default_factory=dict)  # TOML grezzo per usi estesi
 
 
@@ -458,6 +465,12 @@ def load_typed_config(path: str | Path = "CONFIG/config.toml") -> AppConfig:
         fsm_max_transizioni=int(sb.get("fsm_max_transizioni", SMLBestConfig.fsm_max_transizioni)),
     )
 
+    # gui (preferenze interfaccia)
+    g = _get("gui")
+    config.gui = GUISettingsConfig(
+        icon_text_position=str(g.get("icon_text_position", GUISettingsConfig.icon_text_position)),
+    )
+
     return config
 
 
@@ -467,5 +480,5 @@ __all__ = [
     "RoutingConfig", "PathsConfig", "LoggingConfig",
     "DecisionModelsConfig", "DecisionModelConfig",
     "GenericTaskPlannerConfig", "HardwareConfig", "AuditGatesConfig",
-    "LLMTunerConfig", "SMLBestConfig", "load_typed_config",
+    "LLMTunerConfig", "SMLBestConfig", "GUISettingsConfig", "load_typed_config",
 ]

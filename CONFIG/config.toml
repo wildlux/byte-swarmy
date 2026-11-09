@@ -269,3 +269,12 @@ max_task_retries = 3
 # Secondi di attesa tra un tentativo e il successivo: il task in errore
 # "aspetta" questo intervallo prima di tornare in coda (0 = subito).
 retry_cooldown_sec = 30
+
+[gui]
+# Posizione del testo rispetto all'icona nei pulsanti della GUI:
+#   below     = testo sotto l'icona (default)
+#   above     = testo sopra l'icona
+#   right     = testo a destra dell'icona
+#   left      = testo a sinistra dell'icona
+#   icons_only = solo icona, niente testo
+icon_text_position = "below"
