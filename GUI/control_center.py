@@ -2422,8 +2422,39 @@ class ControlCenter(QMainWindow):
         except Exception:
             orch_running = False
         if not orch_running:
-            self.statusBar().showMessage(
-                "⚠ Orchestratore non attivo: avvialo con ./byte-swarm.sh orch", 5000)
+            # Avvia l'orchestratore in background
+            try:
+                import subprocess as _sp
+                python = os.path.join(base, ".venv", "bin", "python")
+                if not os.path.exists(python):
+                    python = "python3"
+                log_path = os.path.join(base, "logs", "byte-swarmy.log")
+                os.makedirs(os.path.dirname(log_path), exist_ok=True)
+                logf = open(log_path, "a")
+                proc = _sp.Popen(
+                    [python, "-m", "CORE.orchestrator"],
+                    cwd=base,
+                    stdout=logf,
+                    stderr=logf,
+                    start_new_session=True,
+                )
+                # Scrivi pid file
+                with open(pid_file, "w") as _f:
+                    _f.write(str(proc.pid))
+                # Attendi avvio
+                import time as _t
+                for _ in range(10):
+                    _t.sleep(0.5)
+                    if self._is_orchestrator_running():
+                        break
+                if self._is_orchestrator_running():
+                    btn.setText("▶")
+                    btn.setStyleSheet(running_style)
+                    self.statusBar().showMessage("▶ Orchestratore avviato", 4000)
+                else:
+                    self.statusBar().showMessage("⚠ Avvio orchestratore fallito: controlla i log", 5000)
+            except Exception as e:
+                self.statusBar().showMessage(f"⚠ Errore avvio: {e}", 5000)
             return
         try:
             # Stato reale basato sul flag, non sul testo del pulsante
