@@ -2486,6 +2486,23 @@ class ControlCenter(QMainWindow):
         """Ritorna il percorso assoluto del progetto attivo, o None."""
         return getattr(self, "_current_project_path", None)
 
+    def _refresh_task_list(self):
+        """Ricarica la lista task del drawer (chiamato dai menu azione)."""
+        try:
+            if hasattr(self, "drawer") and self.drawer is not None:
+                self.drawer._force_refresh_tasks()
+        except Exception as e:
+            print(f"_refresh_task_list fallito: {e}")
+
+    def _refresh_coda_card(self):
+        """Ricarica il pannello Coda Task del centro."""
+        try:
+            scheduler = self.center.panel_pages.get("coda") if hasattr(self, "center") else None
+            if scheduler is not None and hasattr(scheduler, "refresh"):
+                scheduler.refresh()
+        except Exception as e:
+            print(f"_refresh_coda_card fallito: {e}")
+
     def _tick_metrics(self):
         self._cpu_temp = get_cpu_temp()
         self._gpu_temp = get_gpu_temp()
@@ -4674,6 +4691,11 @@ class FileTreeDrawer(QFrame):
             if reply != QMessageBox.StandardButton.Yes:
                 return
             ok, msg = _stop_task(task_id)
+            try:
+                if hasattr(self, "main_win") and self.main_win:
+                    self.main_win.statusBar().showMessage(f"🛑 {msg}", 4000)
+            except Exception:
+                pass
             if ok:
                 if item:
                     txt = item.text() if hasattr(item, 'text') else ""
@@ -4967,6 +4989,11 @@ class FileTreeDrawer(QFrame):
         try:
             _log_user_action("Task-Action", "avvio", task_id=task_id, details="Task riavviato dall'utente")
             ok, msg = _restart_task(task_id)
+            try:
+                if hasattr(self, "main_win") and self.main_win:
+                    self.main_win.statusBar().showMessage(f"🔄 {msg}", 4000)
+            except Exception:
+                pass
             if ok:
                 if item:
                     txt = item.text() if hasattr(item, 'text') else ""

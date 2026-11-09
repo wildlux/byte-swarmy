@@ -250,8 +250,10 @@ class TaskQueue:
 
     def mark_done(self, task_id: str, result: str) -> None:
         with self._get_conn() as conn:
-            conn.execute(
-                "UPDATE tasks SET status = 'done', result = ?, completed_at = ? WHERE id = ?",
+            # Non sovrascrivere un task fermato dall'utente (status='failed')
+            cur = conn.execute(
+                "UPDATE tasks SET status = 'done', result = ?, completed_at = ? "
+                "WHERE id = ? AND status NOT IN ('failed', 'stuck')",
                 (result[:500], time.time(), task_id)
             )
             conn.commit()
