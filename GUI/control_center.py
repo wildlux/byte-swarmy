@@ -2942,7 +2942,7 @@ class ProjectTabBar(QTabBar):
         # Ignora file (come .gitkeep, main.py) e cartelle nascoste.
         if os.path.isdir(projects_dir):
             try:
-                entries = sorted(
+                all_entries = sorted(
                     e for e in os.listdir(projects_dir)
                     if e.startswith("PR_")
                     and os.path.isdir(os.path.join(projects_dir, e))
@@ -2952,7 +2952,27 @@ class ProjectTabBar(QTabBar):
                     and e != ".venv"
                 )
             except OSError:
-                entries = []
+                all_entries = []
+            # Persistenza progetti aperti
+            import json
+            state_file = os.path.join(base, "state", "open_projects.json")
+            open_list = None
+            if os.path.exists(state_file):
+                try:
+                    open_list = json.loads(open(state_file, encoding="utf-8").read())
+                    if not isinstance(open_list, list):
+                        open_list = None
+                except Exception:
+                    open_list = None
+            if open_list is None:
+                open_list = list(all_entries)
+                try:
+                    os.makedirs(os.path.dirname(state_file), exist_ok=True)
+                    with open(state_file, "w", encoding="utf-8") as f:
+                        json.dump(open_list, f)
+                except Exception:
+                    pass
+            entries = [e for e in all_entries if e in (open_list or [])]
             for name in entries:
                 # Mostra nella scheda il nome SENZA il prefisso "PR_"
                 # (regola interna: il prefisso resta solo sul disco).
@@ -3119,6 +3139,22 @@ class ProjectTabBar(QTabBar):
         """Chiude un tab progetto (qualsuale tab reale tranne il '+')."""
         if self._is_plus_tab(index):
             return  # Il "+" non si chiude
+        # Persisti la chiusura: rimuovi dalla lista open_projects.json
+        try:
+            import os, json
+            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            state_file = os.path.join(base, "state", "open_projects.json")
+            name = self.tabText(index).replace("📁 ", "", 1).strip()
+            # Ricostruisci il nome su disco (con prefisso PR_)
+            disk_name = name if name.startswith("PR_") else "PR_" + name
+            if os.path.exists(state_file):
+                data = json.loads(open(state_file, encoding="utf-8").read())
+                if isinstance(data, list) and disk_name in data:
+                    data.remove(disk_name)
+                    with open(state_file, "w", encoding="utf-8") as f:
+                        json.dump(data, f)
+        except Exception:
+            pass
         # Tutti i tab 📁 ... sono chiudibili (nessun tab hardcoded protetto)
         self.removeTab(index)
         # L'indice del "+" è sceso di 1
@@ -3247,6 +3283,27 @@ class ProjectTabBar(QTabBar):
         if not hasattr(self, "_tab_paths"):
             self._tab_paths = {}
         self._tab_paths[new_idx] = folder
+        # Persisti il nuovo progetto nella lista open
+        try:
+            import os, json
+            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            state_file = os.path.join(base, "state", "open_projects.json")
+            name = os.path.basename(folder.rstrip("/"))
+            os.makedirs(os.path.dirname(state_file), exist_ok=True)
+            data = []
+            if os.path.exists(state_file):
+                try:
+                    data = json.loads(open(state_file, encoding="utf-8").read())
+                    if not isinstance(data, list):
+                        data = []
+                except Exception:
+                    data = []
+            if name not in data:
+                data.append(name)
+            with open(state_file, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+        except Exception:
+            pass
         self.setCurrentIndex(new_idx)
 
         # Emette segnale/opzionalmente callback: il nome della cartella aperta
