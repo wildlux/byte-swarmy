@@ -2320,8 +2320,8 @@ class ControlCenter(QMainWindow):
             self._completion_bar = QProgressBar()
             self._completion_bar.setRange(0, 100)
             self._completion_bar.setValue(0)
-            self._completion_bar.setFixedWidth(180)
-            self._completion_bar.setFixedHeight(14)
+            self._completion_bar.setFixedWidth(220)
+            self._completion_bar.setFixedHeight(18)
             self._completion_bar.setFormat("Completamento: %p%")
             self._completion_bar.setToolTip("Percentuale di task completati nella coda globale")
             self.statusBar().addPermanentWidget(self._completion_bar)
@@ -2642,14 +2642,65 @@ class ControlCenter(QMainWindow):
             if not os.path.exists(db_path):
                 return
             conn = sqlite3.connect(db_path, timeout=3.0)
-            total = conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
-            done = conn.execute("SELECT COUNT(*) FROM tasks WHERE status='done'").fetchone()[0]
+            # 1) Task attualmente in esecuzione
+            running = conn.execute(
+                "SELECT id, title FROM tasks WHERE status='running' ORDER BY started_at DESC LIMIT 1"
+            ).fetchone()
+            target_id = None
+            target_title = None
+            if running:
+                target_id = running[0]
+                target_title = running[1]
+            else:
+                # 2) Ultimo task top-level con sotto-task
+                parents = conn.execute(
+                    "SELECT t.id, t.title FROM tasks t "
+                    "WHERE t.parent IS NULL AND EXISTS (SELECT 1 FROM tasks c WHERE c.parent=t.id) "
+                    "ORDER BY t.created_at DESC LIMIT 1"
+                ).fetchone()
+                if parents:
+                    target_id = parents[0]
+                    target_title = parents[1]
+                else:
+                    # 3) Ultimo task top-level (anche senza sotto-task)
+                    last = conn.execute(
+                        "SELECT id, title FROM tasks WHERE parent IS NULL ORDER BY created_at DESC LIMIT 1"
+                    ).fetchone()
+                    if last:
+                        target_id = last[0]
+                        target_title = last[1]
+
+            total = 0
+            done = 0
+            if target_id:
+                # Sotto-task del target (o il target stesso se non ne ha)
+                children = conn.execute(
+                    "SELECT status FROM tasks WHERE parent=?", (target_id,)
+                ).fetchall()
+                if children:
+                    total = len(children)
+                    done = sum(1 for (s,) in children if s == "done")
+                else:
+                    # Nessun sotto-task: considera il target come 1 unità
+                    st = conn.execute(
+                        "SELECT status FROM tasks WHERE id=?", (target_id,)
+                    ).fetchone()
+                    total = 1
+                    done = 1 if (st and st[0] == "done") else 0
+
+            tot_all = conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
+            done_all = conn.execute("SELECT COUNT(*) FROM tasks WHERE status='done'").fetchone()[0]
             conn.close()
+
             pct = int(done * 100 / total) if total > 0 else 0
             if hasattr(self, "_completion_bar"):
                 self._completion_bar.setValue(pct)
+                label = (target_title or "nessun task")[:28]
+                self._completion_bar.setFormat(f"{label}: {done}/{total} (%p%)")
                 self._completion_bar.setToolTip(
-                    f"Task completati: {done}/{total}  ({pct}%)"
+                    f"Task attivo: {target_title or '-'}\n"
+                    f"Sotto-task completati: {done}/{total} ({pct}%)\n"
+                    f"Totale storico: {done_all}/{tot_all}"
                 )
         except Exception:
             pass
