@@ -278,3 +278,12 @@ retry_cooldown_sec = 30
 #   left      = testo a sinistra dell'icona
 #   icons_only = solo icona, niente testo
 icon_text_position = "below"
+
+# Tema interfaccia: dark | light
+theme = "dark"
+
+# Livello zoom in percentuale (50 = piccolo, 100 = normale, 200 = grande)
+zoom_level = 100
+
+# Dimensione font base in pixel
+font_size = 11

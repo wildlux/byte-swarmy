@@ -31,6 +31,7 @@ from PyQt6.QtWidgets import (
     QGraphicsScene, QGraphicsRectItem, QGraphicsTextItem,
     QFileIconProvider,
 )
+from PyQt6 import QtWidgets
 from PyQt6.QtGui import (
     QColor, QCursor, QFont, QIcon, QPixmap, QPalette, QAction,
     QBrush, QPainter, QPen, QDesktopServices,
@@ -2111,6 +2112,12 @@ class ControlCenter(QMainWindow):
         self._current_project_path = None
         self.center = CenterArea(self)
 
+        # Preferenze GUI (tema, zoom, font, posizione testo icone)
+        from CORE.config_model import load_typed_config
+        self.gui_settings = load_typed_config().gui
+        # Applica lo zoom iniziale
+        self._apply_zoom(self.gui_settings.zoom_level)
+
         root.addWidget(self._build_toolbar())
 
         # Splitter orizzontale tra Archivio progetto e area centrale:
@@ -2261,7 +2268,7 @@ class ControlCenter(QMainWindow):
         bar = QFrame()
         bar.setObjectName("toolbar")
         bar.setFixedHeight(64)
-        lay = QHBoxLayout(bar)
+        lay = QtWidgets.QHBoxLayout(bar)
         lay.setContentsMargins(10, 6, 10, 6)
         lay.setSpacing(8)
 
@@ -2367,6 +2374,45 @@ class ControlCenter(QMainWindow):
             self._completion_timer.timeout.connect(self._update_completion_bar)
             self._completion_timer.start(3000)
             self._update_completion_bar()
+
+            # Pulsanti fisici zoom (in basso a destra, dopo la completion bar)
+            from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy
+            _zoom_container = QHBoxLayout()
+            _zoom_container.setContentsMargins(0, 0, 0, 0)
+            _zoom_container.setSpacing(2)
+
+            self._zoom_out_btn = QPushButton("−")
+            self._zoom_out_btn.setFixedSize(24, 20)
+            self._zoom_out_btn.setToolTip("Zoom riduci (Ctrl + −)")
+            self._zoom_out_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
+            self._zoom_out_btn.clicked.connect(self._zoom_out)
+            _zoom_container.addWidget(self._zoom_out_btn)
+
+            self._zoom_reset_btn = QPushButton("↻")
+            self._zoom_reset_btn.setFixedSize(24, 20)
+            self._zoom_reset_btn.setToolTip("Reset vista (Ctrl + 0)")
+            self._zoom_reset_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
+            self._zoom_reset_btn.clicked.connect(self._zoom_reset)
+            _zoom_container.addWidget(self._zoom_reset_btn)
+
+            self._zoom_in_btn = QPushButton("+")
+            self._zoom_in_btn.setFixedSize(24, 20)
+            self._zoom_in_btn.setToolTip("Zoom aumenta (Ctrl + +)")
+            self._zoom_in_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
+            self._zoom_in_btn.clicked.connect(self._zoom_in)
+            _zoom_container.addWidget(self._zoom_in_btn)
+
+            _zoom_widget = QWidget()
+            _zoom_widget.setLayout(_zoom_container)
+            self.statusBar().addPermanentWidget(_zoom_widget)
+
+            # Shortcut da tastiera
+            from PyQt6.QtGui import QKeySequence
+            from PyQt6.QtWidgets import QShortcut
+            QShortcut(QKeySequence("Ctrl++"), self, activated=self._zoom_in)
+            QShortcut(QKeySequence("Ctrl+="), self, activated=self._zoom_in)
+            QShortcut(QKeySequence("Ctrl+-"), self, activated=self._zoom_out)
+            QShortcut(QKeySequence("Ctrl+0"), self, activated=self._zoom_reset)
         except Exception as e:
             print(f"completion bar init fallito: {e}")
 
@@ -2684,7 +2730,7 @@ class ControlCenter(QMainWindow):
         bar = QFrame()
         bar.setObjectName("command_bar")
         bar.setFixedHeight(52)
-        lay = QHBoxLayout(bar)
+        lay = QtWidgets.QHBoxLayout(bar)
         lay.setContentsMargins(12, 6, 12, 6)
 
         self.cmd_input = QLineEdit()
@@ -2836,6 +2882,50 @@ class ControlCenter(QMainWindow):
                     )
         except Exception:
             pass
+
+    def _zoom_in(self):
+        """Aumenta lo zoom dell'interfaccia."""
+        try:
+            new_level = min(200, self.gui_settings.zoom_level + 10)
+            self.gui_settings.zoom_level = new_level
+            self._apply_zoom(new_level)
+        except Exception as e:
+            print(f"Errore zoom in: {e}")
+
+    def _zoom_out(self):
+        """Riduce lo zoom dell'interfaccia."""
+        try:
+            new_level = max(50, self.gui_settings.zoom_level - 10)
+            self.gui_settings.zoom_level = new_level
+            self._apply_zoom(new_level)
+        except Exception as e:
+            print(f"Errore zoom out: {e}")
+
+    def _zoom_reset(self):
+        """Reset zoom al valore default."""
+        try:
+            self.gui_settings.zoom_level = 100
+            self._apply_zoom(100)
+        except Exception as e:
+            print(f"Errore zoom reset: {e}")
+
+    def _apply_zoom(self, level: int):
+        """Applica il livello zoom al font dell'applicazione."""
+        try:
+            from PyQt6.QtGui import QFont
+            font_size = max(8, int(self.gui_settings.font_size * level / 100))
+            app_font = QFont()
+            font = app_font
+            font.setPointSize(font_size)
+            from PyQt6.QtWidgets import QApplication
+            QApplication.instance().setFont(font)
+            # Aggiorna tooltip pulsanti
+            if hasattr(self, "_zoom_in_btn"):
+                self._zoom_in_btn.setToolTip(f"Aumenta zoom (Ctrl++) — {level}%")
+                self._zoom_out_btn.setToolTip(f"Riduci zoom (Ctrl+−) — {level}%")
+                self._zoom_reset_btn.setToolTip(f"Reset vista (Ctrl+0) — {level}%")
+        except Exception as e:
+            print(f"Errore applicazione zoom: {e}")
 
     def _send_command(self):
         text = self.cmd_input.text().strip()

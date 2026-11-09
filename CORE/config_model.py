@@ -217,6 +217,9 @@ class SMLBestConfig:
 class GUISettingsConfig:
     """Preferenze GUI utente."""
     icon_text_position: str = "below"  # below | above | right | left | icons_only
+    theme: str = "dark"                # dark | light
+    zoom_level: int = 100              # percentuale 50-200
+    font_size: int = 11                # dimensione font base
 
 
 @dataclass
@@ -469,6 +472,9 @@ def load_typed_config(path: str | Path = "CONFIG/config.toml") -> AppConfig:
     g = _get("gui")
     config.gui = GUISettingsConfig(
         icon_text_position=str(g.get("icon_text_position", GUISettingsConfig.icon_text_position)),
+        theme=str(g.get("theme", GUISettingsConfig.theme)),
+        zoom_level=int(g.get("zoom_level", GUISettingsConfig.zoom_level)),
+        font_size=int(g.get("font_size", GUISettingsConfig.font_size)),
     )
 
     return config
