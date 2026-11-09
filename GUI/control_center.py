@@ -2385,21 +2385,21 @@ class ControlCenter(QMainWindow):
             self._zoom_out_btn.setFixedSize(24, 20)
             self._zoom_out_btn.setToolTip("Zoom riduci (Ctrl + −)")
             self._zoom_out_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
-            self._zoom_out_btn.clicked.connect(self._zoom_out)
+            self._zoom_out_btn.clicked.connect(lambda: (print("DEBUG zoom out click"), self._zoom_out()))
             _zoom_container.addWidget(self._zoom_out_btn)
 
             self._zoom_reset_btn = QPushButton("↻")
             self._zoom_reset_btn.setFixedSize(24, 20)
             self._zoom_reset_btn.setToolTip("Reset vista (Ctrl + 0)")
             self._zoom_reset_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
-            self._zoom_reset_btn.clicked.connect(self._zoom_reset)
+            self._zoom_reset_btn.clicked.connect(lambda: (print("DEBUG zoom reset click"), self._zoom_reset()))
             _zoom_container.addWidget(self._zoom_reset_btn)
 
             self._zoom_in_btn = QPushButton("+")
             self._zoom_in_btn.setFixedSize(24, 20)
             self._zoom_in_btn.setToolTip("Zoom aumenta (Ctrl + +)")
             self._zoom_in_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
-            self._zoom_in_btn.clicked.connect(self._zoom_in)
+            self._zoom_in_btn.clicked.connect(lambda: (print("DEBUG zoom in click"), self._zoom_in()))
             _zoom_container.addWidget(self._zoom_in_btn)
 
             _zoom_widget = QWidget()
@@ -2928,7 +2928,9 @@ class ControlCenter(QMainWindow):
         try:
             new_level = max(50, self.gui_settings.zoom_level - 10)
             self.gui_settings.zoom_level = new_level
+            print(f"DEBUG _zoom_out → {new_level}%")
             self._apply_zoom(new_level)
+            print(f"DEBUG zoom applicato: {new_level}%")
         except Exception as e:
             print(f"Errore zoom out: {e}")
 
@@ -2936,20 +2938,34 @@ class ControlCenter(QMainWindow):
         """Reset zoom al valore default."""
         try:
             self.gui_settings.zoom_level = 100
+            print("DEBUG _zoom_reset → 100%")
             self._apply_zoom(100)
+            print("DEBUG zoom applicato: 100%")
         except Exception as e:
             print(f"Errore zoom reset: {e}")
 
     def _apply_zoom(self, level: int):
-        """Applica il livello zoom al font dell'applicazione."""
+        """Applica il livello zoom al font dell'applicazione e ai widget."""
         try:
+            print(f"DEBUG _apply_zoom chiamato con level={level}")
             from PyQt6.QtGui import QFont
-            font_size = max(8, int(self.gui_settings.font_size * level / 100))
-            app_font = QFont()
-            font = app_font
-            font.setPointSize(font_size)
             from PyQt6.QtWidgets import QApplication
-            QApplication.instance().setFont(font)
+            font_size = max(8, int(self.gui_settings.font_size * level / 100))
+            font = QFont()
+            font.setPointSize(font_size)
+            app = QApplication.instance()
+            app.setFont(font)
+
+            # Forza ripaint di tutti i widget per applicare il nuovo font
+            for widget in app.allWidgets():
+                try:
+                    widget.font().setPointSize(font_size)
+                    widget.update()
+                    widget.style().unpolish(widget)
+                    widget.style().polish(widget)
+                except Exception:
+                    pass
+
             # Aggiorna tooltip pulsanti
             if hasattr(self, "_zoom_in_btn"):
                 self._zoom_in_btn.setToolTip(f"Aumenta zoom (Ctrl++) — {level}%")
