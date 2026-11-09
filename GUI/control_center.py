@@ -2113,12 +2113,32 @@ class ControlCenter(QMainWindow):
 
         root.addWidget(self._build_toolbar())
 
-        body = QHBoxLayout()
-        body.setContentsMargins(0, 0, 0, 0)
-        body.setSpacing(0)
-        body.addWidget(self.drawer, stretch=1)
-        body.addWidget(self.center, stretch=2)
-        root.addLayout(body, stretch=1)
+        # Splitter orizzontale tra Archivio progetto e area centrale:
+        # l'utente può trascinare il bordo per ridimensionare.
+        # Le dimensioni vengono salvate in state/splitter_state.json e
+        # ripristinate all'avvio.
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter.addWidget(self.drawer)
+        self.splitter.addWidget(self.center)
+
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        state_file = os.path.join(base, "state", "splitter_state.json")
+        saved_sizes = None
+        if os.path.exists(state_file):
+            try:
+                data = json.loads(open(state_file, encoding="utf-8").read())
+                if isinstance(data, list) and len(data) == 2:
+                    saved_sizes = [int(data[0]), int(data[1])]
+            except Exception:
+                pass
+
+        if saved_sizes:
+            self.splitter.setSizes(saved_sizes)
+        else:
+            self.splitter.setSizes([350, 700])
+
+        self.splitter.splitterMoved.connect(self._save_splitter_state)
+        root.addWidget(self.splitter, stretch=1)
 
         root.addWidget(self._build_command_bar())
 
@@ -4687,6 +4707,19 @@ class FileTreeDrawer(QFrame):
         except Exception as e:
             self.statusBar().showMessage(f"❌ Errore pulizia coda: {e}", 5000)
             print(f"Errore pulizia coda: {e}")
+
+    def _save_splitter_state(self):
+        """Salva le larghezze attuali dello splitter (sidebar <-> centro)
+        in state/splitter_state.json per ripristinarle all'avvio."""
+        try:
+            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            state_file = os.path.join(base, "state", "splitter_state.json")
+            os.makedirs(os.path.dirname(state_file), exist_ok=True)
+            sizes = self.splitter.sizes()
+            with open(state_file, "w", encoding="utf-8") as f:
+                json.dump(sizes, f)
+        except Exception as e:
+            print(f"Errore salvataggio splitter: {e}")
 
     def _force_refresh_tasks(self):
         """Forza il refresh della lista task dal progetto attivo."""
