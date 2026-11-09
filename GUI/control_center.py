@@ -3827,7 +3827,7 @@ class FileTreeDrawer(QFrame):
 
         # Pulsante riavvio forzato (refresh lista)
         task_refresh_btn = QPushButton("🔄")
-        task_refresh_btn.setFixedSize(20, 20)
+        task_refresh_btn.setFixedSize(28, 28)
         task_refresh_btn.setToolTip("Aggiorna lista task")
         task_refresh_btn.setStyleSheet(BTN_TRANSPARENT_SMALL_STYLE)
         task_refresh_btn.clicked.connect(self._force_refresh_tasks)
@@ -3840,7 +3840,7 @@ class FileTreeDrawer(QFrame):
 
         # Pulsante aggiungi task
         task_add_btn = QPushButton("➕")
-        task_add_btn.setFixedSize(20, 20)
+        task_add_btn.setFixedSize(28, 28)
         task_add_btn.setToolTip("Aggiungi un nuovo task")
         task_add_btn.setStyleSheet(BTN_TRANSPARENT_SMALL_STYLE)
         task_add_btn.clicked.connect(
