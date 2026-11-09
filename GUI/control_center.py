@@ -3699,7 +3699,7 @@ class FileTreeDrawer(QFrame):
         # Header dinamico: titolo a sinistra, pulsanti a destra
         header_row = QHBoxLayout()
         header_row.setContentsMargins(8, 6, 8, 6)
-        header_row.setSpacing(8)
+        header_row.setSpacing(4)
         self.header = QLabel("<b>📁 Archivio progetto</b>")
         self.header.setObjectName("sidebar_header")
         self.header.setStyleSheet(  # nolint: header verde accordion Archivio
@@ -3819,7 +3819,7 @@ class FileTreeDrawer(QFrame):
         # Layout header "Lavori e compiti": titolo a sinistra, pulsanti a destra
         task_header_row = QHBoxLayout()
         task_header_row.setContentsMargins(0, 0, 0, 0)
-        task_header_row.setSpacing(10)
+        task_header_row.setSpacing(2)
         task_header_lbl = QLabel("<b>📋 Lavori e compiti</b>")
         task_header_lbl.setStyleSheet("font-size:11px; font-weight:bold; padding:0; margin:0;")
         task_header_row.addWidget(task_header_lbl, stretch=0)
