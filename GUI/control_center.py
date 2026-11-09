@@ -2137,7 +2137,9 @@ class ControlCenter(QMainWindow):
         else:
             self.splitter.setSizes([350, 700])
 
-        self.splitter.splitterMoved.connect(self._save_splitter_state)
+        self.splitter.splitterMoved.connect(
+            lambda *args: self._save_splitter_state()
+        )
         root.addWidget(self.splitter, stretch=1)
 
         root.addWidget(self._build_command_bar())
@@ -2170,6 +2172,20 @@ class ControlCenter(QMainWindow):
         self._debug_label = None
         if self._gui_debug:
             self._install_debug_bar()
+
+    def _save_splitter_state(self):
+        """Salva le larghezze attuali dello splitter (sidebar <-> centro)
+        in state/splitter_state.json per ripristinarle all'avvio."""
+        try:
+            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            state_file = os.path.join(base, "state", "splitter_state.json")
+            os.makedirs(os.path.dirname(state_file), exist_ok=True)
+            sizes = self.splitter.sizes()
+            with open(state_file, "w", encoding="utf-8") as f:
+                json.dump(sizes, f)
+        except Exception as e:
+            print(f"Errore salvataggio splitter: {e}")
+
     def _pause_orchestrator(self):
         """Mette in pausa l'orchestratore (crea file state/pause.flag)."""
         try:
@@ -4707,19 +4723,6 @@ class FileTreeDrawer(QFrame):
         except Exception as e:
             self.statusBar().showMessage(f"❌ Errore pulizia coda: {e}", 5000)
             print(f"Errore pulizia coda: {e}")
-
-    def _save_splitter_state(self):
-        """Salva le larghezze attuali dello splitter (sidebar <-> centro)
-        in state/splitter_state.json per ripristinarle all'avvio."""
-        try:
-            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            state_file = os.path.join(base, "state", "splitter_state.json")
-            os.makedirs(os.path.dirname(state_file), exist_ok=True)
-            sizes = self.splitter.sizes()
-            with open(state_file, "w", encoding="utf-8") as f:
-                json.dump(sizes, f)
-        except Exception as e:
-            print(f"Errore salvataggio splitter: {e}")
 
     def _force_refresh_tasks(self):
         """Forza il refresh della lista task dal progetto attivo."""
