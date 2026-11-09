@@ -4826,25 +4826,18 @@ class FileTreeDrawer(QFrame):
             try:
                 out = subprocess.run(
                     ["git", "-C", str(base_dir), "log", "--all",
-                     "--format=%H", "--grep", f"task {tid}"],
-                    capture_output=True, text=True, timeout=8,
+                     "--format=", "--name-only", "--grep", f"task {tid}"],
+                    capture_output=True, text=True, timeout=5,
                 )
-                hashes = [h for h in out.stdout.split() if h]
                 seen = set()
-                for h in hashes[:10]:
-                    out2 = subprocess.run(
-                        ["git", "-C", str(base_dir), "show",
-                         "--name-only", "--format=", h],
-                        capture_output=True, text=True, timeout=8,
-                    )
-                    for line in out2.stdout.splitlines():
-                        rel = line.strip()
-                        if (rel and ".." not in rel
-                                and not _is_junk_project_path(rel)
-                                and (proj / rel).exists()
-                                and rel not in seen):
-                            seen.add(rel)
-                            files.append(rel)
+                for line in out.stdout.splitlines():
+                    rel = line.strip()
+                    if (rel and ".." not in rel
+                            and not _is_junk_project_path(rel)
+                            and (proj / rel).exists()
+                            and rel not in seen):
+                        seen.add(rel)
+                        files.append(rel)
             except Exception:
                 pass
 
@@ -4854,14 +4847,21 @@ class FileTreeDrawer(QFrame):
                 end = float(task.get("completed_at") or 0) or time.time()
                 if start > 0:
                     margin = 120
+                    count = 0
                     for pth in proj.rglob("*"):
                         if not pth.is_file():
                             continue
                         rel = str(pth.relative_to(proj))
                         if _is_junk_project_path(rel):
                             continue
-                        if start - margin <= pth.stat().st_mtime <= end + margin:
-                            files.append(rel)
+                        try:
+                            if start - margin <= pth.stat().st_mtime <= end + margin:
+                                files.append(rel)
+                        except OSError:
+                            pass
+                        count += 1
+                        if count > 2000:
+                            break
             except Exception:
                 pass
         # Ordine: prima i file "di ingresso" (main, avvio, requirements),
@@ -5081,7 +5081,7 @@ class FileTreeDrawer(QFrame):
                     # su log molto grandi (6MB+).
                     try:
                         size = log_path.stat().st_size
-                        read_size = min(size, 500_000)
+                        read_size = min(size, 200_000)
                         with open(log_path, "rb") as f:
                             if size > read_size:
                                 f.seek(size - read_size)
@@ -5092,8 +5092,8 @@ class FileTreeDrawer(QFrame):
                     except Exception:
                         pass
                 # Limita alle ultime 80 righe per non sovraccaricare
-                if len(lines_out) > 80:
-                    lines_out = lines_out[-80:]
+                if len(lines_out) > 40:
+                    lines_out = lines_out[-40:]
                 lay.addWidget(QLabel("<b>🧠 Ragionamento / Log (debug):</b>"))
                 log_te = QTextEdit()
                 log_te.setReadOnly(True)
