@@ -2418,10 +2418,34 @@ class ControlCenter(QMainWindow):
             self._shortcut_zoom_out.activated.connect(self._zoom_out)
             self._shortcut_zoom_reset = QShortcut(QKeySequence(Qt.Key_0, Qt.ControlModifier), self)
             self._shortcut_zoom_reset.activated.connect(self._zoom_reset)
+            # Debug shortcut: F1 per test
+            self._shortcut_debug = QShortcut(QKeySequence("F1"), self)
+            self._shortcut_debug.activated.connect(lambda: print("DEBUG F1 premuto - shortcut funzionano!"))
         except Exception as e:
             print(f"completion bar init fallito: {e}")
 
         return bar
+
+    def keyPressEvent(self, event):
+        """Intercetta scorciatoie da tastiera per zoom e altre azioni."""
+        from PyQt6.QtCore import Qt
+        from PyQt6.QtGui import QKeySequence
+        key = event.key()
+        mods = event.modifiers()
+        if mods & Qt.ControlModifier:
+            if key in (Qt.Key_Plus, Qt.Key_Equal):
+                self._zoom_in()
+                event.accept()
+                return
+            if key == Qt.Key_Minus:
+                self._zoom_out()
+                event.accept()
+                return
+            if key == Qt.Key_0:
+                self._zoom_reset()
+                event.accept()
+                return
+        super().keyPressEvent(event)
 
 
     def _show_credits(self):
@@ -2891,9 +2915,11 @@ class ControlCenter(QMainWindow):
     def _zoom_in(self):
         """Aumenta lo zoom dell'interfaccia."""
         try:
+            print(f"DEBUG _zoom_in chiamato, livello attuale: {self.gui_settings.zoom_level}")
             new_level = min(200, self.gui_settings.zoom_level + 10)
             self.gui_settings.zoom_level = new_level
             self._apply_zoom(new_level)
+            print(f"DEBUG zoom applicato: {new_level}%")
         except Exception as e:
             print(f"Errore zoom in: {e}")
 
