@@ -5077,11 +5077,20 @@ class FileTreeDrawer(QFrame):
                     pass
                 lines_out = []
                 if log_path.exists():
-                    all_lines = log_path.read_text(
-                        encoding="utf-8", errors="replace").splitlines()
-                    for ln in all_lines:
-                        if any(rid in ln for rid in related_ids):
-                            lines_out.append(ln)
+                    # Leggi solo gli ultimi ~500KB per non bloccare la GUI
+                    # su log molto grandi (6MB+).
+                    try:
+                        size = log_path.stat().st_size
+                        read_size = min(size, 500_000)
+                        with open(log_path, "rb") as f:
+                            if size > read_size:
+                                f.seek(size - read_size)
+                            chunk = f.read().decode("utf-8", errors="replace")
+                        for ln in chunk.splitlines():
+                            if any(rid in ln for rid in related_ids):
+                                lines_out.append(ln)
+                    except Exception:
+                        pass
                 # Limita alle ultime 80 righe per non sovraccaricare
                 if len(lines_out) > 80:
                     lines_out = lines_out[-80:]
