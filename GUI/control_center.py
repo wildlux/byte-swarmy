@@ -3807,6 +3807,18 @@ class FileTreeDrawer(QFrame):
         task_del_btn.setStyleSheet(BTN_TRANSPARENT_DANGER_STYLE)
         task_del_btn.clicked.connect(self._delete_checked_tasks)
         task_header_row.addWidget(task_del_btn)
+
+        # Pulsante pulisci coda: resetta i task bloccati (failed/stuck) in pending
+        task_clean_btn = QPushButton("🧹 Pulisci coda")
+        task_clean_btn.setFixedHeight(28)
+        task_clean_btn.setToolTip("Rimette in pending tutti i task bloccati (failed, stuck, failed_definitively)")
+        task_clean_btn.setStyleSheet(
+            "QPushButton { background:#f59e0b; color:white; border:none; "
+            "border-radius:4px; padding:2px 8px; font-size:11px; font-weight:bold; }"
+            "QPushButton:hover { background:#d97706; }"
+        )
+        task_clean_btn.clicked.connect(self._clean_queue)
+        task_header_row.addWidget(task_clean_btn)
         lay.addLayout(task_header_row)
 
         self._refreshing_tasks = False
@@ -4603,6 +4615,52 @@ class FileTreeDrawer(QFrame):
                         parent._refresh_task_list()
         except Exception as e:
             print(f"Errore double-click task: {e}")
+
+    def _clean_queue(self):
+        """Rimette in pending tutti i task bloccati (failed, stuck, failed_definitively)."""
+        import sqlite3, os
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        db_path = os.path.join(base, 'tasks', 'queue.db')
+        try:
+            con = sqlite3.connect(db_path, timeout=10.0)
+            cur = con.cursor()
+            # Solo i task bloccati (non done, non pending, non planned)
+            before = con.execute(
+                "SELECT COUNT(*) FROM tasks WHERE status IN ('failed', 'stuck', 'failed_definitively')"
+            ).fetchone()[0]
+            cur.execute(
+                "UPDATE tasks SET status='pending', attempts=0, last_error=NULL, "
+                "failure_reason=NULL, started_at=NULL, completed_at=NULL "
+                "WHERE status IN ('failed', 'stuck', 'failed_definitively')"
+            )
+            con.commit()
+            after = con.execute(
+                "SELECT COUNT(*) FROM tasks WHERE status IN ('failed', 'stuck', 'failed_definitively')"
+            ).fetchone()[0]
+            con.close()
+            n_reset = before - after
+            if n_reset > 0:
+                self.statusBar().showMessage(
+                    f"🧹 Coda pulita: {n_reset} task rimesso/i in pending", 5000)
+                _log_user_action("Task-Action", "pulisci_coda",
+                                 details=f"{n_reset} task reset a pending")
+                # Refresh lista
+                try:
+                    if hasattr(self, "drawer") and self.drawer is not None:
+                        self.drawer._force_refresh_tasks()
+                except Exception:
+                    pass
+                try:
+                    scheduler = self.center.panel_pages.get("coda") if hasattr(self, "center") else None
+                    if scheduler is not None and hasattr(scheduler, "refresh"):
+                        scheduler.refresh()
+                except Exception:
+                    pass
+            else:
+                self.statusBar().showMessage("🧹 Nessun task bloccato da pulire", 4000)
+        except Exception as e:
+            self.statusBar().showMessage(f"❌ Errore pulizia coda: {e}", 5000)
+            print(f"Errore pulizia coda: {e}")
 
     def _force_refresh_tasks(self):
         """Forza il refresh della lista task dal progetto attivo."""

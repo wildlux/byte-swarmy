@@ -616,7 +616,7 @@ class Worker:
         '{"thought":"...","action":"none","args":[],"done":true,"result":"what you did"}.\n'
     )
 
-    MAX_STEPS = 6  # ridotto per CPU lente (era 12)
+    MAX_STEPS = 10  # aumentato per dare più chance al modello di scrivere codice (era 6)
 
     def __init__(self, agent_id: str, model_key: str,
                  tools: ToolSet, memory: AgentMemory,
@@ -861,10 +861,9 @@ class Worker:
             f"## PERSISTENT CONTEXT\n{persistent_context}\n\n"
             f"## RULES\n{Planner.WORKER_CONSTRAINTS}\n\n"
             "PLAN (follow strictly):\n"
-            "1. list_files() and read_file(path) to see what already exists\n"
-            "2. write_file(path, content) to create, or patch_code(path, old, new) to modify\n"
-            "3. lint_code(path) to verify syntax\n"
-            "4. done=true with a short result\n\n"
+            "1. write_file(path, content) to CREATE the file with the requested code\n"
+            "2. read_file(path) or lint_code(path) ONLY to VERIFY what you wrote\n"
+            "3. done=true with a short result\n\n"
             f"{correction_block}"
             "First step (JSON only, format: {action: \"write_file\", args: [\"project/main.py\", \"code...\"], done: false}):"
         )
