@@ -39,7 +39,7 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtCore import (
     Qt, QPropertyAnimation, QEasingCurve, pyqtSignal, QDir, QTimer,
-    QUrl, QEvent, QItemSelectionModel, QModelIndex, QSize
+    QUrl, QEvent, QItemSelectionModel, QModelIndex, QSize, QObject
 )
 
 from GUI.gui_backend import (
@@ -2088,6 +2088,33 @@ def _log_user_action(component, action, task_id=None, details=""):
 
 
 
+class _ZoomEventFilter(QObject):
+    """Event filter globale per catturare Ctrl++ / Ctrl+-- / Ctrl+0
+    anche quando il focus è su un widget figlio (QLineEdit, QTextEdit, ecc.)."""
+
+    def __init__(self, window: ControlCenter):
+        super().__init__()
+        self.window = window
+
+    def eventFilter(self, obj, event):
+        from PyQt6.QtCore import QEvent, Qt
+        from PyQt6.QtGui import QKeyEvent
+        if event.type() == QEvent.Type.KeyPress:
+            key = event.key()
+            mods = event.modifiers()
+            if mods & Qt.KeyboardModifier.ControlModifier:
+                if key in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):
+                    self.window._zoom_in()
+                    return True
+                if key == Qt.Key.Key_Minus:
+                    self.window._zoom_out()
+                    return True
+                if key == Qt.Key.Key_0:
+                    self.window._zoom_reset()
+                    return True
+        return super().eventFilter(obj, event)
+
+
 class ControlCenter(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -2117,6 +2144,11 @@ class ControlCenter(QMainWindow):
         self.gui_settings = load_typed_config().gui
         # Applica lo zoom iniziale
         self._apply_zoom(self.gui_settings.zoom_level)
+
+        # Event filter globale per catturare Ctrl++ / Ctrl+-- / Ctrl+0
+        # anche quando il focus è su un widget figlio (QLineEdit, ecc.)
+        self.app_event_filter = _ZoomEventFilter(self)
+        QApplication.instance().installEventFilter(self.app_event_filter)
 
         root.addWidget(self._build_toolbar())
 
@@ -2406,21 +2438,8 @@ class ControlCenter(QMainWindow):
             _zoom_widget.setLayout(_zoom_container)
             self.statusBar().addPermanentWidget(_zoom_widget)
 
-            # Shortcut da tastiera (salvati come attributi per evitare GC)
-            from PyQt6.QtGui import QKeySequence
-            from PyQt6.QtWidgets import QShortcut
-            from PyQt6.QtCore import Qt
-            self._shortcut_zoom_in = QShortcut(QKeySequence("Ctrl++"), self)
-            self._shortcut_zoom_in.activated.connect(self._zoom_in)
-            self._shortcut_zoom_in_eq = QShortcut(QKeySequence("Ctrl+="), self)
-            self._shortcut_zoom_in_eq.activated.connect(self._zoom_in)
-            self._shortcut_zoom_out = QShortcut(QKeySequence(Qt.Key_Minus, Qt.ControlModifier), self)
-            self._shortcut_zoom_out.activated.connect(self._zoom_out)
-            self._shortcut_zoom_reset = QShortcut(QKeySequence(Qt.Key_0, Qt.ControlModifier), self)
-            self._shortcut_zoom_reset.activated.connect(self._zoom_reset)
-            # Debug shortcut: F1 per test
-            self._shortcut_debug = QShortcut(QKeySequence("F1"), self)
-            self._shortcut_debug.activated.connect(lambda: print("DEBUG F1 premuto - shortcut funzionano!"))
+            # I shortcut da tastiera sono gestiti da _ZoomEventFilter (globale)
+            # e da keyPressEvent (sulla finestra principale).
         except Exception as e:
             print(f"completion bar init fallito: {e}")
 
@@ -2432,16 +2451,16 @@ class ControlCenter(QMainWindow):
         from PyQt6.QtGui import QKeySequence
         key = event.key()
         mods = event.modifiers()
-        if mods & Qt.ControlModifier:
-            if key in (Qt.Key_Plus, Qt.Key_Equal):
+        if mods & Qt.KeyboardModifier.ControlModifier:
+            if key in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):
                 self._zoom_in()
                 event.accept()
                 return
-            if key == Qt.Key_Minus:
+            if key == Qt.Key.Key_Minus:
                 self._zoom_out()
                 event.accept()
                 return
-            if key == Qt.Key_0:
+            if key == Qt.Key.Key_0:
                 self._zoom_reset()
                 event.accept()
                 return
