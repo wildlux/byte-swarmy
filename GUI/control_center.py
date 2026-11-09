@@ -5061,6 +5061,45 @@ class FileTreeDrawer(QFrame):
                 lay.addWidget(QLabel("<span style='color:gray'>"
                                      "Nessun file di progetto associato.</span>"))
 
+            # ── Ragionamento / Log del task (per debug e stima tempo) ──
+            try:
+                log_path = Path(base) / "logs" / "byte-swarmy.log"
+                related_ids = [task_id]
+                # Includi anche i sotto-task
+                try:
+                    con2 = sqlite3.connect(db_path)
+                    subs = con2.execute(
+                        "SELECT id FROM tasks WHERE parent=?", (task_id,)
+                    ).fetchall()
+                    con2.close()
+                    related_ids += [s[0] for s in subs]
+                except Exception:
+                    pass
+                lines_out = []
+                if log_path.exists():
+                    all_lines = log_path.read_text(
+                        encoding="utf-8", errors="replace").splitlines()
+                    for ln in all_lines:
+                        if any(rid in ln for rid in related_ids):
+                            lines_out.append(ln)
+                # Limita alle ultime 80 righe per non sovraccaricare
+                if len(lines_out) > 80:
+                    lines_out = lines_out[-80:]
+                lay.addWidget(QLabel("<b>🧠 Ragionamento / Log (debug):</b>"))
+                log_te = QTextEdit()
+                log_te.setReadOnly(True)
+                log_te.setStyleSheet(
+                    "font-family:'JetBrains Mono','Consolas',monospace; "
+                    "font-size:10px;")
+                log_te.setPlainText(
+                    "\n".join(lines_out) if lines_out
+                    else "(nessun log trovato per questo task)"
+                )
+                log_te.setMaximumHeight(160)
+                lay.addWidget(log_te)
+            except Exception as e:
+                print(f"log ragionamento: {e}")
+
             btn_row = QHBoxLayout()
             btn_row.addStretch()
             close_btn = QPushButton("Chiudi")
