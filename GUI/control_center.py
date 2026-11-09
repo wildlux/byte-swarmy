@@ -2699,7 +2699,11 @@ class ControlCenter(QMainWindow):
                 proj_filter = " AND project_path IS NULL"
                 proj_params = ()
 
-            # 1) Task attualmente in esecuzione
+            # 1) Task attualmente in esecuzione (in assoluto, per l'animazione)
+            running_any = conn.execute(
+                "SELECT id, title FROM tasks WHERE status='running' ORDER BY started_at DESC LIMIT 1"
+            ).fetchone()
+            # Task in esecuzione per il progetto attivo (per il tooltip/dettaglio)
             running = conn.execute(
                 "SELECT id, title FROM tasks WHERE status='running'" + proj_filter + " ORDER BY started_at DESC LIMIT 1",
                 proj_params,
@@ -2709,6 +2713,10 @@ class ControlCenter(QMainWindow):
             if running:
                 target_id = running[0]
                 target_title = running[1]
+            elif running_any:
+                # C'è un task running ma non del progetto attivo: usa quello per il titolo
+                target_id = running_any[0]
+                target_title = running_any[1]
             else:
                 # 2) Ultimo task top-level con sotto-task
                 parents = conn.execute(
@@ -2764,9 +2772,9 @@ class ControlCenter(QMainWindow):
             conn.close()
 
             if hasattr(self, "_completion_bar"):
-                # Se c'è un task in esecuzione → animazione indeterminata
+                # Se c'è un task in esecuzione (qualsiasi progetto) → animazione indeterminata
                 # (la barra "carica" per far capire che qualcosa sta succedendo)
-                if running:
+                if running_any:
                     self._completion_bar.setRange(0, 0)  # modalità indeterminata
                     target_title_short = (target_title or "task")[:28]
                     self._completion_bar.setFormat(f"⏳ {target_title_short}…")
