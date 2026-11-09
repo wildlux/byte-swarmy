@@ -41,7 +41,7 @@ DEFAULT_SML_MODELS = [
 
 DEFAULT_PARAMS = {
     "temperature": 0.1,
-    "num_predict": 1024,
+    "num_predict": 512,
     "num_ctx": 2048,
     "repeat_penalty": 1.15,
     "seed": 42,

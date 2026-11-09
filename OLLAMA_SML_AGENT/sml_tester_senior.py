@@ -37,7 +37,7 @@ CAMPI_OBBLIGATORI = [
 CAMPI_OPZIONALI = ["rischi", "piano", "alternative", "fiducia", "task_completo", "sicurezza"]
 
 DEFAULT_TEMPERATURE = 0.1
-DEFAULT_NUM_PREDICT = 2048
+DEFAULT_NUM_PREDICT = 512
 DEFAULT_NUM_CTX = 2048
 DEFAULT_REPEAT_PENALTY = 1.15
 DEFAULT_SEED = 42
@@ -204,7 +204,7 @@ def test_senior_livello_1(
         'Rispondi SOLO con il formato testo strutturato richiesto.'
     )
     try:
-        output = _chiamata_ollama(modello, prompt, system=system_prompt, num_predict=1024)
+        output = _chiamata_ollama(modello, prompt, system=system_prompt, num_predict=512)
     except Exception as e:
         return {
             "livello": 1,
@@ -288,7 +288,7 @@ def test_senior_livello_2(
         'del path."\nRispondi SOLO con il formato testo strutturato.'
     )
     try:
-        output = _chiamata_ollama(modello, prompt, system=system_prompt, num_predict=1024)
+        output = _chiamata_ollama(modello, prompt, system=system_prompt, num_predict=512)
     except Exception as e:
         return {
             "livello": 2,
@@ -386,7 +386,7 @@ def test_senior_livello_3(
         'Rispondi SOLO con il formato testo strutturato.'
     )
     try:
-        output = _chiamata_ollama(modello, prompt, system=system_prompt, num_predict=1024)
+        output = _chiamata_ollama(modello, prompt, system=system_prompt, num_predict=512)
     except Exception as e:
         return {
             "livello": 3,

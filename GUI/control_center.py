@@ -613,7 +613,7 @@ class DevicePanel(QFrame):
         self.toggle_btn.setMinimumWidth(44)
         self.toggle_btn.setFixedHeight(46)
         self.toggle_btn.setObjectName("primary_btn")
-        self.toggle_btn.setToolTip("Avvia/Ferma Orchestratore")
+        self.toggle_btn.setToolTip("Pausa/Riprendi Orchestratore (richiede orchestratore attivo)")
         self.toggle_btn.setStyleSheet(
             "QPushButton#primary_btn { background:#16a34a; color:white; "
             "font-weight:bold; font-size:16px; border-radius:6px; border:none; }"
@@ -2166,6 +2166,10 @@ class ControlCenter(QMainWindow):
                 except Exception: pass
                 self._pause_btn.clicked.connect(self._resume_orchestrator)
             self.statusBar().showMessage("⏸ Orchestratore in pausa", 3000)
+            try:
+                self._sync_toggle_icon()
+            except Exception:
+                pass
         except Exception as e:
             print(f"Errore pausa: {e}")
 
@@ -2184,6 +2188,10 @@ class ControlCenter(QMainWindow):
                 except Exception: pass
                 self._pause_btn.clicked.connect(self._pause_orchestrator)
             self.statusBar().showMessage("▶ Orchestratore ripreso", 3000)
+            try:
+                self._sync_toggle_icon()
+            except Exception:
+                pass
         except Exception as e:
             print(f"Errore resume: {e}")
 
@@ -2296,6 +2304,15 @@ class ControlCenter(QMainWindow):
         # (stessa logica del menu: state/pause.flag).
         self.device_panel.toggle_btn.clicked.connect(self._toggle_orchestrator)
         self._sync_toggle_icon()
+        # Stato iniziale in status bar
+        try:
+            self.statusBar().showMessage(
+                f"Orchestratore: {'▶ attivo' if self._is_orchestrator_running() else '⛔ fermo'}  |  "
+                f"Progetto: {os.path.basename((self.get_current_project_path() or '').rstrip('/')) or '(nessuno)'}",
+                6000,
+            )
+        except Exception:
+            pass
 
         return bar
 
@@ -2366,14 +2383,33 @@ class ControlCenter(QMainWindow):
         btn = self.device_panel.toggle_btn
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         pause_file = os.path.join(base, 'state', 'pause.flag')
+        pid_file = os.path.join(base, 'state', 'orchestrator.pid')
         running_style = ("QPushButton#primary_btn { background:#16a34a; color:white; "
                          "font-weight:bold; font-size:16px; border-radius:6px; "
                          "border:none; }")
         paused_style = ("QPushButton#primary_btn { background:#f59e0b; color:white; "
                         "font-weight:bold; font-size:14px; border-radius:6px; "
                         "border:none; }")
+        # Verifica che l'orchestratore sia effettivamente in esecuzione
+        orch_running = False
         try:
-            if btn.text() == "▶":
+            if os.path.exists(pid_file):
+                with open(pid_file) as _f:
+                    _pid = int(_f.read().strip())
+                with open(f"/proc/{_pid}/cmdline", "rb") as _f:
+                    _cmd = _f.read().replace(b"\\x00", b" ").decode("utf-8", "replace")
+                orch_running = ("orchestrator" in _cmd or "watchdog" in _cmd)
+        except Exception:
+            orch_running = False
+        if not orch_running:
+            self.statusBar().showMessage(
+                "⚠ Orchestratore non attivo: avvialo con ./byte-swarm.sh orch", 5000)
+            return
+        try:
+            # Stato reale basato sul flag, non sul testo del pulsante
+            # (il testo può andare fuori sync dopo pause/resume esterni).
+            paused = os.path.exists(pause_file)
+            if not paused:
                 _log_user_action("Toolbar-Orchestratore", "pausa",
                                  details="Pausa da pulsante ▶ toolbar")
                 with open(pause_file, 'w') as f:
@@ -2403,6 +2439,11 @@ class ControlCenter(QMainWindow):
             btn.setStyleSheet(
                 "QPushButton#primary_btn { background:#f59e0b; color:white; "
                 "font-weight:bold; font-size:14px; border-radius:6px; border:none; }")
+        else:
+            btn.setText("▶")
+            btn.setStyleSheet(
+                "QPushButton#primary_btn { background:#16a34a; color:white; "
+                "font-weight:bold; font-size:16px; border-radius:6px; border:none; }")
 
     def _on_current_project_changed(self, path: str):
         """Salva il percorso del progetto attivo (per task per-progetto)
@@ -2410,6 +2451,11 @@ class ControlCenter(QMainWindow):
         # set_current_folder si occupa di: aggiornare _current_project_path,
         # aggiornare il file tree e ricaricare i task del progetto.
         self.drawer.set_current_folder(path)
+        # Feedback visivo del progetto attivo
+        import os
+        name = os.path.basename(path.rstrip("/")) if path else "(nessuno)"
+        orch = "▶ attivo" if self._is_orchestrator_running() else "⛔ fermo"
+        self.statusBar().showMessage(f"📁 Progetto attivo: {name}   |   Orchestratore: {orch}", 4000)
         # Ricarica il pannello Coda Task se esiste, così mostra i task
         # del progetto appena selezionato
         scheduler = self.center.panel_pages.get("coda")
@@ -2551,14 +2597,64 @@ class ControlCenter(QMainWindow):
         lay.addWidget(send)
         return bar
 
+    def _is_orchestrator_running(self) -> bool:
+        """True se il processo orchestratore è attivo (via pid file)."""
+        import os
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        pid_file = os.path.join(base, "state", "orchestrator.pid")
+        try:
+            if not os.path.exists(pid_file):
+                return False
+            with open(pid_file) as _f:
+                _pid = int(_f.read().strip())
+            with open(f"/proc/{_pid}/cmdline", "rb") as _f:
+                _cmd = _f.read().replace(b"\\x00", b" ").decode("utf-8", "replace")
+            return ("orchestrator" in _cmd or "watchdog" in _cmd)
+        except Exception:
+            return False
+
     def _send_command(self):
         text = self.cmd_input.text().strip()
-        if text:
-            add_task_to_db(text)
-            self.cmd_input.clear()
-            print("Task aggiunto al database!")
-            # Qui potresti aggiungere un aggiornamento della lista task nel drawer
-            # self.drawer.refresh_tasks()
+        if not text:
+            return
+        project_path = self.get_current_project_path() if hasattr(self, "get_current_project_path") else None
+        project_name = os.path.basename(project_path.rstrip("/")) if project_path else None
+        try:
+            from GUI.main_window import add_task
+            task = add_task(text, "", "", "code", project_path)
+            task_id = task.get("id", "")
+        except Exception as e:
+            print(f"add_task fallito, fallback globale: {e}")
+            try:
+                task_id = add_task_to_db(text)
+            except Exception as e2:
+                self.statusBar().showMessage(f"❌ Errore aggiunta task: {e2}", 5000)
+                return
+        self.cmd_input.clear()
+        # Feedback visivo: dove è stato salvato
+        where = f"progetto '{project_name}'" if project_name else "coda globale"
+        msg = f"✅ Task aggiunto a {where}"
+        if task_id:
+            msg += f"  (id: {task_id[:18]}…)"
+        if not self._is_orchestrator_running():
+            msg += "  ⚠ orchestratore NON attivo: il task resta in coda"
+        else:
+            msg += "  ▶ orchestratore attivo: in elaborazione"
+        self.statusBar().showMessage(msg, 6000)
+        print(msg)
+        # Aggiorna la lista task del drawer/progetto attivo
+        try:
+            if hasattr(self, "drawer") and self.drawer is not None:
+                self.drawer._force_refresh_tasks()
+        except Exception as e:
+            print(f"refresh task list fallito: {e}")
+        # Aggiorna anche il pannello Coda Task del centro (se presente)
+        try:
+            scheduler = self.center.panel_pages.get("coda") if hasattr(self, "center") else None
+            if scheduler is not None and hasattr(scheduler, "refresh"):
+                scheduler.refresh()
+        except Exception as e:
+            print(f"refresh coda panel fallito: {e}")
     def _show_file_editor(self, file_path):
         if self._editor_docked:
             self._editor_docked.file_path = file_path
@@ -2749,10 +2845,10 @@ class ProjectTabBar(QTabBar):
             "  background:#fee2e2; color:#dc2626; border-radius:3px;"
             "}"
         )
-        # Click sul pulsante → emetti tabCloseRequested per l'index giusto.
-        # Usiamo una lambda con default arg per catturare l'index al momento
-        # della creazione (sennò cambia se i tab vengono riordinati).
-        btn.clicked.connect(lambda _, idx=index: self.tabCloseRequested.emit(idx))
+        # Click sul pulsante → risolvi l'index AL MOMENTO del click (non al
+        # momento della creazione): i tab sono movibili/riordinabili e un index
+        # catturato in anticipo chiuderebbe la scheda sbagliata.
+        btn.clicked.connect(self._on_close_button_clicked)
         try:
             self.setTabButton(
                 index,
@@ -2787,6 +2883,17 @@ class ProjectTabBar(QTabBar):
                 )
             except Exception:
                 pass
+
+    def _on_close_button_clicked(self):
+        """Risolvi dinamicamente il tab a cui appartiene il pulsante ✕
+        cliccato: evita di chiudere la scheda sbagliata dopo riordinamenti."""
+        sender = self.sender()
+        for i in range(self.count()):
+            if (self.tabButton(i, QTabBar.ButtonPosition.RightSide) is sender
+                    or self.tabButton(i, QTabBar.ButtonPosition.LeftSide) is sender):
+                if not self._is_plus_tab(i):
+                    self.tabCloseRequested.emit(i)
+                return
 
     def _is_plus_tab(self, index: int) -> bool:
         return index == getattr(self, "_plus_index", -1)

@@ -10,7 +10,7 @@ top_k = 20
 repeat_penalty = 1.15
 repeat_last_n = 256
 num_ctx = 2048
-num_predict = 256
+num_predict = 512
 seed = 42
 
 [models.planner]
