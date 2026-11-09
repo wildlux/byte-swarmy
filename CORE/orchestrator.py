@@ -26,6 +26,8 @@ import tarfile
 from pathlib import Path
 from typing import Optional
 
+from CORE.constants import DEFAULT_NUM_CTX
+
 # core/orchestrator.py
 from CORE.tools import ToolSet
 from CORE.memory import AgentMemory
@@ -47,6 +49,10 @@ except ImportError:
 from CORE.tools import ToolSet
 from CORE.memory import AgentMemory
 from CORE.ollama_client import ModelClient
+from CORE.regex_controller import RegexController, DEFAULT_PATTERNS, json_block
+
+# Controllore regex riusabile (json_object, json_array già nei default)
+_REGEX = RegexController(DEFAULT_PATTERNS)
 from SAFETY.security import log_security_event
 from SAFETY.security_checks import check_isolation, apply_safe_mode
 from CORE.execute_handler import handle_execute_task
@@ -479,7 +485,7 @@ class Planner:
 
     def _parse_response(self, raw: str, parent_task: dict) -> list:
         # Estrai il blocco JSON anche se circondato da ```json ... ```
-        m = re.search(r"\{[\s\S]*\}", raw)
+        m = _REGEX.search("json_object", raw)
         if not m:
             self.log.warning(f"planner: no JSON in response: {raw[:200]}")
             return []
@@ -873,7 +879,7 @@ class Worker:
             return "(cannot read project state)"
 
     def _parse_action(self, raw: str) -> Optional[dict]:
-        m = re.search(r"\{[\s\S]*\}", raw)
+        m = _REGEX.search("json_object", raw)
         if not m:
             return None
         try:
@@ -1104,7 +1110,7 @@ class AuditWorker:
                 prompt=user_prompt,
                 system=system_prompt,
                 temperature=0.1,
-                num_ctx=4096,
+                num_ctx=DEFAULT_NUM_CTX,
                 max_tokens=500,
             )
             # Try to parse JSON response
@@ -1168,8 +1174,8 @@ class GenericTaskPlanner:
         except Exception as e:
             self.log.warning(f"[preflight] decision model non raggiungibile: {e}")
             return None
-        import json as _json, re
-        m = re.search(r"\{[\s\S]*\}", raw)
+        import json as _json
+        m = _REGEX.search("json_object", raw)
         if not m:
             return None
         try:
@@ -1221,7 +1227,7 @@ class GenericTaskPlanner:
                 prompt=user_prompt,
                 system=system_prompt,
                 temperature=model_cfg.get("temperature", 0.1),
-                num_ctx=model_cfg.get("num_ctx", 4096),
+                num_ctx=model_cfg.get("num_ctx", DEFAULT_NUM_CTX),
                 max_tokens=max_tokens,
             )
         except Exception as e:
@@ -1296,14 +1302,14 @@ class GenericTaskPlanner:
     def _parse_response(self, raw: str, parent_task: dict, max_subtasks: int) -> list:
         """Parse della risposta JSON del decision model.
         Supporta sia lista che dict con chiave 'subtasks'/'tasks'."""
-        import json as _json, re
-        # Estrai blocco JSON
-        m = re.search(r"\[[\s\S]*\]", raw) or re.search(r"\{[\s\S]*\}", raw)
-        if not m:
+        import json as _json
+        # Estrai blocco JSON (array o oggetto)
+        blob = json_block(raw)
+        if not blob:
             self.log.warning(f"[generic-planner] no JSON in response: {raw[:200]}")
             return []
         try:
-            data = _json.loads(m.group(0))
+            data = _json.loads(blob)
         except _json.JSONDecodeError as e:
             self.log.error(f"[generic-planner] JSON parse error: {e}")
             return []

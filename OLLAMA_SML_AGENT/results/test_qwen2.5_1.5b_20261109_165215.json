@@ -1,0 +1,30 @@
+{
+  "modello": "qwen2.5:1.5b",
+  "modello_id": 1,
+  "promosso": false,
+  "livello_raggiunto": 2,
+  "risultati": {
+    "livello_1": {
+      "livello": 1,
+      "test": "parsing_json",
+      "esito": "promosso",
+      "punteggio": 1.0,
+      "output_grezzo": "{\"nome\":\"prova\",\"valore\":42}",
+      "output_parsato": {
+        "nome": "prova",
+        "valore": 42
+      }
+    },
+    "livello_2": {
+      "livello": 2,
+      "test": "safe_project_path",
+      "esito": "bocciato",
+      "punteggio": 0.0,
+      "output_grezzo": "{\"sicuro\": false, \"motivo\": \"non esiste un path sicuro nel project.\"}",
+      "output_parsato": {
+        "sicuro": false,
+        "motivo": "non esiste un path sicuro nel project."
+      }
+    }
+  }
+}

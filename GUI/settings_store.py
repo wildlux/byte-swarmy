@@ -15,6 +15,8 @@ import shutil
 import subprocess
 from typing import Dict, List, Optional
 
+from CORE.state_repository import load_json, save_json
+
 # Path assoluto del file settings.json
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SETTINGS_FILE = os.path.join(_BASE, "CONFIG", "settings.json")
@@ -69,38 +71,23 @@ def load_settings() -> Dict:
     Se ``detect_gpu_at_startup=True`` e la strategia salvata non è mai
     stata sovrascritta dall'utente, ricalcola la default strategy.
     """
-    if not os.path.exists(SETTINGS_FILE):
-        # Prima esecuzione: applica auto-detect
-        s = dict(DEFAULTS)
-        if s.get("detect_gpu_at_startup", True):
-            s["hardware_strategy"] = auto_detect_hardware_strategy()
-        return s
-    try:
-        with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        # Merge con defaults per chiavi mancanti
-        merged = dict(DEFAULTS)
-        merged.update(data)
-        # Auto-detect solo se l'utente non ha mai salvato esplicitamente
-        # una strategia (campo "user_set_hardware_strategy" traccia questo)
-        if (merged.get("detect_gpu_at_startup", True)
-                and not merged.get("user_set_hardware_strategy", False)):
-            merged["hardware_strategy"] = auto_detect_hardware_strategy()
-        return merged
-    except (json.JSONDecodeError, OSError):
-        return dict(DEFAULTS)
+    data = load_json("CONFIG/settings.json", dict(DEFAULTS))
+    if data is None:
+        data = dict(DEFAULTS)
+    # Merge con defaults per chiavi mancanti
+    merged = dict(DEFAULTS)
+    merged.update(data)
+    # Auto-detect solo se l'utente non ha mai salvato esplicitamente
+    # una strategia (campo "user_set_hardware_strategy" traccia questo)
+    if (merged.get("detect_gpu_at_startup", True)
+            and not merged.get("user_set_hardware_strategy", False)):
+        merged["hardware_strategy"] = auto_detect_hardware_strategy()
+    return merged
 
 
 def save_settings(settings: Dict) -> bool:
     """Salva le impostazioni in CONFIG/settings.json. Ritorna True se ok."""
-    try:
-        os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
-        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
-            json.dump(settings, f, indent=2, ensure_ascii=False)
-        return True
-    except OSError as e:
-        print(f"Errore salvataggio settings: {e}")
-        return False
+    return save_json("CONFIG/settings.json", settings)
 
 
 def get_theme() -> str:

@@ -16,6 +16,8 @@ from typing import Optional
 import sys
 _OUT = sys.stdout
 
+from CORE.constants import DEFAULT_NUM_CTX
+
 
 log = logging.getLogger("byte-swarmy.llm_tuner")
 
@@ -175,7 +177,7 @@ class TimestralLLMTuner:
         # (the tuner can only reduce it, not increase)
         if self.cfg and model_key:
             model_cfg = self.cfg.get("models", {}).get(model_key, {})
-            max_ctx = model_cfg.get("num_ctx", 4096)
+            max_ctx = model_cfg.get("num_ctx", DEFAULT_NUM_CTX)
             if profile.num_ctx > max_ctx:
                 # Use a copy to not mutate the profile
                 params = self._profile_to_params(profile)

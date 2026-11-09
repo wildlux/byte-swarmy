@@ -27,6 +27,8 @@ import logging
 import sys
 _OUT = sys.stdout
 
+from CORE.constants import OLLAMA_HOST, DEFAULT_NUM_CTX
+
 
 log = logging.getLogger("byte-swarmy.model_selector")
 
@@ -100,7 +102,7 @@ ROLE_DEFINITIONS = {
 # Lettori hardware
 # ====================================================================
 
-def get_ollama_models(host: str = "http://localhost:11434") -> list:
+def get_ollama_models(host: str = OLLAMA_HOST) -> list:
     """Legge la lista dei modelli da Ollama /api/tags."""
     try:
         data = json.loads(
@@ -270,7 +272,7 @@ def score_model_for_role(model: dict, role: str, hardware: dict) -> tuple:
 
 
 def get_recommendations(
-    ollama_host: str = "http://localhost:11434",
+    ollama_host: str = OLLAMA_HOST,
     config_path: str = "CONFIG/config.toml",
 ) -> dict:
     """Calcola raccomandazioni per tutti i ruoli.
@@ -395,7 +397,7 @@ def apply_recommendations(recs: dict, config_path: str = "CONFIG/config.toml") -
                     "name": recommended,
                     "enabled": True,
                     "temperature": 0.1,
-                    "num_ctx": 4096,
+                    "num_ctx": DEFAULT_NUM_CTX,
                 }
                 decision_cfg["active"] = model_section_name
 

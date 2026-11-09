@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
     QComboBox, QLineEdit, QMessageBox, QInputDialog, QScrollArea,
     QSizePolicy, QGroupBox, QFormLayout, QCheckBox, QPlainTextEdit,
+    QProgressBar,
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QUrl, QThread, QObject, pyqtSignal as Signal
 from PyQt6.QtGui import QDesktopServices
@@ -25,6 +26,7 @@ from PyQt6.QtGui import QDesktopServices
 from GUI import settings_store
 from GUI.theme.theme import set_prop as _theme_prop
 from GUI.theme.theme import set_banner as _theme_banner
+from CORE.gui_worker import BaseWorker
 
 # ═══════════════════════════════════════════════════════════════
 # Worker thread per l'audit (non blocca la GUI)
@@ -83,6 +85,96 @@ class AuditWorker(QThread):
         if self._proc and self._proc.poll() is None:
             self._proc.kill()
         self.requestInterruption()
+
+
+# ═══════════════════════════════════════════════════════════════
+# Worker: scaricamento pesi HF + registrazione Ollama (estremamente beta)
+# ═══════════════════════════════════════════════════════════════
+
+class WeightsDownloadWorker(BaseWorker):
+    """Scarica i pesi GGUF da un link Hugging Face e li registra su Ollama.
+
+    Emette: progress (messaggi), percent (0..100 download), found
+    (descrizione file scelto), finished_ok (nome modello ollama), failed.
+    """
+    percent = Signal(int)
+    found = Signal(str)
+    finished_ok = Signal(dict)
+
+    def __init__(self, link: str, force_filename: str = "", parent=None):
+        super().__init__(parent)
+        self.link = link
+        self.force_filename = force_filename
+
+    def _execute(self):
+        from CORE import hf_weights as hw
+        import time as _t
+
+        self.progress.emit(f"🔗 Analisi del link: {self.link[:120]}")
+        info = hw.parse_hf_link(self.link)
+        if self.force_filename:
+            info["filename"] = self.force_filename
+        files = hw.list_repo_files(info["repo_id"], info["revision"] or "main")
+        resolved = hw.resolve_download(info, files=files)
+        size = resolved.get("size", 0)
+        self.found.emit(f"📦 Pesi scelti: {resolved['filename']} ({hw.human_size(size)})")
+
+        def _cb(stage, val):
+            if self.is_cancelled():
+                return
+            if stage == "download" and isinstance(val, float) and 0 <= val <= 1:
+                self.percent.emit(int(val * 100))
+            elif stage == "bytes":
+                self.progress.emit(f"⬇ scaricati {hw.human_size(val)}…")
+
+        gguf = hw.download_file(
+            resolved["url"], hw.WEIGHT_SPACE_DIR,
+            progress_cb=_cb, should_cancel=lambda: self.is_cancelled(),
+        )
+        if self.is_cancelled():
+            self.failed.emit("Download annullato.")
+            return
+        self.progress.emit("🧬 Letta l'intestazione dei pesi (GGUF header)…")
+        meta = hw.gguf_meta(gguf)
+        name = hw.sanitized_model_name(info["repo_id"], resolved["filename"])
+        self.progress.emit(f"⚙️ Registrazione su Ollama come '{name}'…")
+        if self.is_cancelled():
+            self.failed.emit("Annullato prima della registrazione.")
+            return
+        reg = hw.register_with_ollama(gguf, name)
+        entry = {
+            "name": name, "repo_id": info["repo_id"],
+            "revision": info["revision"], "filename": resolved["filename"],
+            "size": size, "gguf": reg["gguf"], "modelfile": reg["modelfile"],
+            "ts": _t.strftime("%Y-%m-%dT%H:%M:%S"), "meta": meta,
+        }
+        hw.add_to_registry(entry)
+        self.progress.emit(f"✓ Modello pesi pronto: {name}")
+        self.finished_ok.emit(entry)
+
+
+class WeightspaceProveWorker(BaseWorker):
+    """Esegue l'harness di weight-space programming sul modello scaricato.
+
+    Non blocca la GUI: emette progress (problema in corso), finished_ok
+    (report dict), failed (messaggio).
+    """
+    finished_ok = Signal(dict)
+
+    def __init__(self, model_name: str, parent=None):
+        super().__init__(parent)
+        self.model_name = model_name
+
+    def _execute(self):
+        from CORE import weight_space_harness as h
+        self.progress.emit("🧪 Valutazione dei pesi su problemi da programmatore…")
+        report = h.run_harness(
+            self.model_name,
+            progress_cb=lambda msg: (self.progress.emit(msg)),
+            should_cancel=lambda: self.is_cancelled(),
+        )
+        self.finished_ok.emit(report)
+
 
 class SettingsPanel(QWidget):
     """Pannello impostazioni con tema, lingua e Git remotes."""
@@ -182,6 +274,7 @@ class SettingsPanel(QWidget):
         _add_section("hardware", self._build_hardware_section())
         _add_section("git", self._build_git_section())
         _add_section("audit", self._build_audit_section())
+        _add_section("pesi huggingface", self._build_weightspace_section())
 
         # Le sezioni riempiono lo spazio disponibile (niente stretch finale
         # che lasciava area vuota): l'audit_output usa il posto in più.
@@ -594,6 +687,286 @@ class SettingsPanel(QWidget):
         outer.addWidget(self.audit_output)
 
         return box
+
+    # ──────────────────────────────────────────────────────────────────
+    # Weights-Space / Hugging Face (sviluppo estremamente beta)
+    # ──────────────────────────────────────────────────────────────────
+    def _build_weightspace_section(self) -> QFrame:
+        """Sezione beta: scaricamento pesi GGUF da un link Hugging Face
+        e prova del modello su problemi comuni da programmatore (incluse
+        le ripetizioni/loop), seguendo l'idea del paper "Sparks of
+        Weight-Space Programming" (MIT CSAIL, nov. 2026).
+        """
+        from CORE import hf_weights as hw
+
+        box = QGroupBox("🧬 Pesi da Hugging Face — ⚠️ SVILUPPO ESTREMAMENTE BETA")
+
+        outer = QVBoxLayout(box)
+        outer.setSpacing(8)
+        outer.setContentsMargins(14, 14, 14, 14)
+
+        badge = QLabel(
+            "⚠️ Funzione di sviluppo non consigliata per l'uso quotidiano. "
+            "Scarica i pesi GGUF da un modello HF e li registra su Ollama "
+            "(un solo modello in RAM: attenzione alle dimensioni)."
+        )
+        badge.setWordWrap(True)
+        badge.setStyleSheet("font-size:11px; color:#d97706; font-style:italic;")
+        outer.addWidget(badge)
+
+        # Riga link + analyze
+        link_row = QHBoxLayout()
+        link_row.setSpacing(8)
+        self.ws_link_input = QLineEdit()
+        self.ws_link_input.setPlaceholderText(
+            "https://huggingface.co/OWNER/REPO  (o …/blob/main/model.gguf, o OWNER/REPO)"
+        )
+        self.ws_link_input.setToolTip(
+            "Link diretto alla pagina del modello Hugging Face. Per macchine "
+            "4GB si sceglie automaticamente la quantizzazione Q4 più piccola."
+        )
+        link_row.addWidget(self.ws_link_input, stretch=1)
+        self.ws_analyze_btn = QPushButton("🔍 Analizza link")
+        _theme_prop(self.ws_analyze_btn, "role", "start")
+        self.ws_analyze_btn.clicked.connect(self._on_ws_analyze)
+        link_row.addWidget(self.ws_analyze_btn)
+        outer.addLayout(link_row)
+
+        # Riga scelta variante + download
+        pick_row = QHBoxLayout()
+        pick_row.setSpacing(8)
+        self.ws_variant_combo = QComboBox()
+        self.ws_variant_combo.setToolTip("File di pesi GGUF disponibili nella repo")
+        self.ws_variant_combo.setMinimumWidth(260)
+        pick_row.addWidget(self.ws_variant_combo, stretch=1)
+        self.ws_download_btn = QPushButton("⬇ Scarica e registra su Ollama")
+        _theme_prop(self.ws_download_btn, "role", "start")
+        self.ws_download_btn.setEnabled(False)
+        self.ws_download_btn.clicked.connect(self._on_ws_download)
+        pick_row.addWidget(self.ws_download_btn)
+        self.ws_cancel_btn = QPushButton("✕ Annulla")
+        _theme_prop(self.ws_cancel_btn, "role", "danger")
+        self.ws_cancel_btn.setEnabled(False)
+        self.ws_cancel_btn.clicked.connect(self._on_ws_cancel)
+        pick_row.addWidget(self.ws_cancel_btn)
+        outer.addLayout(pick_row)
+
+        # Progresso download
+        self.ws_progress = QProgressBar()
+        self.ws_progress.setRange(0, 100)
+        self.ws_progress.setValue(0)
+        self.ws_progress.setVisible(False)
+        outer.addWidget(self.ws_progress)
+
+        self.ws_status = QLabel("Pronto. Incolla il link di un modello HF e clicca 'Analizza link'.")
+        self.ws_status.setWordWrap(True)
+        self.ws_status.setStyleSheet("font-size:11px; font-style:italic;")
+        _theme_prop(self.ws_status, "role", "muted")
+        outer.addWidget(self.ws_status)
+
+        # Models già scaricati + prova harness
+        prov_row = QHBoxLayout()
+        prov_row.setSpacing(8)
+        prov_lbl = QLabel("Modelli pesi scaricati:")
+        prov_lbl.setStyleSheet("font-size:11px;")
+        _theme_prop(prov_lbl, "role", "muted")
+        prov_row.addWidget(prov_lbl)
+        self.ws_model_combo = QComboBox()
+        prov_row.addWidget(self.ws_model_combo, stretch=1)
+        self.ws_prove_btn = QPushButton("🧪 Prova il modello (problemi da programmatore)")
+        _theme_prop(self.ws_prove_btn, "role", "start")
+        self.ws_prove_btn.setToolTip(
+            "Esegue l'harness di weight-space programming: somma con loop, "
+            "FizzBuzz, conteggio, inversione, fix di loop infiniti e "
+            "off-by-one + metrica di ripetizione/loop (Esperimento 8 del paper)."
+        )
+        self.ws_prove_btn.clicked.connect(self._on_ws_prove)
+        prov_row.addWidget(self.ws_prove_btn)
+        outer.addLayout(prov_row)
+        self._ws_reload_model_combo()
+
+        # Output
+        self.ws_output = QPlainTextEdit()
+        self.ws_output.setReadOnly(True)
+        self.ws_output.setMaximumHeight(190)
+        self.ws_output.setStyleSheet(
+            "font-family:'JetBrains Mono','Consolas',monospace; font-size:11px;"
+        )
+        self.ws_output.setPlaceholderText(
+            "Qui appaiono: analisi del link, header dei pesi (GGUF), avanzamento "
+            "download e report dell'harness di weight-space programming…"
+        )
+        outer.addWidget(self.ws_output)
+
+        return box
+
+    # ──────────────────────────────────────────────────────────────────
+    # Weights-Space handlers
+    # ──────────────────────────────────────────────────────────────────
+    def _ws_reload_model_combo(self):
+        from CORE import hf_weights as hw
+        self.ws_model_combo.clear()
+        models = hw.load_registry()
+        if not models:
+            self.ws_model_combo.addItem("— nessun modello scaricato —")
+            self.ws_prove_btn.setEnabled(False)
+            return
+        self.ws_prove_btn.setEnabled(True)
+        for m in models:
+            label = f"{m.get('name')} · {hw.human_size(m.get('size') or 0)} · {m.get('repo_id', '')}"
+            self.ws_model_combo.addItem(label)
+        self.ws_model_combo.setCurrentIndex(0)
+
+    def _on_ws_analyze(self):
+        """Analizza il link: elenca i GGUF della repo e popola il combo."""
+        from CORE import hf_weights as hw
+        link = self.ws_link_input.text().strip()
+        if not link:
+            QMessageBox.information(self, "Weights beta", "Incolla prima il link del modello HF.")
+            return
+        try:
+            info = hw.parse_hf_link(link)
+            files = hw.list_repo_files(info["repo_id"], info["revision"] or "main")
+        except ValueError as e:
+            QMessageBox.warning(self, "Weights beta", f"Link non valido\n\n{e}")
+            return
+        except Exception as e:
+            QMessageBox.warning(self, "Weights beta", f"Errore di rete su Hugging Face:\n{e}")
+            return
+        self.ws_output.setPlainText(
+            f"REPO: {info['repo_id']} (rev: {info['revision']})\n"
+            f"file: {len(files)}\n" +
+            "\n".join(f"  - {f['path']} ({hw.human_size(f['size'])})"
+                      for f in files[:25])
+        )
+        self.ws_variant_combo.clear()
+        for f in files:
+            if str(f["path"]).lower().endswith(".gguf"):
+                self.ws_variant_combo.addItem(
+                    f"{f['path']} ({hw.human_size(f['size'])})",
+                    userData=f["path"],
+                )
+        if self.ws_variant_combo.count() == 0:
+            QMessageBox.warning(
+                self, "Weights beta",
+                "Questa repo non contiene file GGUF (solo pesi quantizzati "
+                "possono girare su Ollama). Prova un altro modello."
+            )
+            self.ws_download_btn.setEnabled(False)
+            return
+        # seleziona di default la variante più friendly per 4GB
+        preferred = hw.pick_gguf(files)
+        if preferred:
+            idx = self.ws_variant_combo.findText(
+                f"{preferred['path']} ({hw.human_size(preferred['size'])})")
+            if idx >= 0:
+                self.ws_variant_combo.setCurrentIndex(idx)
+        self.ws_download_btn.setEnabled(True)
+        chosen = self.ws_variant_combo.currentData()
+        self.ws_status.setText(
+            f"Pesi trovati: {chosen} — clicca '⬇ Scarica e registra su Ollama'."
+        )
+
+    def _on_ws_download(self):
+        """Scarica il file di pesi selezionato e registra il modello."""
+        from CORE import hf_weights as hw
+        link = self.ws_link_input.text().strip()
+        filename = self.ws_variant_combo.currentData() or ""
+        if not link or not filename:
+            QMessageBox.information(self, "Weights beta", "Prima analizza il link.")
+            return
+        try:
+            info = hw.parse_hf_link(link)
+        except ValueError as e:
+            QMessageBox.warning(self, "Weights beta", f"Link non valido\n\n{e}")
+            return
+        if not filename:
+            QMessageBox.warning(self, "Weights beta", "Nessun file GGUF selezionato.")
+            return
+        info["filename"] = filename  # usa la variante scelta dall'utente
+        self.ws_download_btn.setEnabled(False)
+        self.ws_analyze_btn.setEnabled(False)
+        self.ws_cancel_btn.setEnabled(True)
+        self.ws_progress.setVisible(True)
+        self.ws_progress.setValue(0)
+        self.ws_status.setText("⬇ Download dei pesi in corso…")
+        self._ws_download_worker = WeightsDownloadWorker(
+            link, force_filename=filename, parent=self)
+        try:
+            self._ws_download_worker.finished_ok.connect(self._on_ws_download_done)
+            self._ws_download_worker.failed.connect(self._on_ws_failed)
+            self._ws_download_worker.progress.connect(
+                lambda msg: self.ws_output.appendPlainText(msg))
+            self._ws_download_worker.percent.connect(self.ws_progress.setValue)
+            self._ws_download_worker.found.connect(
+                lambda msg: self.ws_output.appendPlainText(msg))
+            self._ws_download_worker.start()
+        except Exception as e:
+            self._reset_ws_buttons()
+            QMessageBox.warning(self, "Weights beta", f"Avvio download fallito:\n{e}")
+
+    def _on_ws_download_done(self, entry: dict):
+        self._reset_ws_buttons()
+        self.ws_progress.setValue(100)
+        meta = entry.get("meta") or {}
+        meta_txt = "\n".join(f"  {k} = {v}" for k, v in list(meta.items())[:8]) or "  (n/d)"
+        self.ws_output.appendPlainText(
+            "\n✓ PESI REGISTRATI SU OLLAMA\n"
+            f"  nome:    {entry['name']}\n"
+            f"  pesi:    {entry['gguf']}\n"
+            f"  header : \n{meta_txt}\n\n"
+            "Ora puoi: 🧪 'Prova il modello' (harness weight-space) oppure "
+            "usarlo via orchestrator/benchmark."
+        )
+        self.ws_status.setText(f"✓ Modello pronto: {entry['name']}")
+        self._ws_reload_model_combo()
+
+    def _on_ws_failed(self, msg: str):
+        self._reset_ws_buttons()
+        self.ws_progress.setVisible(False)
+        self.ws_status.setText("⚠️ Operazione non completata.")
+        self.ws_output.appendPlainText(f"\n✗ ERRORE: {msg}")
+
+    def _on_ws_cancel(self):
+        if getattr(self, "_ws_download_worker", None):
+            self._ws_download_worker.cancel()
+        if getattr(self, "_ws_prove_worker", None):
+            self._ws_prove_worker.cancel()
+        self.ws_status.setText("Annullamento richiesto…")
+
+    def _reset_ws_buttons(self):
+        self.ws_download_btn.setEnabled(self.ws_variant_combo.count() > 0)
+        self.ws_analyze_btn.setEnabled(True)
+        self.ws_cancel_btn.setEnabled(False)
+        self.ws_progress.setVisible(False)
+
+    def _on_ws_prove(self):
+        """Lancia l'harness weight-space sul modello selezionato."""
+        model = self.ws_model_combo.currentText()
+        if not model or model.startswith("—"):
+            QMessageBox.information(
+                self, "Weights beta", "Nessun modello pesi in elenco: scaricalo prima.")
+            return
+        # il combo mostra "name · size · repo": estrai la prima parte
+        model_name = model.split(" · ")[0]
+        self.ws_prove_btn.setEnabled(False)
+        self.ws_cancel_btn.setEnabled(True)
+        self.ws_status.setText(f"🧪 Harness in esecuzione su '{model_name}' (attendere…)")
+        self._ws_prove_worker = WeightspaceProveWorker(model_name, parent=self)
+        self._ws_prove_worker.finished_ok.connect(self._on_ws_prove_done)
+        self._ws_prove_worker.failed.connect(self._on_ws_failed)
+        self._ws_prove_worker.progress.connect(
+            lambda msg: self.ws_output.appendPlainText("  " + msg))
+        self._ws_prove_worker.start()
+
+    def _on_ws_prove_done(self, report: dict):
+        self._reset_ws_buttons()
+        from CORE import weight_space_harness as h
+        self.ws_output.appendPlainText("\n" + "=" * 60 + "\n" + h.format_report(report))
+        self.ws_status.setText(
+            f"Punteggio: {report['passed']}/{report['total']}"
+            + (" — ⚠️ Loop rilevati" if report.get("loops_detected") else "")
+        )
 
     # ──────────────────────────────────────────────────────────────────
     # Audit handlers

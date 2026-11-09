@@ -26,7 +26,7 @@ import signal
 import subprocess
 import uuid
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Callable, Optional, Sequence
 
 
 def _tmp_name(base: str, suffix: str = "") -> str:
@@ -46,14 +46,48 @@ from SAFETY.security import (
     validate_bash_command,
 )
 from CORE.ast_scanner import scanner as ast_scanner, detect_artifacts
+from CORE.regex_controller import RegexController, DEFAULT_PATTERNS, validate_chars
+
+# Controllore regex riusabile: py_class / py_def sono già nei default
+_REGEX = RegexController(DEFAULT_PATTERNS)
+
+# ═══════════════════════════════════════════════════════════════════
+# Tool registry leggero — nuovi tool possono essere registrati senza
+# toccare ToolSet. I metodi esistenti di ToolSet continuano a funzionare;
+# il registry serve per tool esterni/plugin e per il dispatch dinamico.
+# ═══════════════════════════════════════════════════════════════════
+
+TOOL_REGISTRY: dict[str, Callable] = {}
+
+
+def register_tool(name: str):
+    """Decorator per registrare un tool nel registry.
+
+    Esempio:
+        @register_tool("mio_tool")
+        def mio_tool(ctx, path: str) -> str:
+            return "ok"
+
+    Poi: ``get_tool("mio_tool")(ctx, path)``.
+    """
+    def deco(fn):
+        TOOL_REGISTRY[name] = fn
+        return fn
+    return deco
+
+
+def get_tool(name: str) -> Optional[Callable]:
+    """Ritorna il tool registrato con quel nome, o None."""
+    return TOOL_REGISTRY.get(name)
+
+
+def list_tools() -> list:
+    """Lista dei nomi dei tool registrati."""
+    return sorted(TOOL_REGISTRY)
 
 
 # Branch che i worker non possono cancellare.
 PROTECTED_BRANCHES = frozenset({"main", "master", "develop", "trunk"})
-
-# Nome branch/ref valido. Supporta ~, ^, @ per riferimenti git.
-_REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/~^@-]{0,79}$")
-_GLOB_RE = re.compile(r"^[A-Za-z0-9_./*?\[\]-]{1,120}$")
 
 # File che non devono mai finire nell'output di grep/search.
 GREP_EXCLUDES = (
@@ -310,7 +344,7 @@ class ToolSet:
             return "ERROR: pattern too long (max 500)"
         if not isinstance(file_glob, str):
             file_glob = "*"
-        if not _GLOB_RE.match(file_glob) or ".." in Path(file_glob).parts:
+        if not validate_chars(file_glob, "glob") or ".." in Path(file_glob).parts:
             return "ERROR: invalid file_glob"
         try:
             cmd = [
@@ -385,7 +419,7 @@ class ToolSet:
     # ----- 6d. list_files (listing sicuro con glob) -----
     def list_files(self, path: str = ".", pattern: str = "*") -> str:
         """Elenca file e cartelle dentro project/ (glob, esclude sensibili)."""
-        if not isinstance(pattern, str) or not _GLOB_RE.match(pattern or "*"):
+        if not isinstance(pattern, str) or not validate_chars(pattern or "*", "glob"):
             return "ERROR: invalid pattern (use e.g. '*.py')"
         try:
             base = safe_project_path(path or ".", self.project_root)
@@ -741,9 +775,9 @@ class ToolSet:
                 rel_path = f.relative_to(self.project_root)
                 content = f.read_text(encoding="utf-8", errors="replace")
 
-                # Regex per classi e funzioni
-                classes = re.findall(r"^class\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", content, re.MULTILINE)
-                funcs = re.findall(r"^def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", content, re.MULTILINE)
+                # Regex per classi e funzioni (via RegexController)
+                classes = _REGEX.findall("py_class", content)
+                funcs = _REGEX.findall("py_def", content)
 
                 if classes or funcs:
                     entry = f"File: {rel_path}\n"
@@ -1174,6 +1208,6 @@ class ToolSet:
         """Validates a git reference to prevent injection attacks."""
         if not ref:
             return None
-        if _REF_RE.match(ref):
+        if validate_chars(ref, "ref"):
             return ref
         return None

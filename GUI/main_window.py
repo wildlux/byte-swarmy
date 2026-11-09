@@ -38,6 +38,8 @@ try:
 except ImportError:
     TOML_WRITER_AVAILABLE = False
 
+from CORE.constants import OLLAMA_HOST
+
 from PyQt6.QtCore import (
     Qt, QThread, pyqtSignal, QTimer, QFileSystemWatcher, QObject, QProcess, QSize
 )
@@ -3388,7 +3390,7 @@ class ModelsTab(QWidget):
             }
             data = json.dumps(payload).encode("utf-8")
             req = urllib.request.Request(
-                "http://localhost:11434/api/chat",
+                f"{OLLAMA_HOST}/api/chat",
                 data=data,
                 headers={"Content-Type": "application/json"},
                 method="POST",

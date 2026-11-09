@@ -16,6 +16,8 @@ import time
 
 BASE_DIR = Path(__file__).parent.parent.resolve()
 
+from CORE.constants import OLLAMA_HOST, DEFAULT_NUM_CTX, BTN_TRANSPARENT_STYLE, BTN_TRANSPARENT_DANGER_STYLE, BTN_TRANSPARENT_MEDIUM_STYLE, BTN_TRANSPARENT_SMALL_STYLE
+
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QFormLayout, QGridLayout, QStackedWidget, QPushButton, QLabel,
@@ -1687,25 +1689,25 @@ class ConfigPanel(QFrame):
                     ("temperature", "Temperature", "spin_float", (0.0, 2.0, 0.05)),
                     ("top_p", "Top P", "spin_float", (0.0, 1.0, 0.05)),
                     ("num_ctx", "Context window", "spin_int", (512, 32768, 256)),
-                    ("num_predict", "Max tokens", "spin_int", (64, 4096, 64)),
+                    ("num_predict", "Max tokens", "spin_int", (64, DEFAULT_NUM_CTX, 64)),
                 ]),
                 ("Planner", "planner", [
                     ("name", "Modello", "combo", []),
                     ("temperature", "Temperature", "spin_float", (0.0, 2.0, 0.05)),
                     ("num_ctx", "Context window", "spin_int", (512, 32768, 256)),
-                    ("num_predict", "Max tokens", "spin_int", (64, 4096, 64)),
+                    ("num_predict", "Max tokens", "spin_int", (64, DEFAULT_NUM_CTX, 64)),
                 ]),
                 ("Worker Coder", "worker_coder", [
                     ("name", "Modello", "combo", []),
                     ("temperature", "Temperature", "spin_float", (0.0, 2.0, 0.05)),
                     ("num_ctx", "Context window", "spin_int", (512, 32768, 256)),
-                    ("num_predict", "Max tokens", "spin_int", (64, 4096, 64)),
+                    ("num_predict", "Max tokens", "spin_int", (64, DEFAULT_NUM_CTX, 64)),
                 ]),
                 ("Worker General", "worker_general", [
                     ("name", "Modello", "combo", []),
                     ("temperature", "Temperature", "spin_float", (0.0, 2.0, 0.05)),
                     ("num_ctx", "Context window", "spin_int", (512, 32768, 256)),
-                    ("num_predict", "Max tokens", "spin_int", (64, 4096, 64)),
+                    ("num_predict", "Max tokens", "spin_int", (64, DEFAULT_NUM_CTX, 64)),
                 ]),
                 ("Embedding", "embedding", [
                     ("name", "Modello embedding", "combo", []),
@@ -1753,7 +1755,7 @@ class ConfigPanel(QFrame):
         # Lista modelli Ollama disponibili
         try:
             import urllib.request, json
-            with urllib.request.urlopen("http://localhost:11434/api/tags", timeout=2) as r:
+            with urllib.request.urlopen(f"{OLLAMA_HOST}/api/tags", timeout=2) as r:
                 data = json.loads(r.read())
                 self._available_models = [m['name'] for m in data.get('models', [])]
         except Exception:
@@ -3102,6 +3104,23 @@ class FileSystemModel(QStandardItemModel):
 
         return empty, checkbox, icon_item, name
 
+    def _make_empty_marker(self):
+        """Riga 'Cartella vuota' (disabilitata, corsivo) per cartelle senza contenuti."""
+        empty = QStandardItem()
+        empty.setEnabled(False)
+        checkbox = QStandardItem()
+        checkbox.setEnabled(False)
+        icon_item = QStandardItem()
+        icon_item.setEnabled(False)
+        name = QStandardItem("Cartella vuota")
+        name.setEnabled(False)
+        name.setEditable(False)
+        font = name.font()
+        font.setItalic(True)
+        name.setFont(font)
+        name.setData(False, Qt.ItemDataRole.UserRole + 1)  # non è una cartella
+        return [empty, checkbox, icon_item, name]
+
     def _populate_folder(self, folder_path, parent_item):
         try:
             entries = sorted(os.listdir(folder_path))
@@ -3134,6 +3153,10 @@ class FileSystemModel(QStandardItemModel):
             ordered = dirs + files
         else:
             ordered = files + dirs
+        # Cartella senza contenuti: mostra la riga "Cartella vuota"
+        if not ordered:
+            parent_item.appendRow(self._make_empty_marker())
+            return
         for name, full_path, is_dir in ordered:
             empty, checkbox, icon_item, name_item = self._make_items(full_path, is_dir)
             parent_item.appendRow([empty, checkbox, icon_item, name_item])
@@ -3185,6 +3208,10 @@ class FileSystemModel(QStandardItemModel):
             ordered = dirs + files
         else:
             ordered = files + dirs
+        # Cartella senza contenuti: mostra la riga "Cartella vuota"
+        if not ordered:
+            parent_item.appendRow(self._make_empty_marker())
+            return
         # Aggiungi figli reali (4 colonne: vuoto, checkbox, icona, nome)
         for name, child_full, is_dir in ordered:
             empty, checkbox, icon_item, name_item = self._make_items(child_full, is_dir)
@@ -3302,11 +3329,7 @@ class FileTreeDrawer(QFrame):
         self.add_file_btn = QPushButton("➕")
         self.add_file_btn.setFixedSize(28, 28)
         self.add_file_btn.setToolTip("Crea un nuovo file di testo nella cartella corrente")
-        self.add_file_btn.setStyleSheet(
-            "QPushButton { font-size:16px; border:none; background:transparent; "
-            "border-radius:4px; padding:0; }"
-            "QPushButton:hover { background:#e2e8f0; border-radius:4px; }"
-        )
+        self.add_file_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
         self.add_file_btn.clicked.connect(self._add_text_file)
         btn_row.addWidget(self.add_file_btn)
 
@@ -3314,11 +3337,7 @@ class FileTreeDrawer(QFrame):
         self.add_folder_btn = QPushButton("📁")
         self.add_folder_btn.setFixedSize(28, 28)
         self.add_folder_btn.setToolTip("Crea una nuova cartella nella cartella corrente")
-        self.add_folder_btn.setStyleSheet(
-            "QPushButton { font-size:16px; border:none; background:transparent; "
-            "border-radius:4px; padding:0; }"
-            "QPushButton:hover { background:#e2e8f0; border-radius:4px; }"
-        )
+        self.add_folder_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
         self.add_folder_btn.clicked.connect(self._add_folder)
         btn_row.addWidget(self.add_folder_btn)
 
@@ -3326,11 +3345,7 @@ class FileTreeDrawer(QFrame):
         self.refresh_btn = QPushButton("🔄")
         self.refresh_btn.setFixedSize(28, 28)
         self.refresh_btn.setToolTip("Aggiorna file tree (cartelle e file della cartella corrente)")
-        self.refresh_btn.setStyleSheet(
-            "QPushButton { font-size:16px; border:none; background:transparent; "
-            "border-radius:4px; padding:0; }"
-            "QPushButton:hover { background:#e2e8f0; border-radius:4px; }"
-        )
+        self.refresh_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
         self.refresh_btn.clicked.connect(self._refresh_file_tree)
         btn_row.addWidget(self.refresh_btn)
 
@@ -3338,11 +3353,7 @@ class FileTreeDrawer(QFrame):
         self.sort_btn = QPushButton("📁📄")
         self.sort_btn.setFixedSize(28, 28)
         self.sort_btn.setToolTip("Ordina elementi: cartelle prima / file prima")
-        self.sort_btn.setStyleSheet(
-            "QPushButton { font-size:14px; border:none; background:transparent; "
-            "border-radius:4px; padding:0; }"
-            "QPushButton:hover { background:#e2e8f0; border-radius:4px; }"
-        )
+        self.sort_btn.setStyleSheet(BTN_TRANSPARENT_MEDIUM_STYLE)
         self.sort_btn.clicked.connect(self._toggle_sort_order)
         btn_row.addWidget(self.sort_btn)
 
@@ -3352,11 +3363,7 @@ class FileTreeDrawer(QFrame):
         self.del_btn = QPushButton("🗑️")
         self.del_btn.setFixedSize(28, 28)
         self.del_btn.setToolTip("Elimina file/cartelle selezionate con la colonna ✓")
-        self.del_btn.setStyleSheet(
-            "QPushButton { font-size:16px; border:none; background:transparent; "
-            "border-radius:4px; padding:0; }"
-            "QPushButton:hover { background:#fee2e2; border-radius:4px; }"
-        )
+        self.del_btn.setStyleSheet(BTN_TRANSPARENT_DANGER_STYLE)
         self.del_btn.clicked.connect(self._delete_selected_items)
         btn_row.addWidget(self.del_btn)
         lay.addLayout(btn_row)
@@ -3385,7 +3392,7 @@ class FileTreeDrawer(QFrame):
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.tree.header().setStretchLastSection(False)
         self._apply_header_layout()
-        self.tree.setIndentation(4)  # triangolino vicino al bordo
+        self.tree.setIndentation(16)  # area branch cliccabile: con 4px il triangolino non si riesce a cliccare
         # Elimina padding e margini interni delle celle: niente spazio vuoto
         # tra colonna vuota, checkbox, icona e nome. Checkbox piccole (13px)
         # e righe basse (22px) per un aspetto compatto.
@@ -3439,9 +3446,7 @@ class FileTreeDrawer(QFrame):
         task_refresh_btn = QPushButton("🔄")
         task_refresh_btn.setFixedSize(20, 20)
         task_refresh_btn.setToolTip("Aggiorna lista task")
-        task_refresh_btn.setStyleSheet(
-            "QPushButton { background:transparent; border:none; font-size:13px; padding:0; }"
-        )
+        task_refresh_btn.setStyleSheet(BTN_TRANSPARENT_SMALL_STYLE)
         task_refresh_btn.clicked.connect(self._force_refresh_tasks)
         task_header_row.addWidget(task_refresh_btn)
 
@@ -3454,10 +3459,7 @@ class FileTreeDrawer(QFrame):
         task_add_btn = QPushButton("➕")
         task_add_btn.setFixedSize(20, 20)
         task_add_btn.setToolTip("Aggiungi un nuovo task")
-        task_add_btn.setStyleSheet(
-            "QPushButton { background:transparent; border:none; font-size:13px; padding:0; }"
-            "QPushButton:hover { background:#e2e8f0; border-radius:4px; }"
-        )
+        task_add_btn.setStyleSheet(BTN_TRANSPARENT_SMALL_STYLE)
         task_add_btn.clicked.connect(
             lambda: self.main_win.center.open_panel("coda")
             if hasattr(self.main_win, "center") else None
@@ -3473,11 +3475,7 @@ class FileTreeDrawer(QFrame):
         task_del_btn = QPushButton("🗑️")
         task_del_btn.setFixedSize(28, 28)
         task_del_btn.setToolTip("Elimina task selezionati con la colonna ✓")
-        task_del_btn.setStyleSheet(
-            "QPushButton { font-size:16px; border:none; background:transparent; "
-            "border-radius:4px; padding:0; }"
-            "QPushButton:hover { background:#fee2e2; border-radius:4px; }"
-        )
+        task_del_btn.setStyleSheet(BTN_TRANSPARENT_DANGER_STYLE)
         task_del_btn.clicked.connect(self._delete_checked_tasks)
         task_header_row.addWidget(task_del_btn)
         lay.addLayout(task_header_row)
@@ -3903,12 +3901,12 @@ class FileTreeDrawer(QFrame):
         h = self.tree.header()
         h.setStretchLastSection(False)
         h.setMinimumSectionSize(8)  # prima del resize: altrimenti il minimo di default (font header) prevale
-        # Colonna 0: vuota, solo triangolino espandi/collassa (10px fissa)
+        # Colonna 0: vuota, solo triangolino espandi/collassa (16px fissa)
         # Colonna 1: checkbox selezione (20px fissa)
         # Colonna 2: icona (18px fissa)
         # Colonna 3: nome (prende tutto lo spazio restante)
         h.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        h.resizeSection(0, 10)
+        h.resizeSection(0, 16)
         h.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
         h.resizeSection(1, 20)
         h.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)

@@ -18,6 +18,8 @@ import time
 import unittest
 from pathlib import Path
 
+from CORE.constants import OLLAMA_HOST
+
 try:
     import tomllib
 except ImportError:
@@ -36,7 +38,7 @@ class TestE2ETaskExecution(unittest.TestCase):
         # Skip se Ollama non e disponibile
         import urllib.request
         try:
-            urllib.request.urlopen("http://localhost:11434/api/tags", timeout=3).read()
+            urllib.request.urlopen(f"{OLLAMA_HOST}/api/tags", timeout=3).read()
         except Exception:
             raise unittest.SkipTest("Ollama non disponibile, skip E2E test")
 

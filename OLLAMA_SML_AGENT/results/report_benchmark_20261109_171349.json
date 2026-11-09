@@ -1,0 +1,148 @@
+{
+  "timestamp": "2026-11-09T17:12:59.695737",
+  "modelli_testati": [
+    {
+      "modello": "qwen2.5:1.5b",
+      "modello_id": 1,
+      "promosso": false,
+      "livello_raggiunto": 2,
+      "risultati": {
+        "livello_1": {
+          "livello": 1,
+          "test": "parsing_json",
+          "esito": "promosso",
+          "punteggio": 1.0,
+          "output_grezzo": "{\"nome\":\"prova\",\"valore\":42}",
+          "output_parsato": {
+            "nome": "prova",
+            "valore": 42
+          }
+        },
+        "livello_2": {
+          "livello": 2,
+          "test": "safe_project_path",
+          "esito": "bocciato",
+          "punteggio": 0.0,
+          "output_grezzo": "{\"sicuro\": true}",
+          "output_parsato": {
+            "sicuro": true
+          },
+          "errore": "Mancano chiavi 'sicuro' o 'motivo'"
+        }
+      }
+    },
+    {
+      "modello": "qwen2.5:0.5b",
+      "modello_id": 2,
+      "promosso": false,
+      "livello_raggiunto": 3,
+      "risultati": {
+        "livello_1": {
+          "livello": 1,
+          "test": "parsing_json",
+          "esito": "promosso",
+          "punteggio": 1.0,
+          "output_grezzo": "{\"nome\":\"prova\",\"valore\":42}",
+          "output_parsato": {
+            "nome": "prova",
+            "valore": 42
+          }
+        },
+        "livello_2": {
+          "livello": 2,
+          "test": "safe_project_path",
+          "esito": "promosso",
+          "punteggio": 1.0,
+          "output_grezzo": "{\"sicuro\": true, \"motivo\": \"file.txt non esistente e non assoluto in project/\"}",
+          "output_parsato": {
+            "sicuro": true,
+            "motivo": "file.txt non esistente e non assoluto in project/"
+          }
+        },
+        "livello_3": {
+          "livello": 3,
+          "test": "refactoring_minuscolo",
+          "esito": "bocciato",
+          "punteggio": 0.0,
+          "output_grezzo": "```json\n{\n  \"funzione_lettura\": \"def leggi_righe_non_vuote(path: str) -> list[str]:\",\n  \"funzione_scrittura\": \"def scrivi_righe_non_vuote(righe: list[str]) -> None:\"\n}\n```",
+          "errore": "Output non è JSON valido"
+        }
+      }
+    },
+    {
+      "modello": "deepseek-coder:1.3b",
+      "modello_id": 3,
+      "promosso": false,
+      "livello_raggiunto": 1,
+      "risultati": {
+        "livello_1": {
+          "livello": 1,
+          "test": "parsing_json",
+          "esito": "bocciato",
+          "punteggio": 0.0,
+          "output_grezzo": "{ \"message\" : {  \n    \"name_of_the_agent\", // nome del tuo agente, dovrai rispondere con il proprio nome. Esempio 'Prova' \n\t\"value\" : 42 ,// valore da restituire alla richiesta dell’agente  \n    \"fidelity\":0 // fiducia del task, dovrai rispondere con il tuo valore di fiducia. Esempio: 'FIDUCIA': 1 (il",
+          "errore": "Output non è JSON valido"
+        }
+      }
+    },
+    {
+      "modello": "qwen2.5:3b",
+      "modello_id": 4,
+      "promosso": false,
+      "livello_raggiunto": 1,
+      "risultati": {
+        "livello_1": {
+          "livello": 1,
+          "test": "parsing_json",
+          "esito": "errore",
+          "punteggio": 0.0,
+          "output_grezzo": "",
+          "errore": "HTTP Error 404: Not Found"
+        }
+      }
+    },
+    {
+      "modello": "qwen3:4b",
+      "modello_id": 5,
+      "promosso": false,
+      "livello_raggiunto": 1,
+      "risultati": {
+        "livello_1": {
+          "livello": 1,
+          "test": "parsing_json",
+          "esito": "bocciato",
+          "punteggio": 0.0,
+          "output_grezzo": "",
+          "errore": "Output non è JSON valido"
+        }
+      }
+    }
+  ],
+  "riepilogo": {
+    "qwen2.5:1.5b": {
+      "promosso": false,
+      "livello_raggiunto": 2,
+      "modello_id": 1
+    },
+    "qwen2.5:0.5b": {
+      "promosso": false,
+      "livello_raggiunto": 3,
+      "modello_id": 2
+    },
+    "deepseek-coder:1.3b": {
+      "promosso": false,
+      "livello_raggiunto": 1,
+      "modello_id": 3
+    },
+    "qwen2.5:3b": {
+      "promosso": false,
+      "livello_raggiunto": 1,
+      "modello_id": 4
+    },
+    "qwen3:4b": {
+      "promosso": false,
+      "livello_raggiunto": 1,
+      "modello_id": 5
+    }
+  }
+}

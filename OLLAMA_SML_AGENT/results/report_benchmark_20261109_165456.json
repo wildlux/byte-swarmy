@@ -1,0 +1,120 @@
+{
+  "timestamp": "2026-11-09T16:54:54.364410",
+  "modelli_testati": [
+    {
+      "modello": "qwen2.5:1.5b",
+      "modello_id": 1,
+      "promosso": false,
+      "livello_raggiunto": 2,
+      "risultati": {
+        "livello_1": {
+          "livello": 1,
+          "test": "parsing_json",
+          "esito": "promosso",
+          "punteggio": 1.0,
+          "output_grezzo": "{\"nome\":\"prova\",\"valore\":42}",
+          "output_parsato": {
+            "nome": "prova",
+            "valore": 42
+          }
+        },
+        "livello_2": {
+          "livello": 2,
+          "test": "safe_project_path",
+          "esito": "bocciato",
+          "punteggio": 0.0,
+          "output_grezzo": "{\"sicuro\": true}",
+          "output_parsato": {
+            "sicuro": true
+          },
+          "errore": "Mancano chiavi 'sicuro' o 'motivo'"
+        }
+      }
+    },
+    {
+      "modello": "qwen2.5:0.5b",
+      "modello_id": 2,
+      "promosso": true,
+      "livello_raggiunto": 3,
+      "risultati": {
+        "livello_1": {
+          "livello": 1,
+          "test": "parsing_json",
+          "esito": "promosso",
+          "punteggio": 1.0,
+          "output_grezzo": "{\"nome\":\"prova\",\"valore\":42}",
+          "output_parsato": {
+            "nome": "prova",
+            "valore": 42
+          }
+        },
+        "livello_2": {
+          "livello": 2,
+          "test": "safe_project_path",
+          "esito": "promosso",
+          "punteggio": 1.0,
+          "output_grezzo": "{\"sicuro\": true, \"motivo\": \"path relativo senza traversal\"}",
+          "output_parsato": {
+            "sicuro": true,
+            "motivo": "path relativo senza traversal"
+          }
+        },
+        "livello_3": {
+          "livello": 3,
+          "test": "refactoring_minuscolo",
+          "esito": "promosso",
+          "punteggio": 1.0,
+          "output_grezzo": "{\"funzione_lettura\": \"leggo\", \"funzione_scrittura\": \"scritto\"}",
+          "output_parsato": {
+            "funzione_lettura": "leggo",
+            "funzione_scrittura": "scritto"
+          }
+        }
+      }
+    },
+    {
+      "modello": "deepseek-coder:1.3b",
+      "modello_id": 3,
+      "promosso": false,
+      "livello_raggiunto": 2,
+      "risultati": {
+        "livello_1": {
+          "livello": 1,
+          "test": "parsing_json",
+          "esito": "promosso",
+          "punteggio": 1.0,
+          "output_grezzo": "{ \"nome\" : \"prova\", \"valore\" : 42 }\n",
+          "output_parsato": {
+            "nome": "prova",
+            "valore": 42
+          }
+        },
+        "livello_2": {
+          "livello": 2,
+          "test": "safe_project_path",
+          "esito": "bocciato",
+          "punteggio": 0.0,
+          "output_grezzo": "```json\n{ \"sicuro\": true, \"motivo\":\"path relativo senza traversal\"}\n```\n",
+          "errore": "Output non è JSON valido"
+        }
+      }
+    }
+  ],
+  "riepilogo": {
+    "qwen2.5:1.5b": {
+      "promosso": false,
+      "livello_raggiunto": 2,
+      "modello_id": 1
+    },
+    "qwen2.5:0.5b": {
+      "promosso": true,
+      "livello_raggiunto": 3,
+      "modello_id": 2
+    },
+    "deepseek-coder:1.3b": {
+      "promosso": false,
+      "livello_raggiunto": 2,
+      "modello_id": 3
+    }
+  }
+}

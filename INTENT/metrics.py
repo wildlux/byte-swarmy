@@ -12,6 +12,8 @@ import urllib.request
 from pathlib import Path
 from typing import Optional
 
+from CORE.constants import OLLAMA_HOST
+
 METRICS_FILE = Path("state/last_metrics.json")
 
 
@@ -25,7 +27,7 @@ def get_last_call_metrics() -> Optional[dict]:
         return None
 
 
-def get_loaded_models(ollama_host: str = "http://localhost:11434") -> list:
+def get_loaded_models(ollama_host: str = OLLAMA_HOST) -> list:
     """Query /api/ps per i modelli attualmente caricati in RAM/VRAM."""
     try:
         host = ollama_host.rstrip("/")
@@ -168,7 +170,7 @@ def format_metrics_line() -> str:
     )
 
 
-def format_vram_line(ollama_host: str = "http://localhost:11434") -> str:
+def format_vram_line(ollama_host: str = OLLAMA_HOST) -> str:
     """Restituisce info VRAM dai modelli caricati."""
     models = get_loaded_models(ollama_host)
     if not models:

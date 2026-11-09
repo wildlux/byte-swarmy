@@ -18,7 +18,6 @@ from __future__ import annotations
 import json
 import time
 import urllib.request
-from pathlib import Path
 from typing import Optional
 import logging
 import sys
@@ -28,7 +27,10 @@ log = logging.getLogger("byte-swarmy.benchmark")
 
 
 
-BENCHMARK_FILE = Path("state/model_benchmarks.json")
+from CORE.state_repository import save_json
+from CORE.constants import OLLAMA_HOST, DEFAULT_NUM_CTX
+
+BENCHMARK_FILE = "state/model_benchmarks.json"
 
 TESTS = [
     {
@@ -52,7 +54,7 @@ TESTS = [
 ]
 
 
-def get_ollama_models(host: str = "http://localhost:11434") -> list:
+def get_ollama_models(host: str = OLLAMA_HOST) -> list:
     """Lista modelli disponibili."""
     try:
         data = json.loads(urllib.request.urlopen(f"{host}/api/tags", timeout=5).read())
@@ -61,7 +63,7 @@ def get_ollama_models(host: str = "http://localhost:11434") -> list:
         return []
 
 
-def run_single_test(model: str, test: dict, host: str = "http://localhost:11434") -> dict:
+def run_single_test(model: str, test: dict, host: str = OLLAMA_HOST) -> dict:
     """Esegue un singolo test su un modello."""
     payload = {
         "model": model,
@@ -107,7 +109,7 @@ def run_single_test(model: str, test: dict, host: str = "http://localhost:11434"
     }
 
 
-def benchmark_model(model: str, host: str = "http://localhost:11434") -> dict:
+def benchmark_model(model: str, host: str = OLLAMA_HOST) -> dict:
     """Esegue tutti i test su un modello."""
     results = {"model": model, "timestamp": time.time(), "tests": {}}
 
@@ -129,7 +131,7 @@ def benchmark_model(model: str, host: str = "http://localhost:11434") -> dict:
     return results
 
 
-def run_benchmarks(models: list = None, host: str = "http://localhost:11434") -> dict:
+def run_benchmarks(models: list = None, host: str = OLLAMA_HOST) -> dict:
     """Esegue benchmark su tutti i modelli (o una lista specificata)."""
     if models is None:
         models = get_ollama_models(host)
@@ -143,13 +145,12 @@ def run_benchmarks(models: list = None, host: str = "http://localhost:11434") ->
         all_results[model] = benchmark_model(model, host)
 
     # Salva
-    BENCHMARK_FILE.parent.mkdir(parents=True, exist_ok=True)
     output = {
         "timestamp": time.time(),
         "models_tested": len(all_results),
         "results": all_results,
     }
-    BENCHMARK_FILE.write_text(json.dumps(output, indent=2, ensure_ascii=False))
+    save_json(BENCHMARK_FILE, output)
 
     return output
 

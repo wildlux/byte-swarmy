@@ -85,3 +85,43 @@ ACTOR_FORCE_CPU = frozenset({"timestral"})
 def weight_default_model(actor: str, weight: str) -> str:
     """Ritorna il modello di default per (attore, peso)."""
     return ACTOR_WEIGHT_DEFAULT_MODELS.get(actor, {}).get(weight, "qwen2.5:1.5b")
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Ollama host — fonte unica (19 occorrenze sostituite da questa costante)
+# ═══════════════════════════════════════════════════════════════════
+OLLAMA_HOST = "http://localhost:11434"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# LLM context default — fonte unica (almeno 6 occorrenze sostituite)
+# ═══════════════════════════════════════════════════════════════════
+DEFAULT_NUM_CTX = 4096
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Stile pulsante trasparente condiviso (36 occorrenze in GUI/*)
+# ═══════════════════════════════════════════════════════════════════
+BTN_TRANSPARENT_STYLE = (
+    "QPushButton { font-size:16px; border:none; background:transparent; "
+    "border-radius:4px; padding:0; }"
+    "QPushButton:hover { background:#e2e8f0; border-radius:4px; }"
+)
+
+BTN_TRANSPARENT_DANGER_STYLE = (
+    "QPushButton { font-size:16px; border:none; background:transparent; "
+    "border-radius:4px; padding:0; }"
+    "QPushButton:hover { background:#fee2e2; border-radius:4px; }"
+)
+
+BTN_TRANSPARENT_SMALL_STYLE = (
+    "QPushButton { font-size:13px; border:none; background:transparent; "
+    "border-radius:4px; padding:0; }"
+    "QPushButton:hover { background:#e2e8f0; border-radius:4px; }"
+)
+
+BTN_TRANSPARENT_MEDIUM_STYLE = (
+    "QPushButton { font-size:14px; border:none; background:transparent; "
+    "border-radius:4px; padding:0; }"
+    "QPushButton:hover { background:#e2e8f0; border-radius:4px; }"
+)

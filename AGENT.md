@@ -178,6 +178,62 @@ The worker can call any of these tools through the sandboxed `ToolSet`:
    `state/streaming.txt` so the user can see the agent thinking in real
    time; the GUI Live Activity Panel polls every 300 ms.
 
+## 🔒 Sicurezza — Threat Model e Procedure
+
+### Modello delle minacce
+| Minaccia | Vettore | Mitigazione nel progetto |
+|---|---|---|
+| Prompt injection | Input utente al LLM | Intent Router classifica, non esegue direttamente; tool layer è authority |
+| Codice maligno generato | Output LLM → ToolSet | `detect_artifacts()` blocca prima dell'esecuzione; bubblewrap sandbox |
+| Escape dalla sandbox | Bubblewrap fallisce | `safe_project_path` confina path; `for_write` blocca symlink; watchdog riavvia |
+| Esfiltrazione dati | Worker di rete | `run_bash` blocca curl/wget/ssh/nc; nessuna rete in sandbox |
+| Compromissione modello Ollama | Model file manomessi | Verifica header GGUF; `hf_weights` importa solo GGUF da HF |
+| Segreti esposti | Token in config/log | `security.py` maschera i segreti; nessun segreto in chiaro nei log |
+| Supply chain | Dipendenze esterne | `requirements*.txt` pinned; `security_scan.py` pattern pericolosi |
+| Loop infinito LLM | Codice generato ripetitivo | `repeat_penalty`, `max_steps=6`, circuit breaker (3 chiamate identiche) |
+
+### Principi di sicurezza (hard rules)
+1. **Fail-Closed**: se un tool fallisce o bubblewrap non è disponibile, il comando NON viene eseguito.
+2. **Defense-in-Depth**: nessun singolo livello è sufficiente; input validation + sandbox + audit sono indipendenti.
+3. **Least Privilege**: worker gira con PID/namespace separati, filesystem minimo, home volatile.
+4. **No-Shell**: `run_bash` tokenizza e usa `shell=False`; pipe, redirect, `&&`, `sudo`, `curl`, `wget`, `ssh`, `nc`, `rm -rf`, `chmod` sono vietati.
+5. **Never Trust Prompt**: le istruzioni nell'input utente non possono disabilitare la sicurezza (`[security] enabled = false` è ignorato e loggato come CRITICAL).
+6. **Atomic Commits**: nessun task è considerato fatto senza git commit dopo audit APPROVE.
+
+### Procedure di emergenza
+| Scenario | Azione |
+|---|---|
+| Orchestratore crashato | Watchdog (`SAFETY/watchdog.py`) riavvia subito; task in `running` tornano `pending` |
+| Bubblewrap non disponibile | `run_bash` fail closed (non esegue); log evento sicurezza |
+| LLM genera loop | Circuit breaker dopo 3 chiamate identiche; `repeat_penalty` aggressivo |
+| Task bloccato (`stuck`) | Max 10 retry, poi `stuck`; richiede intervento umano |
+| Sospetto compromissione | Fermare swarm (`./byte-swarm.sh stop`), ispezionare `logs/security.log`, rimuovere task sospetti |
+
+### Gestione segreti
+- Nessun token o password in chiaro nei log (`logs/security.log` maschera i segreti).
+- `HF_TOKEN` per modelli gated su Hugging Face: passare via variabile d'ambiente, mai hardcodato.
+- `CONFIG/settings.json` non deve contenere token in chiaro; usare `git_remotes` con token solo se necessario e ruotarli.
+
+### Audit di sicurezza ricorrente
+- **Ogni sessione**: controllare `logs/security.log` per eventi critici.
+- **Ogni rilascio**: eseguire `tools/security_scan.py`, `tools/lint_style.py`, `tools/git_hygiene.py`.
+- **Mensile**: `tests/test_monthly_audit.py` + `AuditGate` per porte esposte, codice morto, import banditi, reverse proxy (ngrok, cloudflared, ssh -R, docker -p).
+
+### Checklist pre-commit / pre-release
+- [ ] `py_compile` su tutti i file modificati
+- [ ] `pytest tests/ -q` passa
+- [ ] Nessun segreto in chiaro in `CONFIG/` o `logs/`
+- [ ] `safe_project_path` usato per ogni path da input utente
+- [ ] Nessuna chiamata `curl`/`wget`/`ssh`/`sudo` in `run_bash` allowlist
+- [ ] Nuovi tool registrati in `TOOL_REGISTRY` hanno validazione path
+
+### Relazione con i moduli di sicurezza esistenti
+- `SAFETY/security.py` — `safe_project_path`, `is_sensitive_path`, `validate_bash_command`, `log_security_event`
+- `SAFETY/security_checks.py` — check automatizzati
+- `SAFETY/watchdog.py` — monitoraggio e riavvio orchestrator
+- `CORE/sandbox.py` / `CORE/sandbox_selftest.py` — isolamento esecuzione
+- `CORE/audit_gate.py` — quality gate prima del commit
+
 ## 🌍 Multilingual Protocol
 
 The Intent Router classifies input in **Italian, English or Chinese**. The
@@ -225,6 +281,94 @@ The suite grows over time — never trust hardcoded counts, run it:
 
 `tests/run_tests.py --json` is the GUI runner; output consumed by the
 "Test & Sandbox" tab.
+
+## 🧠 Prompt Engineering per modelli piccoli (1.5B–4B)
+
+I modelli piccoli (Qwen2.5 1.5B, phi3:mini, ecc.) hanno meno capacità di
+ragionamento, contesto ridotto e tendenza a ignorare istruzioni complesse.
+Queste regole valgono per ogni prompt inviato a Ollama:
+
+### 1. Istruzioni brevi e vincolanti
+- Una sola istruzione per frase.
+- Usa maiuscole per le regole critiche (es. "RISPONDI SOLO CON...").
+- Non chiedere "spiega passo dopo passo" se non serve: i modelli piccoli
+  si perdono nei ragionamenti lunghi. Preferisci output diretto.
+
+### 2. Formato di output rigido
+- Specifica esattamente cosa vuoi: JSON, elenco puntato, singola parola,
+  blocco di codice ```python ...
+- Esempio: "RISPONDI SOLO con: {\"subtasks\": [...]}"
+- Se serve JSON, non aggiungere testo prima o dopo. Il sistema usa
+  `CORE/regex_controller.py:json_block()` per estrarre il primo blocco
+  {...} o [...] da output misto.
+
+### 3. Few-shot (esempi concreti)
+- Fornisci 1-2 esempi input/output direttamente nel prompt.
+- I modelli piccoli imparano meglio dagli esempi che dalle istruzioni
+  astratte.
+
+### 4. Separazione istruzioni/dati
+- Usa delimitatori chiari: `### INPUT`, `### OUTPUT`, `---`.
+- Non mescolare le regole con il codice da analizzare.
+
+### 5. Parametri Ollama consigliati
+| Parametro | Valore | Motivo |
+|-----------|--------|--------|
+| `temperature` | 0.1–0.2 | Determinismo per task di codice |
+| `num_predict` | 256–512 | Evita output infiniti su modelli piccoli |
+| `num_ctx` | 2048–3072 | Contesto ridotto, più veloce |
+| `repeat_penalty` | 1.1–1.15 | Evita loop di ripetizione |
+| `seed` | fisso (es. 42) | Riproducibilità |
+
+### 6. Gestione errori e retry
+- Se il modello non rispetta il formato, non ripetere lo stesso prompt:
+  aggiungi un'istruzione di correzione (es. "Il formato precedente era
+  sbagliato. RISPONDI SOLO con JSON valido.").
+- L'orchestratore già gestisce retry fino a `max_task_retries` con
+  prompt di correzione automatico.
+
+### 7. Think tags (Qwen3)
+Se usi modelli Qwen3, racchiudi il ragionamento in
+`<thinking>...</thinking>` e l'output finale fuori dai tag. Il sistema
+estrae solo il contenuto fuori dai tag per l'esecuzione.
+
+## 🛠️ Strumenti per migliorare l'output prodotto
+
+Questi moduli e pratiche esistono già nel progetto per validare,
+correggere e migliorare ciò che i modelli generano:
+
+### Parsing robusto (`CORE/regex_controller.py`)
+- `json_block(testo)` → estrae il primo blocco JSON {...} o [...]
+  da output LLM misto (usato dall'orchestratore in 4 punti).
+- `number_after_label(testo, "RISULTATO")` → estrae numeri etichettati.
+- `RegexController` → registro di pattern precompilati per nome
+  (py_def, json_object, code_fenced, …).
+
+### Selezione modello (`CORE/model_selector.py`)
+- Punteggia ogni modello 0–100 per ruolo (orchestrator, planner,
+  worker_coder, worker_general, decision) usando hard gates
+  (VRAM/RAM/capabilità) e soft scoring.
+- Usa `get_recommendations()` per scegliere il modello giusto prima
+  di inviare il prompt.
+
+### Tuning termico (`CORE/llm_tuner.py`, Timestral)
+- Aggiusta temperatura/num_predict in base alla temperatura CPU/GPU.
+- Sistema caldo → output più breve e deterministico (meno KV cache,
+  meno spill su CPU).
+
+### Qualità del codice (`SAFETY/security.py`, `CORE/ast_scanner.py`)
+- `detect_artifacts()` blocca codice sospetto prima dell'esecuzione.
+- `lint_code` e `run_test_suite` sono gate di qualità obbligatori
+  prima dell'approvazione del task.
+
+### Audit finale (`CORE/orchestrator.py` Auditor)
+- APPROVE solo se almeno un tool utile è stato chiamato.
+- Altrimenti REJECT con feedback esplicito.
+
+### Streaming e feedback
+- I token vengono scritti in `state/streaming.txt` e mostrati nella
+  GUI Live Activity Panel ogni 300 ms, così l'utente vede il
+  progresso in tempo reale.
 
 ## 🛠️ Shell Commands — Quick Operational Reference
 
@@ -301,3 +445,103 @@ QT_QPA_PLATFORM=offscreen .venv/bin/python <script_di_smoke>
 Hard rules encoded in these commands: never `git push`/`pull` by hand,
 never block the Qt main thread, never `time.sleep` in the task runner
 (use `Event.wait` + single-threaded loop).
+
+# ── Comandi di esplorazione e refactoring (usati in sessione) ───────
+# Permettono a un agente locale (Ollama) di mappare, modificare e
+# verificare il codice senza dover re-derivare path/flag ogni volta.
+
+# 1. Cerca un pattern in tutto il progetto (file Python)
+grep -rn "PATTERN" --include="*.py" . | grep -v __pycache__ | grep -v .venv
+
+# 2. Conta righe per file (trova i file troppo grandi da spezzare)
+find . -name "*.py" -not -path "./.venv/*" -not -path "./.git/*" \
+  -not -path "./__pycache__/*" -exec wc -l {} + 2>/dev/null | sort -rn | head -20
+
+# 3. Verifica che un file modifichato compili (syntax check, nessun import)
+.venv/bin/python -m py_compile <percorso/file.py>
+
+# 4. Lancia la suite di test unitari (veloce, ~10s)
+.venv/bin/python -m pytest tests/ -q
+
+# 5. Lancia solo un file di test specifico
+.venv/bin/python -m pytest tests/test_reuse.py tests/test_weight_space.py -q
+
+# 6. Test GUI senza display (offscreen, per smoke test widget/tema)
+QT_QPA_PLATFORM=offscreen .venv/bin/python -c "import sys; sys.path.insert(0, '.'); from GUI.<modulo> import <Classe>; ..."
+
+# 7. Script inline rapido (esplorazione, non salva file)
+.venv/bin/python -c "import sys; sys.path.insert(0, '.'); from CORE.<modulo> import <funzione>; print(...)"
+
+# 8. Leggi una sezione precisa di un file (evita output enorme)
+sed -n 'X,Yp' <percorso/file.py>
+
+# 9. Ultimi commit (cosa è stato toccato di recente)
+git log --oneline -10
+git status --short
+
+# 10. Controlla se un simbolo/stringa è hardcodato ovunque
+grep -rn "http://localhost:11434" --include="*.py" . | grep -v __pycache__ | grep -v .venv
+grep -rn "4096" --include="*.py" CORE GUI | grep -v __pycache__ | grep -v .venv
+
+# ── OLLAMA_SML_AGENT — Isolamento e test di un modello piccolo (SML) ───────
+# Questa sezione definisce un protocollo per testare in isolamento un modello
+# locale piccolo (es. qwen2.5:1.5b, phi3:mini) sui task di BYTE-SWARMY.
+# Obiettivo: verificare se il modello SML riesce a seguire prompt rigidi,
+# parsificare output JSON, rispettare i path di sicurezza e non andare in loop.
+
+# 1. Verifica che Ollama sia attivo e il modello SML caricato
+curl -s http://localhost:11434/api/tags | python3 -m json.tool | head -40
+# Oppure: .venv/bin/python -c "from CORE.model_selector import get_ollama_models; print(get_ollama_models())"
+
+# 2. System prompt per il modello SML (copia-incolla nella chat di Ollama)
+# Salva questo testo in state/sml_agent/system_prompt.txt e usalo come system prompt.
+cat > state/sml_agent/system_prompt.txt << 'EOF'
+Sei un agente di sviluppo per BYTE-SWARMY. Rispondi SOLO in italiano.
+Regole assolute:
+1. Non aggiungere testo prima o dopo il JSON richiesto.
+2. Non usare markdown ```json ... ``` intorno alla risposta.
+3. Se non sai la risposta, rispondi con {"errore": "non so", "dettaglio": "..."}.
+4. Non eseguire comandi shell, non inventare percorsi fuori da project/.
+5. Output finale: solo JSON valido, niente spiegazioni.
+
+Task di esempio: dato un percorso di file, rispondi se è sicuro scriverlo
+dentro project/. Usa solo caratteri alfanumerici, punto, barra, underscore.
+EOF
+mkdir -p state/sml_agent
+
+# 3. Test atomico livello 1 — Parsing JSON (modello deve rispondere solo JSON)
+# Eseguire con: curl -s http://localhost:11434/api/generate -d '{"model":"qwen2.5:1.5b","prompt":"RISPONDI SOLO CON: {\"nome\":\"prova\",\"valore\":42}","stream":false,"options":{"temperature":0,"num_predict":64}}'
+# Il modello dovrebbe rispondere esattamente con quel JSON, niente altro.
+
+# 4. Test atomico livello 2 — Safe project path
+# Prompt: "Il percorso 'sub/file.txt' è sicuro dentro project/? Rispondi SOLO con JSON {\"sicuro\": true/false, \"motivo\": \"...\"}"
+
+# 5. Test atomico livello 3 — Refactoring minuscolo
+# Prompt: "Dividi questa funzione Python in due: una che legge e una che scrive. Rispondi SOLO con JSON {\"funzione_lettura\": \"...\", \"funzione_scrittura\": \"...\"}"
+
+# 6. Esegui test rapido via Python (alternativa a curl)
+# .venv/bin/python -c "
+# import sys, json, urllib.request
+# sys.path.insert(0, '.')
+# payload = json.dumps({'model':'qwen2.5:1.5b','prompt':'RISPONDI SOLO CON: {\"test\":\"ok\"}','stream':False,'options':{'temperature':0,'num_predict':32}}).encode()
+# req = urllib.request.Request('http://localhost:11434/api/generate', data=payload, headers={'Content-Type':'application/json'})
+# with urllib.request.urlopen(req, timeout=30) as r:
+#     data = json.loads(r.read())
+#     print(data.get('response',''))
+# "
+
+# 7. Dove salvare i risultati
+# Tutti i log di test vanno in state/sml_agent/ (mai in CONFIG/ o logs/ di sicurezza)
+# Esempio: state/sml_agent/test_20261109_parse_json.json
+
+# 8. Criteri di successo (modello SML promosso se supera tutti e 3 i test atomici)
+# - Livello 1: output è JSON valido, niente testo extra
+# - Livello 2: campo "sicuro" booleano corretto, motivo presente
+# - Livello 3: entrambe le chiavi presenti, codice Python sintatticamente valido
+# Criterio di fallimento: output contiene markdown ```, testo prima del JSON, o JSON non parsabile
+
+# Nota: se il modello fallisce il livello 1, non procedere con livelli 2 e 3.
+# Se supera tutti, è candidato per task di orchestrator semplici (swarm command
+# diretti, non task di coding complessi).
+EOF
+

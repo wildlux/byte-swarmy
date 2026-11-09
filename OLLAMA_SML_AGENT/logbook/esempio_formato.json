@@ -1,0 +1,25 @@
+{
+  "modello": "qwen2.5:1.5b",
+  "quantizzazione": "Q4_K_M",
+  "dimensione_gb": 0.99,
+  "prompt_versione": "v3",
+  "livello": 1,
+  "prompt_inviato": "Task: crea una funzione somma due interi con type hints e docstring.",
+  "output_grezzo": "ANALISI:\nSemplice somma.\nRISCHI:\n- input non intero\nPIANO:\n1. valida input\n2. somma\nCODICE:\ndef somma(a: int, b: int) -> int:\n    return a + b\nTEST:\nassert somma(1, 2) == 3\nSICUREZZA:\nnessun rischio\nALTERNATIVE:\nnessuna\nFIDUCIA: 0.9\nTASK_COMPLETO: true",
+  "output_parsato": {
+    "analisi": "Semplice somma.",
+    "rischi": ["input non intero"],
+    "piano": "1. valida input\n2. somma",
+    "codice": "def somma(a: int, b: int) -> int:\n    return a + b",
+    "test": "assert somma(1, 2) == 3",
+    "sicurezza": "nessun rischio",
+    "alternative": ["nessuna"],
+    "fiducia": 0.9,
+    "task_completo": true
+  },
+  "esito": "promosso",
+  "punteggio": 1.0,
+  "errore": null,
+  "timestamp": "2026-11-09T17:30:00",
+  "note_miglioramento": "Il modello segue bene il formato testo strutturato v3"
+}
