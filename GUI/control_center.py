@@ -3819,7 +3819,7 @@ class FileTreeDrawer(QFrame):
         # Layout header "Lavori e compiti": titolo a sinistra, pulsanti a destra
         task_header_row = QHBoxLayout()
         task_header_row.setContentsMargins(0, 0, 0, 0)
-        task_header_row.setSpacing(2)
+        task_header_row.setSpacing(4)
         task_header_lbl = QLabel("<b>📋 Lavori e compiti</b>")
         task_header_lbl.setStyleSheet("font-size:11px; font-weight:bold; padding:0; margin:0;")
         task_header_row.addWidget(task_header_lbl, stretch=0)
@@ -3829,14 +3829,9 @@ class FileTreeDrawer(QFrame):
         task_refresh_btn = QPushButton("🔄")
         task_refresh_btn.setFixedSize(28, 28)
         task_refresh_btn.setToolTip("Aggiorna lista task")
-        task_refresh_btn.setStyleSheet(BTN_TRANSPARENT_SMALL_STYLE)
+        task_refresh_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
         task_refresh_btn.clicked.connect(self._force_refresh_tasks)
         task_header_row.addWidget(task_refresh_btn)
-
-        # Spazietto tra refresh e aggiungi
-        _sp1 = QFrame()
-        _sp1.setFixedWidth(8)
-        task_header_row.addWidget(_sp1)
 
         # Pulsante aggiungi task
         task_add_btn = QPushButton("➕")
@@ -3848,11 +3843,6 @@ class FileTreeDrawer(QFrame):
             if hasattr(self.main_win, "center") else None
         )
         task_header_row.addWidget(task_add_btn)
-
-        # Spazietto tra aggiungi e elimina
-        _sp2 = QFrame()
-        _sp2.setFixedWidth(8)
-        task_header_row.addWidget(_sp2)
 
         # Pulsante elimina task selezionati
         task_del_btn = QPushButton("🗑️")
