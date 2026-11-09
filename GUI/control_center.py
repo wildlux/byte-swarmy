@@ -2406,13 +2406,18 @@ class ControlCenter(QMainWindow):
             _zoom_widget.setLayout(_zoom_container)
             self.statusBar().addPermanentWidget(_zoom_widget)
 
-            # Shortcut da tastiera
+            # Shortcut da tastiera (salvati come attributi per evitare GC)
             from PyQt6.QtGui import QKeySequence
             from PyQt6.QtWidgets import QShortcut
-            QShortcut(QKeySequence("Ctrl++"), self, activated=self._zoom_in)
-            QShortcut(QKeySequence("Ctrl+="), self, activated=self._zoom_in)
-            QShortcut(QKeySequence("Ctrl+-"), self, activated=self._zoom_out)
-            QShortcut(QKeySequence("Ctrl+0"), self, activated=self._zoom_reset)
+            from PyQt6.QtCore import Qt
+            self._shortcut_zoom_in = QShortcut(QKeySequence("Ctrl++"), self)
+            self._shortcut_zoom_in.activated.connect(self._zoom_in)
+            self._shortcut_zoom_in_eq = QShortcut(QKeySequence("Ctrl+="), self)
+            self._shortcut_zoom_in_eq.activated.connect(self._zoom_in)
+            self._shortcut_zoom_out = QShortcut(QKeySequence(Qt.Key_Minus, Qt.ControlModifier), self)
+            self._shortcut_zoom_out.activated.connect(self._zoom_out)
+            self._shortcut_zoom_reset = QShortcut(QKeySequence(Qt.Key_0, Qt.ControlModifier), self)
+            self._shortcut_zoom_reset.activated.connect(self._zoom_reset)
         except Exception as e:
             print(f"completion bar init fallito: {e}")
 
