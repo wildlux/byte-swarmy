@@ -2314,6 +2314,26 @@ class ControlCenter(QMainWindow):
         except Exception:
             pass
 
+        # Barra di avanzamento completamento task (in basso a destra)
+        try:
+            from PyQt6.QtWidgets import QProgressBar
+            self._completion_bar = QProgressBar()
+            self._completion_bar.setRange(0, 100)
+            self._completion_bar.setValue(0)
+            self._completion_bar.setFixedWidth(180)
+            self._completion_bar.setFixedHeight(14)
+            self._completion_bar.setFormat("Completamento: %p%")
+            self._completion_bar.setToolTip("Percentuale di task completati nella coda globale")
+            self.statusBar().addPermanentWidget(self._completion_bar)
+            # Timer di aggiornamento ogni 3s
+            from PyQt6.QtCore import QTimer
+            self._completion_timer = QTimer(self)
+            self._completion_timer.timeout.connect(self._update_completion_bar)
+            self._completion_timer.start(3000)
+            self._update_completion_bar()
+        except Exception as e:
+            print(f"completion bar init fallito: {e}")
+
         return bar
 
 
@@ -2612,6 +2632,27 @@ class ControlCenter(QMainWindow):
             return ("orchestrator" in _cmd or "watchdog" in _cmd)
         except Exception:
             return False
+
+    def _update_completion_bar(self):
+        '''Aggiorna la barra di avanzamento con % task done/total.'''
+        try:
+            import sqlite3, os
+            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            db_path = os.path.join(base, "tasks", "queue.db")
+            if not os.path.exists(db_path):
+                return
+            conn = sqlite3.connect(db_path, timeout=3.0)
+            total = conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
+            done = conn.execute("SELECT COUNT(*) FROM tasks WHERE status='done'").fetchone()[0]
+            conn.close()
+            pct = int(done * 100 / total) if total > 0 else 0
+            if hasattr(self, "_completion_bar"):
+                self._completion_bar.setValue(pct)
+                self._completion_bar.setToolTip(
+                    f"Task completati: {done}/{total}  ({pct}%)"
+                )
+        except Exception:
+            pass
 
     def _send_command(self):
         text = self.cmd_input.text().strip()
