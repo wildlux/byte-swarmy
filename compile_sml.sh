@@ -14,7 +14,8 @@ set -uo pipefail
 ###############################################################################
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Lo script si trova nella root del progetto, quindi PROJECT_ROOT è SCRIPT_DIR stesso
+PROJECT_ROOT="$SCRIPT_DIR"
 
 # Trova l'interprete Python: prima .venv, poi python3 di sistema
 VENV_PYTHON="${PROJECT_ROOT}/.venv/bin/python"

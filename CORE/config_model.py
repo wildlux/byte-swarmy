@@ -190,6 +190,30 @@ class AuditGatesConfig:
 
 
 @dataclass
+class SMLBestConfig:
+    """Configurazione ottimizzata per modelli SML (Small Language Models, <= 7B).
+
+    Valori determinati empiricamente tramite test su 20 modelli Ollama <= 7B.
+    Modelli promossi: qwen2.5:1.5b, qwen2.5-coder:1.5b, phi3:mini, qwen3:1.7b,
+    qwen2.5-coder:3b, llama3.2:latest, phi3:3.8b, granite4:1b, translategemma:4b,
+    qwen2.5vl:3b, llama3.2:3b, codellama:7b.
+
+    Regola FSM (Finite State Machine) nel system prompt:
+    - TENERE la tabella degli stati piccola (3-5 stati, 3-4 transizioni)
+    - Usare etichette semplici (S0, S1, S2)
+    - Mettere la tabella PRIMA delle istruzioni nel system prompt
+    """
+    temperature: float = 0.1
+    num_ctx: int = 2048
+    num_predict: int = 512
+    repeat_penalty: float = 1.15
+    seed: int = 42
+    modello_consigliato: str = "qwen2.5:1.5b"
+    system_prompt_versione: str = "v3.1"
+    fsm_max_stati: int = 5
+    fsm_max_transizioni: int = 4
+
+@dataclass
 class LLMTunerConfig:
     fast: Dict[str, Any] = field(default_factory=dict)
     normal: Dict[str, Any] = field(default_factory=dict)
@@ -222,6 +246,7 @@ class AppConfig:
     hardware: HardwareConfig = field(default_factory=HardwareConfig)
     audit_gates: AuditGatesConfig = field(default_factory=AuditGatesConfig)
     llm_tuner: LLMTunerConfig = field(default_factory=LLMTunerConfig)
+    sml_best: SMLBestConfig = field(default_factory=SMLBestConfig)
     raw: Dict[str, Any] = field(default_factory=dict)  # TOML grezzo per usi estesi
 
 
@@ -419,6 +444,20 @@ def load_typed_config(path: str | Path = "CONFIG/config.toml") -> AppConfig:
         pause=dict(lt.get("pause", {})) if isinstance(lt, dict) else {},
     )
 
+    # sml_best (valori ottimizzati per modelli <= 7B)
+    sb = _get("sml_best")
+    config.sml_best = SMLBestConfig(
+        temperature=float(sb.get("temperature", SMLBestConfig.temperature)),
+        num_ctx=int(sb.get("num_ctx", SMLBestConfig.num_ctx)),
+        num_predict=int(sb.get("num_predict", SMLBestConfig.num_predict)),
+        repeat_penalty=float(sb.get("repeat_penalty", SMLBestConfig.repeat_penalty)),
+        seed=int(sb.get("seed", SMLBestConfig.seed)),
+        modello_consigliato=str(sb.get("modello_consigliato", SMLBestConfig.modello_consigliato)),
+        system_prompt_versione=str(sb.get("system_prompt_versione", SMLBestConfig.system_prompt_versione)),
+        fsm_max_stati=int(sb.get("fsm_max_stati", SMLBestConfig.fsm_max_stati)),
+        fsm_max_transizioni=int(sb.get("fsm_max_transizioni", SMLBestConfig.fsm_max_transizioni)),
+    )
+
     return config
 
 
@@ -428,5 +467,5 @@ __all__ = [
     "RoutingConfig", "PathsConfig", "LoggingConfig",
     "DecisionModelsConfig", "DecisionModelConfig",
     "GenericTaskPlannerConfig", "HardwareConfig", "AuditGatesConfig",
-    "LLMTunerConfig", "load_typed_config",
+    "LLMTunerConfig", "SMLBestConfig", "load_typed_config",
 ]
