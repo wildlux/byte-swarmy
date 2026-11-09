@@ -2642,9 +2642,19 @@ class ControlCenter(QMainWindow):
             if not os.path.exists(db_path):
                 return
             conn = sqlite3.connect(db_path, timeout=3.0)
+            project_path = self.get_current_project_path() if hasattr(self, "get_current_project_path") else None
+            # Filtro per progetto attivo (se disponibile)
+            if project_path:
+                proj_filter = " AND project_path = ?"
+                proj_params = (project_path,)
+            else:
+                proj_filter = " AND project_path IS NULL"
+                proj_params = ()
+
             # 1) Task attualmente in esecuzione
             running = conn.execute(
-                "SELECT id, title FROM tasks WHERE status='running' ORDER BY started_at DESC LIMIT 1"
+                "SELECT id, title FROM tasks WHERE status='running'" + proj_filter + " ORDER BY started_at DESC LIMIT 1",
+                proj_params,
             ).fetchone()
             target_id = None
             target_title = None
@@ -2656,7 +2666,8 @@ class ControlCenter(QMainWindow):
                 parents = conn.execute(
                     "SELECT t.id, t.title FROM tasks t "
                     "WHERE t.parent IS NULL AND EXISTS (SELECT 1 FROM tasks c WHERE c.parent=t.id) "
-                    "ORDER BY t.created_at DESC LIMIT 1"
+                    + proj_filter.replace(" AND ", " AND t.") + " ORDER BY t.created_at DESC LIMIT 1",
+                    proj_params,
                 ).fetchone()
                 if parents:
                     target_id = parents[0]
@@ -2664,42 +2675,56 @@ class ControlCenter(QMainWindow):
                 else:
                     # 3) Ultimo task top-level (anche senza sotto-task)
                     last = conn.execute(
-                        "SELECT id, title FROM tasks WHERE parent IS NULL ORDER BY created_at DESC LIMIT 1"
+                        "SELECT id, title FROM tasks WHERE parent IS NULL" + proj_filter + " ORDER BY created_at DESC LIMIT 1",
+                        proj_params,
                     ).fetchone()
                     if last:
                         target_id = last[0]
                         target_title = last[1]
 
-            total = 0
-            done = 0
+            # Progresso complessivo del progetto attivo (tutti i task)
+            proj_total = conn.execute(
+                "SELECT COUNT(*) FROM tasks WHERE 1=1" + proj_filter, proj_params
+            ).fetchone()[0]
+            proj_done = conn.execute(
+                "SELECT COUNT(*) FROM tasks WHERE status='done'" + proj_filter, proj_params
+            ).fetchone()[0]
+
+            total = proj_total
+            done = proj_done
+
+            tot_all = conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
+            done_all = conn.execute("SELECT COUNT(*) FROM tasks WHERE status='done'").fetchone()[0]
+
+            # Info sotto-task del task attivo (per tooltip)
+            sub_total = 0
+            sub_done = 0
             if target_id:
-                # Sotto-task del target (o il target stesso se non ne ha)
                 children = conn.execute(
                     "SELECT status FROM tasks WHERE parent=?", (target_id,)
                 ).fetchall()
                 if children:
-                    total = len(children)
-                    done = sum(1 for (s,) in children if s == "done")
+                    sub_total = len(children)
+                    sub_done = sum(1 for (s,) in children if s == "done")
                 else:
-                    # Nessun sotto-task: considera il target come 1 unità
                     st = conn.execute(
                         "SELECT status FROM tasks WHERE id=?", (target_id,)
                     ).fetchone()
-                    total = 1
-                    done = 1 if (st and st[0] == "done") else 0
+                    sub_total = 1
+                    sub_done = 1 if (st and st[0] == "done") else 0
 
-            tot_all = conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
-            done_all = conn.execute("SELECT COUNT(*) FROM tasks WHERE status='done'").fetchone()[0]
             conn.close()
 
             pct = int(done * 100 / total) if total > 0 else 0
             if hasattr(self, "_completion_bar"):
                 self._completion_bar.setValue(pct)
-                label = (target_title or "nessun task")[:28]
-                self._completion_bar.setFormat(f"{label}: {done}/{total} (%p%)")
+                proj_name = os.path.basename((project_path or '').rstrip('/')) or "tutti"
+                self._completion_bar.setFormat(f"{proj_name}: {done}/{total} (%p%)")
                 self._completion_bar.setToolTip(
+                    f"Progetto: {proj_name}\n"
+                    f"Task completati: {done}/{total} ({pct}%)\n"
                     f"Task attivo: {target_title or '-'}\n"
-                    f"Sotto-task completati: {done}/{total} ({pct}%)\n"
+                    f"Sotto-task attivi: {sub_done}/{sub_total}\n"
                     f"Totale storico: {done_all}/{tot_all}"
                 )
         except Exception:
@@ -2718,7 +2743,7 @@ class ControlCenter(QMainWindow):
         except Exception as e:
             print(f"add_task fallito, fallback globale: {e}")
             try:
-                task_id = add_task_to_db(text)
+                task_id = add_task_to_db(text, project_path=project_path)
             except Exception as e2:
                 self.statusBar().showMessage(f"❌ Errore aggiunta task: {e2}", 5000)
                 return

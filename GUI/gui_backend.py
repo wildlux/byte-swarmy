@@ -63,17 +63,17 @@ def get_logs(n=50):
         pass
     return "(no log)"
 
-def add_task_to_db(title, description="", task_type="code"):
+def add_task_to_db(title, description="", task_type="code", project_path=None):
     """Aggiunge un task al database SQLite e al mirror JSON."""
     task_id = f"task-{int(time.time()*1000)}"
 
     conn = sqlite3.connect(str(DB_PATH))
     conn.execute(
         "INSERT INTO tasks (id, title, description, context, status, "
-        "attempts, created_at, parent, type, source) "
-        "VALUES (?,?,?,?,?,?,?, ?,?,?)",
+        "attempts, created_at, parent, type, source, project_path) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         (task_id, title[:120], description, "", "pending", 0,
-         time.time(), None, task_type, "gui")
+         time.time(), None, task_type, "gui", project_path)
     )
     conn.commit()
     conn.close()

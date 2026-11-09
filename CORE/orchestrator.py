@@ -155,7 +155,8 @@ class TaskQueue:
                     failure_reason TEXT,
                     completed_at REAL,
                     started_at REAL,
-                    reason TEXT
+                    reason TEXT,
+                    project_path TEXT
                 )
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_status ON tasks(status)")
@@ -172,6 +173,8 @@ class TaskQueue:
         cols = {r[1] for r in conn.execute("PRAGMA table_info(tasks)").fetchall()}
         if "retry_after" not in cols:
             conn.execute("ALTER TABLE tasks ADD COLUMN retry_after REAL")
+        if "project_path" not in cols:
+            conn.execute("ALTER TABLE tasks ADD COLUMN project_path TEXT")
 
     def _get_conn(self):
         # timeout=30: busy-wait su lock concorrenti (threads/GUI) invece di
@@ -190,12 +193,12 @@ class TaskQueue:
 
         with self._get_conn() as conn:
             conn.execute(
-                "INSERT OR IGNORE INTO tasks (id, title, description, context, status, attempts, created_at, parent, type, source) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                "INSERT OR IGNORE INTO tasks (id, title, description, context, status, attempts, created_at, parent, type, source, project_path) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     task["id"], task.get("title", ""), task.get("description", ""),
                     task.get("context", ""), task["status"], task["attempts"],
                     task["created_at"], task["parent"], task.get("type", "code"),
-                    task.get("source", "manual")
+                    task.get("source", "manual"), task.get("project_path") or task.get("project")
                 )
             )
             conn.commit()
@@ -503,6 +506,7 @@ class Planner:
                     "parent": parent_task["id"],
                     "attempts": 0,
                     "created_at": time.time(),
+                    "project_path": parent_task.get("project_path"),
                 })
             return result
         except json.JSONDecodeError as e:
@@ -1345,6 +1349,7 @@ class GenericTaskPlanner:
                 "attempts": 0,
                 "created_at": __import__("time").time(),
                 "source": f"generic:{parent_task['id']}",
+                "project_path": parent_task.get("project_path"),
             })
         return result
 

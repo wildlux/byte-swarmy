@@ -410,6 +410,7 @@ def add_task(title: str, description: str, context: str = "",
         "created_at": _time.time(),
         "source": "gui",
         "type": task_type,
+        "project_path": project_path,
     }
     tasks.append(task)
     save_tasks(tasks, project_path)
@@ -442,10 +443,10 @@ def add_task(title: str, description: str, context: str = "",
             conn.execute(
                 "INSERT OR IGNORE INTO tasks "
                 "(id, title, description, context, status, attempts, "
-                "created_at, parent, type, source) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                "created_at, parent, type, source, project_path) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 (task["id"], title, description, context, "pending", 0,
-                 task["created_at"], None, task_type, "gui")
+                 task["created_at"], None, task_type, "gui", project_path)
             )
             conn.commit()
     except Exception as e:
