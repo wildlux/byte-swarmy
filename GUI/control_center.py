@@ -3696,25 +3696,19 @@ class FileTreeDrawer(QFrame):
         lay.setContentsMargins(0, 8, 0, 8)
         lay.setSpacing(0)
 
-        # Header dinamico: mostra "📁 Archivio progetto" + path corrente
+        # Header dinamico: titolo a sinistra, pulsanti a destra
         header_row = QHBoxLayout()
         header_row.setContentsMargins(8, 6, 8, 6)
-        header_row.setSpacing(4)
+        header_row.setSpacing(8)
         self.header = QLabel("<b>📁 Archivio progetto</b>")
         self.header.setObjectName("sidebar_header")
         self.header.setStyleSheet(  # nolint: header verde accordion Archivio
             "padding:0; color:#16a34a; font-size:13px;"
         )
         self.header.setWordWrap(True)
-        self.header.setMinimumHeight(30)  # spazio per due righe se serve
-        header_row.addWidget(self.header, stretch=1)
+        self.header.setMinimumHeight(30)
+        header_row.addWidget(self.header, stretch=0)
         header_row.addStretch()
-        lay.addLayout(header_row)
-
-        # Riga pulsanti dedicata, sotto il titolo
-        btn_row = QHBoxLayout()
-        btn_row.setContentsMargins(8, 2, 8, 2)
-        btn_row.setSpacing(4)
 
         # Pulsante aggiungi nuovo file di testo
         self.add_file_btn = QPushButton("➕")
@@ -3722,7 +3716,7 @@ class FileTreeDrawer(QFrame):
         self.add_file_btn.setToolTip("Crea un nuovo file di testo nella cartella corrente")
         self.add_file_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
         self.add_file_btn.clicked.connect(self._add_text_file)
-        btn_row.addWidget(self.add_file_btn)
+        header_row.addWidget(self.add_file_btn)
 
         # Pulsante crea nuova cartella
         self.add_folder_btn = QPushButton("📁")
@@ -3730,34 +3724,32 @@ class FileTreeDrawer(QFrame):
         self.add_folder_btn.setToolTip("Crea una nuova cartella nella cartella corrente")
         self.add_folder_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
         self.add_folder_btn.clicked.connect(self._add_folder)
-        btn_row.addWidget(self.add_folder_btn)
+        header_row.addWidget(self.add_folder_btn)
 
-        # Pulsante refresh forzato file tree (cartelle e file)
+        # Pulsante refresh forzato file tree
         self.refresh_btn = QPushButton("🔄")
         self.refresh_btn.setFixedSize(28, 28)
         self.refresh_btn.setToolTip("Aggiorna file tree (cartelle e file della cartella corrente)")
         self.refresh_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
         self.refresh_btn.clicked.connect(self._refresh_file_tree)
-        btn_row.addWidget(self.refresh_btn)
+        header_row.addWidget(self.refresh_btn)
 
-        # Pulsante ordina: cartelle prima / file prima (aggiornato dopo che self.model esiste)
-        self.sort_btn = QPushButton("📁📄")
-        self.sort_btn.setFixedSize(28, 28)
-        self.sort_btn.setToolTip("Ordina elementi: cartelle prima / file prima")
-        self.sort_btn.setStyleSheet(BTN_TRANSPARENT_MEDIUM_STYLE)
-        self.sort_btn.clicked.connect(self._toggle_sort_order)
-        btn_row.addWidget(self.sort_btn)
-
-        btn_row.addStretch()
-
-        # Pulsante elimina selezionati (archivio progetto) — a destra
+        # Pulsante elimina selezionati — a destra
         self.del_btn = QPushButton("🗑️")
         self.del_btn.setFixedSize(28, 28)
         self.del_btn.setToolTip("Elimina file/cartelle selezionate con la colonna ✓")
         self.del_btn.setStyleSheet(BTN_TRANSPARENT_DANGER_STYLE)
         self.del_btn.clicked.connect(self._delete_selected_items)
-        btn_row.addWidget(self.del_btn)
-        lay.addLayout(btn_row)
+        header_row.addWidget(self.del_btn)
+        lay.addLayout(header_row)
+
+        # Pulsante ordina (mantenuto per compatibilità, non mostrato nell'header)
+        self.sort_btn = QPushButton("📁📄")
+        self.sort_btn.setFixedSize(28, 28)
+        self.sort_btn.setToolTip("Ordina elementi: cartelle prima / file prima")
+        self.sort_btn.setStyleSheet(BTN_TRANSPARENT_MEDIUM_STYLE)
+        self.sort_btn.clicked.connect(self._toggle_sort_order)
+        self.sort_btn.hide()
 
         # Sotto-titolo: path della cartella corrente (si aggiorna col tab)
         self.path_label = QLabel("byte-swarmy/")
@@ -3824,13 +3816,13 @@ class FileTreeDrawer(QFrame):
         sep.setStyleSheet("margin:8px 12px;")
         lay.addWidget(sep)
 
-        # Layout header "Lavori e compiti" con pulsante refresh + elimina
+        # Layout header "Lavori e compiti": titolo a sinistra, pulsanti a destra
         task_header_row = QHBoxLayout()
         task_header_row.setContentsMargins(0, 0, 0, 0)
         task_header_row.setSpacing(10)
         task_header_lbl = QLabel("<b>📋 Lavori e compiti</b>")
         task_header_lbl.setStyleSheet("font-size:11px; font-weight:bold; padding:0; margin:0;")
-        task_header_row.addWidget(task_header_lbl)
+        task_header_row.addWidget(task_header_lbl, stretch=0)
         task_header_row.addStretch()
 
         # Pulsante riavvio forzato (refresh lista)
