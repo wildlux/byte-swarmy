@@ -963,11 +963,11 @@ class DevicePanel(QFrame):
         model_lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
         lay.addWidget(model_lbl)
 
-        temp_lbl = QLabel("45°C")
-        tok_lbl = QLabel("12t/s")
-        kv_lbl = QLabel("2.1G")
-        mem_lbl = QLabel("65%")
-        bus_lbl = QLabel("800M")
+        temp_lbl = QLabel("-")
+        tok_lbl = QLabel("-")
+        kv_lbl = QLabel("-")
+        mem_lbl = QLabel("-")
+        bus_lbl = QLabel("-")
 
         for w in (temp_lbl, tok_lbl, kv_lbl, mem_lbl, bus_lbl):
             w.setStyleSheet("font-size:11px; font-weight:500;")
@@ -2229,12 +2229,12 @@ class ControlCenter(QMainWindow):
         except Exception:
             self._global_keys_installed = False
 
-        self._cpu_temp = 45
-        self._gpu_temp = 38
-        self._tok_s = 12.5
-        self._kv = "2.1G"
-        self._mem = 65
-        self._freq = 800
+        self._cpu_temp = 0
+        self._gpu_temp = 0
+        self._tok_s = 0.0
+        self._kv = "-"
+        self._mem = "-"
+        self._freq = "-"
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick_metrics)
         self._timer.start(1500)

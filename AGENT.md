@@ -469,6 +469,7 @@ never block the Qt main thread, never `time.sleep` in the task runner
 - **QSplitter verticale** tra file tree e lista task (metà/metà di default, ridimensionabile dall'utente, dimensioni persistenti in `state/splitter_vertical_state.json`).
 - **Usabilità plancia**: badge testo bianco su colore solido (contrasto sempre leggibile), badge dimensione fissa, titoli troncati con elipsis + tooltip, tooltip sui valori CPU/GPU (2.1G, 65%, 800M…), filtro categorie "Tutte le categorie" accanto alla ricerca, barra avanzamento "Pronto" a riposo, larghezza minima pannello sinistro adeguata allo zoom, scrollbar visibile sull'area card.
 - **Bug CPU/GPU valori identici**: `kv`/`mem`/`bus` erano segnaposto hardcoded (2.1G, 65%, 800M) uguali per entrambi i box. Ora leggono valori reali: RAM % da `/proc/meminfo`, GPU mem % e frequenza da `nvidia-smi`, KV cache stimata da `context_used` + architettura modello (`INTENT.metrics.estimate_kv_cache_mb`). Mostrano `-` quando il dato non è disponibile.
+- **Rimossi ultimi valori hardcoded**: inizializzazioni `self._cpu_temp`, `self._gpu_temp`, `self._tok_s`, `self._kv`, `self._mem`, `self._freq` e le label iniziali di `_device_row` usano valori neutri (`0`, `0.0`, `-`) invece di segnaposto fittizi (45°C, 12t/s, 2.1G, 65%, 800M).
 
 # ── Comandi di esplorazione e refactoring (usati in sessione) ───────
 # Permettono a un agente locale (Ollama) di mappare, modificare e

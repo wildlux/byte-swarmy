@@ -90,6 +90,7 @@ piccoli, atomici e verificabili.
 - `GUI/control_center.py` — **QSplitter verticale** tra file tree e lista task (metà/metà di default, ridimensionabile, dimensioni persistenti in `state/splitter_vertical_state.json`).
 - `GUI/control_center.py` — **Usabilità plancia**: badge testo bianco su colore solido (contrasto), badge dimensione fissa, titoli troncati con elipsis + tooltip, tooltip valori CPU/GPU (2.1G, 65%, 800M), filtro categorie "Tutte le categorie" accanto alla ricerca, barra avanzamento "Pronto" a riposo, larghezza minima pannello sinistro adeguata allo zoom, scrollbar visibile sull'area card.
 - `GUI/gui_backend.py` + `GUI/control_center.py` — **Bug CPU/GPU valori identici**: `kv`/`mem`/`bus` erano segnaposto hardcoded (2.1G, 65%, 800M) uguali per entrambi. Ora leggono valori reali: RAM % da `/proc/meminfo`, GPU mem % e frequenza da `nvidia-smi`, KV cache stimata da `context_used` + architettura modello (`INTENT.metrics.estimate_kv_cache_mb`). Mostrano `-` quando il dato non è disponibile.
+- `GUI/control_center.py` — **Rimossi ultimi valori hardcoded**: inizializzazioni `self._cpu_temp`, `self._gpu_temp`, `self._tok_s`, `self._kv`, `self._mem`, `self._freq` e le label iniziali di `_device_row` ora usano valori neutri (`0`, `0.0`, `-`) invece di segnaposto fittizi (45°C, 12t/s, 2.1G, 65%, 800M). I valori reali vengono popolati al primo tick di `_tick_metrics`.
 - Documentazione: aggiornati README.md, AGENT.md, todo.md.
 
 ## 🔴 Priorità 1 — Rilevamento ripetizioni e anti-loop (critica)
