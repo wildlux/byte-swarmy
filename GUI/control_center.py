@@ -632,9 +632,9 @@ class DevicePanel(QFrame):
         self.git_btn.setObjectName("git_btn")
         self.git_btn.setToolTip("Salva su tutti i remote Git configurati")
         self.git_btn.setStyleSheet(
-            "QPushButton#git_btn { background:transparent; color:#6b7280; "
-            "font-size:16px; border:1px solid #e5e7eb; border-radius:6px; border:none; }"
-            "QPushButton#git_btn:hover { background:#f3f4f6; border-color:#9ca3af; }"
+            "QPushButton#git_btn { background:#4b5563; color:#ffffff; "
+            "font-size:16px; border:none; border-radius:6px; }"
+            "QPushButton#git_btn:hover { background:#374151; }"
         )
         self.git_btn.clicked.connect(self._do_git_save)
         lay.addWidget(self.git_btn)
@@ -4071,6 +4071,7 @@ class FileTreeDrawer(QFrame):
         task_select_btn.setToolTip("Seleziona/deseleziona tutti i task")
         task_select_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
         task_select_btn.clicked.connect(self._toggle_select_all_tasks)
+        task_select_btn.setContentsMargins(8, 0, 0, 0)
         task_btn_row.addWidget(task_select_btn)
 
         # Pulsante riavvio forzato (refresh lista)
