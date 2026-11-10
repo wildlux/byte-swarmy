@@ -55,6 +55,8 @@ from GUI.panels import (
     build_clean_code_page,
     build_config_page,
     build_scheduler_page,
+    build_plancia_cards,
+    build_tools_cards,
 )
 from GUI import settings_store
 from GUI.settings_panel import SettingsPanel
@@ -194,7 +196,7 @@ class CreditsOverlay(QFrame):
         title.setStyleSheet(  # nolint: brand verde del logo, overlay crediti
             "font-size: 22px; color: #4ade80; font-weight: bold;"
         )
-        title.setFixedHeight(28)
+        title.setMinimumHeight(28)
         self._colored.append(
             (title, "font-size: 22px; color: {color}; font-weight: bold;",
              "#4ade80"))
@@ -203,7 +205,7 @@ class CreditsOverlay(QFrame):
         subtitle = QLabel("Autonomous Multi-Agent System")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle.setStyleSheet("font-size: 12px; font-style: italic;")
-        subtitle.setFixedHeight(16)
+        subtitle.setMinimumHeight(16)
         lay.addWidget(subtitle)
 
         # Separatore
@@ -227,7 +229,7 @@ class CreditsOverlay(QFrame):
         credits_title = QLabel("✨ Ringraziamenti ✨")
         credits_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         credits_title.setStyleSheet("font-size: 18px; color: #f9e2af; font-weight: bold;")  # nolint: oro crediti
-        credits_title.setFixedHeight(26)
+        credits_title.setMinimumHeight(26)
         self._colored.append(
             (credits_title, "font-size: 18px; color: {color}; font-weight: bold;",
              "#f9e2af"))
@@ -329,7 +331,7 @@ class CreditsOverlay(QFrame):
         tech_title.setStyleSheet(  # nolint: oro crediti (overlay su immagine)
             "font-size: 13px; color: #f9e2af; font-weight: bold;"
         )
-        tech_title.setFixedHeight(20)
+        tech_title.setMinimumHeight(20)
         tech_title.setWordWrap(True)
         self._colored.append(
             (tech_title, "font-size: 13px; color: {color}; font-weight: bold;",
@@ -398,7 +400,7 @@ class CreditsOverlay(QFrame):
         final_msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
         final_msg.setStyleSheet("font-size: 12px; font-style: italic; margin-top: 4px;")
         final_msg.setWordWrap(True)
-        final_msg.setFixedHeight(18)
+        final_msg.setMinimumHeight(18)
         lay.addWidget(final_msg)
 
         outer.addWidget(content, stretch=1)
@@ -958,13 +960,13 @@ class DevicePanel(QFrame):
 
         lbl = QLabel(name)
         lbl.setStyleSheet(f"color:{color}; font-size:12px; font-weight:bold;")
-        lbl.setFixedWidth(40)
+        lbl.setMinimumWidth(40)
         lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         lay.addWidget(lbl)
 
         model_lbl = QLabel(model_name)
         model_lbl.setStyleSheet("font-size:10px;")
-        model_lbl.setFixedWidth(190)
+        model_lbl.setMinimumWidth(190)
         model_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         model_lbl.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         # Tronca con elipsis se troppo lungo, così non spinge i valori a destra
@@ -980,7 +982,7 @@ class DevicePanel(QFrame):
 
         for w in (temp_lbl, tok_lbl, kv_lbl, mem_lbl, bus_lbl):
             w.setStyleSheet("font-size:11px; font-weight:500;")
-            w.setFixedWidth(42)
+            w.setMinimumWidth(42)
             w.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             lay.addWidget(w)
 
@@ -1532,7 +1534,7 @@ class FileEditorWidget(QFrame):
         # Nome file modificabile (QLineEdit invece di QLabel statico)
         self.file_name_edit = QLineEdit(os.path.basename(file_path))
         self.file_name_edit.setObjectName("editor_filename")
-        self.file_name_edit.setFixedWidth(220)
+        self.file_name_edit.setMinimumWidth(220)
         self.file_name_edit.setStyleSheet(
             "QLineEdit#editor_filename { font-weight:bold; font-size:12px; "
             "border:1px solid #363d4a; border-radius:4px; padding:2px 8px; "
@@ -1544,7 +1546,7 @@ class FileEditorWidget(QFrame):
         head.addStretch()
 
         self.dock_btn = QPushButton("📌 Dock" if not docked else "📌 Undock")
-        self.dock_btn.setFixedHeight(28)
+        self.dock_btn.setMinimumHeight(28)
         self.dock_btn.setObjectName("dock_btn")
         self.dock_btn.setStyleSheet(
             "QPushButton#dock_btn { background:#2563eb; color:white; border-radius:4px; font-size:11px; padding:0 10px; border:none; }"
@@ -1555,7 +1557,7 @@ class FileEditorWidget(QFrame):
 
         save_btn = QPushButton("💾 Salva")
         save_btn.setObjectName("primary_btn")
-        save_btn.setFixedHeight(28)
+        save_btn.setMinimumHeight(28)
         save_btn.clicked.connect(self._save)
         head.addWidget(save_btn)
 
@@ -2356,7 +2358,7 @@ class ControlCenter(QMainWindow):
     def _build_toolbar(self):
         bar = QFrame()
         bar.setObjectName("toolbar")
-        bar.setFixedHeight(64)
+        bar.setMinimumHeight(64)
         lay = QtWidgets.QHBoxLayout(bar)
         lay.setContentsMargins(10, 6, 10, 6)
         lay.setSpacing(8)
@@ -2873,7 +2875,7 @@ class ControlCenter(QMainWindow):
     def _build_command_bar(self):
         bar = QFrame()
         bar.setObjectName("command_bar")
-        bar.setFixedHeight(52)
+        bar.setMinimumHeight(52)
         lay = QtWidgets.QHBoxLayout(bar)
         lay.setContentsMargins(12, 6, 12, 6)
 
@@ -2883,7 +2885,7 @@ class ControlCenter(QMainWindow):
 
         send = QPushButton("Invia")
         send.setObjectName("primary_btn")
-        send.setFixedHeight(34)
+        send.setMinimumHeight(34)
         # COLLEGA IL BOTTONE
         send.clicked.connect(self._send_command)
         # PERMETTI DI PREMERE INVIO
@@ -6423,7 +6425,7 @@ class CenterArea(QWidget):
         self.search_category.addItem("Tutte le categorie")
         self.search_category.addItem("Plancia — task & coda")
         self.search_category.addItem("Strumenti — analisi progetto")
-        self.search_category.setFixedWidth(150)
+        self.search_category.setMinimumWidth(150)
         self.search_category.setToolTip("Filtra le card per categoria")
         self.search_category.setStyleSheet(
             "QComboBox { padding:4px 8px; border-radius:6px; font-size:11px; }"
@@ -6439,50 +6441,7 @@ class CenterArea(QWidget):
         self.plancia_section.add_header_widget(
             self.global_search, max_width=700, min_width=360, stretch=2)
 
-        cards_grid = QGridLayout()
-        cards_grid.setSpacing(12)
-        cards_grid.setContentsMargins(0, 0, 0, 0)
-        # Colonne a larghezza STRETTAMENTE uniforme: stretch=1 su tutte e 3.
-        # Le card hanno MinimumWidth=120 e SizePolicy=Expanding, quindi la
-        # grid distribuisce lo spazio in modo identico tra le colonne.
-        cards_grid.setColumnStretch(0, 1)
-        cards_grid.setColumnStretch(1, 1)
-        cards_grid.setColumnStretch(2, 1)
-        # Rige a altezza uniforme (tutte le card hanno fixedHeight=110,
-        # ma lo row stretch assicura che la grid non deformi le righe).
-        cards_grid.setRowStretch(0, 0)
-        cards_grid.setRowStretch(1, 0)
-
-        self.cards = {}
-        card_configs = [
-            ("coda", "📋 Code Task",
-             "Schedula compiti a orari previsti: uno-shot, ricorrenti o giornalieri",
-             "Scheduler", "#f59e0b", 0, 0),
-            ("modelli", "🤖 Modelli → Attori",
-             "Imposta i 3 attori: LLM, Decision Model e Timestral (soglie termiche)",
-             "3 attori", "#2563eb", 0, 1),
-            ("config", "⚙️ Configurazione",
-             "Scegli la tua configurazione GUI, Git e lingua",
-             "Settings", "#16a34a", 0, 2),
-            ("cicd", "🔄 CI/CD",
-             "Pipeline di integrazione e delivery: build, test, deploy automatici",
-             "Pipeline", "#dc2626", 1, 0),
-            ("clean_code", "✨ Clean & Architecture Code",
-             "Verifica qualità codice: lint, complexity, duplicazione, architettura",
-             "Quality", "#7c3aed", 1, 1),
-        ]
-
-        for key, title, subtitle, badge, badge_color, row, col in card_configs:
-            card = PlanciaCard(title, subtitle, badge=badge, badge_color=badge_color)
-            card.clicked.connect(lambda k=key: self.open_panel(k))
-            self.cards[key] = card
-            cards_grid.addWidget(card, row, col)
-
-        cards_container = QWidget()
-        cards_container.setLayout(cards_grid)
-        # Il container deve riempire tutta la larghezza disponibile della
-        # plancia_section, così le 3 colonne hanno spazio uniforme.
-        cards_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        cards_container, self.cards = build_plancia_cards(self.open_panel)
         self.plancia_section.add_widget(cards_container)
 
         # ── Separatore visivo tra le card (menù da cliccare) e gli strumenti
@@ -6528,51 +6487,10 @@ class CenterArea(QWidget):
         self.security_panel = SoftwareSecurityPanel()
         _force_content_size(self.security_panel)
 
-        # ── Grid 3x2 per i 5 strumenti (stesso stile delle card sopra) ─
-        tools_grid = QGridLayout()
-        tools_grid.setSpacing(12)
-        tools_grid.setContentsMargins(0, 0, 0, 0)
-        tools_grid.setColumnStretch(0, 1)
-        tools_grid.setColumnStretch(1, 1)
-        tools_grid.setColumnStretch(2, 1)
-        tools_grid.setRowStretch(0, 0)
-        tools_grid.setRowStretch(1, 0)
-        tools_grid.setRowStretch(2, 0)
-
-        self.tools_cards = {}
-        tool_card_configs = [
-            ("code_explorer", "🎮 Navigatore di codice",
-             "Esplora classi, funzioni e variabili del progetto con grafo interattivo",
-             "Explorer", "#0891b2", 0, 0),
-            ("backup_logs", "💾 Backup Code — Git Logs",
-             "Log dei push su GitHub, GitLab e Git generici con stato pipeline CI",
-             "Backup", "#475569", 0, 1),
-            ("logs", "📜 Log — Diario di Bordo",
-             "Cronologia eventi del sistema: info, debug, success ed errori",
-             "Logs", "#ca8a04", 0, 2),
-            ("integrity", "🧪 Test di integrità",
-             "Verifica checksum e integrità dei file critici del software",
-             "Tests", "#0d9488", 1, 0),
-            ("security", "🛡️ Sicurezza & anti-manomissione",
-             "Scansioni di sicurezza, rilevamento manomissioni e hardening",
-             "Security", "#b91c1c", 1, 1),
-            ("audit_project", "🔍 Audit Progetto",
-             "Quality gate su un progetto target: porte esposte, tunnel, codice morto",
-             "Gate", "#9333ea", 1, 2),
-            ("hardware", "🖥️ Hardware & Modelli",
-             "Rilevamento GPU/memoria: strategia auto-suggerita per Worker e modelli",
-             "Hardware", "#0891b2", 2, 0),
-        ]
-
-        for key, title, subtitle, badge, badge_color, row, col in tool_card_configs:
-            card = PlanciaCard(title, subtitle, badge=badge, badge_color=badge_color)
-            card.clicked.connect(lambda k=key: self.open_panel(k))
-            self.tools_cards[key] = card
-            tools_grid.addWidget(card, row, col)
-
-        tools_container = QWidget()
-        tools_container.setLayout(tools_grid)
-        tools_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        tools_container, self.tools_cards = build_tools_cards(
+            self.open_panel, self.log_viewer, self.code_explorer, self.backup_logs,
+            self.integrity_panel, self.security_panel
+        )
         self.plancia_section.add_widget(tools_container)
 
         main_lay.addWidget(self.plancia_section)
