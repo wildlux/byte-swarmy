@@ -75,5 +75,27 @@ def build_clean_code_page():
     return CleanCodePanel()
 
 
-__all__ = ["wrap_in_panel_page", "build_actors_page", "build_cicd_page", "build_clean_code_page"]
+def build_config_page(theme_changed_callback, gui_debug_changed_callback):
+    """Costruisce il pannello Impostazioni interattivo."""
+    from GUI.settings_panel import SettingsPanel
+    page = SettingsPanel()
+    page.theme_changed.connect(theme_changed_callback)
+    page.gui_debug_changed.connect(gui_debug_changed_callback)
+    return page
+
+
+def build_scheduler_page(get_project_path_callback):
+    """Costruisce il pannello 'Coda Task' → TaskSchedulerPanel."""
+    from GUI.task_scheduler_panel import TaskSchedulerPanel
+    return TaskSchedulerPanel(get_project_path=get_project_path_callback)
+
+
+__all__ = [
+    "wrap_in_panel_page",
+    "build_actors_page",
+    "build_cicd_page",
+    "build_clean_code_page",
+    "build_config_page",
+    "build_scheduler_page",
+]
 

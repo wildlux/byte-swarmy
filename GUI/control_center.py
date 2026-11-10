@@ -53,6 +53,8 @@ from GUI.panels import (
     build_actors_page,
     build_cicd_page,
     build_clean_code_page,
+    build_config_page,
+    build_scheduler_page,
 )
 from GUI import settings_store
 from GUI.settings_panel import SettingsPanel
@@ -6581,7 +6583,7 @@ class CenterArea(QWidget):
         self.detail_stack = QStackedWidget()
         self.panel_pages = {}
         # Pannello "coda" → TaskSchedulerPanel (Code Task con orari)
-        scheduler_page = self._build_scheduler_page()
+        scheduler_page = build_scheduler_page(self.main_win.get_current_project_path)
         self.panel_pages["coda"] = scheduler_page
         self.detail_stack.addWidget(scheduler_page)
 
@@ -6591,7 +6593,7 @@ class CenterArea(QWidget):
         self.detail_stack.addWidget(actors_page)
 
         # Pannello "config" → SettingsPanel interattivo (tema, lingua, Git)
-        config_page = self._build_config_page()
+        config_page = build_config_page(self._apply_theme_live, self._on_gui_debug_changed)
         self.panel_pages["config"] = config_page
         self.detail_stack.addWidget(config_page)
 
@@ -6821,34 +6823,11 @@ class CenterArea(QWidget):
         lay.addWidget(body, stretch=1)
         return page
 
-    def _build_config_page(self):
-        """Costruisce il pannello Impostazioni interattivo.
-
-        Sostituisce il vecchio testo statico con un SettingsPanel vero:
-        - scelta tema (chiaro/scuro) applicato live
-        - scelta lingua (it/en) con tooltip "Work in progress"
-        - gestione remote Git (GitHub/GitLab/Git) con token, per push automatico
-        """
-        page = SettingsPanel()
-        # Quando il tema cambia, applichiamo live all'app + credits
-        page.theme_changed.connect(self._apply_theme_live)
-        # Debug GUI: barra info-widget sotto il mouse
-        page.gui_debug_changed.connect(self._on_gui_debug_changed)
-        return page
 
 
 
-    def _build_scheduler_page(self):
-        """Costruisce il pannello 'Coda Task' → TaskSchedulerPanel.
 
-        Sostituisce il vecchio testo statico "3 task in coda ..." con un
-        TaskSchedulerPanel interattivo dove l'utente può schedulare
-        compiti (Code Task) a orari previsti: uno-shot a una data/ora,
-        ricorrenti (ogni N secondi), oppure giornalieri alle HH:MM.
-        La schedulazione è salvata in CONFIG/scheduled_tasks.json.
-        """
-        page = TaskSchedulerPanel(get_project_path=self.main_win.get_current_project_path)
-        return page
+
 
 
 

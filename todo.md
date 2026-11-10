@@ -71,7 +71,7 @@ piccoli, atomici e verificabili.
 ### 🟡 Medio (da valutare dopo CU1-CU4)
 
 - [ ] **CU5. Spezzare `GUI/control_center.py`** — separare `FileSystemModel`, `CheckableTreeView`, `FileTreeDrawer` in `GUI/file_manager.py`. ✅ Fatto: `FileSystemModel` e `CheckableTreeView` spostati in `GUI/file_manager.py` (riga 3794-4049 rimosse da control_center.py). `FileTreeDrawer` resta per ora (intrecciato con ControlCenter).
-- [ ] **CU6. Spezzare `GUI/main_window.py`** — separare aree della plancia in widget dedicati. ✅ Iniziato: creato `GUI/panels.py` con `wrap_in_panel_page`, `build_actors_page`, `build_cicd_page`, `build_clean_code_page`. `control_center.py` li importa e usa. Rimangono da spostare: `_build_config_page`, `_build_scheduler_page`, e il codice inline della costruzione delle card della plancia (cards_grid, tools_grid).
+- [ ] **CU6. Spezzare `GUI/main_window.py`** — separare aree della plancia in widget dedicati. ✅ Iniziato e quasi completato: creato `GUI/panels.py` con `wrap_in_panel_page`, `build_actors_page`, `build_cicd_page`, `build_clean_code_page`, `build_config_page`, `build_scheduler_page`. `control_center.py` li importa e usa. Rimangono da spostare: il codice inline della costruzione delle card della plancia (cards_grid, tools_grid con le 10 card) e `FileTreeDrawer` (molto intrecciato con ControlCenter).
 - [ ] **CU7. Dimensioni fisse GUI** — 87 occorrenze `setFixedSize/Width/Height`: valutare sostituzione con `setMinimumSize` + stretch dove opportuno.
 
 ---
