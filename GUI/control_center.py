@@ -57,6 +57,23 @@ from GUI.task_scheduler_panel import TaskSchedulerPanel
 # ════════════════════════════════════════════════════════════════
 _CLICK_COUNT = 0
 
+# ════════════════════════════════════════════════════════════════
+# ZOOM: riscalatura dei font-size hard-coded nei CSS
+# ════════════════════════════════════════════════════════════════
+_ZOOM_FS_RE = re.compile(r"(font-size\s*:\s*)(\d+(?:\.\d+)?)\s*(px|pt)")
+
+
+def _zoom_scale_css(css: str, factor: float) -> str:
+    """Riscala i font-size (px e pt) di un CSS con il fattore indicato."""
+    def _scale(m):
+        try:
+            n = float(m.group(2)) * factor
+        except Exception:
+            n = float(m.group(2))
+        n = max(6.0, n)
+        return f"{m.group(1)}{n:.2f}{m.group(3)}"
+    return _ZOOM_FS_RE.sub(_scale, css)
+
 
 def _click_log(area: str, pulsante: str, progetto: str = "",
                elemento: str = "") -> None:
@@ -2142,6 +2159,13 @@ class ControlCenter(QMainWindow):
         # Preferenze GUI (tema, zoom, font, posizione testo icone)
         from CORE.config_model import load_typed_config
         self.gui_settings = load_typed_config().gui
+        # Zoom persistito in CONFIG/settings.json vince sul config.toml:
+        # all'avvio l'interfaccia parte gia' scalata come nell'ultima sessione.
+        try:
+            from GUI import settings_store as _settings_store_mod
+            self.gui_settings.zoom_level = _settings_store_mod.get_zoom_level()
+        except Exception:
+            pass
         # Applica lo zoom iniziale
         self._apply_zoom(self.gui_settings.zoom_level)
 
@@ -2216,6 +2240,13 @@ class ControlCenter(QMainWindow):
         # bar, barre pulsanti): il primo _apply_zoom avveniva prima e quindi
         # quei widget restavano al font-base anche con zoom salvato != 100.
         self._apply_zoom(self.gui_settings.zoom_level)
+
+        # Catch-up periodico: i widget creati DOPO lo zoom (pannelli aperti
+        # dai menu, sezioni CPU/GPU ricreate, dialog) vengono scalati entro
+        # ~1.5s invece di restare al font base fino al prossimo re-zoom.
+        self._zoom_catchup_timer = QTimer(self)
+        self._zoom_catchup_timer.timeout.connect(self._rescale_missing_widgets)
+        self._zoom_catchup_timer.start(1500)
 
     def _save_splitter_state(self):
         """Salva le larghezze attuali dello splitter (sidebar <-> centro)
@@ -2959,12 +2990,21 @@ class ControlCenter(QMainWindow):
         except Exception:
             pass
 
+    def _persist_zoom(self, level: int):
+        """Salva il livello zoom in CONFIG/settings.json (best effort)."""
+        try:
+            from GUI import settings_store as _settings_store_mod
+            _settings_store_mod.set_zoom_level(level)
+        except Exception:
+            pass
+
     def _zoom_in(self):
         """Aumenta lo zoom dell'interfaccia."""
         try:
             print(f"DEBUG _zoom_in chiamato, livello attuale: {self.gui_settings.zoom_level}")
             new_level = min(200, self.gui_settings.zoom_level + 10)
             self.gui_settings.zoom_level = new_level
+            self._persist_zoom(new_level)
             self._apply_zoom(new_level)
             print(f"DEBUG zoom applicato: {new_level}%")
         except Exception as e:
@@ -2976,6 +3016,7 @@ class ControlCenter(QMainWindow):
             new_level = max(50, self.gui_settings.zoom_level - 10)
             self.gui_settings.zoom_level = new_level
             print(f"DEBUG _zoom_out → {new_level}%")
+            self._persist_zoom(new_level)
             self._apply_zoom(new_level)
             print(f"DEBUG zoom applicato: {new_level}%")
         except Exception as e:
@@ -2986,6 +3027,7 @@ class ControlCenter(QMainWindow):
         try:
             self.gui_settings.zoom_level = 100
             print("DEBUG _zoom_reset → 100%")
+            self._persist_zoom(100)
             self._apply_zoom(100)
             print("DEBUG zoom applicato: 100%")
         except Exception as e:
@@ -2995,25 +3037,15 @@ class ControlCenter(QMainWindow):
         """Applica il livello zoom a tutta l'interfaccia.
 
         Il font-size e' hard-coded in decine di stylesheet inline per-widget
-        (px) e nel tema QSS app-level (pt): quei valori vittoriano su
+        (px) e nel tema QSS della finestra (pt): quei valori vittoriano su
         app.setFont() e sul QSS globale, quindi qui vengono RISCALATI.
         Strategia: cattura una base a 100% e riscala con fattore level/100.
         """
         try:
-            import re
             from PyQt6.QtGui import QFont
             from PyQt6.QtWidgets import QApplication
             app = QApplication.instance()
-            fs_re = re.compile(r"(font-size\s*:\s*)(\d+(?:\.\d+)?)\s*(px|pt)")
             factor = max(0.5, min(2.0, level / 100.0))
-
-            def _scale(m, _f=factor):
-                try:
-                    n = float(m.group(2)) * _f
-                except Exception:
-                    n = float(m.group(2))
-                n = max(6.0, n)
-                return f"{m.group(1)}{n:.2f}{m.group(3)}"
 
             font_size = max(8, int(self.gui_settings.font_size * level / 100))
             font = QFont()
@@ -3032,24 +3064,29 @@ class ControlCenter(QMainWindow):
                     base = app._zoom_base_styles.setdefault(id(widget), ss) or ""
                     if "font-size" not in base:
                         continue
-                    new_ss = fs_re.sub(_scale, base)
+                    new_ss = _zoom_scale_css(base, factor)
                     if new_ss != ss:
                         widget.setStyleSheet(new_ss)
                 except Exception:
                     pass
 
             # 2) QSS della MAIN WINDOW (tema + window_chrome): qui vive il
-            #    tema (dark.qss ecc. con font-size in pt). Il suo ScrollView
-            #    vince a parita' di specificita' sul QSS app-level, quindi
+            #    tema (dark.qss ecc. con font-size in pt). Il suo CSS vince
+            #    a parita' di specificita' sul QSS app-level, quindi
             #    va riscalato LUI: sempre dall'originale, niente drift.
             if not hasattr(self, "_zoom_original_stylesheet"):
                 self._zoom_original_stylesheet = self.styleSheet()
             self.setStyleSheet(
-                fs_re.sub(_scale, self._zoom_original_stylesheet)
+                _zoom_scale_css(self._zoom_original_stylesheet, factor)
                 + "\n" + self._zoom_qss(font_size)
             )
 
-            # 3) Forza repaint e polizia stile di tutti i widget
+            # 3) QSS app-level per i popup TOP-LEVEL (QMenu, tooltip di
+            #    sistema) che NON ereditano il QSS della finestra: senza
+            #    questo i menu contestuali restano al font base.
+            app.setStyleSheet(self._zoom_qss(font_size))
+
+            # 4) Forza repaint e polizia stile di tutti i widget
             for widget in app.allWidgets():
                 try:
                     widget.font().setPointSize(font_size)
@@ -3087,6 +3124,40 @@ class ControlCenter(QMainWindow):
                 QTabBar::tab {{ font-size: {font_size}px; }}
                 QHeaderView::section {{ font-size: {font_size}px; }}
             """
+
+    def _rescale_missing_widgets(self):
+        """Zoom: scala i widget creati DOPO l'ultimo zoom.
+
+        I pannelli aperti dopo uno zoom (Impostazioni, Attori, Coda, sezioni
+        CPU/GPU ricreate, dialog) nascono con gli stylesheet inline a base
+        100%: senza questo passaggio restano al font piccolissimo finch'e
+        l'utente non re-zooma. Passaggio leggero: tocca SOLO i widget nuovi
+        (stili invariati non vengono riscritti, quindi zero flicker).
+        """
+        try:
+            level = self.gui_settings.zoom_level
+        except Exception:
+            return
+        if level == 100:
+            return
+        app = QApplication.instance()
+        if app is None:
+            return
+        base_styles = getattr(app, "_zoom_base_styles", None)
+        if base_styles is None:
+            return  # zoom non ancora applicato: _apply_zoom gira all'avvio
+        factor = max(0.5, min(2.0, level / 100.0))
+        for widget in app.allWidgets():
+            try:
+                ss = widget.styleSheet()
+                base = base_styles.setdefault(id(widget), ss) or ""
+                if "font-size" not in base:
+                    continue
+                new_ss = _zoom_scale_css(base, factor)
+                if new_ss != ss:
+                    widget.setStyleSheet(new_ss)
+            except Exception:
+                pass
 
     def _send_command(self):
         text = self.cmd_input.text().strip()

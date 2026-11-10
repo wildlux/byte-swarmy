@@ -35,6 +35,9 @@ DEFAULTS = {
     "detect_gpu_at_startup": True,  # auto-detect all'avvio
     # Debug GUI: mostra info widget sotto il mouse nella barra in basso
     "gui_debug": False,
+    # Livello zoom interfaccia (percentuale, 50..200). Salvato quando l'utente
+    # usa i pulsanti zoom o le scorciatoie Ctrl++ / Ctrl+- / Ctrl+0.
+    "zoom_level": 100,
 }
 
 
@@ -196,4 +199,26 @@ def set_gui_debug(enabled: bool) -> bool:
     """Attiva/disattiva il debug GUI."""
     s = load_settings()
     s["gui_debug"] = bool(enabled)
+    return save_settings(s)
+
+
+# ── Zoom interfaccia ─────────────────────────────────────────────────
+
+def get_zoom_level() -> int:
+    """Ritorna il livello zoom salvato (percentuale, clampato a 50..200)."""
+    try:
+        v = int(load_settings().get("zoom_level", 100))
+    except Exception:
+        v = 100
+    return max(50, min(200, v))
+
+
+def set_zoom_level(level: int) -> bool:
+    """Salva il livello zoom dell'interfaccia in CONFIG/settings.json."""
+    try:
+        level = max(50, min(200, int(level)))
+    except Exception:
+        return False
+    s = load_settings()
+    s["zoom_level"] = level
     return save_settings(s)
