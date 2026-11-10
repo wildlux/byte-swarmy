@@ -70,12 +70,9 @@ piccoli, atomici e verificabili.
 
 ### 🟡 Medio (da valutare dopo CU1-CU4)
 
-- [ ] **CU5. Spezzare `GUI/control_center.py`** — 6.498 righe: separare
-  `FileSystemModel`, `CheckableTreeView`, `FileTreeDrawer` in `GUI/file_manager.py`.
-- [ ] **CU6. Spezzare `GUI/main_window.py`** — 4.484 righe: separare aree
-  della plancia in widget dedicati.
-- [ ] **CU7. Dimensioni fisse GUI** — 87 occorrenze `setFixedSize/Width/Height`:
-  valutare sostituzione con `setMinimumSize` + stretch dove opportuno.
+- [ ] **CU5. Spezzare `GUI/control_center.py`** — separare `FileSystemModel`, `CheckableTreeView`, `FileTreeDrawer` in `GUI/file_manager.py`. ✅ Fatto: `FileSystemModel` e `CheckableTreeView` spostati in `GUI/file_manager.py` (riga 3794-4049 rimosse da control_center.py). `FileTreeDrawer` resta per ora (intrecciato con ControlCenter).
+- [ ] **CU6. Spezzare `GUI/main_window.py`** — separare aree della plancia in widget dedicati. ✅ Iniziato: creato `GUI/panels.py` con `wrap_in_panel_page`, `build_actors_page`, `build_cicd_page`, `build_clean_code_page`. `control_center.py` li importa e usa. Rimangono da spostare: `_build_config_page`, `_build_scheduler_page`, e il codice inline della costruzione delle card della plancia (cards_grid, tools_grid).
+- [ ] **CU7. Dimensioni fisse GUI** — 87 occorrenze `setFixedSize/Width/Height`: valutare sostituzione con `setMinimumSize` + stretch dove opportuno.
 
 ---
 
@@ -98,7 +95,7 @@ piccoli, atomici e verificabili.
 - [x] **CORE/loop_detector.py** — nuovo modulo: rileva ripetizioni nell'output LLM (n-grammi ripetuti, rapporto di compressione testo molto alto) e restituisce motivo del loop / None.
 - [x] **CORE/ollama_client.py** — `call_streaming` accetta `options_override` (nuovo seed, temperatura, penalità per chiamata singola); `_clamp_options` applica clamp di sicurezza: `repeat_penalty ≥ 1.05`, `temperatura > 0`, `repeat_last_n` in [64,256], `num_predict` finito.
 - [x] **CORE/orchestrator.py** — `execute` rileva loop con `detect_loop`; se trovato, applica fallback (nuovo seed, temperatura +0.1, penalità +0.05); se il loop persiste, interrompe con errore esplicito.
-- [ ] **CORE/orchestrator.py** o **CORE/correction.py** — (fallback già integrato in execute) verificare copertura anche nel percorso correction/post-execution.
+- [x] **CORE/orchestrator.py** o **CORE/correction.py** — (fallback già integrato in execute) verificare copertura anche nel percorso correction/post-execution: il task rifiutato dall'audit viene rimesso in pending e rieseguito tramite `worker.execute()` → `call_streaming()` → `detect_loop()`, quindi il rilevamento loop si applica anche ai tentativi di correzione.
 
 ## 🟡 Priorità 2 — Robustezza e rollback
 

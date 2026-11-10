@@ -47,6 +47,13 @@ from GUI.gui_backend import (
     add_task_to_db, get_ram_pct, get_gpu_mem_pct, get_gpu_freq_mhz
 )
 from INTENT.metrics import estimate_kv_cache_mb
+from GUI.file_manager import FileSystemModel, CheckableTreeView
+from GUI.panels import (
+    wrap_in_panel_page,
+    build_actors_page,
+    build_cicd_page,
+    build_clean_code_page,
+)
 from GUI import settings_store
 from GUI.settings_panel import SettingsPanel
 from GUI.actors_panel import ActorsPanel
@@ -3791,261 +3798,7 @@ def build_run_command(file_path):
     return None
 
 
-class FileSystemModel(QStandardItemModel):
-    """QStandardItemModel con colonna 0 checkbox per selezione multipla file/cartelle.
-    
-    Colonna 0: checkbox + gerarchia (freccette espansione)
-    Colonna 1: nome + icona (solo dati)
-    """
-    def __init__(self):
-        super().__init__()
-        self.setColumnCount(4)
-        self.setHeaderData(0, Qt.Orientation.Horizontal, "")  # colonna vuota: solo triangolino espandi/collassa
-        self.setHeaderData(1, Qt.Orientation.Horizontal, "✓")
-        self.setHeaderData(2, Qt.Orientation.Horizontal, "📄")
-        self.setHeaderData(3, Qt.Orientation.Horizontal, "Name")
-        self._checked_paths = set()
-        self._root_path = ""
-        self._icon_provider = QFileIconProvider()
-        # Ordinamento: True = cartelle prima poi file; False = file prima poi cartelle
-        self._folders_first = True
 
-    def set_root_path(self, path):
-        self._root_path = os.path.abspath(path)
-        self.clear()
-        self.setColumnCount(4)
-        self.setHeaderData(0, Qt.Orientation.Horizontal, "")  # colonna vuota: solo triangolino
-        self.setHeaderData(1, Qt.Orientation.Horizontal, "✓")
-        self.setHeaderData(2, Qt.Orientation.Horizontal, "📄")
-        self.setHeaderData(3, Qt.Orientation.Horizontal, "Name")
-        root_item = self.invisibleRootItem()
-        self._populate_folder(self._root_path, root_item)
-
-    def _make_items(self, full_path, is_dir):
-        # Colonna 0: vuota (solo per il triangolino di espansione del QTreeView)
-        empty = QStandardItem()
-        empty.setEditable(False)
-        empty.setData(full_path, Qt.ItemDataRole.UserRole)
-        empty.setData(is_dir, Qt.ItemDataRole.UserRole + 1)
-
-        # Colonna 1: checkbox di selezione
-        checkbox = QStandardItem()
-        checkbox.setCheckable(True)
-        checkbox.setCheckState(Qt.CheckState.Unchecked)
-        checkbox.setEditable(False)
-        checkbox.setData(full_path, Qt.ItemDataRole.UserRole)
-        checkbox.setData(is_dir, Qt.ItemDataRole.UserRole + 1)
-
-        # Colonna 2: icona (colonna dedicata, separata dal nome)
-        icon_item = QStandardItem()
-        icon_item.setEditable(False)
-        icon_item.setData(full_path, Qt.ItemDataRole.UserRole)
-        icon_item.setData(is_dir, Qt.ItemDataRole.UserRole + 1)
-        from PyQt6.QtCore import QFileInfo
-        icon = self._icon_provider.icon(QFileInfo(full_path))
-        icon_item.setIcon(icon)
-
-        # Colonna 3: nome (senza icona)
-        name = QStandardItem(os.path.basename(full_path))
-        name.setData(full_path, Qt.ItemDataRole.UserRole)
-        name.setData(is_dir, Qt.ItemDataRole.UserRole + 1)
-        name.setEditable(False)
-        # Tooltip con il percorso completo: il nome non si legge mai troncato
-        name.setToolTip(full_path)
-        icon_item.setToolTip(full_path)
-
-        return empty, checkbox, icon_item, name
-
-    def _make_empty_marker(self):
-        """Riga 'Cartella vuota' (disabilitata, corsivo) per cartelle senza contenuti."""
-        empty = QStandardItem()
-        empty.setEnabled(False)
-        checkbox = QStandardItem()
-        checkbox.setEnabled(False)
-        icon_item = QStandardItem()
-        icon_item.setEnabled(False)
-        name = QStandardItem("Cartella vuota")
-        name.setEnabled(False)
-        name.setEditable(False)
-        font = name.font()
-        font.setItalic(True)
-        name.setFont(font)
-        name.setData(False, Qt.ItemDataRole.UserRole + 1)  # non è una cartella
-        return [empty, checkbox, icon_item, name]
-
-    def _populate_folder(self, folder_path, parent_item):
-        try:
-            entries = sorted(os.listdir(folder_path))
-        except Exception:
-            return
-        # Separa cartelle e file per poterle ordinare a gruppi
-        dirs = []
-        files = []
-        for name in entries:
-            # Salta file/cartelle di sistema che non devono apparire nell'albero
-            if name == "__init__.py":
-                continue
-            if name == "__pycache__":
-                continue
-            if name.endswith(".pyc"):
-                continue
-            if name == ".git":
-                continue
-            if name == ".venv":
-                continue
-            if name.startswith(".") and name not in (".", ".."):
-                continue
-            full_path = os.path.join(folder_path, name)
-            is_dir = os.path.isdir(full_path)
-            if is_dir:
-                dirs.append((name, full_path, is_dir))
-            else:
-                files.append((name, full_path, is_dir))
-        if self._folders_first:
-            ordered = dirs + files
-        else:
-            ordered = files + dirs
-        # Cartella senza contenuti: mostra la riga "Cartella vuota"
-        if not ordered:
-            parent_item.appendRow(self._make_empty_marker())
-            return
-        for name, full_path, is_dir in ordered:
-            empty, checkbox, icon_item, name_item = self._make_items(full_path, is_dir)
-            parent_item.appendRow([empty, checkbox, icon_item, name_item])
-            if is_dir:
-                # UNA sola riga placeholder (disabilitata, non editabile) per far
-                # comparire il triangolino di espansione lazy-loading.
-                # Va appesa all'item di colonna 0: QTreeView mostra il triangolino
-                # in base ai figli dell'item della prima colonna.
-                placeholder = QStandardItem()
-                placeholder.setEnabled(False)
-                empty.appendRow([placeholder, QStandardItem(), QStandardItem(), QStandardItem()])
-
-    def populate_on_expand(self, parent_item):
-        """Chiamato quando una cartella viene espansa: popola i figli reali."""
-        full_path = parent_item.data(Qt.ItemDataRole.UserRole)
-        if not full_path or not os.path.isdir(full_path):
-            return
-        # Rimuovi placeholder esistenti
-        while parent_item.rowCount() > 0:
-            parent_item.removeRow(0)
-        try:
-            entries = sorted(os.listdir(full_path))
-        except Exception:
-            return
-        # Separa cartelle e file per ordine (stessa logica di _populate_folder)
-        dirs = []
-        files = []
-        for name in entries:
-            # Salta file/cartelle di sistema che non devono apparire nell'albero
-            if name == "__init__.py":
-                continue
-            if name == "__pycache__":
-                continue
-            if name.endswith(".pyc"):
-                continue
-            if name == ".git":
-                continue
-            if name == ".venv":
-                continue
-            if name.startswith(".") and name not in (".", ".."):
-                continue
-            child_full = os.path.join(full_path, name)
-            is_dir = os.path.isdir(child_full)
-            if is_dir:
-                dirs.append((name, child_full, is_dir))
-            else:
-                files.append((name, child_full, is_dir))
-        if self._folders_first:
-            ordered = dirs + files
-        else:
-            ordered = files + dirs
-        # Cartella senza contenuti: mostra la riga "Cartella vuota"
-        if not ordered:
-            parent_item.appendRow(self._make_empty_marker())
-            return
-        # Aggiungi figli reali (4 colonne: vuoto, checkbox, icona, nome)
-        for name, child_full, is_dir in ordered:
-            empty, checkbox, icon_item, name_item = self._make_items(child_full, is_dir)
-            parent_item.appendRow([empty, checkbox, icon_item, name_item])
-            if is_dir:
-                # UNA sola riga placeholder per il triangolino di espansione
-                # (appesa all'item di colonna 0, vedi _populate_folder)
-                placeholder = QStandardItem()
-                placeholder.setEnabled(False)
-                empty.appendRow([placeholder, QStandardItem(), QStandardItem(), QStandardItem()])
-
-    def checked_paths(self):
-        return set(self._checked_paths)
-
-    def clear_checks(self):
-        self._checked_paths.clear()
-
-    def filePath(self, index):
-        """Ritorna il path assoluto memorizzato in UserRole sull'item.
-
-        Compatibile con QStandardItemModel (che non espone filePath come
-        QFileSystemModel): il path viene letto dal ruolo UserRole impostato
-        in _make_items / populate_on_expand.
-        """
-        if not index.isValid():
-            return ""
-        item = self.itemFromIndex(index)
-        if item is None:
-            return ""
-        return item.data(Qt.ItemDataRole.UserRole) or ""
-
-    def flags(self, index):
-        if not index.isValid():
-            return Qt.ItemFlag.NoItemFlags
-        f = super().flags(index)
-        if index.column() == 1:
-            f |= Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEnabled
-        return f
-
-    def setData(self, index, value, role=Qt.ItemDataRole.EditRole):
-        if index.column() == 1 and role == Qt.ItemDataRole.CheckStateRole:
-            item = self.itemFromIndex(index)
-            if item is None:
-                return False
-            fp = item.data(Qt.ItemDataRole.UserRole)
-            if value == Qt.CheckState.Checked:
-                self._checked_paths.add(fp)
-            else:
-                self._checked_paths.discard(fp)
-            result = super().setData(index, value, role)
-            self.dataChanged.emit(index, index, [role])
-            return result
-        return super().setData(index, value, role)
-
-
-class CheckableTreeView(QTreeView):
-    """QTreeView che intercetta i click sulla checkbox (colonna 1)
-    per gestire toggle + log senza dipendere da dataChanged."""
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._drawer = None
-
-    def set_drawer(self, drawer):
-        self._drawer = drawer
-
-    def mousePressEvent(self, event):
-        if event.type() == QEvent.Type.MouseButtonPress:
-            index = self.indexAt(event.pos())
-            if index.isValid() and index.column() == 1:
-                item = self.model().itemFromIndex(index)
-                if item is not None and item.isCheckable():
-                    fp = item.data(Qt.ItemDataRole.UserRole)
-                    current = item.checkState()
-                    new_state = Qt.CheckState.Unchecked if current == Qt.CheckState.Checked else Qt.CheckState.Checked
-                    item.setCheckState(new_state)
-                    # Log del click
-                    _click_log("filemanager", "seleziona" if new_state == Qt.CheckState.Checked else "deseleziona",
-                               self._drawer.main_win.get_current_project_path() if self._drawer and self._drawer.main_win else "",
-                               fp)
-                    event.accept()
-                    return
-        super().mousePressEvent(event)
 
 
 class FileTreeDrawer(QFrame):
@@ -6833,7 +6586,7 @@ class CenterArea(QWidget):
         self.detail_stack.addWidget(scheduler_page)
 
         # Pannello "modelli" → ActorsPanel (3 attori: LLM + Decision + Timestral)
-        actors_page = self._build_actors_page()
+        actors_page = build_actors_page()
         self.panel_pages["modelli"] = actors_page
         self.detail_stack.addWidget(actors_page)
 
@@ -6843,12 +6596,12 @@ class CenterArea(QWidget):
         self.detail_stack.addWidget(config_page)
 
         # Pannello "cicd" → CICDPipelinePanel (pipeline build/test/deploy)
-        cicd_page = self._build_cicd_page()
+        cicd_page = build_cicd_page()
         self.panel_pages["cicd"] = cicd_page
         self.detail_stack.addWidget(cicd_page)
 
         # Pannello "clean_code" → CleanCodePanel (lint, complexity, architettura)
-        clean_code_page = self._build_clean_code_page()
+        clean_code_page = build_clean_code_page()
         self.panel_pages["clean_code"] = clean_code_page
         self.detail_stack.addWidget(clean_code_page)
 
@@ -6857,28 +6610,28 @@ class CenterArea(QWidget):
         # con header "← Indietro alla Plancia (Backspace)" + titolo, poi aggiunto al
         # detail_stack. La key deve combaciare con quella usata nelle
         # PlanciaCard della tools_grid (vedi tool_card_configs sopra).
-        self.panel_pages["code_explorer"] = self._wrap_in_panel_page(
-            "🎮 Navigatore di codice Interattivo", self.code_explorer
+        self.panel_pages["code_explorer"] = wrap_in_panel_page(
+            "🎮 Navigatore di codice Interattivo", self.code_explorer, self.back_to_main
         )
         self.detail_stack.addWidget(self.panel_pages["code_explorer"])
 
-        self.panel_pages["backup_logs"] = self._wrap_in_panel_page(
-            "💾 Backup Code — Git Logs", self.backup_logs
+        self.panel_pages["backup_logs"] = wrap_in_panel_page(
+            "💾 Backup Code — Git Logs", self.backup_logs, self.back_to_main
         )
         self.detail_stack.addWidget(self.panel_pages["backup_logs"])
 
-        self.panel_pages["logs"] = self._wrap_in_panel_page(
-            "📜 Log — Diario di Bordo", self.log_viewer
+        self.panel_pages["logs"] = wrap_in_panel_page(
+            "📜 Log — Diario di Bordo", self.log_viewer, self.back_to_main
         )
         self.detail_stack.addWidget(self.panel_pages["logs"])
 
-        self.panel_pages["integrity"] = self._wrap_in_panel_page(
-            "🧪 Test di integrità del software", self.integrity_panel
+        self.panel_pages["integrity"] = wrap_in_panel_page(
+            "🧪 Test di integrità del software", self.integrity_panel, self.back_to_main
         )
         self.detail_stack.addWidget(self.panel_pages["integrity"])
 
-        self.panel_pages["security"] = self._wrap_in_panel_page(
-            "🛡️ Sicurezza del software & anti-manomissione", self.security_panel
+        self.panel_pages["security"] = wrap_in_panel_page(
+            "🛡️ Sicurezza del software & anti-manomissione", self.security_panel, self.back_to_main
         )
         self.detail_stack.addWidget(self.panel_pages["security"])
 
@@ -7029,42 +6782,7 @@ class CenterArea(QWidget):
         except Exception:
             return False
 
-    def _wrap_in_panel_page(self, title: str, widget: QWidget) -> QWidget:
-        """Avvolge un widget in una pagina con header "← Indietro" + titolo.
 
-        Pattern comune per tutti i pannelli del detail_stack: header con
-        pulsante Indietro + titolo, poi il widget content che riempie lo
-        spazio restante. Stesso stile di CICDPipelinePanel, CleanCodePanel
-        e SettingsPanel.
-        """
-        page = QWidget()
-        lay = QVBoxLayout(page)
-        lay.setContentsMargins(20, 16, 20, 16)
-        lay.setSpacing(14)
-
-        # Header: pulsante Indietro + titolo
-        head = QHBoxLayout()
-        head.setSpacing(10)
-        back = QPushButton("← Indietro alla Plancia (Backspace)")
-        back.setObjectName("back_btn")
-        # Stile dal tema app-level (QPushButton#back_btn nei .qss se
-        # presente, altrimenti QPushButton base) — segue il tema live.
-        back.clicked.connect(self.back_to_main)
-        head.addWidget(back)
-        head.addStretch()
-        title_lbl = QLabel(f"<b style='font-size:18px;'>{title}</b>")
-        head.addWidget(title_lbl)
-        head.addStretch()
-        lay.addLayout(head)
-
-        # Content: il widget vero e proprio. NB: i 5 pannelli strumenti
-        # arrivano con altezza FISSA 300px (per la griglia della Plancia):
-        # qui nel detail page deve invece riempire la pagina, altrimenti
-        # il layout lo centra verticalmente lasciando mezzo buco.
-        # Minima rimossa: il widget Expanding riempie lo spazio disponibile.
-        widget.setMaximumHeight(16777215)   # QWIDGETSIZE_MAX
-        lay.addWidget(widget, stretch=1)
-        return page
 
     def _on_accordion_toggled(self, expanded: bool):
         """[DEPRECATO] Comportamento accordion sulle vecchie sezioni collassabili.
@@ -7118,17 +6836,7 @@ class CenterArea(QWidget):
         page.gui_debug_changed.connect(self._on_gui_debug_changed)
         return page
 
-    def _build_actors_page(self):
-        """Costruisce il pannello Modelli → Attori (LLM, Decision, Timestral).
 
-        Sostituisce il vecchio testo statico "Modelli Ollama caricati: ..."
-        con un ActorsPanel interattivo dove l'utente può scegliere i modelli
-        per ciascuno dei 3 attori e impostare i parametri del Timestral
-        (soglie termiche, tok/s minimo, durata pausa, ecc.).
-        La configurazione è salvata in CONFIG/actors.json.
-        """
-        page = ActorsPanel()
-        return page
 
     def _build_scheduler_page(self):
         """Costruisce il pannello 'Coda Task' → TaskSchedulerPanel.
@@ -7142,24 +6850,9 @@ class CenterArea(QWidget):
         page = TaskSchedulerPanel(get_project_path=self.main_win.get_current_project_path)
         return page
 
-    def _build_cicd_page(self):
-        """Costruisce il pannello 'CI/CD' → CICDPipelinePanel.
 
-        Mostra lo stato della pipeline: build → test → deploy, con
-        trigger manuale (pulsanti) e log dei run precedenti.
-        """
-        page = CICDPipelinePanel()
-        return page
 
-    def _build_clean_code_page(self):
-        """Costruisce il pannello 'Clean & Architecture Code' → CleanCodePanel.
 
-        Esegue analisi qualità codice: lint, complessità ciclomatica,
-        duplicazione, dipendenze circolari, ecc. — con pulsante 'Esegui
-        analisi' e output testuale.
-        """
-        page = CleanCodePanel()
-        return page
 
     def _apply_theme_live(self, theme: str):
         """Applica il tema scelto LIVE (nome completo, es. "nord").
