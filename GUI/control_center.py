@@ -2103,13 +2103,13 @@ class _ZoomEventFilter(QObject):
             key = event.key()
             mods = event.modifiers()
             if mods & Qt.KeyboardModifier.ControlModifier:
-                if key in (Qt.Key_Plus, Qt.Key_Equal):
+                if key in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):
                     self.window._zoom_in()
                     return True
-                if key == Qt.Key_Minus:
+                if key == Qt.Key.Key_Minus:
                     self.window._zoom_out()
                     return True
-                if key == Qt.Key_0:
+                if key == Qt.Key.Key_0:
                     self.window._zoom_reset()
                     return True
         return super().eventFilter(obj, event)
@@ -2211,6 +2211,11 @@ class ControlCenter(QMainWindow):
         self._debug_label = None
         if self._gui_debug:
             self._install_debug_bar()
+
+        # Ri-applica lo zoom ORA che tutta l'UI e' costruita (toolbar, status
+        # bar, barre pulsanti): il primo _apply_zoom avveniva prima e quindi
+        # quei widget restavano al font-base anche con zoom salvato != 100.
+        self._apply_zoom(self.gui_settings.zoom_level)
 
     def _save_splitter_state(self):
         """Salva le larghezze attuali dello splitter (sidebar <-> centro)
@@ -2408,7 +2413,8 @@ class ControlCenter(QMainWindow):
             self._update_completion_bar()
 
             # Pulsanti fisici zoom (in basso a destra, dopo la completion bar)
-            from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy
+            # Ordine richiesto: [−] [%] [+] [↻]
+            # (QLabel/QHBoxLayout/QSizePolicy già importati a livello modulo)
             _zoom_container = QHBoxLayout()
             _zoom_container.setContentsMargins(0, 0, 0, 0)
             _zoom_container.setSpacing(4)
@@ -2424,16 +2430,15 @@ class ControlCenter(QMainWindow):
             self._zoom_out_btn.clicked.connect(lambda: (print("DEBUG zoom out click"), self._zoom_out()))
             _zoom_container.addWidget(self._zoom_out_btn)
 
-            self._zoom_reset_btn = QPushButton("↻")
-            self._zoom_reset_btn.setFixedSize(24, 24)
-            self._zoom_reset_btn.setToolTip("Reset vista (Ctrl + 0)")
-            self._zoom_reset_btn.setStyleSheet(
-                "QPushButton { background:#6b7280; color:white; border:none; "
-                "border-radius:12px; font-weight:bold; padding:0; }"
-                "QPushButton:hover { background:#4b5563; }"
+            # Etichetta percentuale zoom (es. "100%")
+            self._zoom_level_lbl = QLabel(f"{getattr(self.gui_settings, 'zoom_level', 100)}%")
+            self._zoom_level_lbl.setToolTip("Livello zoom corrente (Ctrl++ / Ctrl+− / Ctrl+0)")
+            self._zoom_level_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._zoom_level_lbl.setFixedWidth(40)
+            self._zoom_level_lbl.setStyleSheet(
+                "QLabel { color:#9ca3af; font-size:10px; font-weight:bold; padding:0; }"
             )
-            self._zoom_reset_btn.clicked.connect(lambda: (print("DEBUG zoom reset click"), self._zoom_reset()))
-            _zoom_container.addWidget(self._zoom_reset_btn)
+            _zoom_container.addWidget(self._zoom_level_lbl)
 
             self._zoom_in_btn = QPushButton("+")
             self._zoom_in_btn.setFixedSize(24, 24)
@@ -2445,6 +2450,17 @@ class ControlCenter(QMainWindow):
             )
             self._zoom_in_btn.clicked.connect(lambda: (print("DEBUG zoom in click"), self._zoom_in()))
             _zoom_container.addWidget(self._zoom_in_btn)
+
+            self._zoom_reset_btn = QPushButton("↻")
+            self._zoom_reset_btn.setFixedSize(24, 24)
+            self._zoom_reset_btn.setToolTip("Reset vista (Ctrl + 0)")
+            self._zoom_reset_btn.setStyleSheet(
+                "QPushButton { background:#6b7280; color:white; border:none; "
+                "border-radius:12px; font-weight:bold; padding:0; }"
+                "QPushButton:hover { background:#4b5563; }"
+            )
+            self._zoom_reset_btn.clicked.connect(lambda: (print("DEBUG zoom reset click"), self._zoom_reset()))
+            _zoom_container.addWidget(self._zoom_reset_btn)
 
             _zoom_widget = QWidget()
             _zoom_widget.setLayout(_zoom_container)
@@ -2464,15 +2480,15 @@ class ControlCenter(QMainWindow):
         key = event.key()
         mods = event.modifiers()
         if mods & Qt.KeyboardModifier.ControlModifier:
-            if key in (Qt.Key_Plus, Qt.Key_Equal):
+            if key in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):
                 self._zoom_in()
                 event.accept()
                 return
-            if key == Qt.Key_Minus:
+            if key == Qt.Key.Key_Minus:
                 self._zoom_out()
                 event.accept()
                 return
-            if key == Qt.Key_0:
+            if key == Qt.Key.Key_0:
                 self._zoom_reset()
                 event.accept()
                 return
@@ -2976,22 +2992,86 @@ class ControlCenter(QMainWindow):
             print(f"Errore zoom reset: {e}")
 
     def _apply_zoom(self, level: int):
-        """Applica il livello zoom al font dell'applicazione e ai widget."""
+        """Applica il livello zoom a tutta l'interfaccia.
+
+        Il font-size e' hard-coded in decine di stylesheet inline per-widget
+        (px) e nel tema QSS app-level (pt): quei valori vittoriano su
+        app.setFont() e sul QSS globale, quindi qui vengono RISCALATI.
+        Strategia: cattura una base a 100% e riscala con fattore level/100.
+        """
         try:
-            print(f"DEBUG _apply_zoom chiamato con level={level}")
+            import re
             from PyQt6.QtGui import QFont
             from PyQt6.QtWidgets import QApplication
+            app = QApplication.instance()
+            fs_re = re.compile(r"(font-size\s*:\s*)(\d+(?:\.\d+)?)\s*(px|pt)")
+            factor = max(0.5, min(2.0, level / 100.0))
+
+            def _scale(m, _f=factor):
+                try:
+                    n = float(m.group(2)) * _f
+                except Exception:
+                    n = float(m.group(2))
+                n = max(6.0, n)
+                return f"{m.group(1)}{n:.2f}{m.group(3)}"
+
             font_size = max(8, int(self.gui_settings.font_size * level / 100))
             font = QFont()
             font.setPointSize(font_size)
-            app = QApplication.instance()
             app.setFont(font)
 
-            # Applica QSS globale con font-size a tutti i widget
-            # (salva lo stile originale la prima volta)
-            if not hasattr(app, "_zoom_original_stylesheet"):
-                app._zoom_original_stylesheet = app.styleSheet()
-            zoom_qss = f"""
+            # 1) Riscala i font-size negli stylesheet INLINE dei widget.
+            #    La base 100% viene catturata al primo incontro (il valore
+            #    scritto nel codice e' sempre a 100%); ogni zoom riscala
+            #    SEMPRE dalla base con fattore assoluto level/100.
+            if not hasattr(app, "_zoom_base_styles"):
+                app._zoom_base_styles = {}
+            for widget in app.allWidgets():
+                try:
+                    ss = widget.styleSheet()
+                    base = app._zoom_base_styles.setdefault(id(widget), ss) or ""
+                    if "font-size" not in base:
+                        continue
+                    new_ss = fs_re.sub(_scale, base)
+                    if new_ss != ss:
+                        widget.setStyleSheet(new_ss)
+                except Exception:
+                    pass
+
+            # 2) QSS della MAIN WINDOW (tema + window_chrome): qui vive il
+            #    tema (dark.qss ecc. con font-size in pt). Il suo ScrollView
+            #    vince a parita' di specificita' sul QSS app-level, quindi
+            #    va riscalato LUI: sempre dall'originale, niente drift.
+            if not hasattr(self, "_zoom_original_stylesheet"):
+                self._zoom_original_stylesheet = self.styleSheet()
+            self.setStyleSheet(
+                fs_re.sub(_scale, self._zoom_original_stylesheet)
+                + "\n" + self._zoom_qss(font_size)
+            )
+
+            # 3) Forza repaint e polizia stile di tutti i widget
+            for widget in app.allWidgets():
+                try:
+                    widget.font().setPointSize(font_size)
+                    widget.update()
+                    widget.style().unpolish(widget)
+                    widget.style().polish(widget)
+                except Exception:
+                    pass
+
+            # Aggiorna tooltip pulsanti ed etichetta percentuale
+            if hasattr(self, "_zoom_in_btn"):
+                self._zoom_in_btn.setToolTip(f"Aumenta zoom (Ctrl++) — {level}%")
+                self._zoom_out_btn.setToolTip(f"Riduci zoom (Ctrl+−) — {level}%")
+                self._zoom_reset_btn.setToolTip(f"Reset vista (Ctrl+0) — {level}%")
+            if hasattr(self, "_zoom_level_lbl"):
+                self._zoom_level_lbl.setText(f"{level}%")
+        except Exception as e:
+            print(f"Errore applicazione zoom: {e}")
+
+    def _zoom_qss(self, font_size: int) -> str:
+        """QSS globale che estende il font-size ai widget senza stile inline."""
+        return f"""
                 QWidget {{ font-size: {font_size}px; }}
                 QPushButton {{ font-size: {font_size}px; }}
                 QLabel {{ font-size: {font_size}px; }}
@@ -3007,25 +3087,6 @@ class ControlCenter(QMainWindow):
                 QTabBar::tab {{ font-size: {font_size}px; }}
                 QHeaderView::section {{ font-size: {font_size}px; }}
             """
-            app.setStyleSheet(app._zoom_original_stylesheet + "\n" + zoom_qss)
-
-            # Forza ripaint di tutti i widget
-            for widget in app.allWidgets():
-                try:
-                    widget.font().setPointSize(font_size)
-                    widget.update()
-                    widget.style().unpolish(widget)
-                    widget.style().polish(widget)
-                except Exception:
-                    pass
-
-            # Aggiorna tooltip pulsanti
-            if hasattr(self, "_zoom_in_btn"):
-                self._zoom_in_btn.setToolTip(f"Aumenta zoom (Ctrl++) — {level}%")
-                self._zoom_out_btn.setToolTip(f"Riduci zoom (Ctrl+−) — {level}%")
-                self._zoom_reset_btn.setToolTip(f"Reset vista (Ctrl+0) — {level}%")
-        except Exception as e:
-            print(f"Errore applicazione zoom: {e}")
 
     def _send_command(self):
         text = self.cmd_input.text().strip()
@@ -6955,6 +7016,17 @@ class CenterArea(QWidget):
         except Exception as e:
             print(f"[tema] applicazione '{theme}' fallita: {e}")
             return
+        # Dopo il cambio tema, il QSS della finestra e' tornato a 100% base:
+        # aggiorna la base dello zoom e ri-applica lo zoom corrente, altrimenti
+        # i font-size del tema non scalati "resettano" lo zoom visivo.
+        try:
+            if hasattr(main, "gui_settings"):
+                main._zoom_original_stylesheet = main.styleSheet()
+                main._apply_zoom(main.gui_settings.zoom_level)
+            else:
+                main._zoom_original_stylesheet = main.styleSheet()
+        except Exception as e:
+            print(f"[tema] riapplica zoom dopo cambio tema fallito: {e}")
         # Applica il kind del tema anche al credits overlay se è aperto
         if hasattr(main, "_credits_overlay") and main._credits_overlay is not None:
             try:
