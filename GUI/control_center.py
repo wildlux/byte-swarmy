@@ -1538,7 +1538,7 @@ class FileEditorWidget(QFrame):
         self.file_name_edit.setStyleSheet(
             "QLineEdit#editor_filename { font-weight:bold; font-size:12px; "
             "border:1px solid #363d4a; border-radius:4px; padding:2px 8px; "
-            "background:#1b1f27; }"
+            "background:#f8fafc; }"
             "QLineEdit#editor_filename:focus { border-color:#5b92ff; }"
         )
         self.file_name_edit.returnPressed.connect(self._rename_file)
