@@ -4036,14 +4036,15 @@ class FileTreeDrawer(QFrame):
                 icon = {"done": "✓", "running": "▶", "pending": "○",
                         "failed": "✗", "queued": "○",
                         "paused": "⏸", "thermal_paused": "🌡"}.get(st, "?")
-                item = QListWidgetItem(f"{icon} {title}")
+                color = {"done": "#16a34a", "running": "#f59e0b",
+                         "pending": "#dc2626", "failed": "#dc2626",
+                         "paused": "#6b7280", "thermal_paused": "#f97316"}.get(st, "#888")
+                # Colora solo il pallino/icona di stato, titolo resta neutro
+                html_title = title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                item = QListWidgetItem(f"<span style='color:{color}'>{icon}</span> {html_title}")
                 tid = t.get("id") or ""
                 if tid:
                     item.setData(Qt.ItemDataRole.UserRole, tid)
-                color = {"done": "#16a34a", "running": "#f59e0b",
-                         "pending": "#888", "failed": "#dc2626",
-                         "paused": "#6b7280", "thermal_paused": "#f97316"}.get(st, "?")
-                item.setForeground(QColor(color))
                 # Checkbox per selezione multipla (colonna di selezione)
                 item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
                 item.setCheckState(Qt.CheckState.Unchecked)
