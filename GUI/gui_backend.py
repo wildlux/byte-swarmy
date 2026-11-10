@@ -33,6 +33,56 @@ def get_gpu_temp():
         pass
     return 0.0
 
+
+def get_ram_pct():
+    """Uso RAM in % da /proc/meminfo (MemTotal - MemAvailable) / MemTotal."""
+    try:
+        mem = {}
+        with open("/proc/meminfo") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) >= 2:
+                    mem[parts[0].rstrip(":")] = int(parts[1])
+        total = mem.get("MemTotal", 0)
+        available = mem.get("MemAvailable", 0)
+        if total > 0:
+            return round((total - available) / total * 100, 1)
+    except Exception:
+        pass
+    return None
+
+
+def get_gpu_mem_pct():
+    """Uso memoria GPU in % da nvidia-smi (memory.used / memory.total)."""
+    try:
+        r = subprocess.run(
+            ["nvidia-smi", "--query-gpu=memory.used,memory.total",
+             "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=2
+        )
+        if r.returncode == 0:
+            used, total = map(int, r.stdout.strip().split(","))
+            if total > 0:
+                return round(used / total * 100, 1)
+    except Exception:
+        pass
+    return None
+
+
+def get_gpu_freq_mhz():
+    """Frequenza GPU corrente in MHz da nvidia-smi."""
+    try:
+        r = subprocess.run(
+            ["nvidia-smi", "--query-gpu=clocks.current.graphics",
+             "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=2
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            return int(r.stdout.strip())
+    except Exception:
+        pass
+    return None
+
 def get_metrics():
     try:
         if METRICS_FILE.exists():

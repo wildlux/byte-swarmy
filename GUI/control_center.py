@@ -44,8 +44,9 @@ from PyQt6.QtCore import (
 
 from GUI.gui_backend import (
     get_cpu_temp, get_gpu_temp, get_metrics, get_tasks, get_logs,
-    add_task_to_db
+    add_task_to_db, get_ram_pct, get_gpu_mem_pct, get_gpu_freq_mhz
 )
+from INTENT.metrics import estimate_kv_cache_mb
 from GUI import settings_store
 from GUI.settings_panel import SettingsPanel
 from GUI.actors_panel import ActorsPanel
@@ -2772,13 +2773,29 @@ class ControlCenter(QMainWindow):
         cpu._model.setText(cpu_model_str)
         cpu._temp.setText(f"{self._cpu_temp:.0f}°C")
         cpu._tok.setText(f"{self._tok_s:.0f}t/s")
-        cpu._kv.setText(self._kv)
-        cpu._mem.setText(f"{self._mem}%")
-        cpu._bus.setText(f"{self._freq}M")
+
+        # Valori reali (non segnaposto hardcoded):
+        #   KV cache → stima da context_used + architettura modello
+        #   RAM %    → /proc/meminfo
+        #   GPU mem %→ nvidia-smi memory.used/memory.total
+        #   GPU freq → nvidia-smi clocks.current.graphics
+        ram_pct = get_ram_pct()
+        gpu_mem_pct = get_gpu_mem_pct()
+        gpu_freq = get_gpu_freq_mhz()
+        model_name = metrics.get("model", "") if metrics else ""
+        ctx = metrics.get("context_used", 0) if metrics else 0
+        kv_mb = estimate_kv_cache_mb(ctx, model_name) if ctx > 0 else 0.0
+
+        cpu._kv.setText(f"{kv_mb:.0f}MB" if kv_mb > 0 else "-")
+        cpu._mem.setText(f"{ram_pct}%" if ram_pct is not None else "-")
+        cpu._bus.setText("-")  # bus CPU non disponibile su questa piattaforma
 
         gpu = self.device_panel.gpu_box
         gpu._model.setText(gpu_model_str)
         gpu._temp.setText(f"{self._gpu_temp:.0f}°C")
+        gpu._kv.setText(f"{kv_mb:.0f}MB" if kv_mb > 0 else "-")
+        gpu._mem.setText(f"{gpu_mem_pct}%" if gpu_mem_pct is not None else "-")
+        gpu._bus.setText(f"{gpu_freq}M" if gpu_freq is not None else "-")
 
     def _get_ollama_running_models(self) -> dict:
         """Esegue `ollama ps` e ritorna un dict {model_name: {"cpu": pct, "gpu": pct}}.
