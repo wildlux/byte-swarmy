@@ -23,6 +23,11 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QColor
 
+from CORE.constants import (
+    BTN_TRANSPARENT_STYLE,
+    BTN_TRANSPARENT_DANGER_STYLE,
+)
+
 
 class TaskListWidget(QFrame):
     """Widget autonomo che contiene:
@@ -63,16 +68,16 @@ class TaskListWidget(QFrame):
         header.addWidget(self.title_lbl, stretch=0)
         layout.addLayout(header)
 
-        # ── Pulsanti ──
+        # ── Pulsanti (stile uniforme, come "Archivio progetto") ──
         btn_row = QHBoxLayout()
         btn_row.setContentsMargins(0, 0, 0, 0)
         btn_row.setSpacing(4)
 
         # ☑ Toggle select all
         self.btn_select_all = QPushButton("☑")
-        self.btn_select_all.setFixedSize(20, 20)
+        self.btn_select_all.setFixedSize(28, 28)
         self.btn_select_all.setToolTip("Seleziona/deseleziona tutti i task")
-        self.btn_select_all.setStyleSheet("QPushButton { border: none; } QPushButton::hover { background: transparent; }")
+        self.btn_select_all.setStyleSheet(BTN_TRANSPARENT_STYLE)
         self.btn_select_all.clicked.connect(self._on_select_all_clicked)
         btn_row.addWidget(self.btn_select_all)
 
@@ -80,7 +85,7 @@ class TaskListWidget(QFrame):
         self.btn_refresh = QPushButton("🔄")
         self.btn_refresh.setFixedSize(28, 28)
         self.btn_refresh.setToolTip("Aggiorna lista task")
-        self.btn_refresh.setStyleSheet("QPushButton { border: none; } QPushButton::hover { background: transparent; }")
+        self.btn_refresh.setStyleSheet(BTN_TRANSPARENT_STYLE)
         self.btn_refresh.clicked.connect(self._on_refresh_clicked)
         btn_row.addWidget(self.btn_refresh)
 
@@ -88,15 +93,15 @@ class TaskListWidget(QFrame):
         self.btn_add = QPushButton("➕")
         self.btn_add.setFixedSize(28, 28)
         self.btn_add.setToolTip("Aggiungi un nuovo task")
-        self.btn_add.setStyleSheet("QPushButton { border: none; } QPushButton::hover { background: transparent; }")
+        self.btn_add.setStyleSheet(BTN_TRANSPARENT_STYLE)
         self.btn_add.clicked.connect(self._on_add_clicked)
         btn_row.addWidget(self.btn_add)
 
-        # 🗑 Elimina selezionati
+        # 🗑 Elimina selezionati (rosso al hover, come il 🗑️ di Archivio)
         self.btn_delete = QPushButton("🗑️")
         self.btn_delete.setFixedSize(28, 28)
         self.btn_delete.setToolTip("Elimina task selezionati con la colonna ✓")
-        self.btn_delete.setStyleSheet("QPushButton { border: none; } QPushButton::hover { background: transparent; }")
+        self.btn_delete.setStyleSheet(BTN_TRANSPARENT_DANGER_STYLE)
         self.btn_delete.clicked.connect(self._on_delete_checked_clicked)
         btn_row.addWidget(self.btn_delete)
 

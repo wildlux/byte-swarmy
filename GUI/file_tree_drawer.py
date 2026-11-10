@@ -69,6 +69,22 @@ from GUI.task_queue import (
 )
 from GUI.project_tab_bar import _is_junk_project_path, build_run_command
 
+# Pallino di stato per riga task (TaskItemRow):
+# verde=fatto, giallo=in lavorazione, rosso=in attesa.
+TASK_STATUS_STYLE = {
+    "done":           ("✓", "#16a34a"),   # verde: completato
+    "running":        ("▶", "#eab308"),   # giallo: in lavorazione
+    "retry":          ("▶", "#eab308"),
+    "pending":        ("○", "#dc2626"),   # rosso: in attesa
+    "queued":         ("○", "#dc2626"),
+    "planned":        ("○", "#dc2626"),
+    "failed":         ("✗", "#991b1b"),
+    "stuck":          ("✗", "#991b1b"),
+    "stopped":        ("🛑", "#991b1b"),
+    "paused":         ("⏸", "#6b7280"),
+    "thermal_paused": ("🌡", "#f97316"),
+}
+
 # ``_click_log`` e' definito in ``GUI.control_center``; lo importiamo in modo
 # sicuro per evitare dipendenze circolari (control_center importa da questo
 # modulo). Se l'import fallisce, usiamo un no-op.
@@ -336,6 +352,11 @@ class FileTreeDrawer(QFrame):
             stato = Qt.CheckState.Unchecked if tutte_selezionate else Qt.CheckState.Checked
             for it in items:
                 it.setCheckState(stato)
+                # Sync riga visiva (TaskItemRow): checkbox della riga deve
+                # riflettere il nuovo stato senza ri-emettere il segnale.
+                row = self._task_row(it)
+                if row is not None:
+                    row.set_checked(stato == Qt.CheckState.Checked)
         except Exception as e:
             print(f"Errore toggle seleziona tutti i task: {e}")
 
@@ -1184,6 +1205,10 @@ class FileTreeDrawer(QFrame):
 
         Firma variadica per compatibilita' con TaskListWidget.on_refresh_requested
         (chiama senza argomenti).
+
+        Le righe usano TaskItemRow via setItemWidget: checkbox allineata col
+        pulsante ☑ e pallino di stato colorato
+        (verde=fatto, giallo=in lavorazione, rosso=in attesa).
         """
         try:
             self._refreshing_tasks = True
@@ -1200,21 +1225,7 @@ class FileTreeDrawer(QFrame):
                     )
                     tasks = load_tasks(project_path)
                     for t in tasks:
-                        title = t.get("title", t.get("description", "?"))[:50]
-                        st = t.get("status", "?")
-                        icon = {"done": "✓", "running": "▶", "pending": "○",
-                                "failed": "✗", "queued": "○",
-                                "paused": "⏸", "thermal_paused": "🌡"}.get(st, "?")
-                        item = QListWidgetItem(f"{icon} {title}")
-                        item.setData(Qt.ItemDataRole.UserRole, t.get("id", ""))
-                        color = {"done": "#16a34a", "running": "#f59e0b",
-                                 "pending": "#888", "failed": "#dc2626",
-                                 "paused": "#6b7280", "thermal_paused": "#f97316"}.get(st, "#888")
-                        item.setForeground(QColor(color))
-                        # Checkbox per selezione multipla
-                        item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-                        item.setCheckState(Qt.CheckState.Unchecked)
-                        self.task_list.addItem(item)
+                        self._append_task_row(t)
                 except Exception as e:
                     print(f"Errore refresh task: {e}")
             # Refresh card coda nel ControlCenter
@@ -1227,6 +1238,73 @@ class FileTreeDrawer(QFrame):
             print(f"Errore force refresh: {e}")
         finally:
             self._refreshing_tasks = False
+
+    # ==================================================================
+    # Righe task: creazione e helper (TaskItemRow + setItemWidget)
+    # ==================================================================
+
+    def _append_task_row(self, t: dict):
+        """Aggiunge una riga task: item (checkbox + dati) + TaskItemRow visuale.
+
+        Il titolo "vero" viene conservato in UserRole+1 (il testo dell'item
+        resta vuoto: la riga visiva lo copre interamente).
+        """
+        task_id = str(t.get("id", ""))
+        base_title = str(t.get("title", t.get("description", "?")))[:80]
+        st = str(t.get("status", "?"))
+        icon, color = TASK_STATUS_STYLE.get(st, ("○", "#dc2626"))
+
+        item = QListWidgetItem()
+        item.setData(Qt.ItemDataRole.UserRole, task_id)
+        item.setData(Qt.ItemDataRole.UserRole + 1, base_title)
+        item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+        item.setCheckState(Qt.CheckState.Unchecked)
+        item.setToolTip(f"{base_title}\nStato: {st}")
+        item.setSizeHint(_QSize(0, 26))
+        self.task_list.addItem(item)
+
+        row = TaskItemRow(icon, color, base_title)
+        row.setToolTip(item.toolTip())
+        self.task_list.setItemWidget(item, row)
+        # Checkbox della riga -> stato dell'item (log in _on_task_item_changed)
+        row.check.toggled.connect(
+            lambda checked, it=item: self._on_row_check_toggled(it, checked))
+        # Click singolo (shift+click debug) e doppio click (riavvio veloce)
+        row.clicked.connect(lambda it=item: self._on_task_item_clicked(it))
+        row.double_clicked.connect(
+            lambda it=item: self._on_task_double_clicked(
+                str(it.data(Qt.ItemDataRole.UserRole))))
+        # Menu contestuale: stessa firma di TaskListWidget.on_context_menu
+        row.context_requested.connect(
+            lambda gpos, it=item: self._on_task_context_menu(
+                self.task_list.mapFromGlobal(gpos)))
+
+    def _task_row(self, item):
+        """Widget TaskItemRow associato a item (o None)."""
+        w = self.task_list.itemWidget(item)
+        return w if isinstance(w, TaskItemRow) else None
+
+    def _task_base_title(self, item) -> str:
+        """Titolo base del task (senza icone/prefissi di stato)."""
+        t = item.data(Qt.ItemDataRole.UserRole + 1)
+        if not t:
+            t = item.text()
+        return str(t)
+
+    def _update_task_display(self, item, icon: str, color: str, title: str):
+        """Aggiorna la riga visiva (pallino + titolo) e il titolo base."""
+        item.setData(Qt.ItemDataRole.UserRole + 1, title)
+        row = self._task_row(item)
+        if row is not None:
+            row.set_display(icon, color, title)
+        else:
+            item.setText(f"{icon} {title}")
+
+    def _on_row_check_toggled(self, item, checked: bool):
+        """Sync checkbox della riga -> stato dell'item (log via itemChanged)."""
+        stato = Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked
+        if item.checkState() != stato:
+            item.setCheckState(stato)
 
     # ==================================================================
     # Task list: status + pause/resume/stop/restart/delete
