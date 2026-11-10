@@ -649,7 +649,6 @@ class DevicePanel(QFrame):
             "font-weight:bold; font-size:16px; border-radius:6px; border:none; }"
             "QPushButton#primary_btn:hover { background:#15803d; }"
         )
-        self.pause_btn.clicked.connect(self._toggle_orchestrator)
         lay.addWidget(self.pause_btn)
 
         self.stop_btn = QPushButton("⏹")
@@ -662,7 +661,6 @@ class DevicePanel(QFrame):
             "font-weight:bold; font-size:16px; border-radius:6px; border:none; }"
             "QPushButton#stop_btn:hover { background:#b91c1c; }"
         )
-        self.stop_btn.clicked.connect(self._stop_orchestrator)
         lay.addWidget(self.stop_btn)
 
         self.git_remotes = self._detect_git_remotes()
@@ -2450,7 +2448,9 @@ class ControlCenter(QMainWindow):
 
         # Pulsante ▶/⏸ della toolbar = Pausa/Riprendi orchestratore
         # (stessa logica del menu: state/pause.flag).
-        self.device_panel.toggle_btn.clicked.connect(self._toggle_orchestrator)
+        self.device_panel.pause_btn.clicked.connect(self._toggle_orchestrator)
+        # Pulsante ⏹ = Ferma orchestratore
+        self.device_panel.stop_btn.clicked.connect(self._stop_orchestrator)
         self._sync_toggle_icon()
         # Stato iniziale in status bar
         try:
