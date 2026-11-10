@@ -3953,22 +3953,28 @@ class FileTreeDrawer(QFrame):
         task_lay.setContentsMargins(0, 0, 0, 0)
         task_lay.setSpacing(0)
 
-        # Layout header "Lavori e compiti": titolo a sinistra, pulsanti a destra
-        task_header_row = QHBoxLayout()
-        task_header_row.setContentsMargins(0, 0, 0, 0)
-        task_header_row.setSpacing(4)
+        # Riga sopra: solo il titolo "Lavori" a sinistra
+        task_title_row = QHBoxLayout()
+        task_title_row.setContentsMargins(0, 0, 0, 0)
+        task_title_row.setSpacing(0)
         task_header_lbl = QLabel("📋 Lavori")
         task_header_lbl.setToolTip("Lavori e compiti — lista dei task del progetto attivo")
         task_header_lbl.setStyleSheet("font-size:11px; font-weight:bold; padding:0; margin:0;")
-        task_header_row.addWidget(task_header_lbl, stretch=0)
+        task_title_row.addWidget(task_header_lbl, stretch=0)
+        task_lay.addLayout(task_title_row)
+
+        # Riga sotto: tutti i pulsanti allineati a sinistra
+        task_btn_row = QHBoxLayout()
+        task_btn_row.setContentsMargins(0, 0, 0, 0)
+        task_btn_row.setSpacing(4)
+
         # Pulsante toggle seleziona tutto / deseleziona tutto (checkbox dei task)
         task_select_btn = QPushButton("☑")
         task_select_btn.setFixedSize(28, 28)
         task_select_btn.setToolTip("Seleziona/deseleziona tutti i task")
         task_select_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
         task_select_btn.clicked.connect(self._toggle_select_all_tasks)
-        task_header_row.addWidget(task_select_btn)
-        task_header_row.addStretch()
+        task_btn_row.addWidget(task_select_btn)
 
         # Pulsante riavvio forzato (refresh lista)
         task_refresh_btn = QPushButton("🔄")
@@ -3976,7 +3982,7 @@ class FileTreeDrawer(QFrame):
         task_refresh_btn.setToolTip("Aggiorna lista task")
         task_refresh_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
         task_refresh_btn.clicked.connect(self._force_refresh_tasks)
-        task_header_row.addWidget(task_refresh_btn)
+        task_btn_row.addWidget(task_refresh_btn)
 
         # Pulsante aggiungi task
         task_add_btn = QPushButton("➕")
@@ -3987,7 +3993,7 @@ class FileTreeDrawer(QFrame):
             lambda: self.main_win.center.open_panel("coda")
             if hasattr(self.main_win, "center") else None
         )
-        task_header_row.addWidget(task_add_btn)
+        task_btn_row.addWidget(task_add_btn)
 
         # Pulsante elimina task selezionati
         task_del_btn = QPushButton("🗑️")
@@ -3995,7 +4001,7 @@ class FileTreeDrawer(QFrame):
         task_del_btn.setToolTip("Elimina task selezionati con la colonna ✓")
         task_del_btn.setStyleSheet(BTN_TRANSPARENT_DANGER_STYLE)
         task_del_btn.clicked.connect(self._delete_checked_tasks)
-        task_header_row.addWidget(task_del_btn)
+        task_btn_row.addWidget(task_del_btn)
 
         # Pulsante pulisci coda: resetta i task bloccati (failed/stuck) in pending
         task_clean_btn = QPushButton("🧹 Svuota coda")
@@ -4007,9 +4013,9 @@ class FileTreeDrawer(QFrame):
             "QPushButton:hover { background:#d97706; }"
         )
         task_clean_btn.clicked.connect(self._clean_queue)
-        task_header_row.addWidget(task_clean_btn)
-        # task_select_btn è già stato aggiunto subito dopo il titolo "Lavori"
-        task_lay.addLayout(task_header_row)
+        task_btn_row.addWidget(task_clean_btn)
+
+        task_lay.addLayout(task_btn_row)
 
         self._refreshing_tasks = False
         self.task_list = QListWidget()
