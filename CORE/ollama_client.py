@@ -121,12 +121,20 @@ class ModelClient:
 
     def call_streaming(self, model_key: str, prompt: str,
                        system: Optional[str] = None,
-                       max_tokens: Optional[int] = None):
+                       max_tokens: Optional[int] = None,
+                       options_override: Optional[dict] = None):
         """Chiama un modello in streaming mode. Yielda token per token.
 
         Usage:
             for token in client.call_streaming("worker_coder", prompt, system):
                 print(token, end="", flush=True)
+
+        Args:
+            options_override: dizionario di opzioni (temperature, seed,
+                repeat_penalty, ...) che sovrascrive quelle calcolate
+                dinamicamente per questa singola chiamata. Utile per il
+                fallback su loop (nuovo seed, temperatura più alta,
+                penalità maggiore).
         """
         if model_key not in self.models_cfg:
             raise KeyError(f"unknown model key: {model_key}")
@@ -142,6 +150,10 @@ class ModelClient:
 
         # 🆕 Build options with TimestralLLMTuner (if available)
         options = self._get_tuned_options(model_key, model_cfg, max_tokens)
+
+        # Applica override per singola chiamata (fallback su loop, ecc.)
+        if options_override:
+            options.update(options_override)
 
         messages = []
         if system:
@@ -271,10 +283,47 @@ class ModelClient:
             except Exception as e:
                 self.log.debug(f"llm_tuner failed (using static config): {e}")
 
-        return options
+        return self._clamp_options(options, model_key)
 
+    def _clamp_options(self, options: dict, model_key: str = "") -> dict:
+        """Applica clamp di sicurezza alle opzioni del modello.
 
-    def embed(self, text: str) -> list:
+        Non lasciare mai uscire dall'ottimizzatore:
+          - repeat_penalty >= 1.05 (sotto 1.05 il modello tende a ripetere)
+          - temperatura > 0 per modelli piccoli (temperatura 0 è deterministica
+            ma può incollare il modello su un singolo token in loop)
+        I valori sono punti di partenza sicuri; l'ottimizzatore può esplorare
+        solo in un intorno limitato.
+        """
+        clamped = dict(options)
+        # Clamp repeat_penalty: minimo 1.05
+        if "repeat_penalty" in clamped:
+            try:
+                clamped["repeat_penalty"] = max(1.05, float(clamped["repeat_penalty"]))
+            except (TypeError, ValueError):
+                clamped["repeat_penalty"] = 1.15
+        # Clamp temperatura: mai 0 per modelli piccoli (Qwen 1.5B/3B)
+        if "temperature" in clamped:
+            try:
+                t = float(clamped["temperature"])
+                if t <= 0:
+                    t = 0.1
+                clamped["temperature"] = max(0.05, min(1.0, t))
+            except (TypeError, ValueError):
+                clamped["temperature"] = 0.1
+        # repeat_last_n sempre attivo e in range sicuro [64, 256]
+        if "repeat_last_n" in clamped:
+            try:
+                clamped["repeat_last_n"] = max(64, min(256, int(clamped["repeat_last_n"])))
+            except (TypeError, ValueError):
+                clamped["repeat_last_n"] = 256
+        # num_predict sempre finito
+        if "num_predict" in clamped:
+            try:
+                clamped["num_predict"] = max(32, min(4096, int(clamped["num_predict"])))
+            except (TypeError, ValueError):
+                clamped["num_predict"] = 512
+        return clamped
         """Calcola embedding. Non scarica il modello chat (più leggero)."""
         emb_name = self.models_cfg["embedding"]["name"]
         payload = {"model": emb_name, "prompt": text}

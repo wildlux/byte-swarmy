@@ -91,3 +91,19 @@ piccoli, atomici e verificabili.
 - `GUI/control_center.py` — **Usabilità plancia**: badge testo bianco su colore solido (contrasto), badge dimensione fissa, titoli troncati con elipsis + tooltip, tooltip valori CPU/GPU (2.1G, 65%, 800M), filtro categorie "Tutte le categorie" accanto alla ricerca, barra avanzamento "Pronto" a riposo, larghezza minima pannello sinistro adeguata allo zoom, scrollbar visibile sull'area card.
 - `GUI/gui_backend.py` + `GUI/control_center.py` — **Bug CPU/GPU valori identici**: `kv`/`mem`/`bus` erano segnaposto hardcoded (2.1G, 65%, 800M) uguali per entrambi. Ora leggono valori reali: RAM % da `/proc/meminfo`, GPU mem % e frequenza da `nvidia-smi`, KV cache stimata da `context_used` + architettura modello (`INTENT.metrics.estimate_kv_cache_mb`). Mostrano `-` quando il dato non è disponibile.
 - Documentazione: aggiornati README.md, AGENT.md, todo.md.
+
+## 🔴 Priorità 1 — Rilevamento ripetizioni e anti-loop (critica)
+
+- [x] **CORE/loop_detector.py** — nuovo modulo: rileva ripetizioni nell'output LLM (n-grammi ripetuti, rapporto di compressione testo molto alto) e restituisce motivo del loop / None.
+- [x] **CORE/ollama_client.py** — `call_streaming` accetta `options_override` (nuovo seed, temperatura, penalità per chiamata singola); `_clamp_options` applica clamp di sicurezza: `repeat_penalty ≥ 1.05`, `temperatura > 0`, `repeat_last_n` in [64,256], `num_predict` finito.
+- [x] **CORE/orchestrator.py** — `execute` rileva loop con `detect_loop`; se trovato, applica fallback (nuovo seed, temperatura +0.1, penalità +0.05); se il loop persiste, interrompe con errore esplicito.
+- [ ] **CORE/orchestrator.py** o **CORE/correction.py** — (fallback già integrato in execute) verificare copertura anche nel percorso correction/post-execution.
+
+## 🟡 Priorità 2 — Robustezza e rollback
+
+- [ ] **Ultima configurazione buona** — tenere in memoria l'ultima config che ha superato i test; tornaci se una nuova fallisce.
+- [ ] **Verifica `ollama show --modelfile`** — leggere i parametri effettivi del modello scaricato da Ollama (possono differire da quelli di Hugging Face) e usarli come punto di partenza fisso con esplorazione limitata (±0.2 temperatura, penalità 1.05-1.2).
+
+## 🟢 Priorità 3 — Modello pesante su GPU
+
+- [ ] Valutare passaggio a Qwen2.5-Coder-3B Q4_K_M su GPU (~2GB) con fallback a 1.5B Q8 su RAM; impostare `OLLAMA_MAX_LOADED_MODELS=1` e `keep_alive` breve.

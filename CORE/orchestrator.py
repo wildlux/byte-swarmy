@@ -58,6 +58,7 @@ from SAFETY.security_checks import check_isolation, apply_safe_mode
 from CORE.execute_handler import handle_execute_task
 from CORE.decision_feedback import DecisionValidator
 from CORE.correction import build_correction_prompt
+from CORE.loop_detector import detect_loop
 from MONITORING.thermal_manager import (TimestralManager, TimestralGatekeeper,
                                         load_timestral_overrides,
                                         PAUSE_CPU, PAUSE_GPU, RESUME_TEMP)
@@ -713,6 +714,64 @@ class Worker:
 
                 raw = "".join(raw_parts)
                 self.log.debug(f"[{self.agent_id}] streaming done: {token_count} tokens total")
+
+                # 🆕 Rilevamento loop nell'output del modello (n-grammi
+                # ripetuti o alto rapporto di compressione). Se rilevato,
+                # il tentativo conta come fallito e si applica il fallback:
+                # nuovo seed, temperatura +0.1, penalità +0.05.
+                loop_reason = detect_loop(raw)
+                if loop_reason:
+                    self.log.warning(
+                        f"[{self.agent_id}] loop rilevato nello step {step+1}: {loop_reason}"
+                    )
+                    base_opts = self.models._get_tuned_options(
+                        self.model_key,
+                        self.models.models_cfg[self.model_key],
+                        1024,
+                    )
+                    override = dict(base_opts)
+                    try:
+                        override["seed"] = (
+                            int(override.get("seed", 42)) + 1
+                        ) % (2 ** 31)
+                    except (TypeError, ValueError):
+                        override["seed"] = 43
+                    try:
+                        override["temperature"] = min(
+                            0.9, float(override.get("temperature", 0.1)) + 0.1
+                        )
+                    except (TypeError, ValueError):
+                        override["temperature"] = 0.2
+                    try:
+                        override["repeat_penalty"] = min(
+                            1.5,
+                            float(override.get("repeat_penalty", 1.15)) + 0.05,
+                        )
+                    except (TypeError, ValueError):
+                        override["repeat_penalty"] = 1.2
+
+                    self.log.info(
+                        f"[{self.agent_id}] fallback loop: seed={override['seed']} "
+                        f"temp={override['temperature']:.2f} "
+                        f"penalty={override['repeat_penalty']:.2f}"
+                    )
+                    raw_parts2 = []
+                    for token in self.models.call_streaming(
+                        model_key=self.model_key,
+                        prompt=prompt,
+                        system=self.SYSTEM,
+                        max_tokens=1024,
+                        options_override=override,
+                    ):
+                        raw_parts2.append(token)
+                    raw = "".join(raw_parts2)
+                    # Se il loop persiste dopo il fallback, interrompi
+                    if detect_loop(raw):
+                        self.log.error(
+                            f"[{self.agent_id}] loop persistente dopo fallback"
+                        )
+                        return f"ERROR: loop persistente ({loop_reason})"
+
             except Exception as e:
                 self.log.error(f"[{self.agent_id}] model call failed: {e}")
                 return f"ERROR: model unavailable: {e}"
