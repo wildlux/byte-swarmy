@@ -278,3 +278,147 @@ def load_mcp_servers() -> list:
 
 def save_mcp_servers(servers: list) -> None:
     MCP_CONFIG_FILE.write_text(json.dumps(servers, indent=2))
+
+
+# ====================================================================
+# SINGLE-TASK STATE TRANSITIONS (sqlite queue.db)
+# ====================================================================
+# Queste funzioni erano originariamente in control_center.py / main_window.py
+# e sono state persa durante la rifattorizzazione modulare (commit 3312ad4).
+# Vengono ripristinate qui perche' sono l'interfaccia naturale per la GUI
+# (file_tree_drawer.py e control_center.py le usano per pause/resume/stop/restart).
+
+def _queue_db_path() -> Path:
+    """Path del database SQLite della coda task (tasks/queue.db)."""
+    return BASE_DIR / "tasks" / "queue.db"
+
+
+def pause_task(task_id: str) -> tuple[bool, str]:
+    """Mette in pausa un singolo task (status='paused').
+
+    Ritorna (ok, message). Compatible con la vecchia _pause_task(task_id).
+    """
+    db_path = _queue_db_path()
+    if not db_path.exists():
+        return False, "Database coda non trovato"
+    try:
+        con = sqlite3.connect(str(db_path), timeout=10.0)
+        cur = con.cursor()
+        cur.execute(
+            "UPDATE tasks SET status='paused' "
+            "WHERE id=? AND status IN ('pending', 'running')",
+            (task_id,)
+        )
+        con.commit()
+        con.close()
+        return True, f"Task {task_id[:12]} in pausa"
+    except Exception as e:
+        return False, f"Errore: {e}"
+
+
+def resume_single_task(task_id: str) -> tuple[bool, str]:
+    """Riprende un singolo task (status='pending')."""
+    db_path = _queue_db_path()
+    if not db_path.exists():
+        return False, "Database coda non trovato"
+    try:
+        con = sqlite3.connect(str(db_path), timeout=10.0)
+        cur = con.cursor()
+        cur.execute(
+            "UPDATE tasks SET status='pending' WHERE id=? AND status='paused'",
+            (task_id,)
+        )
+        con.commit()
+        con.close()
+        return True, f"Task {task_id[:12]} ripreso"
+    except Exception as e:
+        return False, f"Errore: {e}"
+
+
+def stop_task(task_id: str) -> tuple[bool, str]:
+    """Ferma un singolo task (marca come failed con last_error='Stopped by user')."""
+    db_path = _queue_db_path()
+    if not db_path.exists():
+        return False, "Database coda non trovato"
+    try:
+        con = sqlite3.connect(str(db_path))
+        cur = con.cursor()
+        cur.execute(
+            "UPDATE tasks SET status='failed', "
+            "last_error='Stopped by user (GUI)', "
+            "completed_at=? WHERE id=?",
+            (time.time(), task_id)
+        )
+        con.commit()
+        con.close()
+        return True, f"Task {task_id[:12]} fermato"
+    except Exception as e:
+        return False, f"Errore: {e}"
+
+
+def restart_task(task_id: str) -> tuple[bool, str]:
+    """Riavvia un task esistente (cambia status da done/failed a pending)."""
+    db_path = _queue_db_path()
+    if not db_path.exists():
+        return False, "Database coda non trovato"
+    try:
+        con = sqlite3.connect(str(db_path))
+        cur = con.cursor()
+        cur.execute(
+            "UPDATE tasks SET status='pending', attempts=0, last_error=NULL, "
+            "started_at=NULL, completed_at=NULL WHERE id=?",
+            (task_id,)
+        )
+        con.commit()
+        con.close()
+        return True, f"Task {task_id[:12]} rimesso in coda"
+    except Exception as e:
+        return False, f"Errore: {e}"
+
+
+# ====================================================================
+# USER ACTION LOGGING (logs/user_actions.log)
+# ====================================================================
+
+def log_user_action(component: str, action: str,
+                    task_id: Optional[str] = None,
+                    details: str = "") -> str:
+    """Logga le azioni utente in logs/user_actions.log (JSONL).
+
+    Originariamente ``_log_user_action`` in control_center.py / main_window.py,
+    persa durante la rifattorizzazione. Ripristinata come funzione pubblica
+    di task_queue perche' usata da control_center.py e file_tree_drawer.py.
+    """
+    log_path = BASE_DIR / "logs" / "user_actions.log"
+    try:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+    entry = {
+        "timestamp": time.strftime('%Y-%m-%d %H:%M:%S'),
+        "epoch": time.time(),
+        "component": component,   # "Pulsante-in-Alto_DX" o "Task-Action"
+        "action": action,         # "avviato", "fermato", "pausa", "riprendi", "stop"
+        "task_id": task_id,
+        "details": details,
+        "message": ""
+    }
+    # Costruisci messaggio leggibile
+    if component == "Pulsante-in-Alto_DX":
+        entry["message"] = (
+            f"{component} : stato attuale = {action} premuto adesso"
+        )
+    elif component == "Task-Action":
+        tid_short = (task_id or "?")[:15] if task_id else "?"
+        entry["message"] = (
+            f"Task #{tid_short} ha premuto lo stato di {action}"
+        )
+    else:
+        entry["message"] = f"{component}: {action}"
+    try:
+        with open(log_path, 'a', encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        print(f"[USER_ACTION] {entry['message']}")
+    except Exception as e:
+        print(f"Errore log user action: {e}")
+    return entry["message"]

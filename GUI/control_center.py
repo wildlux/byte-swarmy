@@ -79,6 +79,13 @@ from GUI.clean_code_panel import CleanCodePanel
 from GUI.project_tab_bar import ProjectTabBar, _is_junk_project_path, build_run_command
 from GUI.file_tree_drawer import FileTreeDrawer
 from GUI.center_area import CenterArea
+from GUI.task_queue import (
+    log_user_action as _log_user_action,
+    pause_task as _pause_task,
+    resume_single_task as _resume_single_task,
+    stop_task as _stop_task,
+    restart_task as _restart_task,
+)
 
 # ════════════════════════════════════════════════════════════════
 # ════════════════════════════════════════════════════════════════

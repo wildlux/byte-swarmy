@@ -18,8 +18,10 @@ from typing import Callable, Optional
 
 from PyQt6.QtCore import Qt as _Qt
 from PyQt6.QtWidgets import (
-    QFrame, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QListWidget,
+    QFrame, QHBoxLayout, QVBoxLayout, QLabel, QPushButton,
+    QListWidget, QListWidgetItem,
 )
+from PyQt6.QtGui import QColor
 
 
 class TaskListWidget(QFrame):
@@ -120,6 +122,10 @@ class TaskListWidget(QFrame):
         self.task_list.itemClicked.connect(self._on_item_clicked)
         self.task_list.customContextMenuRequested.connect(self._on_custom_context_menu)
         self.task_list.itemChanged.connect(self._on_item_changed)
+        # NB: aggiunge la lista al layout! Senza questa riga il QListWidget
+        # resta un widget flottante senza parent e non viene MAI renderizzato
+        # (l'area tra "Lavori e Compiti" e i pulsanti resta vuota).
+        layout.addWidget(self.task_list, stretch=1)
 
         # Memorizza i callback per richiamarli negli handler
         self._on_select_all_toggled = on_select_all_toggled
@@ -230,7 +236,6 @@ class TaskListWidget(QFrame):
             item.setData(_Qt.ItemDataRole.UserRole, tid)
             item.setFlags(item.flags() | _Qt.ItemFlag.ItemIsUserCheckable)
             item.setCheckState(_Qt.CheckState.Unchecked)
-            from PyQt6.QtGui import QColor
             item.setForeground(QColor(color))
             self.task_list.addItem(item)
 
@@ -248,7 +253,6 @@ class TaskListWidget(QFrame):
 
     def add_task(self, task_id: str, title: str, status: str = "pending"):
         """Aggiunge un task alla lista."""
-        from PyQt6.QtGui import QColor
         icon_map = {
             "done": "✓", "running": "▶", "pending": "○",
             "failed": "✗", "queued": "○",
