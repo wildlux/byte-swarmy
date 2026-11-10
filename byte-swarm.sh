@@ -217,7 +217,7 @@ start_gui() {
     echo "   (chiudi la GUI con X — l'orchestratore continua in background)"
     echo
     # Avvia GUI in foreground
-    python -m GUI.control_center
+    python -m GUI.main_window
     # Quando la GUI chiude
     echo
     echo "GUI chiusa. Orchestratore ancora attivo in background."
@@ -338,7 +338,7 @@ case "$cmd" in
         echo
         ensure_env
         echo "🎨 Avvio solo GUI..."
-        exec python -m GUI.control_center
+        exec python -m GUI.main_window
         ;;
     orch)
         show_banner
