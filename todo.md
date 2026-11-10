@@ -135,7 +135,7 @@ piccoli, atomici e verificabili.
 
 - [ ] **RG-ALL. Allineare rettangoli "Lavori e Compiti"** — pulsante ☑ nell'header e indicatori/checkbox delle righe task (`TaskItemRow`). Verificare allineamento verticale e margini a sinistra.
 - [x] **RG1. Estrarre TaskItemRow in `GUI/widgets/task_item_row.py`** — classe autonoma estratta da control_center.py. Primo modulo spezzato.
-- [ ] **RG2. Estrarre CreditsOverlay in `GUI/widgets/credits_overlay.py`** (riga ~120-603)
+- [x] **RG2. Estrarre CreditsOverlay in `GUI/widgets/credits_overlay.py`** (riga ~120-603)
 - [ ] **RG3. Estrarre DevicePanel in `GUI/widgets/device_panel.py`** (riga ~604-1019)
 - [ ] **RG4. Estrarre CollapsibleSection in `GUI/widgets/collapsible_section.py`** (riga ~1020-1118)
 - [ ] **RG5. Estrarre PlanciaCard in `GUI/widgets/plancia_card.py`** (riga ~1119-1200)
