@@ -128,3 +128,21 @@ piccoli, atomici e verificabili.
 - [x] **Schema consigliato** — Documentato in README.md: Router (qwen2.5:0.5b, RAM) → Coder 3B Q4_K_M (GPU) → Verifica (test/compilatore), con fallback a Coder 1.5B (RAM) se il 3B fallisce.
 - [x] **Configurazione attori** — Aggiornato `ACTOR_WEIGHT_DEFAULT_MODELS` in `CORE/constants.py` e documentazione per riflettere il nuovo modello pesante su GPU.
 - [x] **Fallback modello** — In `CORE/orchestrator.py`: quando `worker_coder` (3B) fallisce definitivamente, il task viene rimesso in `pending` e rieseguito con `worker_general` (1.5B) come secondo tentativo. Metodo `_execute_task_with_worker` estrapolato per evitare duplicazione di codice.
+
+---
+
+## 🧱 Refactoring GUI — spezzamento control_center.py (7175 righe)
+
+- [ ] **RG-ALL. Allineare rettangoli "Lavori e Compiti"** — pulsante ☑ nell'header e indicatori/checkbox delle righe task (`TaskItemRow`). Verificare allineamento verticale e margini a sinistra.
+- [x] **RG1. Estrarre TaskItemRow in `GUI/widgets/task_item_row.py`** — classe autonoma estratta da control_center.py. Primo modulo spezzato.
+- [ ] **RG2. Estrarre CreditsOverlay in `GUI/widgets/credits_overlay.py`** (riga ~120-603)
+- [ ] **RG3. Estrarre DevicePanel in `GUI/widgets/device_panel.py`** (riga ~604-1019)
+- [ ] **RG4. Estrarre CollapsibleSection in `GUI/widgets/collapsible_section.py`** (riga ~1020-1118)
+- [ ] **RG5. Estrarre PlanciaCard in `GUI/widgets/plancia_card.py`** (riga ~1119-1200)
+- [ ] **RG6. Estrarre CodeExplorer/CodeNode in `GUI/widgets/code_explorer.py`** (riga ~1316-1523)
+- [ ] **RG7. Estrarre FileEditorWidget in `GUI/widgets/file_editor.py`** (riga ~1524-1693)
+- [ ] **RG8. Estrarre ConfigPanel in `GUI/widgets/config_panel.py`** (riga ~1694-2141)
+- [ ] **RG9. Estrarre FileTreeDrawer in `GUI/widgets/file_tree_drawer.py`** (riga ~3908-4260)
+- [ ] **RG10. Estrarre CenterArea in `GUI/widgets/center_area.py`** (riga ~6517-7120)
+- [ ] **RG11. Estrarre IntegrityTestsPanel, SoftwareSecurityPanel, CICDPipelinePanel, CleanCodePanel** in `GUI/widgets/` o `GUI/panels/`
+- [ ] **RG12. Aggiornare import in control_center.py** per usare i nuovi moduli; `ControlCenter` resta classe principale che orchestra tutto.
