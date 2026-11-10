@@ -974,6 +974,13 @@ class DevicePanel(QFrame):
             w.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             lay.addWidget(w)
 
+        # Tooltip sui valori altrimenti criptici (2.1G, 65%, 800M…)
+        temp_lbl.setToolTip("Temperatura del dispositivo (°C)")
+        tok_lbl.setToolTip("Token generati al secondo (tok/s)")
+        kv_lbl.setToolTip("Dimensione cache KV del modello (memoria occupata)")
+        mem_lbl.setToolTip("Uso memoria RAM del dispositivo (%)")
+        bus_lbl.setToolTip("Larghezza di banda bus / VRAM")
+
         row._temp = temp_lbl
         row._tok = tok_lbl
         row._kv = kv_lbl
@@ -1113,20 +1120,23 @@ class PlanciaCard(QFrame):
         head.setSpacing(6)
 
         title_lbl = QLabel(title)
-        title_lbl.setStyleSheet("font-size:14px; font-weight:bold; ")
-        # Il titolo NON deve espandere orizzontalmente né forzare la larghezza
-        # minima della card. word-wrap attivo così i titoli lunghi vanno a capo
-        # invece di allargare la card.
-        title_lbl.setWordWrap(True)
+        title_lbl.setStyleSheet("font-size:13px; font-weight:bold; ")
+        # Titolo troncato con elipsis (non va a capo) così non deforma la
+        # card e non spinge il badge. Tooltip mostra il titolo completo.
+        title_lbl.setToolTip(title)
+        title_lbl.setWordWrap(False)
         title_lbl.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         head.addWidget(title_lbl, stretch=1)
 
         if badge:
             badge_lbl = QLabel(badge)
+            # Badge: testo BIANCO su colore SOLIDO → contrasto sempre leggibile
+            # anche allo zoom alto. Dimensione fissa per tutte le card.
             badge_lbl.setStyleSheet(
-                f"background:{badge_color}22; color:{badge_color}; "
-                f"padding:2px 8px; border-radius:10px; font-size:10px; font-weight:bold;"
+                f"background:{badge_color}; color:#ffffff; "
+                f"padding:3px 9px; border-radius:10px; font-size:10px; font-weight:bold;"
             )
+            badge_lbl.setToolTip(badge)
             # Il badge non deve espandere né forzare la larghezza
             badge_lbl.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Preferred)
             head.addWidget(badge_lbl)
@@ -1134,10 +1144,10 @@ class PlanciaCard(QFrame):
         lay.addLayout(head)
 
         sub_lbl = QLabel(subtitle)
-        # word-wrap attivo: la descrizione va a capo ma NON espande la card
-        # (l'altezza è fissata a 110px e il testo in eccesso viene troncato).
-        sub_lbl.setWordWrap(True)
-        sub_lbl.setStyleSheet("font-size:11px; ")
+        # Descrizione: elipsis se troppo lunga, mai a capo (mantiene altezza fissa)
+        sub_lbl.setToolTip(subtitle)
+        sub_lbl.setWordWrap(False)
+        sub_lbl.setStyleSheet("font-size:10px; color:#cbd5e1; ")
         sub_lbl.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         lay.addWidget(sub_lbl, stretch=1)
 
@@ -2153,6 +2163,7 @@ class ControlCenter(QMainWindow):
         root.setSpacing(0)
 
         self.drawer = FileTreeDrawer(self)
+        self.drawer.setMinimumWidth(300)
         self._current_project_path = None
         self.center = CenterArea(self)
 
@@ -2979,14 +2990,23 @@ class ControlCenter(QMainWindow):
                     pct = int(done * 100 / total) if total > 0 else 0
                     self._completion_bar.setValue(pct)
                     proj_name = os.path.basename((project_path or '').rstrip('/')) or "tutti"
-                    self._completion_bar.setFormat(f"{proj_name}: {done}/{total} (%p%)")
-                    self._completion_bar.setToolTip(
-                        f"Progetto: {proj_name}\n"
-                        f"Task completati: {done}/{total} ({pct}%)\n"
-                        f"Task attivo: {target_title or '-'}\n"
-                        f"Sotto-task attivi: {sub_done}/{sub_total}\n"
-                        f"Totale storico: {done_all}/{tot_all}"
-                    )
+                    # A riposo (nessun task o 0%): mostra "Pronto" e barra vuota
+                    if total == 0 or pct == 0:
+                        self._completion_bar.setFormat("Pronto")
+                        self._completion_bar.setToolTip(
+                            f"Progetto: {proj_name}\n"
+                            f"Nessun task in coda o tutti completati.\n"
+                            f"Totale storico: {done_all}/{tot_all}"
+                        )
+                    else:
+                        self._completion_bar.setFormat(f"{proj_name}: {done}/{total} (%p%)")
+                        self._completion_bar.setToolTip(
+                            f"Progetto: {proj_name}\n"
+                            f"Task completati: {done}/{total} ({pct}%)\n"
+                            f"Task attivo: {target_title or '-'}\n"
+                            f"Sotto-task attivi: {sub_done}/{sub_total}\n"
+                            f"Totale storico: {done_all}/{tot_all}"
+                        )
         except Exception:
             pass
 
@@ -3095,6 +3115,11 @@ class ControlCenter(QMainWindow):
                     widget.style().polish(widget)
                 except Exception:
                     pass
+
+            # Aggiorna larghezza minima pannello sinistro in base allo zoom,
+            # così le etichette ("Lavori", "Svuota coda") non vengono tagliate.
+            if hasattr(self, "drawer"):
+                self.drawer.setMinimumWidth(max(260, int(300 * factor)))
 
             # Aggiorna tooltip pulsanti ed etichetta percentuale
             if hasattr(self, "_zoom_in_btn"):
@@ -4145,7 +4170,8 @@ class FileTreeDrawer(QFrame):
         task_header_row = QHBoxLayout()
         task_header_row.setContentsMargins(0, 0, 0, 0)
         task_header_row.setSpacing(4)
-        task_header_lbl = QLabel("<b>📋 Lavori e compiti</b>")
+        task_header_lbl = QLabel("📋 Lavori")
+        task_header_lbl.setToolTip("Lavori e compiti — lista dei task del progetto attivo")
         task_header_lbl.setStyleSheet("font-size:11px; font-weight:bold; padding:0; margin:0;")
         task_header_row.addWidget(task_header_lbl, stretch=0)
         task_header_row.addStretch()
@@ -4178,9 +4204,9 @@ class FileTreeDrawer(QFrame):
         task_header_row.addWidget(task_del_btn)
 
         # Pulsante pulisci coda: resetta i task bloccati (failed/stuck) in pending
-        task_clean_btn = QPushButton("🧹 Pulisci coda")
+        task_clean_btn = QPushButton("🧹 Svuota coda")
         task_clean_btn.setFixedHeight(28)
-        task_clean_btn.setToolTip("Rimette in pending tutti i task bloccati (failed, stuck, failed_definitively)")
+        task_clean_btn.setToolTip("Svuota coda: rimette in pending tutti i task bloccati (failed, stuck, failed_definitively)")
         task_clean_btn.setStyleSheet(
             "QPushButton { background:#f59e0b; color:white; border:none; "
             "border-radius:4px; padding:2px 8px; font-size:11px; font-weight:bold; }"
@@ -6592,6 +6618,8 @@ class CenterArea(QWidget):
 
         main_scroll = QScrollArea()
         main_scroll.setWidgetResizable(True)
+        main_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        main_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
         main_widget = QWidget()
         main_lay = QVBoxLayout(main_widget)
@@ -6607,7 +6635,7 @@ class CenterArea(QWidget):
         # ── Barra di ricerca globale (filtra le 10 card) ─────────────
         # Cerca per titolo, sottotitolo o badge di tutte le card (plancia +
         # strumenti). Le card non matchanti vengono nascoste in tempo reale.
-        from PyQt6.QtWidgets import QLineEdit as _QLineEdit
+        from PyQt6.QtWidgets import QLineEdit as _QLineEdit, QComboBox as _QComboBox
         self.global_search = _QLineEdit()
         self.global_search.setPlaceholderText(
             "🔍 Cerca tra le card…  (es. \"task\", \"git\", \"ci/cd\", \"sicurezza\")"
@@ -6617,11 +6645,25 @@ class CenterArea(QWidget):
         )
         self.global_search.textChanged.connect(self._on_global_search)
         self.global_search.returnPressed.connect(self._on_global_search_enter)
+
+        # Filtro categorie accanto alla ricerca (evita il "▼ vuoto")
+        self.search_category = _QComboBox()
+        self.search_category.addItem("Tutte le categorie")
+        self.search_category.addItem("Plancia — task & coda")
+        self.search_category.addItem("Strumenti — analisi progetto")
+        self.search_category.setFixedWidth(150)
+        self.search_category.setToolTip("Filtra le card per categoria")
+        self.search_category.setStyleSheet(
+            "QComboBox { padding:4px 8px; border-radius:6px; font-size:11px; }"
+            "QComboBox::drop-down { border: none; width: 20px; }"
+            "QComboBox::down-arrow { image: none; border: none; }"
+        )
+        self.search_category.currentIndexChanged.connect(self._on_global_search)
+
         # Nella riga del titolo "Plancia di controllo" (sempre visibile,
         # anche a sezione collassata) invece di occupare una riga intera.
-        # Nessun min_width fisso: si restringe/espande in percentuale con la
-        # finestra (come bootstrap desktop→mobile). stretch=2 lo fa crescere
-        # insieme alla finestra (il titolo resta con stretch=0).
+        self.plancia_section.add_header_widget(
+            self.search_category, max_width=150, min_width=120, stretch=0)
         self.plancia_section.add_header_widget(
             self.global_search, max_width=700, min_width=360, stretch=2)
 
@@ -6854,8 +6896,17 @@ class CenterArea(QWidget):
         (bordo accent + sfondo leggero), le altre restano in opacità ridotta.
         """
         query = text.strip().lower()
-        all_cards = list(self.cards.values()) + list(self.tools_cards.values())
-        for card in all_cards:
+        category = self.search_category.currentText() if hasattr(self, "search_category") else "Tutte le categorie"
+        all_cards = list(self.cards.items()) + list(self.tools_cards.items())
+        for key, card in all_cards:
+            # Filtro per categoria selezionata
+            if category != "Tutte le categorie":
+                is_plancia = key in self.cards
+                is_plancia_cat = category == "Plancia — task & coda"
+                if is_plancia_cat != is_plancia:
+                    card.setVisible(False)
+                    continue
+            card.setVisible(True)
             if not query:
                 if hasattr(card, "_search_orig_style"):
                     card.setStyleSheet(card._search_orig_style)
