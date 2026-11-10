@@ -276,6 +276,9 @@ ollama pull phi3:mini
 # Worker coding (circa 1 GB)
 ollama pull qwen2.5-coder:1.5b
 
+# Worker coding pesante (GPU, ~2 GB) — consigliato per task di codice complessi
+ollama pull qwen2.5-coder:3b
+
 # Worker general (circa 1 GB)
 ollama pull qwen2.5:1.5b
 
@@ -285,6 +288,14 @@ ollama pull nomic-embed-text
 # Decision model (circa 4.5 GB) — per task generici
 ollama pull tev1:4b
 ```
+
+> Con 4 GB di RAM e 4 GB di VRAM, la regola è: il modello deve occupare **non più di circa 2,5 GB**, perché servono memoria per il contesto (KV cache) e per il sistema. Il modello `qwen2.5-coder:3b` in Q4_K_M pesa circa 2 GB e sta nei limiti.
+>
+> Per far convivere il modello leggero (RAM) e il pesante (GPU), `byte-swarm.sh` imposta:
+> - `OLLAMA_MAX_LOADED_MODELS=1` — un solo modello in memoria alla volta
+> - `OLLAMA_KEEP_ALIVE=300` — scarica il modello dopo 5 min di inattività
+>
+> Verifica con `ollama ps` quanto va in GPU e quanto in CPU: se un modello è "x% CPU", sta sforando la VRAM e la velocità crolla.
 
 > Il tab **Modelli** nella GUI può auto-selezionare i modelli migliori per il
 > tuo hardware con un clic (pulsante "Auto-Select"). Puoi anche eseguire un

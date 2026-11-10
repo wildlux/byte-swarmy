@@ -47,6 +47,15 @@ ulimit -n 512 2>/dev/null || true
 PID_FILE="state/orchestrator.pid"
 mkdir -p state logs tasks project backups
 
+# === VARIABILI D'AMBIENTE OLLAMA ===
+# Un solo modello caricato in RAM/VRAM alla volta (vincolo 4 GB):
+# - OLLAMA_MAX_LOADED_MODELS=1 impedisce che due modelli restino in memoria
+# - OLLAMA_KEEP_ALIVE=300 scarica il modello dopo 5 min di inattività
+# Questo è fondamentale per far convivere il modello leggero (RAM) e il
+# modello pesante (GPU) senza saturare la memoria.
+export OLLAMA_MAX_LOADED_MODELS="${OLLAMA_MAX_LOADED_MODELS:-1}"
+export OLLAMA_KEEP_ALIVE="${OLLAMA_KEEP_ALIVE:-300}"
+
 # === BANNER ASCII ART (font "standard" di figlet) ===
 # Testo corretto: BYTE SWARM (non "byte-swarmy").
 show_banner() {
@@ -144,6 +153,14 @@ ensure_env() {
         read -p "Continuare comunque? (S/N) " -n 1 -r
         echo
         [[ $REPLY =~ ^[Nn]$ ]] || exit 1
+    fi
+
+    # Verifica modello pesante per worker_coder (GPU)
+    if ! curl -s http://localhost:11434/api/tags | grep -q "qwen2.5-coder:3b" 2>/dev/null; then
+        echo "ℹ️  Modello 'qwen2.5-coder:3b' non trovato in Ollama."
+        echo "    Il worker_coder userà qwen2.5-coder:1.5b come fallback."
+        echo "    Per installarlo: ollama pull qwen2.5-coder:3b"
+        echo
     fi
 }
 

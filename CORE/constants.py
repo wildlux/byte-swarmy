@@ -62,7 +62,7 @@ SAFETY_THRESHOLDS = {
 ACTOR_WEIGHT_DEFAULT_MODELS = {
     "llm": {
         "light":  "qwen2.5:1.5b",       # ~1GB RAM, per task semplici
-        "medium": "qwen2.5:3b",         # ~2GB RAM, bilanciato
+        "medium": "qwen2.5-coder:3b",   # ~2GB VRAM, bilanciato (modello pesante su GPU)
         "heavy":  "llama3:8b",          # ~5GB VRAM, per task complessi
     },
     "decision_model": {

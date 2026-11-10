@@ -24,14 +24,15 @@ num_ctx = 3072
 num_predict = 512
 
 [models.worker_coder]
-name = "qwen2.5-coder:1.5b"
-temperature = 0.1
+name = "qwen2.5-coder:3b"
+temperature = 0.2
 top_p = 0.8
-top_k = 30
-repeat_penalty = 1.15
-repeat_last_n = 512
-num_ctx = 3072
+top_k = 20
+repeat_penalty = 1.1
+repeat_last_n = 256
+num_ctx = 4096
 num_predict = 512
+seed = 42
 
 [models.worker_general]
 name = "qwen2.5:1.5b"

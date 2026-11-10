@@ -106,6 +106,15 @@ piccoli, atomici e verificabili.
 - [x] **CORE/ollama_client.py** — `_get_tuned_options` usa i valori del Modelfile come base (Modelfile > config.toml > default); `call` e `call_streaming` salvano le opzioni usate in `self.last_options_used[model_key]`.
 - [x] **CORE/orchestrator.py** — dopo `mark_done` salva la config usata come "last good"; quando un task raggiunge `failed_definitivamente`, fa rollback all'ultima configurazione buona sovrascrivendo `models_cfg[model_key]`.
 
-## 🟢 Priorità 3 — Modello pesante su GPU
+## 🟢 Priorità 3 — Modello pesante su GPU (qwen2.5-coder:3b)
 
-- [ ] Valutare passaggio a Qwen2.5-Coder-3B Q4_K_M su GPU (~2GB) con fallback a 1.5B Q8 su RAM; impostare `OLLAMA_MAX_LOADED_MODELS=1` e `keep_alive` breve.
+- [x] **CONFIG/config.toml** — `worker_coder` passa da `qwen2.5-coder:1.5b` a `qwen2.5-coder:3b` (disponibile su Ollama, ~1.9 GB). Parametri adeguati per il 3B: temperature=0.2, top_p=0.8, top_k=20, repeat_penalty=1.1, repeat_last_n=256, num_ctx=4096, num_predict=512, seed=42.
+- [x] **CORE/constants.py** — `ACTOR_WEIGHT_DEFAULT_MODELS["llm"]["medium"]` passa da `qwen2.5:3b` a `qwen2.5-coder:3b` (coerenza con worker_coder).
+- [x] **byte-swarm.sh** — Aggiunte variabili d'ambiente `OLLAMA_MAX_LOADED_MODELS=1` e `OLLAMA_KEEP_ALIVE=300` per far convivere il modello leggero (RAM) e il pesante (GPU) senza saturare la memoria.
+- [x] **byte-swarm.sh** — Check pre-avvio: avvisa se `qwen2.5-coder:3b` non è installato (non blocca, usa fallback 1.5b).
+
+## 🟡 Priorità 4 — Schema consigliato e configurazione attori
+
+- [ ] **Schema consigliato** — Documentare: Router (qwen2.5:0.5b, RAM) → Coder 3B Q4_K_M (GPU) → Verifica (test/compilatore), con fallback a Coder 1.5B (RAM) se il 3B fallisce.
+- [ ] **Configurazione attori** — Aggiornare ActorsPanel e documentazione per riflettere il nuovo modello pesante su GPU.
+- [ ] **Fallback modello** — Quando worker_coder (3B) fallisce definitivamente, provare con worker_general (1.5B) come secondo tentativo.
