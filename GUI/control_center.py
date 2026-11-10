@@ -2456,7 +2456,14 @@ class ControlCenter(QMainWindow):
             self._completion_bar.setValue(0)
             self._completion_bar.setFixedWidth(220)
             self._completion_bar.setFixedHeight(18)
-            self._completion_bar.setFormat("Completamento: %p%")
+            # Barra trasparente/bianca a riposo: nessun verde fisso.
+            # Il colore del chunk (progresso) appare solo durante l'esecuzione.
+            self._completion_bar.setStyleSheet(
+                "QProgressBar { border: none; background: #f1f5f9; "
+                "text-align: center; color: #64748b; font-size: 10px; }"
+                "QProgressBar::chunk { background: #cbd5e1; width: 1px; }"
+            )
+            self._completion_bar.setFormat("Pronto")
             self._completion_bar.setToolTip("Percentuale di task completati nella coda globale")
             self.statusBar().addPermanentWidget(self._completion_bar)
             # Timer di aggiornamento ogni 3s
@@ -3004,8 +3011,7 @@ class ControlCenter(QMainWindow):
                 # (la barra "carica" per far capire che qualcosa sta succedendo)
                 if running_any:
                     self._completion_bar.setRange(0, 0)  # modalità indeterminata
-                    target_title_short = (target_title or "task")[:28]
-                    self._completion_bar.setFormat(f"⏳ {target_title_short}…")
+                    self._completion_bar.setFormat("In elaborazione…")
                     self._completion_bar.setToolTip(
                         f"Progetto: {proj_name}\n"
                         f"Task in esecuzione: {target_title or '-'}\n"
