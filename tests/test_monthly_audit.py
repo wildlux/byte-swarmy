@@ -76,7 +76,7 @@ CRITICAL_FILES = [
     "GUI/control_center.py",
     "GUI/gui_backend.py",
     "GUI/settings_store.py",
-    "GUI/main_window.py",
+    "GUI/task_queue.py",
 ]
 
 # Host non-loopback banditi in bind()/listen()

@@ -672,7 +672,8 @@ byte-swarmy/
 │   ├── system_monitor.py
 │   └── lifecycle_manager.py
 ├── GUI/                     # PyQt6 Control Center
-│   ├── main_window.py       # Zero-Click layout (Top bar + splitter + Bottom bar)
+│   ├── control_center.py      # Nuova interfaccia modulare (plancia, card, pannelli)
+│   ├── task_queue.py          # I/O coda task e configurazione MCP
 │   └── theme/               # QSS theme system (light.qss, dark.qss, theme.py)
 ├── CONFIG/                  # config.toml
 ├── tests/                   # 226 test pytest: security, sandbox, escape-gate, intent,

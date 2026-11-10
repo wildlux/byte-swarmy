@@ -55,7 +55,7 @@ sessione 2026-11-05/06 — vedi sezione 🆕 in fondo.
 
 ## ✅ Sessione 2026-11-05/06 (completata — 263 test veloci)
 
-- [x] **Fix workflow utente**: pulsante ▶ toolbar morto (return prematuro) → toggle pausa/riprendi REALE (pause.flag); IndentationError in main_window.py.
+- [x] **Fix workflow utente**: pulsante ▶ toolbar morto (return prematuro) → toggle pausa/riprendi REALE (pause.flag); IndentationError in control_center.py.
 - [x] **Agenti**: envelope `tool(...)` fixato (ast.literal_eval + prompt rework), allowlist allineata (29 tool), 4 nuovi tool file (delete/move/list/slice), protocollo normalizzato in INGLESE, regola "progetto autonomo" (requirements.txt + avvia.sh).
 - [x] **Modelli piccoli che salvano**: max_tokens 400→1024, parse dict Python-style, envelope (path, content) → write_file.
 - [x] **Retry configurabili**: `[orchestrator] max_task_retries` + `retry_cooldown_sec` (colonna retry_after in queue.db).

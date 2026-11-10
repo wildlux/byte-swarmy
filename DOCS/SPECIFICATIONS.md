@@ -27,7 +27,7 @@ byte-swarmy/
 ├── INTENT/         router, bridge, metrics, intents.json
 ├── SAFETY/         security, security_checks, watchdog
 ├── MONITORING/     thermal_manager, system_monitor, lifecycle_manager
-├── GUI/            main_window (PyQt6)
+├── GUI/            control_center (PyQt6)
 ├── CONFIG/         config.toml
 ├── tests/          test_security, test_sandbox, test_intent_integration, run_tests
 ├── state/          timestral_history.json, persistent_memory.json, last_metrics.json,
@@ -40,7 +40,7 @@ byte-swarmy/
 └── main.py         CLI entry point
 ```
 
-All cross-module imports use package paths (`from CORE.tools import ToolSet`, `from SAFETY.security import log_security_event`, etc.). Entry points use `python -m CORE.orchestrator`, `python -m GUI.main_window`, `python -m SAFETY.watchdog`.
+All cross-module imports use package paths (`from CORE.tools import ToolSet`, `from SAFETY.security import log_security_event`, etc.). Entry points use `python -m CORE.orchestrator`, `python -m GUI.control_center`, `python -m SAFETY.watchdog`.
 
 ## 4. Architectural Requirements
 

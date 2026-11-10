@@ -32,7 +32,6 @@ PANELS = [
     "actors_panel.py",
     "audit_project_panel.py",
     "hardware_panel.py",
-    "main_window.py",
     "search_bar.py",
     "settings_panel.py",
     "task_scheduler_panel.py",

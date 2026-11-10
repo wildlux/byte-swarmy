@@ -58,10 +58,10 @@ Ogni test verifica:
 
 ## Integrazione GUI (opzionale)
 
-Per lanciare i test dalla GUI di byte-swarmy, aggiungi un pulsante in `GUI/main_window.py`:
+Per lanciare i test dalla GUI di byte-swarmy, aggiungi un pulsante in `GUI/control_center.py`:
 
 ```python
-# In GUI/main_window.py, aggiungi un pulsante "Run Functional Tests"
+# In GUI/control_center.py, aggiungi un pulsante "Run Functional Tests"
 # che lancia:
 import subprocess
 result = subprocess.run(

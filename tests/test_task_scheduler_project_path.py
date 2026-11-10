@@ -17,11 +17,11 @@ import pytest
 # ──────────────────────────────────────────────────────────────────────
 
 
-def _import_main_window_functions():
+def _import_task_queue_functions():
     import sys
 
     sys.path.insert(0, os.getcwd())
-    from GUI.main_window import (
+    from GUI.task_queue import (
         add_task,
         delete_task,
         load_tasks,
@@ -38,7 +38,7 @@ def _import_main_window_functions():
 
 def test_save_and_load_per_progetto():
     add_task, delete_task, load_tasks, save_tasks, _tasks_file = (
-        _import_main_window_functions()
+        _import_task_queue_functions()
     )
 
     tmp = tempfile.mkdtemp()
@@ -78,7 +78,7 @@ def test_save_and_load_per_progetto():
 
 
 def test_load_tasks_none_usa_globale():
-    _, _, load_tasks, _, _ = _import_main_window_functions()
+    _, _, load_tasks, _, _ = _import_task_queue_functions()
 
     # project_path=None deve usare il file globale (backward compat)
     result = load_tasks(None)
@@ -92,7 +92,7 @@ def test_load_tasks_none_usa_globale():
 
 def test_delete_task_per_progetto():
     add_task, delete_task, load_tasks, save_tasks, _tasks_file = (
-        _import_main_window_functions()
+        _import_task_queue_functions()
     )
 
     tmp = tempfile.mkdtemp()
@@ -123,7 +123,7 @@ def test_delete_task_per_progetto():
 
 
 def test_tasks_file_per_progetto():
-    _, _, _, _, _tasks_file = _import_main_window_functions()
+    _, _, _, _, _tasks_file = _import_task_queue_functions()
 
     tmp = tempfile.mkdtemp()
     try:
@@ -150,7 +150,7 @@ def test_modifica_task_usa_project_path():
     """Simula il flusso di modifica del TaskSchedulerPanel:
     carica task per progetto, modifica, salva nello stesso progetto."""
     add_task, delete_task, load_tasks, save_tasks, _tasks_file = (
-        _import_main_window_functions()
+        _import_task_queue_functions()
     )
 
     tmp = tempfile.mkdtemp()

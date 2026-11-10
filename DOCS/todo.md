@@ -85,7 +85,7 @@ Censimento `setFixed*` (fontsize completo in `grep -n "setFixed\|setMinimum\|set
     colonna editor (riga ~5082) → su finestre strette taglia il centro.
   - barre fisse: top bar 64px (2096), command bar 52px (2392), header
     sezione 48px (957) — accettabili come "bar" ma da verificare a fine.
-- `GUI/main_window.py`: 8 occorrenze (da censire una a una).
+- `GUI/control_center.py`: 8 occorrenze (da censire una a una).
 - Verificato con probe geometry: Plancia e detail stack si adattano
   (viewport = window), quindi gli artefatti visibili sono nelle aree
   sopra elencate (width fisse o content colllassabile) — chiedere
@@ -93,7 +93,7 @@ Censimento `setFixed*` (fontsize completo in `grep -n "setFixed\|setMinimum\|set
 
 Task atomici responsive (uno per commit, test tema verdi a ogni passo):
 
-[x] **T-R1 (fatto, commit b497335)** `GUI/main_window.py`:
+[x] **T-R1 (fatto, commit b497335)** `GUI/control_center.py`:
     `ctx_bar.setFixedWidth(90)` → `setMinimumWidth(60)` così si comprime
     su finestre strette senza tagliare.
 

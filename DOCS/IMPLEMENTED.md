@@ -68,7 +68,7 @@ This file tracks every significant feature, fix, and architectural change implem
 ## 🧩 Cycle 9 — Uppercase Package Migration (2026-10-29/30)
 - [x] **Package reorganization**: all modules moved into uppercase Python packages `CORE/`, `INTENT/`, `SAFETY/`, `MONITORING/`, `GUI/`, `CONFIG/`. Each has `__init__.py`.
 - [x] **Import rewrite**: every cross-module import updated to use package paths (`from CORE.tools import ToolSet`, `from SAFETY.security import …`, etc.).
-- [x] **Entry points**: `avvia.sh`/`ferma.sh` now use `python -m SAFETY.watchdog`, `python -m CORE.orchestrator`, `python -m GUI.main_window`. `main.py` is the CLI entry point.
+- [x] **Entry points**: `avvia.sh`/`ferma.sh` now use `python -m SAFETY.watchdog`, `python -m CORE.orchestrator`, `python -m GUI.control_center`. `main.py` is the CLI entry point.
 - [x] **Test suite realigned**: `tests/test_security.py` and `tests/run_tests.py` import from the new packages; 27 security + 22 sandbox + 6 intent = 55 tests pass.
 
 ## 🚀 Cycle 10 — Advanced Features (2026-10-30)
@@ -182,7 +182,7 @@ This file tracks every significant feature, fix, and architectural change implem
   declaration-only transparent, nessun colore light-only hardcoded) +
   runtime (ogni pannello si istanzia in tema scuro e chiaro) +
   helper (`set_banner` accetta i 4 stati). 24 test, tutti verdi.
-  Corretti 2 residui muted in `main_window.py` (#909090, #999 →
+  Corretti 2 residui muted in `control_center.py` (#909090, #999 →
   role="muted").
 
 - [x] **Uso dello spazio vuoto nei pannelli**: `hardware_panel`

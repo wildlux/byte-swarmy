@@ -93,7 +93,7 @@ def _role_hint(widget: QWidget) -> str:
     if cls == "QStackedWidget":
         return "stacked_widget"
     if cls == "QMainWindow":
-        return "main_window"
+        return "control_center"
     if cls == "QDialog":
         return "dialog"
     if cls == "QMenuBar":

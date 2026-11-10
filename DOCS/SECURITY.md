@@ -33,7 +33,7 @@ umano esperto: è un generatore di comandi plausibili ma sbagliati.
 | `run_bash(cmd)` | esecuzione arbitraria con i permessi utente | `tools.py` |
 | `read_file`/`write_file` | lettura/scrittura fuori dal progetto | `tools.py` |
 | tool git | push di codice, remote malevoli, leak di credenziali | `tools.py` |
-| task MCP | input non fidato che impone campi/status | `main_window.py`, `mcp_client.py` |
+| task MCP | input non fidato che impone campi/status | `control_center.py`, `task_queue.py`, `mcp_client.py` |
 | ambiente ereditato | token e socket SSH visibili ai figli | `avvia.sh`, `tools.py` |
 | fork bomb / disco / CPU | denial of service locale | `tools.py`, `avvia.sh` |
 
@@ -151,7 +151,7 @@ Il timeout termina l'intero **process group** (`start_new_session=True` +
 
 ### 2.6 Task MCP = dati non fidati
 
-`main_window.py::_on_mcp_task` ricostruisce il task da zero. Un server MCP non può
+`control_center.py::_on_mcp_task` ricostruisce il task da zero. Un server MCP non può
 imporre `id`, `status`, `parent`, `subtasks` o `attempts`; `title`,
 `description` e `context` hanno limiti di lunghezza e `type` è in whitelist.
 Gli URL MCP accettano solo `http://` e `https://`.

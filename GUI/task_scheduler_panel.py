@@ -299,7 +299,7 @@ class TaskSchedulerPanel(QWidget):
         # Se siamo in modalità modifica, aggiorna il task esistente per ID
         if getattr(self, "_editing_task_id", None):
             try:
-                from GUI.main_window import load_tasks, save_tasks
+                from GUI.task_queue import load_tasks, save_tasks
                 # Usa il project_path salvato al momento della modifica
                 # (non ricalcolato da get_project_path che potrebbe essere None)
                 edit_project_path = self._editing_project_path or project_path
@@ -335,7 +335,7 @@ class TaskSchedulerPanel(QWidget):
 
         # Altrimenti aggiunge un nuovo task alla coda principale
         try:
-            from GUI.main_window import add_task
+            from GUI.task_queue import add_task
             ok = add_task(
                 title=title,
                 description=prompt,
@@ -373,7 +373,7 @@ class TaskSchedulerPanel(QWidget):
             return
         # Cerca il task per ID nella coda principale (stessa fonte di _refresh_list)
         try:
-            from GUI.main_window import load_tasks
+            from GUI.task_queue import load_tasks
             tasks = load_tasks(project_path)
             task = next((t for t in tasks if task.get("id") == task_id), None)
         except Exception:
@@ -461,7 +461,7 @@ class TaskSchedulerPanel(QWidget):
         if reply == QMessageBox.StandardButton.Yes:
             project_path = self.get_project_path() if self.get_project_path else None
             try:
-                from GUI.main_window import delete_task
+                from GUI.task_queue import delete_task
                 delete_task(task_id, project_path)
             except Exception as e:
                 QMessageBox.critical(self, "Errore", f"Impossibile eliminare:\n{e}")
@@ -473,7 +473,7 @@ class TaskSchedulerPanel(QWidget):
         # Stessa lista di "Lavori e compiti" del progetto attivo
         project_path = self.get_project_path() if self.get_project_path else None
         try:
-            from GUI.main_window import load_tasks
+            from GUI.task_queue import load_tasks
             tasks = load_tasks(project_path)
         except Exception:
             tasks = []

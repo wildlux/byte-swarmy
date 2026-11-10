@@ -71,7 +71,7 @@ piccoli, atomici e verificabili.
 ### 🟡 Medio (da valutare dopo CU1-CU4)
 
 - [x] **CU5. Spezzare `GUI/control_center.py`** — separare `FileSystemModel`, `CheckableTreeView`, `FileTreeDrawer` in `GUI/file_manager.py`. ✅ Fatto: `FileSystemModel` e `CheckableTreeView` spostati in `GUI/file_manager.py` (riga 3794-4049 rimosse da control_center.py). `FileTreeDrawer` resta per ora (intrecciato con ControlCenter).
-- [x] **CU6. Spezzare `GUI/main_window.py`** — separare aree della plancia in widget dedicati. ✅ Fatto: creato `GUI/panels.py` con `wrap_in_panel_page`, `build_actors_page`, `build_cicd_page`, `build_clean_code_page`, `build_config_page`, `build_scheduler_page`, `build_plancia_cards`, `build_tools_cards`. `control_center.py` li importa e usa. Le card della plancia (cards_grid, tools_grid) sono ora costruite da `panels.py`.
+- [x] **CU6. Spezzare `GUI/control_center.py`** — separare aree della plancia in widget dedicati. ✅ Fatto: creato `GUI/panels.py` con `wrap_in_panel_page`, `build_actors_page`, `build_cicd_page`, `build_clean_code_page`, `build_config_page`, `build_scheduler_page`, `build_plancia_cards`, `build_tools_cards`. `control_center.py` li importa e usa. Le card della plancia (cards_grid, tools_grid) sono ora costruite da `panels.py`.
 - [ ] **CU7. Dimensioni fisse GUI** — 87 occorrenze `setFixedSize/Width/Height`: valutare sostituzione con `setMinimumSize` + stretch dove opportuno. ✅ Fatto parzialmente: sostituite ~14 occorrenze (titoli, barre toolbar/command-bar, input file_name, larghezze colonne CPU/GPU, larghezza ricerca categorie). Rimangono fissi i pulsanti quadrati (28x28, 24x24, ecc.) e i separatori per coerenza visiva.
 - [x] **Fix sezione "Archivio progetto"** — titolo "📁 Archivio progetto" su una riga sopra da sola; tutti i pulsanti (➕ 📁 🔄 🗑️) allineati a sinistra nella riga sotto, come nella sezione "Lavori e compiti".
 - [x] **Fix pulsante "+" zoom** — ora grigio come "meno" e "reset vista" (non più verde).
@@ -123,7 +123,23 @@ piccoli, atomici e verificabili.
 - [x] **byte-swarm.sh** — Aggiunte variabili d'ambiente `OLLAMA_MAX_LOADED_MODELS=1` e `OLLAMA_KEEP_ALIVE=300` per far convivere il modello leggero (RAM) e il pesante (GPU) senza saturare la memoria.
 - [x] **byte-swarm.sh** — Check pre-avvio: avvisa se `qwen2.5-coder:3b` non è installato (non blocca, usa fallback 1.5b).
 
-## 🟡 Priorità 4 — Schema consigliato e configurazione attori
+## 🔴 Priorità 5 — Spezzatura file monoliti
+
+### 🟢 Facile
+
+- [x] **M1. Rimuovere `GUI/control_center.py.orig`** — backup non più necessario.
+- [x] **M2. Archiviare `tests/TEST_GUI_SEPARATA/`** — 12 file di test GUI vecchi, spostati in `tests/archiviati/TEST_GUI_SEPARATA`.
+
+### 🟡 Medio
+
+- [ ] **M3. Spezzare `GUI/control_center.py`** (7155 righe) in moduli dedicati per classe: `credits_overlay.py`, `device_panel.py`, `collapsible_section.py`, `plancia_card.py`, `code_explorer.py`, `file_editor_widget.py`, `config_panel.py`, `project_tab_bar.py`, `task_item_row.py`, `integrity_tests_panel.py`, `software_security_panel.py`, `cicd_pipeline_panel.py`, `clean_code_panel.py`, `center_area.py`.
+  - ✅ `GUI/collapsible_section.py` — classe CollapsibleSection estratta
+  - ✅ `GUI/plancia_card.py` — classe PlanciaCard estratta
+  - ✅ `GUI/categorized_log_viewer.py` — classe CategorizedLogViewer estratta
+  - ✅ `GUI/backup_code_logs.py` — classe BackupCodeLogs estratta
+  - ⏳ Da fare: CreditsOverlay, DevicePanel, CodeExplorer, FileEditorWidget, ConfigPanel, ProjectTabBar, IntegrityTestsPanel, SoftwareSecurityPanel, CICDPipelinePanel, CleanCodePanel, CenterArea
+
+- [ ] **M4. Verificare `GUI/settings_panel.py` (1298 righe) e `CORE/tools.py` (1213 righe)** — valutare spezzatura in moduli più piccoli.
 
 - [x] **Schema consigliato** — Documentato in README.md: Router (qwen2.5:0.5b, RAM) → Coder 3B Q4_K_M (GPU) → Verifica (test/compilatore), con fallback a Coder 1.5B (RAM) se il 3B fallisce.
 - [x] **Configurazione attori** — Aggiornato `ACTOR_WEIGHT_DEFAULT_MODELS` in `CORE/constants.py` e documentazione per riflettere il nuovo modello pesante su GPU.

@@ -602,7 +602,7 @@ class CreditsOverlay(QFrame):
 # DEVICE PANEL
 # ═══════════════════════════════════════════════════════════════
 class DevicePanel(QFrame):
-    def __init__(self):
+    def __init__(self, control_center=None):
         super().__init__()
         self.setObjectName("device_panel")
         self.setMinimumHeight(56)
@@ -649,7 +649,9 @@ class DevicePanel(QFrame):
             "font-weight:bold; font-size:16px; border-radius:6px; border:none; }"
             "QPushButton#primary_btn:hover { background:#15803d; }"
         )
-        self.pause_btn.clicked.connect(self._toggle_orchestrator)
+        self.pause_btn.clicked.connect(
+            control_center._toggle_orchestrator if control_center else self._toggle_orchestrator
+        )
         lay.addWidget(self.pause_btn)
 
         self.stop_btn = QPushButton("⏹")
@@ -662,7 +664,9 @@ class DevicePanel(QFrame):
             "font-weight:bold; font-size:16px; border-radius:6px; border:none; }"
             "QPushButton#stop_btn:hover { background:#b91c1c; }"
         )
-        self.stop_btn.clicked.connect(self._stop_orchestrator)
+        self.stop_btn.clicked.connect(
+            control_center._stop_orchestrator if control_center else self._stop_orchestrator
+        )
         lay.addWidget(self.stop_btn)
 
         self.git_remotes = self._detect_git_remotes()
@@ -2445,12 +2449,12 @@ class ControlCenter(QMainWindow):
         sep2.setFixedWidth(1)
         lay.addWidget(sep2)
 
-        self.device_panel = DevicePanel()
+        self.device_panel = DevicePanel(control_center=self)
         lay.addWidget(self.device_panel)
 
-        # Pulsante ▶/⏸ della toolbar = Pausa/Riprendi orchestratore
-        # (stessa logica del menu: state/pause.flag).
-        self.device_panel.toggle_btn.clicked.connect(self._toggle_orchestrator)
+        # Il pulsante ▶/⏸ è già dentro DevicePanel (pause_btn) e si collega
+        # internamente a control_center._toggle_orchestrator; non serve
+        # ricollegarlo da qui (eviterebbe un doppio toggle).
         self._sync_toggle_icon()
         # Stato iniziale in status bar
         try:
@@ -3293,7 +3297,7 @@ class ControlCenter(QMainWindow):
         project_path = self.get_current_project_path() if hasattr(self, "get_current_project_path") else None
         project_name = os.path.basename(project_path.rstrip("/")) if project_path else None
         try:
-            from GUI.main_window import add_task
+            from GUI.task_queue import add_task
             task = add_task(text, "", "", "code", project_path)
             task_id = task.get("id", "")
         except Exception as e:
@@ -4123,7 +4127,7 @@ class FileTreeDrawer(QFrame):
         # Popola con task reali del progetto attivo
         project_path = self.main_win.get_current_project_path() if hasattr(self, 'main_win') and self.main_win else None
         try:
-            from GUI.main_window import load_tasks
+            from GUI.task_queue import load_tasks
             tasks = load_tasks(project_path)
             for t in tasks:
                 title = t.get("title", t.get("description", "?"))[:50]
@@ -4693,7 +4697,7 @@ class FileTreeDrawer(QFrame):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply != QMessageBox.StandardButton.Yes:
             return
-        from GUI.main_window import delete_task
+        from GUI.task_queue import delete_task
         project_path = self.main_win.get_current_project_path() if hasattr(self, 'main_win') and self.main_win else None
         for tid in checked_ids:
             # Recupera il titolo del task per il log
@@ -4713,7 +4717,7 @@ class FileTreeDrawer(QFrame):
         # Ricarica lista
         self.task_list.clear()
         try:
-            from GUI.main_window import load_tasks
+            from GUI.task_queue import load_tasks
             tasks = load_tasks(project_path)
             for t in tasks:
                 title = t.get("title", t.get("description", "?"))[:50]
@@ -5018,7 +5022,7 @@ class FileTreeDrawer(QFrame):
             if hasattr(self, 'task_list'):
                 self.task_list.clear()
                 try:
-                    from GUI.main_window import load_tasks
+                    from GUI.task_queue import load_tasks
                     project_path = self.main_win.get_current_project_path() if hasattr(self, 'main_win') and self.main_win else None
                     tasks = load_tasks(project_path)
                     for t in tasks:

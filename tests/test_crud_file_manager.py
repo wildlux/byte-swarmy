@@ -27,7 +27,7 @@ from PyQt6.QtWidgets import QMessageBox
 # Aggiungi la root del progetto al path
 sys.path.insert(0, os.getcwd())
 
-from GUI.main_window import (
+from GUI.task_queue import (
     _tasks_file,
     add_task,
     delete_task,
@@ -346,7 +346,7 @@ def test_task_scheduler_refresh_on_project_change():
         proj1 = _make_project(tmp, "progetto1")
         proj2 = _make_project(tmp, "progetto2")
 
-        from GUI.main_window import save_tasks
+        from GUI.task_queue import save_tasks
         save_tasks([{"id": "p1-1", "title": "Task P1", "description": "", "status": "pending",
                      "attempts": 0, "subtasks": [], "parent": None, "created_at": 1,
                      "source": "gui", "type": "code"}], proj1)
