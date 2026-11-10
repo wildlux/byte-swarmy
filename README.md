@@ -435,6 +435,14 @@ La env var ha **priorità** su qualunque token salvato in `CONFIG/settings.json`
 
 Le vecchie "7 tab" (Coda Task, Modelli, MCP Servers, Logs, Timestral, Config, Test & Sandbox) sono ora dialogo non bloccante.
 
+### Novità GUI recenti (sessione corrente)
+
+- **Barra "Lavori e compiti" (sidebar sinistra)**: pulsante toggle ☑ "Seleziona/deseleziona tutti" a destra (accanto a 🔄 ➕ 🗑️ 🧹), per selezionare rapidamente tutte le checkbox dei task in lista.
+- **Plancia di controllo**: triangolo "arrotola" (▾/▸) allineato in alto a destra; header più compatto e spazio vuoto rimosso sopra il contenuto → più spazio per i menù rettangoli (card) sottostanti.
+- **Zoom reale**: i pulsanti `[-][%][+][↻]` in basso a destra cambiano davvero i font dell'interfaccia (rileggono e riscalano i `font-size` hard-coded in px/pt degli stylesheet inline e del QSS finestra, da base 100%, senza drift). Etichetta percentuale live (`100%` → `120%`). Scorciatoie `Ctrl++` / `Ctrl+−` / `Ctrl+0` (anche con focus su un campo di testo). Il livello zoom si salva in `CONFIG/settings.json` e viene ripristinato all'avvio; i pannelli aperti dopo uno zoom vengono scalati automaticamente entro ~1,5 s.
+- **QSplitter verticale** tra file tree ("Archivio progetto") e lista task ("Lavori e compiti"): divisibile a metà di default, ridimensionabile trascinando, dimensioni persistenti in `state/splitter_vertical_state.json`.
+
+
 ### Swarm commands (istantanei, no LLM)
 
 | Comando | Effetto |

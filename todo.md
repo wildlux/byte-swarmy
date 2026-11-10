@@ -84,3 +84,8 @@ piccoli, atomici e verificabili.
 - `CORE/regex_controller.py` — controllore centralizzato regex (pattern precompilati + helper statici).
 - `CORE/hf_weights.py`, `CORE/weight_space_harness.py`, `CORE/tools.py`, `CORE/orchestrator.py` — integrati con `regex_controller`.
 - `GUI/settings_panel.py` — sezione "Pesi da Hugging Face" (sviluppo beta) con worker thread dedicati.
+- `GUI/control_center.py` — **pulsante toggle ☑ "Seleziona/deseleziona tutti"** nell'header "Lavori e compiti" (a destra, accanto a 🔄 ➕ 🗑️ 🧹), agisce sulle checkbox dei task.
+- `GUI/control_center.py` — **Plancia di controllo compatta**: triangolo "arrotola" (▾/▸) allineato in alto a destra; rimosso spazio vuoto sotto l'header → più spazio per i menù rettangoli (card) sottostanti. (`CollapsibleSection`: header minHeight 40px, margini header 6px, margini content-top 6px, toggle_btn `AlignTop`.)
+- `GUI/control_center.py` — **Zoom reale**: `_apply_zoom` riscala i font-size hard-coded (px e pt) negli stylesheet inline per-widget e nel QSS della finestra a partire da base 100% (fattore assoluto level/100, zero drift); catch-up periodico (1,5s) scala i widget creati dopo lo zoom; barra zoom `[-][%][+][↻]` con etichetta live; scorciatoie Ctrl++ / Ctrl+− / Ctrl+0 (`_ZoomEventFilter` + `keyPressEvent`); zoom persistito in `CONFIG/settings.json` (`settings_store.get_zoom_level`/`set_zoom_level`).
+- `GUI/control_center.py` — **QSplitter verticale** tra file tree e lista task (metà/metà di default, ridimensionabile, dimensioni persistenti in `state/splitter_vertical_state.json`).
+- Documentazione: aggiornati README.md, AGENT.md, todo.md.

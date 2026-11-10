@@ -1003,9 +1003,9 @@ class CollapsibleSection(QFrame):
         # collassabili (Navigatore, Backup, Log, Integrità, Sicurezza).
         # minHeight invece di setFixedHeight così non si comprimono a 0
         # quando la finestra si restringe.
-        self.header.setMinimumHeight(48)
+        self.header.setMinimumHeight(40)
         header_lay = QHBoxLayout(self.header)
-        header_lay.setContentsMargins(14, 10, 14, 10)
+        header_lay.setContentsMargins(14, 6, 14, 6)
         header_lay.setSpacing(8)
 
         self.title_lbl = QLabel(f"{icon} {title}")
@@ -1022,14 +1022,14 @@ class CollapsibleSection(QFrame):
             "QPushButton:hover { background:#d0d0d0; }"
         )
         self.toggle_btn.clicked.connect(self._on_toggle)
-        header_lay.addWidget(self.toggle_btn)
+        header_lay.addWidget(self.toggle_btn, alignment=Qt.AlignmentFlag.AlignTop)
 
         lay.addWidget(self.header)
 
         self.content = QWidget()
         self.content.setStyleSheet("border-bottom-left-radius:8px; border-bottom-right-radius:8px;")
         self.content_lay = QVBoxLayout(self.content)
-        self.content_lay.setContentsMargins(12, 12, 12, 12)
+        self.content_lay.setContentsMargins(12, 6, 12, 6)
         self.content_lay.setSpacing(8)
 
         lay.addWidget(self.content)
@@ -4188,6 +4188,14 @@ class FileTreeDrawer(QFrame):
         )
         task_clean_btn.clicked.connect(self._clean_queue)
         task_header_row.addWidget(task_clean_btn)
+
+        # Pulsante toggle seleziona tutto / deseleziona tutto (checkbox dei task)
+        task_select_btn = QPushButton("☑")
+        task_select_btn.setFixedSize(28, 28)
+        task_select_btn.setToolTip("Seleziona/deseleziona tutti i task")
+        task_select_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
+        task_select_btn.clicked.connect(self._toggle_select_all_tasks)
+        task_header_row.addWidget(task_select_btn)
         task_lay.addLayout(task_header_row)
 
         self._refreshing_tasks = False
@@ -4269,6 +4277,23 @@ class FileTreeDrawer(QFrame):
                 json.dump(sizes, f)
         except Exception as e:
             print(f"Errore salvataggio splitter verticale: {e}")
+
+    def _toggle_select_all_tasks(self):
+        """Seleziona/deseleziona tutte le checkbox dei task nella lista."""
+        try:
+            if not hasattr(self, "task_list"):
+                return
+            items = [self.task_list.item(i) for i in range(self.task_list.count())]
+            if not items:
+                return
+            tutte_selezionate = all(
+                it.checkState() == Qt.CheckState.Checked for it in items
+            )
+            stato = Qt.CheckState.Unchecked if tutte_selezionate else Qt.CheckState.Checked
+            for it in items:
+                it.setCheckState(stato)
+        except Exception as e:
+            print(f"Errore toggle seleziona tutti i task: {e}")
 
     def set_current_folder(self, folder_path: str):
         """Aggiorna il file tree per puntare alla cartella del progetto aperto.

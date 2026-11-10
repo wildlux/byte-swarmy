@@ -446,6 +446,13 @@ Hard rules encoded in these commands: never `git push`/`pull` by hand,
 never block the Qt main thread, never `time.sleep` in the task runner
 (use `Event.wait` + single-threaded loop).
 
+# 🖥️ GUI Control Center — Novità sessione corrente
+
+- **Barra "Lavori e compiti"**: pulsante toggle ☑ "Seleziona/deseleziona tutti" a destra (accanto a 🔄 ➕ 🗑️ 🧹), agisce sulle checkbox dei task (`FileTreeDrawer._toggle_select_all_tasks`).
+- **Plancia di controllo**: triangolo "arrotola" (▾/▸) allineato in alto a destra (`CollapsibleSection.toggle_btn` con `Qt.AlignmentFlag.AlignTop`); header più compatto (minHeight 40px, margini 6px) e rimosso lo spazio vuoto sopra il contenuto (`content_lay` margine-top 6px) → più spazio per i menù rettangoli (card) sottostanti.
+- **Zoom reale**: `_apply_zoom` riscala i font-size hard-coded (px e pt) negli stylesheet inline per-widget e nel QSS della finestra a partire da base 100% (fattore assoluto `level/100`, zero drift composto). Catch-up periodico (1,5s) scala i widget creati dopo lo zoom (pannelli aperti dai menu, sezioni CPU/GPU ricreate). Barra zoom `[-][%][+][↻]` con etichetta percentuale live. Scorciatoie: `Ctrl++` / `Ctrl+−` / `Ctrl+0` (`_ZoomEventFilter` globale + `keyPressEvent`, funzionano anche con focus su `QLineEdit`). Zoom persistito in `CONFIG/settings.json` (`settings_store.get_zoom_level`/`set_zoom_level`).
+- **QSplitter verticale** tra file tree e lista task (metà/metà di default, ridimensionabile dall'utente, dimensioni persistenti in `state/splitter_vertical_state.json`).
+
 # ── Comandi di esplorazione e refactoring (usati in sessione) ───────
 # Permettono a un agente locale (Ollama) di mappare, modificare e
 # verificare il codice senza dover re-derivare path/flag ogni volta.
