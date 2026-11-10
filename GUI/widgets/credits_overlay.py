@@ -1,20 +1,16 @@
 """
-CreditsOverlay — overlay modale con i ringraziamenti del progetto.
-
-Estratto da GUI/control_center.py (riga ~121-601).
+CreditsOverlay — estratto da GUI/control_center.py.
 """
-
 import os
 
 from PyQt6.QtWidgets import (
-    QFrame, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QLabel, QPushButton,
+    QWidget, QFrame, QVBoxLayout, QHBoxLayout, QGridLayout,
+    QLabel, QPushButton, QTabBar, QStackedWidget, QTextEdit,
+    QGraphicsView, QGraphicsScene, QGraphicsRectItem, QGraphicsTextItem,
+    QSizePolicy, QSpacerItem, QMessageBox,
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QPropertyAnimation, QEasingCurve, QUrl
-from PyQt6.QtGui import QColor, QPalette, QPixmap, QDesktopServices
-
-from GUI.theme import theme as _T
-from GUI import settings_store
+from PyQt6.QtGui import QColor, QPalette, QPixmap, QFont, QBrush, QPen, QPainter, QCursor, QDesktopServices
 
 
 class CreditsOverlay(QFrame):

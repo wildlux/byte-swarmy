@@ -1,1 +1,3 @@
-"""Widget GUI riutilizzabili estratti da control_center.py."""
+"""
+Widget GUI riutilizzabili estratti da control_center.py.
+"""

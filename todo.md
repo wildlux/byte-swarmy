@@ -133,16 +133,16 @@ piccoli, atomici e verificabili.
 
 ## 🧱 Refactoring GUI — spezzamento control_center.py (7175 righe)
 
-- [ ] **RG-ALL. Allineare rettangoli "Lavori e Compiti"** — pulsante ☑ nell'header e indicatori/checkbox delle righe task (`TaskItemRow`). Verificare allineamento verticale e margini a sinistra.
-- [x] **RG1. Estrarre TaskItemRow in `GUI/widgets/task_item_row.py`** — classe autonoma estratta da control_center.py. Primo modulo spezzato.
-- [x] **RG2. Estrarre CreditsOverlay in `GUI/widgets/credits_overlay.py`** (riga ~120-603)
-- [ ] **RG3. Estrarre DevicePanel in `GUI/widgets/device_panel.py`** (riga ~604-1019)
-- [ ] **RG4. Estrarre CollapsibleSection in `GUI/widgets/collapsible_section.py`** (riga ~1020-1118)
-- [ ] **RG5. Estrarre PlanciaCard in `GUI/widgets/plancia_card.py`** (riga ~1119-1200)
-- [ ] **RG6. Estrarre CodeExplorer/CodeNode in `GUI/widgets/code_explorer.py`** (riga ~1316-1523)
-- [ ] **RG7. Estrarre FileEditorWidget in `GUI/widgets/file_editor.py`** (riga ~1524-1693)
-- [ ] **RG8. Estrarre ConfigPanel in `GUI/widgets/config_panel.py`** (riga ~1694-2141)
-- [ ] **RG9. Estrarre FileTreeDrawer in `GUI/widgets/file_tree_drawer.py`** (riga ~3908-4260)
-- [ ] **RG10. Estrarre CenterArea in `GUI/widgets/center_area.py`** (riga ~6517-7120)
-- [ ] **RG11. Estrarre IntegrityTestsPanel, SoftwareSecurityPanel, CICDPipelinePanel, CleanCodePanel** in `GUI/widgets/` o `GUI/panels/`
-- [ ] **RG12. Aggiornare import in control_center.py** per usare i nuovi moduli; `ControlCenter` resta classe principale che orchestra tutto.
+- [ ] **RG-ALL. Allineare rettangoli "Lavori e Compiti"** — pulsante ☑ nell'header e indicatori/checkbox delle righe task (`TaskItemRow` in `GUI/widgets/task_item_row.py`). Verificare allineamento verticale e margini a sinistra.
+- [x] **RG1. Estrarre TaskItemRow in `GUI/widgets/task_item_row.py`** ✅
+- [x] **RG2. Estrarre CreditsOverlay in `GUI/widgets/credits_overlay.py`** ✅
+- [x] **RG3. Estrarre DevicePanel in `GUI/widgets/devicepanel.py`** ✅
+- [x] **RG4. Estrarre CollapsibleSection in `GUI/widgets/collapsiblesection.py`** ✅
+- [x] **RG5. Estrarre PlanciaCard in `GUI/widgets/planciacard.py`** ✅
+- [x] **RG6. Estrarre CodeExplorer/CodeNode in `GUI/widgets/codeexplorer.py` / `codenode.py`** ✅
+- [x] **RG7. Estrarre FileEditorWidget in `GUI/widgets/fileeditorwidget.py`** ✅
+- [x] **RG8. Estrarre ConfigPanel in `GUI/widgets/configpanel.py`** ✅
+- [x] **RG9. Estrarre FileTreeDrawer in `GUI/widgets/filetreedrawer.py`** ✅
+- [x] **RG10. Estrarre CenterArea in `GUI/widgets/centerarea.py`** ✅
+- [x] **RG11. Estrarre IntegrityTestsPanel, SoftwareSecurityPanel, CICDPipelinePanel, CleanCodePanel in `GUI/widgets/`** ✅
+- [x] **RG12. Aggiornare import in control_center.py per usare i nuovi moduli** ✅
