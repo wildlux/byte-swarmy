@@ -19,12 +19,12 @@ class TaskItemRow(QWidget):
     def __init__(self, icon_text: str, icon_color: str, title: str, parent=None):
         super().__init__(parent)
         lay = QHBoxLayout(self)
-        lay.setContentsMargins(4, 2, 4, 2)
+        lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(6)
 
         self.icon_lbl = QLabel(icon_text)
         self.icon_lbl.setStyleSheet(f"color: {icon_color}; font-weight: bold;")
-        self.icon_lbl.setFixedWidth(22)
+        self.icon_lbl.setFixedSize(22, 22)
         self.icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(self.icon_lbl)
 

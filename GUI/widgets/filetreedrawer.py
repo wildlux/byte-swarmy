@@ -175,7 +175,7 @@ class FileTreeDrawer(QFrame):
 
         # Pulsante toggle seleziona tutto / deseleziona tutto (checkbox dei task)
         task_select_btn = QPushButton("☑")
-        task_select_btn.setFixedSize(20, 20)
+        task_select_btn.setFixedSize(22, 22)
         task_select_btn.setToolTip("Seleziona/deseleziona tutti i task")
         task_select_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
         task_select_btn.clicked.connect(self._toggle_select_all_tasks)

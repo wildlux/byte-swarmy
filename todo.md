@@ -133,7 +133,7 @@ piccoli, atomici e verificabili.
 
 ## 🧱 Refactoring GUI — spezzamento control_center.py (7175 righe)
 
-- [ ] **RG-ALL. Allineare rettangoli "Lavori e Compiti"** — pulsante ☑ nell'header e indicatori/checkbox delle righe task (`TaskItemRow` in `GUI/widgets/task_item_row.py`). Verificare allineamento verticale e margini a sinistra.
+- [x] **RG-ALL. Allineare rettangoli "Lavori e Compiti"** ✅ — pulsante ☑ (`task_select_btn`, 22x22px) e icona `TaskItemRow` (`setFixedSize(22,22)`, margini 0) ora allineati sulla stessa verticale X.
 - [x] **RG1. Estrarre TaskItemRow in `GUI/widgets/task_item_row.py`** ✅
 - [x] **RG2. Estrarre CreditsOverlay in `GUI/widgets/credits_overlay.py`** ✅
 - [x] **RG3. Estrarre DevicePanel in `GUI/widgets/devicepanel.py`** ✅
