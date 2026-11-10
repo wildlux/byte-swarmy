@@ -327,6 +327,10 @@ class TaskQueue:
             )
             conn.commit()
 
+    def mark_pending(self, task_id: str) -> None:
+        """Rimette un task in pending (usato per il fallback modello)."""
+        self.set_status(task_id, "pending")
+
         # non ripesca piu' nulla di definitivo: loop terminato
 
     def pause_thermal(self) -> int:
@@ -1985,49 +1989,77 @@ class Orchestrator:
             self.log.warning(f"audit gate check fallito (fail-open): {_e}")
 
         try:
+            if not self._execute_task_with_worker(task, worker):
+                # 🆕 Fallback modello: se worker_coder (3B) fallisce
+                # definitivamente, prova con worker_general (1.5B)
+                # come secondo tentativo.
+                if worker.model_key == "worker_coder":
+                    self.log.info(
+                        f"task {task['id']} fallback modello: provo con worker_general"
+                    )
+                    # Rimette il task in pending per rieseguirlo con il fallback
+                    self.queue.mark_pending(task["id"])
+                    fallback_worker = self._build_worker(task["id"], "worker_general")
+                    self._execute_task_with_worker(task, fallback_worker)
+        except Exception as e:
+            self.log.error(f"task {task['id']} exception: {e}", exc_info=True)
+
+    def _execute_task_with_worker(self, task: dict, worker) -> bool:
+        """Esegue un task con un worker e gestisce l'audit.
+
+        Restituisce True se il task è stato completato con successo (APPROVE),
+        False altrimenti (fallimento, rifiuto, eccezione).
+        """
+        try:
             result = worker.execute(task)
             if result.startswith("ERROR"):
                 self._process_worker_failure(task, result,
                                              getattr(worker, "last_code", ""),
                                              worker)
                 self.log.warning(f"task {task['id']} failed: {result[:100]}")
-            else:
-                # --- ENTERPRISE AUDIT STEP ---
-                self.log.info(f"task {task['id']} submitted for audit")
-                worker_history = worker.memory.get_history()
-                audit_res = self.auditor.audit(task, result, worker_history)
+                return False
+            # --- ENTERPRISE AUDIT STEP ---
+            self.log.info(f"task {task['id']} submitted for audit")
+            worker_history = worker.memory.get_history()
+            audit_res = self.auditor.audit(task, result, worker_history)
 
-                if audit_res.get("decision") == "APPROVE":
-                    self.log.info(f"task {task['id']} APPROVED by auditor")
-                    self.queue.mark_done(task["id"], result)
-                    # 🆕 Salva la configurazione LLM usata come "last good"
-                    # per poter fare rollback se una config futura fallisce.
-                    used_opts = self.models.last_options_used.get(
-                        worker.model_key, {}
+            if audit_res.get("decision") == "APPROVE":
+                self.log.info(f"task {task['id']} APPROVED by auditor")
+                self.queue.mark_done(task["id"], result)
+                # 🆕 Salva la configurazione LLM usata come "last good"
+                # per poter fare rollback se una config futura fallisce.
+                used_opts = self.models.last_options_used.get(
+                    worker.model_key, {}
+                )
+                if used_opts:
+                    last_good_config.save(worker.model_key, used_opts)
+                    self.log.debug(
+                        f"task {task['id']} saved last-good config for "
+                        f"{worker.model_key}: {used_opts}"
                     )
-                    if used_opts:
-                        last_good_config.save(worker.model_key, used_opts)
-                        self.log.debug(
-                            f"task {task['id']} saved last-good config for "
-                            f"{worker.model_key}: {used_opts}"
-                        )
-                    # Flusso utente 3: il progetto generato deve SEMPRE avere
-                    # un avvio (avvia.sh) — anche se l'LLM non l'ha scritto.
-                    self._ensure_avvio_script()
-                    self.tools.git_commit(f"task {task['id']}: {task.get('title', '')[:50]}")
-                    self.log.info(f"task {task['id']} DONE")
-                else:
-                    feedback = audit_res.get("feedback", "No feedback provided")
-                    self.log.warning(f"task {task['id']} REJECTED by auditor: {feedback[:100]}")
-                    # We mark it as failed so it gets retried, but we inject the auditor's feedback
-                    # into the task description so the worker sees why it was rejected.
-                    task["description"] += f"\n\n⚠️ AUDIT REJECTION: {feedback}"
-                    self.queue.mark_failed(task["id"], f"AUDIT_REJECT: {feedback}")
+                # Flusso utente 3: il progetto generato deve SEMPRE avere
+                # un avvio (avvia.sh) — anche se l'LLM non l'ha scritto.
+                self._ensure_avvio_script()
+                self.tools.git_commit(f"task {task['id']}: {task.get('title', '')[:50]}")
+                self.log.info(f"task {task['id']} DONE")
+                return True
+            else:
+                feedback = audit_res.get("feedback", "No feedback provided")
+                self.log.warning(
+                    f"task {task['id']} REJECTED by auditor: {feedback[:100]}"
+                )
+                # We mark it as failed so it gets retried, but we inject the
+                # auditor's feedback into the task description so the worker
+                # sees why it was rejected.
+                task["description"] += f"\n\n⚠️ AUDIT REJECTION: {feedback}"
+                self.queue.mark_failed(task["id"], f"AUDIT_REJECT: {feedback}")
+                return False
         except Exception as e:
             self._process_worker_failure(task, str(e),
                                          getattr(worker, "last_code", ""),
                                          worker)
             self.log.error(f"task {task['id']} exception: {e}", exc_info=True)
+            return False
 
     def _process_worker_failure(self, task: dict, reason: str,
                                 previous_code: str = "", worker=None) -> str:

@@ -270,6 +270,21 @@ Activity Panel.
 9. Worker calls `done=true` → Auditor reviews → APPROVE/REJECT.
 10. On APPROVE → `mark_done` + `git_commit` + persistent memory updated.
 11. On REJECT → `mark_failed` (retries up to 10 times, then `stuck`).
+12. **Fallback modello:** se `worker_coder` (qwen2.5-coder:3b, GPU) fallisce
+    definitivamente, il task viene rimesso in `pending` e rieseguito con
+    `worker_general` (qwen2.5:1.5b, RAM) come secondo tentativo.
+
+## Schema consigliato (4 GB RAM / 4 GB VRAM)
+
+```
+Router (qwen2.5:0.5b, RAM)  →  Coder 3B Q4_K_M (GPU)  →  Verifica (test/compilatore)
+                              ↓ se il 3B fallisce definitivamente
+                    Coder 1.5B Q8 (RAM) come secondo tentativo
+```
+
+I due coder sono della stessa famiglia e sbagliano in modo simile; per la
+diversità si può aggiungere un modello di un'altra famiglia
+(es. `deepseek-coder:1.3b`).
 
 ## 🧪 Testing
 

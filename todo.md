@@ -115,6 +115,6 @@ piccoli, atomici e verificabili.
 
 ## 🟡 Priorità 4 — Schema consigliato e configurazione attori
 
-- [ ] **Schema consigliato** — Documentare: Router (qwen2.5:0.5b, RAM) → Coder 3B Q4_K_M (GPU) → Verifica (test/compilatore), con fallback a Coder 1.5B (RAM) se il 3B fallisce.
-- [ ] **Configurazione attori** — Aggiornare ActorsPanel e documentazione per riflettere il nuovo modello pesante su GPU.
-- [ ] **Fallback modello** — Quando worker_coder (3B) fallisce definitivamente, provare con worker_general (1.5B) come secondo tentativo.
+- [x] **Schema consigliato** — Documentato in README.md: Router (qwen2.5:0.5b, RAM) → Coder 3B Q4_K_M (GPU) → Verifica (test/compilatore), con fallback a Coder 1.5B (RAM) se il 3B fallisce.
+- [x] **Configurazione attori** — Aggiornato `ACTOR_WEIGHT_DEFAULT_MODELS` in `CORE/constants.py` e documentazione per riflettere il nuovo modello pesante su GPU.
+- [x] **Fallback modello** — In `CORE/orchestrator.py`: quando `worker_coder` (3B) fallisce definitivamente, il task viene rimesso in `pending` e rieseguito con `worker_general` (1.5B) come secondo tentativo. Metodo `_execute_task_with_worker` estrapolato per evitare duplicazione di codice.

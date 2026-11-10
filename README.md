@@ -297,6 +297,16 @@ ollama pull tev1:4b
 >
 > Verifica con `ollama ps` quanto va in GPU e quanto in CPU: se un modello è "x% CPU", sta sforando la VRAM e la velocità crolla.
 
+## Schema consigliato (4 GB RAM / 4 GB VRAM)
+
+```
+Router (qwen2.5:0.5b, RAM)  →  Coder 3B Q4_K_M (GPU)  →  Verifica (test/compilatore)
+                              ↓ se il 3B fallisce definitivamente
+                    Coder 1.5B Q8 (RAM) come secondo tentativo
+```
+
+I due coder sono della stessa famiglia e sbagliano in modo simile, quindi per la diversità si può aggiungere un modello di un'altra famiglia (es. `deepseek-coder:1.3b`).
+
 > Il tab **Modelli** nella GUI può auto-selezionare i modelli migliori per il
 > tuo hardware con un clic (pulsante "Auto-Select"). Puoi anche eseguire un
 > benchmark completo con `python -m CORE.benchmark`.
