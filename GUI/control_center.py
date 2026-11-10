@@ -2103,13 +2103,13 @@ class _ZoomEventFilter(QObject):
             key = event.key()
             mods = event.modifiers()
             if mods & Qt.KeyboardModifier.ControlModifier:
-                if key in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):
+                if key in (Qt.Key_Plus, Qt.Key_Equal):
                     self.window._zoom_in()
                     return True
-                if key == Qt.Key.Key_Minus:
+                if key == Qt.Key_Minus:
                     self.window._zoom_out()
                     return True
-                if key == Qt.Key.Key_0:
+                if key == Qt.Key_0:
                     self.window._zoom_reset()
                     return True
         return super().eventFilter(obj, event)
@@ -2416,21 +2416,33 @@ class ControlCenter(QMainWindow):
             self._zoom_out_btn = QPushButton("−")
             self._zoom_out_btn.setFixedSize(24, 20)
             self._zoom_out_btn.setToolTip("Zoom riduci (Ctrl + −)")
-            self._zoom_out_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
+            self._zoom_out_btn.setStyleSheet(
+                "QPushButton { background:#6b7280; color:white; border:none; "
+                "border-radius:3px; font-weight:bold; }"
+                "QPushButton:hover { background:#4b5563; }"
+            )
             self._zoom_out_btn.clicked.connect(lambda: (print("DEBUG zoom out click"), self._zoom_out()))
             _zoom_container.addWidget(self._zoom_out_btn)
 
             self._zoom_reset_btn = QPushButton("↻")
             self._zoom_reset_btn.setFixedSize(24, 20)
             self._zoom_reset_btn.setToolTip("Reset vista (Ctrl + 0)")
-            self._zoom_reset_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
+            self._zoom_reset_btn.setStyleSheet(
+                "QPushButton { background:#6b7280; color:white; border:none; "
+                "border-radius:3px; font-weight:bold; }"
+                "QPushButton:hover { background:#4b5563; }"
+            )
             self._zoom_reset_btn.clicked.connect(lambda: (print("DEBUG zoom reset click"), self._zoom_reset()))
             _zoom_container.addWidget(self._zoom_reset_btn)
 
             self._zoom_in_btn = QPushButton("+")
             self._zoom_in_btn.setFixedSize(24, 20)
             self._zoom_in_btn.setToolTip("Zoom aumenta (Ctrl + +)")
-            self._zoom_in_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
+            self._zoom_in_btn.setStyleSheet(
+                "QPushButton { background:#16a34a; color:white; border:none; "
+                "border-radius:3px; font-weight:bold; }"
+                "QPushButton:hover { background:#15803d; }"
+            )
             self._zoom_in_btn.clicked.connect(lambda: (print("DEBUG zoom in click"), self._zoom_in()))
             _zoom_container.addWidget(self._zoom_in_btn)
 
@@ -2452,15 +2464,15 @@ class ControlCenter(QMainWindow):
         key = event.key()
         mods = event.modifiers()
         if mods & Qt.KeyboardModifier.ControlModifier:
-            if key in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):
+            if key in (Qt.Key_Plus, Qt.Key_Equal):
                 self._zoom_in()
                 event.accept()
                 return
-            if key == Qt.Key.Key_Minus:
+            if key == Qt.Key_Minus:
                 self._zoom_out()
                 event.accept()
                 return
-            if key == Qt.Key.Key_0:
+            if key == Qt.Key_0:
                 self._zoom_reset()
                 event.accept()
                 return
@@ -2975,7 +2987,29 @@ class ControlCenter(QMainWindow):
             app = QApplication.instance()
             app.setFont(font)
 
-            # Forza ripaint di tutti i widget per applicare il nuovo font
+            # Applica QSS globale con font-size a tutti i widget
+            # (salva lo stile originale la prima volta)
+            if not hasattr(app, "_zoom_original_stylesheet"):
+                app._zoom_original_stylesheet = app.styleSheet()
+            zoom_qss = f"""
+                QWidget {{ font-size: {font_size}px; }}
+                QPushButton {{ font-size: {font_size}px; }}
+                QLabel {{ font-size: {font_size}px; }}
+                QTextEdit {{ font-size: {font_size}px; }}
+                QPlainTextEdit {{ font-size: {font_size}px; }}
+                QListWidget {{ font-size: {font_size}px; }}
+                QTreeView {{ font-size: {font_size}px; }}
+                QLineEdit {{ font-size: {font_size}px; }}
+                QComboBox {{ font-size: {font_size}px; }}
+                QSpinBox {{ font-size: {font_size}px; }}
+                QSlider {{ font-size: {font_size}px; }}
+                QProgressBar {{ font-size: {font_size}px; }}
+                QTabBar::tab {{ font-size: {font_size}px; }}
+                QHeaderView::section {{ font-size: {font_size}px; }}
+            """
+            app.setStyleSheet(app._zoom_original_stylesheet + "\n" + zoom_qss)
+
+            # Forza ripaint di tutti i widget
             for widget in app.allWidgets():
                 try:
                     widget.font().setPointSize(font_size)
@@ -3854,12 +3888,12 @@ class FileTreeDrawer(QFrame):
 
         # Header dinamico: titolo a sinistra, pulsanti a destra
         header_row = QHBoxLayout()
-        header_row.setContentsMargins(8, 6, 8, 6)
+        header_row.setContentsMargins(0, 0, 0, 0)
         header_row.setSpacing(4)
         self.header = QLabel("<b>📁 Archivio progetto</b>")
         self.header.setObjectName("sidebar_header")
         self.header.setStyleSheet(  # nolint: header verde accordion Archivio
-            "padding:0; color:#16a34a; font-size:13px;"
+            "padding:0; color:#16a34a; font-size:11px; font-weight:bold;"
         )
         self.header.setWordWrap(True)
         self.header.setMinimumHeight(30)
