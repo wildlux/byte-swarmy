@@ -3965,12 +3965,15 @@ class FileTreeDrawer(QFrame):
         self.tree.customContextMenuRequested.connect(self._on_tree_context_menu)
         self.tree.expanded.connect(self._on_folder_expanded)
         self.model.dataChanged.connect(self._on_model_data_changed)
-        lay.addWidget(self.tree)
+        # QSplitter verticale: sopra il file tree, sotto la lista task
+        self.splitter_vertical = QSplitter(Qt.Orientation.Vertical)
+        self.splitter_vertical.addWidget(self.tree)
 
-        sep = QFrame()
-        sep.setFixedHeight(1)
-        sep.setStyleSheet("margin:8px 12px;")
-        lay.addWidget(sep)
+        # Contenitore per l'header e la lista task "Lavori e compiti"
+        task_container = QWidget()
+        task_lay = QVBoxLayout(task_container)
+        task_lay.setContentsMargins(0, 0, 0, 0)
+        task_lay.setSpacing(0)
 
         # Layout header "Lavori e compiti": titolo a sinistra, pulsanti a destra
         task_header_row = QHBoxLayout()
@@ -4019,7 +4022,7 @@ class FileTreeDrawer(QFrame):
         )
         task_clean_btn.clicked.connect(self._clean_queue)
         task_header_row.addWidget(task_clean_btn)
-        lay.addLayout(task_header_row)
+        task_lay.addLayout(task_header_row)
 
         self._refreshing_tasks = False
         self.task_list = QListWidget()
@@ -4046,7 +4049,7 @@ class FileTreeDrawer(QFrame):
                     item.setData(Qt.ItemDataRole.UserRole, tid)
                 color = {"done": "#16a34a", "running": "#f59e0b",
                          "pending": "#888", "failed": "#dc2626",
-                         "paused": "#6b7280", "thermal_paused": "#f97316"}.get(st, "#888")
+                         "paused": "#6b7280", "thermal_paused": "#f97316"}.get(st, "?")
                 item.setForeground(QColor(color))
                 # Checkbox per selezione multipla (colonna di selezione)
                 item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
@@ -4054,7 +4057,30 @@ class FileTreeDrawer(QFrame):
                 self.task_list.addItem(item)
         except Exception as e:
             print(f"Errore popolamento task_list: {e}")
-        lay.addWidget(self.task_list, stretch=1)
+        task_lay.addWidget(self.task_list, stretch=1)
+
+        self.splitter_vertical.addWidget(task_container)
+
+        # Carica dimensioni salvate dello splitter verticale
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        state_file = os.path.join(base, "state", "splitter_vertical_state.json")
+        saved_sizes = None
+        if os.path.exists(state_file):
+            try:
+                data = json.loads(open(state_file, encoding="utf-8").read())
+                if isinstance(data, list) and len(data) == 2:
+                    saved_sizes = [int(data[0]), int(data[1])]
+            except Exception:
+                pass
+
+        if saved_sizes:
+            self.splitter_vertical.setSizes(saved_sizes)
+        else:
+            # Divide a metà per default
+            self.splitter_vertical.setSizes([300, 300])
+
+        self.splitter_vertical.splitterMoved.connect(self._save_splitter_vertical_state)
+        lay.addWidget(self.splitter_vertical)
 
         self._anim = QPropertyAnimation(self, b"maximumWidth")
         self._anim.setDuration(220)
@@ -4064,6 +4090,19 @@ class FileTreeDrawer(QFrame):
         # Flag debug sincronizzata con Impostazioni; evita AttributeError
         # in _force_refresh_tasks / _on_task_item_changed / _on_tree_click.
         self._GUI_DEBUG = settings_store.get_gui_debug()
+
+    def _save_splitter_vertical_state(self):
+        """Salva le larghezze dello splitter verticale (file tree <-> task list)
+        in state/splitter_vertical_state.json per ripristinarle all'avvio."""
+        try:
+            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            state_file = os.path.join(base, "state", "splitter_vertical_state.json")
+            os.makedirs(os.path.dirname(state_file), exist_ok=True)
+            sizes = self.splitter_vertical.sizes()
+            with open(state_file, "w", encoding="utf-8") as f:
+                json.dump(sizes, f)
+        except Exception as e:
+            print(f"Errore salvataggio splitter verticale: {e}")
 
     def set_current_folder(self, folder_path: str):
         """Aggiorna il file tree per puntare alla cartella del progetto aperto.
