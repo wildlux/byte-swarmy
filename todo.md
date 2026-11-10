@@ -74,6 +74,8 @@ piccoli, atomici e verificabili.
 - [x] **CU6. Spezzare `GUI/main_window.py`** — separare aree della plancia in widget dedicati. ✅ Fatto: creato `GUI/panels.py` con `wrap_in_panel_page`, `build_actors_page`, `build_cicd_page`, `build_clean_code_page`, `build_config_page`, `build_scheduler_page`, `build_plancia_cards`, `build_tools_cards`. `control_center.py` li importa e usa. Le card della plancia (cards_grid, tools_grid) sono ora costruite da `panels.py`.
 - [x] **CU7. Dimensioni fisse GUI** — 87 occorrenze `setFixedSize/Width/Height`: valutare sostituzione con `setMinimumSize` + stretch dove opportuno. ✅ Fatto parzialmente: sostituite ~14 occorrenze (titoli, barre toolbar/command-bar, input file_name, larghezze colonne CPU/GPU, larghezza ricerca categorie). Rimangono fissi i pulsanti quadrati (28x28, 24x24, ecc.) e i separatori per coerenza visiva.
 - [x] **Fix barra avanzamento in basso a destra** — ora trasparente/bianca a riposo con testo "Pronto"; durante l'esecuzione mostra "In elaborazione…" con animazione indeterminata (niente più verde fisso).
+- [x] **Fix pulsante ☑ "Seleziona/deseleziona tutti"** — spostato subito a destra del titolo "Lavori" nell'header della lista task (prima era alla fine, dopo 🧹 Pulisci coda).
+- [x] **Fix tab progetto troppo largo** — `ProjectTabBar` ora tronca i nomi dei tab con elipsis se superano 15 caratteri (es. "sourceCode" → "sourceCo…") e mostra il nome completo nel tooltip. Aggiunto `setElideMode(Qt.TextElideMode.ElideRight)` al costruttore.
 - [x] **Fix colore widget rinomina file** — `self.file_name_edit` aveva `background:#1b1f27` (quasi nero, illeggibile su tema chiaro). Cambiato in `#f8fafc` (grigio molto chiaro coerente con tema light).
 
 ---

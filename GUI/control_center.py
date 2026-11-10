@@ -3359,6 +3359,8 @@ class ProjectTabBar(QTabBar):
         self.setTabsClosable(True)
         self.setMovable(True)
         self.setExpanding(False)
+        # Tronca il testo dei tab troppo lunghi con "…" invece di allargare il tab
+        self.setElideMode(Qt.TextElideMode.ElideRight)
         # Click su un tab → se è il "+", apri QFileDialog
         self.tabBarClicked.connect(self._on_tab_clicked)
         self.tabCloseRequested.connect(self._on_tab_close_requested)
@@ -3417,8 +3419,13 @@ class ProjectTabBar(QTabBar):
                 # Mostra nella scheda il nome SENZA il prefisso "PR_"
                 # (regola interna: il prefisso resta solo sul disco).
                 display_name = name[3:] if name.startswith("PR_") else name
+                # Tronca il nome se troppo lungo per evitare tab troppo larghi.
+                # Il nome completo resta nel tooltip.
+                if len(display_name) > 15:
+                    display_name = display_name[:12] + "..."
                 if self._find_tab(display_name) < 0:
                     idx = self.addTab("📁 " + display_name)
+                    self.setTabToolTip(idx, name[3:] if name.startswith("PR_") else name)
                     # Salva il path reale (con "PR_") per ricostruirlo
                     # correttamente in _path_for_tab.
                     if not hasattr(self, "_tab_paths"):
@@ -3954,6 +3961,7 @@ class FileTreeDrawer(QFrame):
         task_header_lbl.setToolTip("Lavori e compiti — lista dei task del progetto attivo")
         task_header_lbl.setStyleSheet("font-size:11px; font-weight:bold; padding:0; margin:0;")
         task_header_row.addWidget(task_header_lbl, stretch=0)
+        task_header_row.addWidget(task_select_btn)
         task_header_row.addStretch()
 
         # Pulsante riavvio forzato (refresh lista)
@@ -3994,14 +4002,7 @@ class FileTreeDrawer(QFrame):
         )
         task_clean_btn.clicked.connect(self._clean_queue)
         task_header_row.addWidget(task_clean_btn)
-
-        # Pulsante toggle seleziona tutto / deseleziona tutto (checkbox dei task)
-        task_select_btn = QPushButton("☑")
-        task_select_btn.setFixedSize(28, 28)
-        task_select_btn.setToolTip("Seleziona/deseleziona tutti i task")
-        task_select_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
-        task_select_btn.clicked.connect(self._toggle_select_all_tasks)
-        task_header_row.addWidget(task_select_btn)
+        # task_select_btn è già stato aggiunto subito dopo il titolo "Lavori"
         task_lay.addLayout(task_header_row)
 
         self._refreshing_tasks = False
