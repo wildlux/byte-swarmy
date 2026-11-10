@@ -59,6 +59,7 @@ from CORE.execute_handler import handle_execute_task
 from CORE.decision_feedback import DecisionValidator
 from CORE.correction import build_correction_prompt
 from CORE.loop_detector import detect_loop
+from CORE.last_good_config import last_good_config
 from MONITORING.thermal_manager import (TimestralManager, TimestralGatekeeper,
                                         load_timestral_overrides,
                                         PAUSE_CPU, PAUSE_GPU, RESUME_TEMP)
@@ -1987,7 +1988,8 @@ class Orchestrator:
             result = worker.execute(task)
             if result.startswith("ERROR"):
                 self._process_worker_failure(task, result,
-                                             getattr(worker, "last_code", ""))
+                                             getattr(worker, "last_code", ""),
+                                             worker)
                 self.log.warning(f"task {task['id']} failed: {result[:100]}")
             else:
                 # --- ENTERPRISE AUDIT STEP ---
@@ -1998,6 +2000,17 @@ class Orchestrator:
                 if audit_res.get("decision") == "APPROVE":
                     self.log.info(f"task {task['id']} APPROVED by auditor")
                     self.queue.mark_done(task["id"], result)
+                    # 🆕 Salva la configurazione LLM usata come "last good"
+                    # per poter fare rollback se una config futura fallisce.
+                    used_opts = self.models.last_options_used.get(
+                        worker.model_key, {}
+                    )
+                    if used_opts:
+                        last_good_config.save(worker.model_key, used_opts)
+                        self.log.debug(
+                            f"task {task['id']} saved last-good config for "
+                            f"{worker.model_key}: {used_opts}"
+                        )
                     # Flusso utente 3: il progetto generato deve SEMPRE avere
                     # un avvio (avvia.sh) — anche se l'LLM non l'ha scritto.
                     self._ensure_avvio_script()
@@ -2012,11 +2025,12 @@ class Orchestrator:
                     self.queue.mark_failed(task["id"], f"AUDIT_REJECT: {feedback}")
         except Exception as e:
             self._process_worker_failure(task, str(e),
-                                         getattr(worker, "last_code", ""))
+                                         getattr(worker, "last_code", ""),
+                                         worker)
             self.log.error(f"task {task['id']} exception: {e}", exc_info=True)
 
     def _process_worker_failure(self, task: dict, reason: str,
-                                previous_code: str = "") -> str:
+                                previous_code: str = "", worker=None) -> str:
         """Feedback loop T2: costruisce il prompt di correzione e riarma
         il task fino a 3 retry; il 4° fallimento lo rende definitivo.
 
@@ -2037,6 +2051,22 @@ class Orchestrator:
                 f"task {task['id']} FAILED_DEFINITIVELY after "
                 f"{self.queue.RETRY_LIMIT + 1} attempts"
             )
+            # 🆕 Rollback all'ultima configurazione LLM nota come buona,
+            # per evitare di restare bloccati con parametri che producono loop.
+            mk = worker.model_key if worker else None
+            if mk:
+                good = last_good_config.load(mk)
+                if good:
+                    self.models.models_cfg[mk].update(good)
+                    self.log.info(
+                        f"task {task['id']} rollback a ultima config buona "
+                        f"per {mk}: {good}"
+                    )
+                else:
+                    self.log.warning(
+                        f"task {task['id']} nessun last-good config per {mk}, "
+                        f"rollback saltato"
+                    )
             # Alzare la posta in gioco: suggerisci un LLM più potente.
             try:
                 import json as _json

@@ -34,6 +34,7 @@ class ModelClient:
         self.current_model: Optional[str] = None
         self.last_call_ts: float = 0
         self.llm_tuner = None  # 🆕 TimestralLLMTuner (set by orchestrator)
+        self.last_options_used: dict = {}  # 🆕 ultima opzioni usate per model_key
 
     # ------------------------------------------------------------------
     # API pubblica
@@ -60,6 +61,8 @@ class ModelClient:
 
         # 🆕 Build options with TimestralLLMTuner (if available)
         options = self._get_tuned_options(model_key, model_cfg, max_tokens)
+        # 🆕 Salva le opzioni usate per il rollback "last good config"
+        self.last_options_used[model_key] = dict(options)
 
         # Endpoint /api/chat (più pulito di /api/generate per system prompt)
         messages = []
@@ -154,6 +157,8 @@ class ModelClient:
         # Applica override per singola chiamata (fallback su loop, ecc.)
         if options_override:
             options.update(options_override)
+        # 🆕 Salva le opzioni usate per il rollback "last good config"
+        self.last_options_used[model_key] = dict(options)
 
         messages = []
         if system:
@@ -254,19 +259,43 @@ class ModelClient:
 
         The tuner overrides: temperature, top_p, top_k, num_predict, num_ctx,
         repeat_penalty, repeat_last_n — based on current thermal state.
+
+        🆕 Punto di partenza fisso: i PARAMETER effettivi del Modelfile di
+        Ollama (se disponibili) hanno priorità sui valori di config.toml.
+        L'ottimizzatore può esplorare solo in un intorno limitato attorno a
+        questi valori ufficiali.
         """
-        # Start with config values
+        # 1) Leggi i PARAMETER effettivi dal Modelfile di Ollama
+        model_name = model_cfg.get("name", "")
+        modelfile_params = {}
+        if model_name:
+            try:
+                from CORE.ollama_modelfile import get_modelfile_params
+                modelfile_params = get_modelfile_params(model_name)
+            except Exception:
+                modelfile_params = {}
+
+        # 2) Base di partenza: Modelfile > config.toml > default
+        def _pick(key, default=None):
+            if key in modelfile_params and modelfile_params[key] is not None:
+                return modelfile_params[key]
+            if key in model_cfg and model_cfg[key] is not None:
+                return model_cfg[key]
+            return default
+
         options = {
-            "temperature": model_cfg["temperature"],
-            "top_p": model_cfg["top_p"],
-            "top_k": model_cfg["top_k"],
-            "repeat_penalty": model_cfg["repeat_penalty"],
-            "repeat_last_n": model_cfg["repeat_last_n"],
-            "num_ctx": model_cfg["num_ctx"],
-            "num_predict": max_tokens or model_cfg["num_predict"],
+            "temperature": _pick("temperature", 0.1),
+            "top_p": _pick("top_p", 0.8),
+            "top_k": _pick("top_k", 40),
+            "repeat_penalty": _pick("repeat_penalty", 1.1),
+            "repeat_last_n": _pick("repeat_last_n", 256),
+            "num_ctx": _pick("num_ctx", DEFAULT_NUM_CTX),
+            "num_predict": max_tokens or _pick("num_predict", 256),
         }
-        if "seed" in model_cfg:
+        if "seed" in model_cfg and model_cfg["seed"] is not None:
             options["seed"] = model_cfg["seed"]
+        elif "seed" in modelfile_params and modelfile_params["seed"] is not None:
+            options["seed"] = modelfile_params["seed"]
 
         # 🆕 Apply TimestralLLMTuner if available
         if hasattr(self, "llm_tuner") and self.llm_tuner:

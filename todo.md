@@ -101,8 +101,10 @@ piccoli, atomici e verificabili.
 
 ## 🟡 Priorità 2 — Robustezza e rollback
 
-- [ ] **Ultima configurazione buona** — tenere in memoria l'ultima config che ha superato i test; tornaci se una nuova fallisce.
-- [ ] **Verifica `ollama show --modelfile`** — leggere i parametri effettivi del modello scaricato da Ollama (possono differire da quelli di Hugging Face) e usarli come punto di partenza fisso con esplorazione limitata (±0.2 temperatura, penalità 1.05-1.2).
+- [x] **CORE/last_good_config.py** — nuovo modulo: salva in `state/last_good_config.json` l'ultima configurazione LLM (temperature, top_p, repeat_penalty, ...) che ha portato un task al completamento con successo. Fornisce `save/load/clear` per model_key.
+- [x] **CORE/ollama_modelfile.py** — nuovo modulo: legge i PARAMETER effettivi dal Modelfile di Ollama (`ollama show --modelfile <nome>`) e li usa come punto di partenza fisso (priorità su config.toml). Fallback a {} se Ollama non disponibile o senza PARAMETER espliciti.
+- [x] **CORE/ollama_client.py** — `_get_tuned_options` usa i valori del Modelfile come base (Modelfile > config.toml > default); `call` e `call_streaming` salvano le opzioni usate in `self.last_options_used[model_key]`.
+- [x] **CORE/orchestrator.py** — dopo `mark_done` salva la config usata come "last good"; quando un task raggiunge `failed_definitivamente`, fa rollback all'ultima configurazione buona sovrascrivendo `models_cfg[model_key]`.
 
 ## 🟢 Priorità 3 — Modello pesante su GPU
 
