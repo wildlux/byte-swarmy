@@ -3458,15 +3458,14 @@ class ProjectTabBar(QTabBar):
           - 15px di margine destro (tra × e bordo del tab)
         Il click emette tabCloseRequested come il button di default.
         """
-        # Larghezza totale: 15px sx + 16px (× icona) + 15px dx = 46px.
-        # setFixedSize deve includere i margins, altrimenti Qt li ritaglia.
+        # Larghezza totale: 8px sx + 16px (× icona) + 8px dx = 32px.
         btn = QPushButton("✕")
-        btn.setFixedSize(46, 24)
+        btn.setFixedSize(32, 24)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.setToolTip("Chiudi questo progetto")
         # setContentsMargins funziona SEMPRE (a differenza del CSS close-button):
-        # 15px a sinistra (tra testo e ×) + 15px a destra (tra × e bordo).
-        btn.setContentsMargins(15, 0, 15, 0)
+        # 8px a sinistra (tra testo e ×) + 8px a destra (tra × e bordo).
+        btn.setContentsMargins(8, 0, 8, 0)
         btn.setStyleSheet(
             "QPushButton {"
             "  background:transparent; border:none; "
@@ -3818,6 +3817,26 @@ def build_run_command(file_path):
 
 
 
+class TaskItemRow(QWidget):
+    """Riga task personalizzata: pallino di stato colorato + titolo neutro."""
+    def __init__(self, icon_text: str, icon_color: str, title: str, parent=None):
+        super().__init__(parent)
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(4, 2, 4, 2)
+        lay.setSpacing(6)
+
+        self.icon_lbl = QLabel(icon_text)
+        self.icon_lbl.setStyleSheet(f"color: {icon_color}; font-weight: bold;")
+        self.icon_lbl.setFixedWidth(22)
+        self.icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lay.addWidget(self.icon_lbl)
+
+        self.title_lbl = QLabel(title)
+        self.title_lbl.setStyleSheet("color: inherit;")
+        self.title_lbl.setWordWrap(True)
+        lay.addWidget(self.title_lbl, stretch=1)
+
+
 class FileTreeDrawer(QFrame):
     def __init__(self, parent):
         super().__init__()
@@ -4014,6 +4033,7 @@ class FileTreeDrawer(QFrame):
         )
         task_clean_btn.clicked.connect(self._clean_queue)
         task_btn_row.addWidget(task_clean_btn)
+        task_btn_row.addStretch()  # spinge i pulsanti a sinistra
 
         task_lay.addLayout(task_btn_row)
 
@@ -4039,9 +4059,7 @@ class FileTreeDrawer(QFrame):
                 color = {"done": "#16a34a", "running": "#f59e0b",
                          "pending": "#dc2626", "failed": "#dc2626",
                          "paused": "#6b7280", "thermal_paused": "#f97316"}.get(st, "#888")
-                # Colora solo il pallino/icona di stato, titolo resta neutro
-                html_title = title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-                item = QListWidgetItem(f"<span style='color:{color}'>{icon}</span> {html_title}")
+                item = QListWidgetItem()
                 tid = t.get("id") or ""
                 if tid:
                     item.setData(Qt.ItemDataRole.UserRole, tid)
@@ -4049,6 +4067,9 @@ class FileTreeDrawer(QFrame):
                 item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
                 item.setCheckState(Qt.CheckState.Unchecked)
                 self.task_list.addItem(item)
+                self.task_list.setItemWidget(
+                    item, TaskItemRow(icon, color, title)
+                )
         except Exception as e:
             print(f"Errore popolamento task_list: {e}")
         task_lay.addWidget(self.task_list, stretch=1)
@@ -6616,6 +6637,16 @@ class CenterArea(QWidget):
                 if is_plancia_cat != is_plancia:
                     card.setVisible(False)
                     continue
+            card.setVisible(True)
+        # Forza aggiornamento layout griglia per far sparire le card nascoste
+        try:
+            from PyQt6.QtWidgets import QApplication
+            QApplication.processEvents()
+            self.updateGeometry()
+        except Exception:
+            pass
+
+        for key, card in all_cards:
             card.setVisible(True)
             if not query:
                 if hasattr(card, "_search_orig_style"):

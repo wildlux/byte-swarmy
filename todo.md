@@ -77,7 +77,8 @@ piccoli, atomici e verificabili.
 - [x] **Fix pulsante ☑ "Seleziona/deseleziona tutti"** — spostato subito a destra del titolo "Lavori" nell'header della lista task (prima era alla fine, dopo 🧹 Pulisci coda).
 - [x] **Fix tab progetto troppo largo** — `ProjectTabBar` ora tronca i nomi dei tab con elipsis se superano 15 caratteri (es. "sourceCode" → "sourceCo…") e mostra il nome completo nel tooltip. Aggiunto `setElideMode(Qt.TextElideMode.ElideRight)` al costruttore.
 - [x] **Fix colore widget rinomina file** — `self.file_name_edit` aveva `background:#1b1f27` (quasi nero, illeggibile su tema chiaro). Cambiato in `#f8fafc` (grigio molto chiaro coerente con tema light).
-- [x] **Fix indicatore stato task** — pallino di stato colorato (rosso=pending/failed, arancione=running, verde=done) usando HTML nello item della lista; titolo resta neutro.
+- [x] **Fix indicatore stato task** — pallino di stato colorato (rosso=pending/failed, arancione=running, verde=done) usando TaskItemRow personalizzato; titolo resta neutro.
+- [x] **Fix filtro categorie plancia** — quando si seleziona una categoria (es. "task e coda"), le card non corrispondenti vengono nascoste e il layout si aggiorna con updateGeometry().
 
 ---
 
