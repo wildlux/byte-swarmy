@@ -4071,7 +4071,6 @@ class FileTreeDrawer(QFrame):
         task_select_btn.setToolTip("Seleziona/deseleziona tutti i task")
         task_select_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
         task_select_btn.clicked.connect(self._toggle_select_all_tasks)
-        task_select_btn.setContentsMargins(8, 0, 0, 0)
         task_btn_row.addWidget(task_select_btn)
 
         # Pulsante riavvio forzato (refresh lista)
