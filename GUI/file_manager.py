@@ -244,6 +244,53 @@ class FileSystemModel(QStandardItemModel):
             return result
         return super().setData(index, value, role)
 
+    def select_all(self):
+        """Seleziona tutte le checkbox del modello."""
+        root = self.invisibleRootItem()
+        for r in range(root.rowCount()):
+            item = root.child(r, 1)
+            if item is not None and item.isCheckable():
+                item.setCheckState(Qt.CheckState.Checked)
+        self._set_all_checked_recursive(root)
+
+    def deselect_all(self):
+        """Deseleziona tutte le checkbox del modello."""
+        root = self.invisibleRootItem()
+        for r in range(root.rowCount()):
+            item = root.child(r, 1)
+            if item is not None and item.isCheckable():
+                item.setCheckState(Qt.CheckState.Unchecked)
+        self._checked_paths.clear()
+        self._clear_all_checked_recursive(root)
+
+    def _set_all_checked_recursive(self, parent_item):
+        """Imposta Checked su tutte le checkbox ricorsivamente (incluse sottocartelle già espande)."""
+        rows = parent_item.rowCount()
+        for r in range(rows):
+            item = parent_item.child(r, 1)
+            if item is not None and item.isCheckable():
+                item.setCheckState(Qt.CheckState.Checked)
+                fp = item.data(Qt.ItemDataRole.UserRole)
+                if fp:
+                    self._checked_paths.add(fp)
+            # Ricorsione sulle sottocartelle (colonna 0 ha UserRole+1 = is_dir)
+            col0 = parent_item.child(r, 0)
+            if col0 is not None and col0.data(Qt.ItemDataRole.UserRole + 1):
+                self._set_all_checked_recursive(col0)
+
+    def _clear_all_checked_recursive(self, parent_item):
+        """Rimuove tutti i path da _checked_paths ricorsivamente."""
+        rows = parent_item.rowCount()
+        for r in range(rows):
+            item = parent_item.child(r, 1)
+            if item is not None and item.isCheckable():
+                fp = item.data(Qt.ItemDataRole.UserRole)
+                if fp:
+                    self._checked_paths.discard(fp)
+            col0 = parent_item.child(r, 0)
+            if col0 is not None and col0.data(Qt.ItemDataRole.UserRole + 1):
+                self._clear_all_checked_recursive(col0)
+
 
 class CheckableTreeView(QTreeView):
     """QTreeView che intercetta i click sulla checkbox (colonna 1)

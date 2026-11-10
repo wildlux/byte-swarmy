@@ -4027,6 +4027,9 @@ class FileTreeDrawer(QFrame):
         # Ordinamento automatico per colonna Name: cartelle prima, poi file, alfabeticamente
         self.tree.header().sectionClicked.connect(self._on_header_section_clicked)
 
+        # Stato ordinamento per nome: False = crescente, True = decrescente
+        self._sort_name_reverse = False
+
         # Aggiorna l'icona del pulsante ordina secondo lo stato attuale del model
         self.sort_btn.setText("📁📄" if self.model._folders_first else "📄📁")
 
@@ -4533,21 +4536,42 @@ class FileTreeDrawer(QFrame):
         self._refresh_file_tree()
 
     def _on_header_section_clicked(self, logicalIndex: int):
-        """Click sull'header di una colonna.
+        """Click sull'header di una colonna del file tree.
 
-        Se si clicca sulla colonna Name (3): ordina i figli di ogni cartella
-        già espansa (e della radice) mettendo cartelle prima, poi file,
-        in ordine alfabetico."""
-        if logicalIndex == 3:
-            self._sort_by_name()
+        - Colonna 1 (✓ checkbox): seleziona/deseleziona tutto (toggle).
+        - Colonna 2 (📄 icona): alterna cartelle prima / file prima.
+        - Colonna 3 (Nome): ordina alfabeticamente (toggle crescente/decrescente).
+        """
+        if logicalIndex == 1:
+            # Toggle seleziona tutto / deseleziona tutto
+            if self.model._checked_paths:
+                self.model.deselect_all()
+                self.model.setHeaderData(1, Qt.Orientation.Horizontal, "☐")
+            else:
+                self.model.select_all()
+                self.model.setHeaderData(1, Qt.Orientation.Horizontal, "✓")
+        elif logicalIndex == 2:
+            # Toggle cartelle prima / file prima
+            self.model._folders_first = not self.model._folders_first
+            self._refresh_file_tree()
+        elif logicalIndex == 3:
+            # Toggle ordine nome crescente / decrescente
+            self._sort_name_reverse = not self._sort_name_reverse
+            self._sort_by_name(reverse=self._sort_name_reverse)
 
-    def _sort_by_name(self):
-        """Ordina i figli di ogni cartella visibile: cartelle prima, poi file, alfabeticamente."""
+    def _sort_by_name(self, reverse: bool = False):
+        """Ordina i figli di ogni cartella visibile: cartelle prima, poi file, alfabeticamente.
+
+        Se reverse=True, l'ordine alfabetico è invertito (Z→A).
+        """
         root = self.model.invisibleRootItem()
-        self._sort_children_recursive(root)
+        self._sort_children_recursive(root, reverse=reverse)
 
-    def _sort_children_recursive(self, parent_item):
-        """Riordina i figli di parent_item: is_dir=True prima, poi nome alfabeticamente."""
+    def _sort_children_recursive(self, parent_item, reverse: bool = False):
+        """Riordina i figli di parent_item: is_dir=True prima, poi nome alfabeticamente.
+
+        Se reverse=True, l'ordine alfabetico è invertito (Z→A).
+        """
         rows = parent_item.rowCount()
         if rows <= 1:
             return
@@ -4561,7 +4585,7 @@ class FileTreeDrawer(QFrame):
         row_items.sort(key=lambda row: (
             not row[0].data(Qt.ItemDataRole.UserRole + 1),  # cartelle prima
             str(row[3].data(Qt.ItemDataRole.UserRole) or "").lower(),  # nome alfabetico
-        ))
+        ), reverse=reverse)
         # Reinserisci in ordine
         for row in row_items:
             parent_item.appendRow(row)
@@ -4573,7 +4597,7 @@ class FileTreeDrawer(QFrame):
             if col0.data(Qt.ItemDataRole.UserRole + 1):  # è una cartella
                 first = col0.child(0, 0)
                 if col0.rowCount() > 0 and first is not None and first.data(Qt.ItemDataRole.UserRole) is not None:
-                    self._sort_children_recursive(col0)
+                    self._sort_children_recursive(col0, reverse=reverse)
 
     def _column_width_file(self) -> Path:
         """Path del file che memorizza le larghezze colonne del file manager."""
