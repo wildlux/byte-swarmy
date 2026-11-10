@@ -2411,36 +2411,36 @@ class ControlCenter(QMainWindow):
             from PyQt6.QtWidgets import QHBoxLayout, QSizePolicy
             _zoom_container = QHBoxLayout()
             _zoom_container.setContentsMargins(0, 0, 0, 0)
-            _zoom_container.setSpacing(2)
+            _zoom_container.setSpacing(4)
 
             self._zoom_out_btn = QPushButton("−")
-            self._zoom_out_btn.setFixedSize(24, 20)
+            self._zoom_out_btn.setFixedSize(24, 24)
             self._zoom_out_btn.setToolTip("Zoom riduci (Ctrl + −)")
             self._zoom_out_btn.setStyleSheet(
                 "QPushButton { background:#6b7280; color:white; border:none; "
-                "border-radius:3px; font-weight:bold; }"
+                "border-radius:12px; font-weight:bold; padding:0; }"
                 "QPushButton:hover { background:#4b5563; }"
             )
             self._zoom_out_btn.clicked.connect(lambda: (print("DEBUG zoom out click"), self._zoom_out()))
             _zoom_container.addWidget(self._zoom_out_btn)
 
             self._zoom_reset_btn = QPushButton("↻")
-            self._zoom_reset_btn.setFixedSize(24, 20)
+            self._zoom_reset_btn.setFixedSize(24, 24)
             self._zoom_reset_btn.setToolTip("Reset vista (Ctrl + 0)")
             self._zoom_reset_btn.setStyleSheet(
                 "QPushButton { background:#6b7280; color:white; border:none; "
-                "border-radius:3px; font-weight:bold; }"
+                "border-radius:12px; font-weight:bold; padding:0; }"
                 "QPushButton:hover { background:#4b5563; }"
             )
             self._zoom_reset_btn.clicked.connect(lambda: (print("DEBUG zoom reset click"), self._zoom_reset()))
             _zoom_container.addWidget(self._zoom_reset_btn)
 
             self._zoom_in_btn = QPushButton("+")
-            self._zoom_in_btn.setFixedSize(24, 20)
+            self._zoom_in_btn.setFixedSize(24, 24)
             self._zoom_in_btn.setToolTip("Zoom aumenta (Ctrl + +)")
             self._zoom_in_btn.setStyleSheet(
                 "QPushButton { background:#16a34a; color:white; border:none; "
-                "border-radius:3px; font-weight:bold; }"
+                "border-radius:12px; font-weight:bold; padding:0; }"
                 "QPushButton:hover { background:#15803d; }"
             )
             self._zoom_in_btn.clicked.connect(lambda: (print("DEBUG zoom in click"), self._zoom_in()))
