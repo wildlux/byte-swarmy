@@ -3961,6 +3961,12 @@ class FileTreeDrawer(QFrame):
         task_header_lbl.setToolTip("Lavori e compiti — lista dei task del progetto attivo")
         task_header_lbl.setStyleSheet("font-size:11px; font-weight:bold; padding:0; margin:0;")
         task_header_row.addWidget(task_header_lbl, stretch=0)
+        # Pulsante toggle seleziona tutto / deseleziona tutto (checkbox dei task)
+        task_select_btn = QPushButton("☑")
+        task_select_btn.setFixedSize(28, 28)
+        task_select_btn.setToolTip("Seleziona/deseleziona tutti i task")
+        task_select_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
+        task_select_btn.clicked.connect(self._toggle_select_all_tasks)
         task_header_row.addWidget(task_select_btn)
         task_header_row.addStretch()
 
