@@ -632,24 +632,38 @@ class DevicePanel(QFrame):
         self.git_btn.setObjectName("git_btn")
         self.git_btn.setToolTip("Salva su tutti i remote Git configurati")
         self.git_btn.setStyleSheet(
-            "QPushButton#git_btn { background:#2563eb; color:white; "
-            "font-size:16px; border-radius:6px; border:none; }"
-            "QPushButton#git_btn:hover { background:#1d4ed8; }"
+            "QPushButton#git_btn { background:transparent; color:#6b7280; "
+            "font-size:16px; border:1px solid #e5e7eb; border-radius:6px; border:none; }"
+            "QPushButton#git_btn:hover { background:#f3f4f6; border-color:#9ca3af; }"
         )
         self.git_btn.clicked.connect(self._do_git_save)
         lay.addWidget(self.git_btn)
 
-        self.toggle_btn = QPushButton("▶")
-        self.toggle_btn.setMinimumWidth(44)
-        self.toggle_btn.setFixedHeight(46)
-        self.toggle_btn.setObjectName("primary_btn")
-        self.toggle_btn.setToolTip("Pausa/Riprendi Orchestratore (richiede orchestratore attivo)")
-        self.toggle_btn.setStyleSheet(
+        self.pause_btn = QPushButton("▶")
+        self.pause_btn.setMinimumWidth(44)
+        self.pause_btn.setFixedHeight(46)
+        self.pause_btn.setObjectName("primary_btn")
+        self.pause_btn.setToolTip("Pausa/Riprendi Orchestratore")
+        self.pause_btn.setStyleSheet(
             "QPushButton#primary_btn { background:#16a34a; color:white; "
             "font-weight:bold; font-size:16px; border-radius:6px; border:none; }"
             "QPushButton#primary_btn:hover { background:#15803d; }"
         )
-        lay.addWidget(self.toggle_btn)
+        self.pause_btn.clicked.connect(self._toggle_orchestrator)
+        lay.addWidget(self.pause_btn)
+
+        self.stop_btn = QPushButton("⏹")
+        self.stop_btn.setMinimumWidth(44)
+        self.stop_btn.setFixedHeight(46)
+        self.stop_btn.setObjectName("stop_btn")
+        self.stop_btn.setToolTip("Ferma Orchestratore")
+        self.stop_btn.setStyleSheet(
+            "QPushButton#stop_btn { background:#dc2626; color:white; "
+            "font-weight:bold; font-size:16px; border-radius:6px; border:none; }"
+            "QPushButton#stop_btn:hover { background:#b91c1c; }"
+        )
+        self.stop_btn.clicked.connect(self._stop_orchestrator)
+        lay.addWidget(self.stop_btn)
 
         self.git_remotes = self._detect_git_remotes()
         self._update_git_tooltip()
@@ -2505,9 +2519,9 @@ class ControlCenter(QMainWindow):
             self._zoom_in_btn.setFixedSize(24, 24)
             self._zoom_in_btn.setToolTip("Zoom aumenta (Ctrl + +)")
             self._zoom_in_btn.setStyleSheet(
-                "QPushButton { background:#16a34a; color:white; border:none; "
+                "QPushButton { background:#6b7280; color:white; border:none; "
                 "border-radius:12px; font-weight:bold; padding:0; }"
-                "QPushButton:hover { background:#15803d; }"
+                "QPushButton:hover { background:#4b5563; }"
             )
             self._zoom_in_btn.clicked.connect(lambda: (print("DEBUG zoom in click"), self._zoom_in()))
             _zoom_container.addWidget(self._zoom_in_btn)
@@ -2619,7 +2633,7 @@ class ControlCenter(QMainWindow):
         click → riprendi (▶ verde).
         """
         import os, time
-        btn = self.device_panel.toggle_btn
+        btn = self.device_panel.pause_btn
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         pause_file = os.path.join(base, 'state', 'pause.flag')
         pid_file = os.path.join(base, 'state', 'orchestrator.pid')
@@ -2698,10 +2712,64 @@ class ControlCenter(QMainWindow):
         except Exception as e:
             print(f"Errore toggle orchestratore: {e}")
 
+    def _stop_orchestrator(self):
+        """Ferma l'orchestratore (kill del processo)."""
+        import os, signal
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        pid_file = os.path.join(base, 'state', 'orchestrator.pid')
+        try:
+            if os.path.exists(pid_file):
+                with open(pid_file) as _f:
+                    _pid = int(_f.read().strip())
+                os.kill(_pid, signal.SIGTERM)
+                self.statusBar().showMessage("⏹ Orchestratore fermato", 4000)
+                # Rimuovi pause.flag se presente
+                pause_file = os.path.join(base, 'state', 'pause.flag')
+                if os.path.exists(pause_file):
+                    os.remove(pause_file)
+                # Reset icona pulsante pausa/riprendi
+                btn = self.device_panel.pause_btn
+                btn.setText("▶")
+                btn.setStyleSheet(
+                    "QPushButton#primary_btn { background:#16a34a; color:white; "
+                    "font-weight:bold; font-size:16px; border-radius:6px; border:none; }"
+                )
+            else:
+                self.statusBar().showMessage("⚠ Nessun orchestratore in esecuzione", 4000)
+        except Exception as e:
+            self.statusBar().showMessage(f"⚠ Errore stop: {e}", 5000)
+
+    def _stop_orchestrator(self):
+        """Ferma l'orchestratore (kill del processo)."""
+        import os, signal
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        pid_file = os.path.join(base, 'state', 'orchestrator.pid')
+        try:
+            if os.path.exists(pid_file):
+                with open(pid_file) as _f:
+                    _pid = int(_f.read().strip())
+                os.kill(_pid, signal.SIGTERM)
+                self.statusBar().showMessage("⏹ Orchestratore fermato", 4000)
+                # Rimuovi pause.flag se presente
+                pause_file = os.path.join(base, 'state', 'pause.flag')
+                if os.path.exists(pause_file):
+                    os.remove(pause_file)
+                # Reset icona pulsante pausa/riprendi
+                btn = self.device_panel.pause_btn
+                btn.setText("▶")
+                btn.setStyleSheet(
+                    "QPushButton#primary_btn { background:#16a34a; color:white; "
+                    "font-weight:bold; font-size:16px; border-radius:6px; border:none; }"
+                )
+            else:
+                self.statusBar().showMessage("⚠ Nessun orchestratore in esecuzione", 4000)
+        except Exception as e:
+            self.statusBar().showMessage(f"⚠ Errore stop: {e}", 5000)
+
     def _sync_toggle_icon(self):
         """Allinea l'icona del pulsante ▶/⏸ allo stato reale (pause.flag)."""
         import os
-        btn = self.device_panel.toggle_btn
+        btn = self.device_panel.pause_btn
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         paused = os.path.exists(os.path.join(base, 'state', 'pause.flag'))
         if paused:
@@ -3983,7 +4051,7 @@ class FileTreeDrawer(QFrame):
         task_title_row = QHBoxLayout()
         task_title_row.setContentsMargins(0, 0, 0, 0)
         task_title_row.setSpacing(0)
-        task_header_lbl = QLabel("📋 Lavori")
+        task_header_lbl = QLabel("📋 Lavori e Compiti")
         task_header_lbl.setToolTip("Lavori e compiti — lista dei task del progetto attivo")
         task_header_lbl.setStyleSheet("font-size:11px; font-weight:bold; padding:0; margin:0;")
         task_title_row.addWidget(task_header_lbl, stretch=0)
@@ -3996,7 +4064,7 @@ class FileTreeDrawer(QFrame):
 
         # Pulsante toggle seleziona tutto / deseleziona tutto (checkbox dei task)
         task_select_btn = QPushButton("☑")
-        task_select_btn.setFixedSize(28, 28)
+        task_select_btn.setFixedSize(20, 20)
         task_select_btn.setToolTip("Seleziona/deseleziona tutti i task")
         task_select_btn.setStyleSheet(BTN_TRANSPARENT_STYLE)
         task_select_btn.clicked.connect(self._toggle_select_all_tasks)
@@ -4034,9 +4102,9 @@ class FileTreeDrawer(QFrame):
         task_clean_btn.setFixedHeight(28)
         task_clean_btn.setToolTip("Svuota coda: rimette in pending tutti i task bloccati (failed, stuck, failed_definitively)")
         task_clean_btn.setStyleSheet(
-            "QPushButton { background:#f59e0b; color:white; border:none; "
+            "QPushButton { background:#9ca3af; color:white; border:none; "
             "border-radius:4px; padding:2px 8px; font-size:11px; font-weight:bold; }"
-            "QPushButton:hover { background:#d97706; }"
+            "QPushButton:hover { background:#788087; }"
         )
         task_clean_btn.clicked.connect(self._clean_queue)
         task_btn_row.addWidget(task_clean_btn)
@@ -4183,11 +4251,11 @@ class FileTreeDrawer(QFrame):
             rel = os.path.relpath(folder_path, base)
         except ValueError:
             rel = folder_path
-        # Mostra path relativo con / finale per chiarezza
-        display = rel.replace(os.sep, "/")
-        if not display.endswith("/"):
-            display += "/"
-        self.path_label.setText(display)
+        # Mostra solo il nome della cartella senza prefisso PR_
+        base_name = os.path.basename(rel)
+        if base_name.startswith("PR_"):
+            base_name = base_name[3:]
+        self.path_label.setText(base_name)
         # Scrolla in cima
         self.tree.scrollToTop()
         # Ricarica i task della sidebar per questo progetto

@@ -74,12 +74,17 @@ piccoli, atomici e verificabili.
 - [x] **CU6. Spezzare `GUI/main_window.py`** — separare aree della plancia in widget dedicati. ✅ Fatto: creato `GUI/panels.py` con `wrap_in_panel_page`, `build_actors_page`, `build_cicd_page`, `build_clean_code_page`, `build_config_page`, `build_scheduler_page`, `build_plancia_cards`, `build_tools_cards`. `control_center.py` li importa e usa. Le card della plancia (cards_grid, tools_grid) sono ora costruite da `panels.py`.
 - [ ] **CU7. Dimensioni fisse GUI** — 87 occorrenze `setFixedSize/Width/Height`: valutare sostituzione con `setMinimumSize` + stretch dove opportuno. ✅ Fatto parzialmente: sostituite ~14 occorrenze (titoli, barre toolbar/command-bar, input file_name, larghezze colonne CPU/GPU, larghezza ricerca categorie). Rimangono fissi i pulsanti quadrati (28x28, 24x24, ecc.) e i separatori per coerenza visiva.
 - [x] **Fix sezione "Archivio progetto"** — titolo "📁 Archivio progetto" su una riga sopra da sola; tutti i pulsanti (➕ 📁 🔄 🗑️) allineati a sinistra nella riga sotto, come nella sezione "Lavori e compiti".
-- [x] **Fix barra avanzamento in basso a destra** — ora trasparente/bianca a riposo con testo "Pronto"; durante l'esecuzione mostra "In elaborazione…" con animazione indeterminata (niente più verde fisso).
-- [x] **Fix pulsante ☑ "Seleziona/deseleziona tutti"** — spostato subito a destra del titolo "Lavori" nell'header della lista task (prima era alla fine, dopo 🧹 Pulisci coda).
-- [x] **Fix tab progetto troppo largo** — `ProjectTabBar` ora tronca i nomi dei tab con elipsis se superano 15 caratteri (es. "sourceCode" → "sourceCo…") e mostra il nome completo nel tooltip. Aggiunto `setElideMode(Qt.TextElideMode.ElideRight)` al costruttore.
-- [x] **Fix colore widget rinomina file** — `self.file_name_edit` aveva `background:#1b1f27` (quasi nero, illeggibile su tema chiaro). Cambiato in `#f8fafc` (grigio molto chiaro coerente con tema light).
-- [x] **Fix indicatore stato task** — pallino di stato colorato (rosso=pending/failed, arancione=running, verde=done) usando TaskItemRow personalizzato; titolo resta neutro.
-- [x] **Fix filtro categorie plancia** — quando si seleziona una categoria (es. "task e coda"), le card non corrispondenti vengono nascoste e il layout si aggiorna con updateGeometry().
+- [x] **Fix pulsante "+" zoom** — ora grigio come "meno" e "reset vista" (non più verde).
+- [x] **Fix pulsante salva GitHub** — ora trasparente/senza sfondo (non più blu appariscente).
+- [x] **Fix titolo "Lavori e Compiti"** — rinominato da "Lavori" a "Lavori e Compiti" (riferisce anche ai sottoproblemi).
+- [x] **Fix allineamento pulsante ☑ "Seleziona/deseleziona"** — ridimensionato a 20x20 per allinearsi con le checkbox dei task.
+- [x] **Fix pulsanti pausa/stop/riprendi** — sostituito il singolo toggle_btn con: ▶/⏸ (pausa/riprendi intercambiabile) e ⏹ (stop rosso). L'icona pausa ora si vede bene.
+- [x] **Fix colore "Svuota coda"** — ora grigio neutro (#9ca3af) invece di arancione pesante.
+- [x] **Fix nome archivio progetto** — ora mostra solo il nome della cartella senza prefisso "PR_" (es. "sourceCode" invece di "project/PR_sourceCode/").
+- [x] **Fix filtro categorie plancia** — quando si seleziona una categoria, le card non corrispondenti vengono nascoste e il layout si aggiorna.
+- [x] **Fix indicatore stato task** — pallino di stato colorato (rosso=pending/failed, arancione=running, verde=done) usando TaskItemRow personalizzato.
+- [x] **Fix barra avanzamento** — trasparente/bianca a riposo ("Pronto"), "In elaborazione…" durante l'esecuzione.
+- [x] **Fix colore widget rinomina file** — da #1b1f27 (quasi nero) a #f8fafc (grigio chiaro).
 
 ---
 
