@@ -26,156 +26,14 @@ from PyQt6.QtGui import QDesktopServices
 from GUI import settings_store
 from GUI.theme.theme import set_prop as _theme_prop
 from GUI.theme.theme import set_banner as _theme_banner
+from GUI.audit_worker import AuditWorker
+from GUI.hf_weights_worker import WeightsDownloadWorker, WeightspaceProveWorker
+from GUI.settings_sections import (
+    DebugSection, HardwareSection, LanguageSection, ThemeSection,
+)
 from CORE.gui_worker import BaseWorker
 
 # ═══════════════════════════════════════════════════════════════
-# Worker thread per l'audit (non blocca la GUI)
-# ═══════════════════════════════════════════════════════════════
-
-class AuditWorker(QThread):
-    """Esegue l'audit mensile in background.
-
-    Lancia tests/test_monthly_audit.py --json in un subprocess, parsifica
-    il JSON risultante e emette segnali per aggiornare la GUI in tempo
-    reale. Non blocca mai il thread principale della GUI.
-    """
-    progress = Signal(str)        # messaggio di stato (es. "Avvio audit...")
-    finished_ok = Signal(dict)    # report dict (summary + findings)
-    failed = Signal(str)          # messaggio di errore
-
-    def __init__(self, root_dir: str, parent=None):
-        super().__init__(parent)
-        self.root_dir = root_dir
-        self._proc: Optional[subprocess.Popen] = None
-
-    def run(self):
-        try:
-            self.progress.emit("🔍 Avvio audit mensile in background...")
-            import sys as _sys
-            cmd = [_sys.executable, "tests/test_monthly_audit.py", "--json"]
-            self._proc = subprocess.Popen(
-                cmd,
-                cwd=self.root_dir,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-            stdout, stderr = self._proc.communicate(timeout=120)
-            if self._proc.returncode != 0 and not stdout.strip():
-                self.failed.emit(f"Audit fallito (exit {self._proc.returncode}):\n{stderr[:500]}")
-                return
-            # Parse JSON
-            import json
-            try:
-                report = json.loads(stdout)
-            except json.JSONDecodeError as e:
-                self.failed.emit(f"Risposta non valida dal test:\n{stdout[:300]}\n\nErrore: {e}")
-                return
-            self.progress.emit("✓ Audit completato")
-            self.finished_ok.emit(report)
-        except subprocess.TimeoutExpired:
-            self.failed.emit("Audit timeout (>120s). Possibile loop infinito.")
-        except FileNotFoundError:
-            self.failed.emit("Python non trovato. Verifica l'installazione.")
-        except Exception as e:
-            self.failed.emit(f"Errore inatteso: {e}")
-
-    def cancel(self):
-        """Cancella l'audit (se in corso)."""
-        if self._proc and self._proc.poll() is None:
-            self._proc.kill()
-        self.requestInterruption()
-
-
-# ═══════════════════════════════════════════════════════════════
-# Worker: scaricamento pesi HF + registrazione Ollama (estremamente beta)
-# ═══════════════════════════════════════════════════════════════
-
-class WeightsDownloadWorker(BaseWorker):
-    """Scarica i pesi GGUF da un link Hugging Face e li registra su Ollama.
-
-    Emette: progress (messaggi), percent (0..100 download), found
-    (descrizione file scelto), finished_ok (nome modello ollama), failed.
-    """
-    percent = Signal(int)
-    found = Signal(str)
-    finished_ok = Signal(dict)
-
-    def __init__(self, link: str, force_filename: str = "", parent=None):
-        super().__init__(parent)
-        self.link = link
-        self.force_filename = force_filename
-
-    def _execute(self):
-        from CORE import hf_weights as hw
-        import time as _t
-
-        self.progress.emit(f"🔗 Analisi del link: {self.link[:120]}")
-        info = hw.parse_hf_link(self.link)
-        if self.force_filename:
-            info["filename"] = self.force_filename
-        files = hw.list_repo_files(info["repo_id"], info["revision"] or "main")
-        resolved = hw.resolve_download(info, files=files)
-        size = resolved.get("size", 0)
-        self.found.emit(f"📦 Pesi scelti: {resolved['filename']} ({hw.human_size(size)})")
-
-        def _cb(stage, val):
-            if self.is_cancelled():
-                return
-            if stage == "download" and isinstance(val, float) and 0 <= val <= 1:
-                self.percent.emit(int(val * 100))
-            elif stage == "bytes":
-                self.progress.emit(f"⬇ scaricati {hw.human_size(val)}…")
-
-        gguf = hw.download_file(
-            resolved["url"], hw.WEIGHT_SPACE_DIR,
-            progress_cb=_cb, should_cancel=lambda: self.is_cancelled(),
-        )
-        if self.is_cancelled():
-            self.failed.emit("Download annullato.")
-            return
-        self.progress.emit("🧬 Letta l'intestazione dei pesi (GGUF header)…")
-        meta = hw.gguf_meta(gguf)
-        name = hw.sanitized_model_name(info["repo_id"], resolved["filename"])
-        self.progress.emit(f"⚙️ Registrazione su Ollama come '{name}'…")
-        if self.is_cancelled():
-            self.failed.emit("Annullato prima della registrazione.")
-            return
-        reg = hw.register_with_ollama(gguf, name)
-        entry = {
-            "name": name, "repo_id": info["repo_id"],
-            "revision": info["revision"], "filename": resolved["filename"],
-            "size": size, "gguf": reg["gguf"], "modelfile": reg["modelfile"],
-            "ts": _t.strftime("%Y-%m-%dT%H:%M:%S"), "meta": meta,
-        }
-        hw.add_to_registry(entry)
-        self.progress.emit(f"✓ Modello pesi pronto: {name}")
-        self.finished_ok.emit(entry)
-
-
-class WeightspaceProveWorker(BaseWorker):
-    """Esegue l'harness di weight-space programming sul modello scaricato.
-
-    Non blocca la GUI: emette progress (problema in corso), finished_ok
-    (report dict), failed (messaggio).
-    """
-    finished_ok = Signal(dict)
-
-    def __init__(self, model_name: str, parent=None):
-        super().__init__(parent)
-        self.model_name = model_name
-
-    def _execute(self):
-        from CORE import weight_space_harness as h
-        self.progress.emit("🧪 Valutazione dei pesi su problemi da programmatore…")
-        report = h.run_harness(
-            self.model_name,
-            progress_cb=lambda msg: (self.progress.emit(msg)),
-            should_cancel=lambda: self.is_cancelled(),
-        )
-        self.finished_ok.emit(report)
-
-
 class SettingsPanel(QWidget):
     """Pannello impostazioni con tema, lingua e Git remotes."""
 
@@ -268,10 +126,14 @@ class SettingsPanel(QWidget):
             lay.addWidget(widget)
             self._sections.append((name, widget))
 
-        _add_section("tema", self._build_theme_section())
-        _add_section("lingua", self._build_language_section())
-        _add_section("debug", self._build_debug_section())
-        _add_section("hardware", self._build_hardware_section())
+        self.theme_section = ThemeSection(self._on_theme_changed)
+        self.language_section = LanguageSection(self._on_lang_changed)
+        self.debug_section = DebugSection(self._on_gui_debug_changed)
+        self.hardware_section = HardwareSection(self._on_hw_changed)
+        _add_section("tema", self.theme_section)
+        _add_section("lingua", self.language_section)
+        _add_section("debug", self.debug_section)
+        _add_section("hardware", self.hardware_section)
         _add_section("git", self._build_git_section())
         _add_section("audit", self._build_audit_section())
         _add_section("pesi huggingface", self._build_weightspace_section())
@@ -368,184 +230,22 @@ class SettingsPanel(QWidget):
                 f"<b style='color:#2563eb;'>{visible}</b> di {total} sezioni visibili"
             )
 
-    def _build_theme_section(self) -> QFrame:
-        """Sezione per scegliere il tema (chiaro/scuro)."""
-        box = QGroupBox("🎨 Tema interfaccia")
-
-        form = QFormLayout(box)
-        form.setSpacing(10)
-        form.setContentsMargins(14, 14, 14, 14)
-
-        self.theme_combo = QComboBox()
-        from GUI.theme import theme as _T
-        from PyQt6.QtCore import Qt as _Qt
-        # Temi divisi in due gruppi (chiari / scuri) con intestazioni non
-        # selezionabili. La classificazione è automatica dal .qss.
-        groups = {"light": [], "dark": []}
-        for _name in _T.available_themes():
-            groups[_T.theme_kind(_name)].append(_name)
-        for label, kind in (("— Temi chiari —", "light"),
-                            ("— Temi scuri —", "dark")):
-            if not groups[kind]:
-                continue
-            if self.theme_combo.count():
-                self.theme_combo.insertSeparator(self.theme_combo.count())
-            self.theme_combo.addItem(label)
-            idx = self.theme_combo.count() - 1
-            item = self.theme_combo.model().item(idx)
-            item.setFlags(item.flags() & ~_Qt.ItemFlag.ItemIsEnabled)
-            for _name in groups[kind]:
-                self.theme_combo.addItem(_T.theme_display_name(_name), _name)
-        # Preseleziona il tema salvato (non il primo della lista)
-        cur = settings_store.get_theme()
-        pos = self.theme_combo.findData(cur)
-        if pos >= 0:
-            self.theme_combo.setCurrentIndex(pos)
-        self.theme_combo.currentIndexChanged.connect(self._on_theme_changed)
-        form.addRow("Tema:", self.theme_combo)
-
-        hint = QLabel(
-            "Il tema scuro è consigliato per i credits e per l'uso notturno.\n"
-            "Il tema chiaro è più leggibile in ambienti luminosi."
-        )
-        hint.setStyleSheet("font-size:10px; font-style:italic;")
-        _theme_prop(hint, "role", "muted")
-        hint.setWordWrap(True)
-        form.addRow("", hint)
-        return box
-
-    def _build_language_section(self) -> QFrame:
-        """Sezione per scegliere la lingua (it/en) — Work in progress."""
-        box = QGroupBox("🌐 Lingua")
-
-        form = QFormLayout(box)
-        form.setSpacing(10)
-        form.setContentsMargins(14, 14, 14, 14)
-
-        self.lang_combo = QComboBox()
-        self.lang_combo.addItem("🇮🇹 Italiano", "it")
-        self.lang_combo.addItem("🇬🇧 English", "en")
-        self.lang_combo.setToolTip("Work in progress")
-        self.lang_combo.currentIndexChanged.connect(self._on_lang_changed)
-        form.addRow("Lingua:", self.lang_combo)
-
-        wip = QLabel("⚠️ Work in progress — la lingua inglese sarà disponibile prossimamente.")
-        wip.setStyleSheet("font-size:10px; font-style:italic;")
-        _theme_prop(wip, "role", "wip")
-        wip.setWordWrap(True)
-        form.addRow("", wip)
-        return box
-
-    def _build_debug_section(self) -> QFrame:
-        """Sezione Debug GUI: abilita la barra info-widget sotto il mouse."""
-        box = QGroupBox("🐛 Debug GUI")
-
-        form = QFormLayout(box)
-        form.setSpacing(10)
-        form.setContentsMargins(14, 14, 14, 14)
-
-        self.gui_debug_cb = QCheckBox(
-            "Mostra info widget sotto il mouse nella barra in basso")
-        self.gui_debug_cb.setToolTip(
-            "Quando attivo, passa il mouse su qualsiasi bottone/campo/area: "
-            "la barra in basso mostra classe, nome oggetto, gerarchia e "
-            "stack delle chiamate (copiabile per segnalare allo sviluppatore)."
-        )
-        self.gui_debug_cb.setChecked(
-            settings_store.get_gui_debug()
-        )
-        self.gui_debug_cb.stateChanged.connect(self._on_gui_debug_changed)
-        form.addRow("Debug widget:", self.gui_debug_cb)
-
-        hint = QLabel(
-            "Utile per individuare esattamente quale elemento GUI sta "
-            "causando un comportamento inatteso, senza dover analizzare "
-            "tutto il codice."
-        )
-        hint.setStyleSheet("font-size:10px; font-style:italic;")
-        _theme_prop(hint, "role", "muted")
-        hint.setWordWrap(True)
-        form.addRow("", hint)
-        return box
-
-    def _build_hardware_section(self) -> QFrame:
-        """H1: Sezione Strategia Hardware — bilanciamento CPU/GPU.
-
-        4 modalità:
-          - gpu+cpu: LLM su GPU, Decision+Timestral su CPU (potenza massima)
-          - gpu_only: tutto su GPU
-          - cpu_only: tutto su CPU
-          - cpu_then_gpu: CPU default, fallback GPU se overload (archi vecchie)
-        """
-        box = QGroupBox("⚡ Strategia Hardware")
-
-        form = QFormLayout(box)
-        form.setSpacing(10)
-        form.setContentsMargins(14, 14, 14, 14)
-
-        # Rileva GPU (status)
-        from GUI.settings_store import is_gpu_available, get_effective_strategy_description
-        gpu_present = is_gpu_available()
-        gpu_status_lbl = QLabel(
-            f"{'✅ GPU rilevata' if gpu_present else '❌ GPU non rilevata (solo CPU disponibile)'}"
-        )
-        gpu_status_lbl.setStyleSheet(
-            f"color:{'#16a34a' if gpu_present else '#dc2626'}; "
-            f"font-weight:bold; font-size:11px;"
-        )
-        form.addRow("Stato GPU:", gpu_status_lbl)
-
-        # Combo strategia
-        self.hw_combo = QComboBox()
-        self.hw_combo.addItem("🚀 GPU+CPU — potenza massima (LLM su GPU, Decision su CPU)", "gpu+cpu")
-        self.hw_combo.addItem("🎮 Solo GPU — tutto su GPU", "gpu_only")
-        self.hw_combo.addItem("🖥️ Solo CPU — tutto su CPU", "cpu_only")
-        self.hw_combo.addItem("🔄 CPU→GPU — default CPU, fallback GPU se overload", "cpu_then_gpu")
-        # Disabilita opzioni GPU se non presente
-        if not gpu_present:
-            for i in range(self.hw_combo.count()):
-                if self.hw_combo.itemData(i) in ("gpu+cpu", "gpu_only"):
-                    item = self.hw_combo.model().item(i)
-                    item.setEnabled(False)
-                    item.setToolTip("GPU non rilevata — opzione non disponibile")
-        self.hw_combo.currentIndexChanged.connect(self._on_hw_changed)
-        form.addRow("Strategia:", self.hw_combo)
-
-        # Hint dinamico (descrizione della strategia selezionata)
-        self.hw_hint = QLabel()
-        self.hw_hint.setWordWrap(True)
-        self.hw_hint.setStyleSheet("font-size:10px; font-style:italic;")
-        _theme_prop(self.hw_hint, "role", "muted")
-        self._update_hw_hint()
-        form.addRow("", self.hw_hint)
-
-        # Checkbox auto-detect
-        self.hw_auto_detect = QCheckBox(
-            "Rileva GPU automaticamente all'avvio (sovrascrive se non scelta esplicita)"
-        )
-        self.hw_auto_detect.setStyleSheet("font-size:11px;")
-        form.addRow("", self.hw_auto_detect)
-
-        return box
-
     def _update_hw_hint(self):
         """Aggiorna il testo descrittivo sotto la combo hardware."""
-        from GUI.settings_store import get_effective_strategy_description
-        if hasattr(self, "hw_combo"):
-            strategy = self.hw_combo.currentData()
-            self.hw_hint.setText(get_effective_strategy_description(strategy))
+        if hasattr(self, "hardware_section"):
+            self.hardware_section.update_hw_hint()
 
     def _on_hw_changed(self, _idx: int):
         """H1: quando cambia strategia hardware, salva + aggiorna hint."""
-        strategy = self.hw_combo.currentData()
-        settings_store.set_hardware_strategy(strategy, user_set=True)
-        # Salva anche lo stato dell'auto-detect checkbox
-        if hasattr(self, "hw_auto_detect"):
+        if hasattr(self, "hardware_section"):
+            strategy = self.hardware_section.current_strategy()
+            settings_store.set_hardware_strategy(strategy, user_set=True)
+            # Salva anche lo stato dell'auto-detect checkbox
             s = settings_store.load_settings()
-            s["detect_gpu_at_startup"] = self.hw_auto_detect.isChecked()
+            s["detect_gpu_at_startup"] = self.hardware_section.auto_detect_checked()
             s["user_set_hardware_strategy"] = True
             settings_store.save_settings(s)
-        self._update_hw_hint()
+            self.hardware_section.update_hw_hint()
 
     def _build_git_section(self) -> QFrame:
         """Sezione per configurare i remote Git (GitHub/GitLab/Git) + token."""
@@ -1114,30 +814,32 @@ class SettingsPanel(QWidget):
         s = settings_store.load_settings()
         # Tema
         theme = s.get("theme", "dark")
-        idx = 0
-        for i in range(self.theme_combo.count()):
-            if self.theme_combo.itemData(i) == theme:
-                idx = i
-                break
-        self.theme_combo.setCurrentIndex(idx)
+        self.theme_section.theme_combo.setCurrentIndex(
+            self.theme_section.theme_combo.findData(theme)
+        )
         # Lingua
         lang = s.get("language", "it")
-        idx = 0 if lang == "it" else 1
-        self.lang_combo.setCurrentIndex(idx)
+        self.language_section.lang_combo.setCurrentIndex(
+            0 if lang == "it" else 1
+        )
         # Debug GUI
-        self.gui_debug_cb.setChecked(settings_store.get_gui_debug())
+        self.debug_section.gui_debug_cb.setChecked(
+            settings_store.get_gui_debug()
+        )
         # H1: Strategia hardware
         hw = s.get("hardware_strategy", "cpu_only")
         # Trova l'index della strategia nella combo
-        for i in range(self.hw_combo.count()):
-            if self.hw_combo.itemData(i) == hw:
+        for i in range(self.hardware_section.hw_combo.count()):
+            if self.hardware_section.hw_combo.itemData(i) == hw:
                 # Solo se l'item è abilitato (GPU può essere disabilitata)
-                item = self.hw_combo.model().item(i)
+                item = self.hardware_section.hw_combo.model().item(i)
                 if item.isEnabled():
-                    self.hw_combo.setCurrentIndex(i)
+                    self.hardware_section.hw_combo.setCurrentIndex(i)
                 break
         # H1: auto-detect checkbox
-        self.hw_auto_detect.setChecked(s.get("detect_gpu_at_startup", True))
+        self.hardware_section.hw_auto_detect.setChecked(
+            s.get("detect_gpu_at_startup", True)
+        )
         self._update_hw_hint()
         # Git remotes
         self._refresh_git_list()
@@ -1189,13 +891,13 @@ class SettingsPanel(QWidget):
     # Handler
     # ──────────────────────────────────────────────────────────────────
     def _on_theme_changed(self, _idx: int):
-        theme = self.theme_combo.currentData()
+        theme = self.theme_section.theme_combo.currentData()
         settings_store.set_theme(theme)
         # Emette segnale per applicazione live
         self.theme_changed.emit(theme)
 
     def _on_lang_changed(self, _idx: int):
-        lang = self.lang_combo.currentData()
+        lang = self.language_section.lang_combo.currentData()
         settings_store.set_language(lang)
         # Work in progress — non applichiamo realmente la lingua ora
 
