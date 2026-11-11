@@ -1,0 +1,4 @@
+Si possono caricare in
+una cartella dedicata (~/.ollama/skills) e
+richiamare con comandi come
+/skill:nome o direttamente /<nome-skill>.

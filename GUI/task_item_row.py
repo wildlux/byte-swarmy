@@ -41,7 +41,11 @@ class TaskItemRow(QWidget):
         self.check = QCheckBox()
         self.check.setToolTip("Seleziona il task")
         self.check.setStyleSheet(
-            "QCheckBox::indicator { width: 14px; height: 14px; }"
+            "QCheckBox::indicator { width: 14px; height: 14px; "
+            "border: 1px solid #94a3b8; border-radius: 3px; background: #ffffff; }"
+            "QCheckBox::indicator:hover { border-color: #2563eb; }"
+            "QCheckBox::indicator:checked { background: #2563eb; "
+            "border-color: #2563eb; }"
         )
         lay.addWidget(self.check)
 
@@ -56,7 +60,9 @@ class TaskItemRow(QWidget):
 
         self.title_lbl = QLabel(title)
         self.title_lbl.setStyleSheet("color: inherit;")
-        self.title_lbl.setWordWrap(True)
+        # Niente wordWrap: con righe da 30px il testo andata a capo sarebbe
+        # tagliato (era la causa della "scritta male" nello screenshot).
+        self.title_lbl.setWordWrap(False)
         self.title_lbl.setAttribute(
             Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         lay.addWidget(self.title_lbl, stretch=1)

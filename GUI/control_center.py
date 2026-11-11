@@ -1383,23 +1383,25 @@ class ControlCenter(QMainWindow):
     def _window_chrome(self):
         """Regole di SOLO layout (nessun colore) concatenate al QSS del tema.
 
-        Il padding asimmetrico dei tab progetto lascia spazio alla × di
-        chiusura: 15px tra testo e ×, 15px tra × e bordo destro. I colori
-        arrivano dai temi GUI/theme/*.qss — qui solo geometria.
+        Tab progetto MINIMALI: padding ridotto, font 11px, altezza compatta.
+        Il padding-right lascia il posto alla × di chiusura (margine 4px per
+        lato attorno all'icona ~16px). I colori arrivano dai temi
+        GUI/theme/*.qss — qui solo geometria (concatenata DOPO il tema:
+        vince su padding/font/min-height).
         """
         return """
         QTabBar::tab {
             border-bottom: 2px solid transparent;
             border-top-left-radius: 6px; border-top-right-radius: 6px;
-            /* padding-right 30px: lascia spazio per la × con 15px a sinistra
-               (tra testo e ×) + 15px a destra (tra × e bordo destro del tab). */
-            padding: 10px 30px 10px 16px; margin-right: 2px; font-size: 12px;
-            min-height: 22px;
+            padding: 4px 20px 4px 12px;
+            margin-right: 2px; font-size: 11px;
+            min-height: 16px;
         }
         QTabBar::close-button {
             subcontrol-position: right;
             padding: 0;
-            margin: 0 15px 0 15px;
+            margin: 0;
+            width: 14px; height: 14px;
         }
         """
 

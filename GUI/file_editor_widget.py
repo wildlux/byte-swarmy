@@ -50,6 +50,7 @@ class FileEditorWidget(QFrame):
         lay.setContentsMargins(12, 10, 12, 10)
         lay.setSpacing(6)
 
+        # ── Header: solo icona + nome file (i pulsanti stanno in basso) ──
         head = QHBoxLayout()
         head.addWidget(QLabel(f"<b>📝</b>"))
 
@@ -66,6 +67,29 @@ class FileEditorWidget(QFrame):
         self.file_name_edit.returnPressed.connect(self._rename_file)
         head.addWidget(self.file_name_edit)
         head.addStretch()
+        lay.addLayout(head)
+
+        self.path_lbl = QLabel(file_path)
+        self.path_lbl.setStyleSheet("font-size:10px; font-family:monospace;")
+        lay.addWidget(self.path_lbl)
+
+        self.editor = QTextEdit()
+        self.editor.setStyleSheet(
+            "font-family:'JetBrains Mono','Consolas',monospace; font-size:12px; padding:8px;"
+        )
+        # ESC chiude l'editor anche quando il focus è sul campo di testo
+        self.editor.installEventFilter(self)
+        lay.addWidget(self.editor)
+
+        # ── Barra pulsanti in basso: Salva / Dock / Chiudi ──
+        foot = QHBoxLayout()
+        foot.addStretch()  # pulsanti allineati a destra
+
+        save_btn = QPushButton("💾 Salva")
+        save_btn.setObjectName("primary_btn")
+        save_btn.setMinimumHeight(28)
+        save_btn.clicked.connect(self._save)
+        foot.addWidget(save_btn)
 
         self.dock_btn = QPushButton("📌 Dock" if not docked else "📌 Undock")
         self.dock_btn.setMinimumHeight(28)
@@ -75,31 +99,19 @@ class FileEditorWidget(QFrame):
             "QPushButton#dock_btn:hover { background:#1d4ed8; }"
         )
         self.dock_btn.clicked.connect(self._on_dock_toggle)
-        head.addWidget(self.dock_btn)
+        foot.addWidget(self.dock_btn)
 
-        save_btn = QPushButton("💾 Salva")
-        save_btn.setObjectName("primary_btn")
-        save_btn.setMinimumHeight(28)
-        save_btn.clicked.connect(self._save)
-        head.addWidget(save_btn)
-
-        close_btn = QPushButton("✕")
-        close_btn.setFixedSize(28, 28)
-        close_btn.clicked.connect(self.closed.emit)
-        head.addWidget(close_btn)
-        lay.addLayout(head)
-
-        path_lbl = QLabel(file_path)
-        path_lbl.setStyleSheet("font-size:10px; font-family:monospace;")
-        lay.addWidget(path_lbl)
-
-        self.editor = QTextEdit()
-        self.editor.setStyleSheet(
-            "font-family:'JetBrains Mono','Consolas',monospace; font-size:12px; padding:8px;"
+        close_btn = QPushButton("✕ Chiudi")
+        close_btn.setObjectName("editor_close_btn")
+        close_btn.setMinimumHeight(28)
+        close_btn.setStyleSheet(
+            "QPushButton#editor_close_btn { background:#e2e8f0; color:#1f2430; "
+            "border:none; border-radius:4px; font-size:11px; padding:0 10px; }"
+            "QPushButton#editor_close_btn:hover { background:#fecaca; color:#991b1b; }"
         )
-        # ESC chiude l'editor anche quando il focus è sul campo di testo
-        self.editor.installEventFilter(self)
-        lay.addWidget(self.editor)
+        close_btn.clicked.connect(self.closed.emit)
+        foot.addWidget(close_btn)
+        lay.addLayout(foot)
 
         self.status = QLabel("Pronto")
         self.status.setStyleSheet("font-size:11px;")

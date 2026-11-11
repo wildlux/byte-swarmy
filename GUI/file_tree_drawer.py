@@ -56,7 +56,7 @@ from CORE.constants import (
     BTN_TRANSPARENT_SMALL_STYLE,
 )
 from GUI.file_manager import FileSystemModel, CheckableTreeView
-from GUI.task_item_row import TaskItemRow
+from GUI.task_item_delegate import TaskItemDelegate
 from GUI.task_list_widget import TaskListWidget
 from GUI import settings_store
 from GUI.task_queue import (
@@ -69,7 +69,7 @@ from GUI.task_queue import (
 )
 from GUI.project_tab_bar import _is_junk_project_path, build_run_command
 
-# Pallino di stato per riga task (TaskItemRow):
+# Pallino di stato per riga task (TaskItemDelegate):
 # verde=fatto, giallo=in lavorazione, rosso=in attesa.
 TASK_STATUS_STYLE = {
     "done":           ("✓", "#16a34a"),   # verde: completato
@@ -279,6 +279,13 @@ class FileTreeDrawer(QFrame):
         # Esponi ``task_list`` come attributo diretto per retro-compatibilita'
         # con il codice originale (self.task_list.item(i), ecc.).
         self.task_list = self.task_list_widget.task_list
+        # Delegate custom: disegna checkbox allineata al ☑ + pallino di stato
+        # colorato + titolo (niente setItemWidget: geometrie inaffidabili).
+        self.task_list.setItemDelegate(TaskItemDelegate(self.task_list))
+        self._updating_display = False
+        # Clipboard per copia/taglia file dal menu contestuale dell'albero:
+        # None oppure (path, 'copy'|'cut').
+        self._file_clipboard = None
         # Connessioni aggiuntive non coperte dai callback di TaskListWidget:
         # shift+click debug + sync selezione visiva con stato checkbox.
         self.task_list.itemClicked.connect(self._on_task_item_clicked)
@@ -352,7 +359,7 @@ class FileTreeDrawer(QFrame):
             stato = Qt.CheckState.Unchecked if tutte_selezionate else Qt.CheckState.Checked
             for it in items:
                 it.setCheckState(stato)
-                # Sync riga visiva (TaskItemRow): checkbox della riga deve
+                # Sync riga visiva (TaskItemDelegate): lo stato e' nell'item,
                 # riflettere il nuovo stato senza ri-emettere il segnale.
                 row = self._task_row(it)
                 if row is not None:
@@ -521,14 +528,18 @@ class FileTreeDrawer(QFrame):
             print(f"Errore doppio click albero: {e}")
 
     def _on_tree_context_menu(self, pos):
-        """Menu contestuale tasto destro su un elemento del file tree."""
+        """Menu contestuale tasto destro su un elemento del file tree.
+
+        Azioni: modifica, copia, taglia, incolla, rinomina, cancella.
+        """
         index = self.tree.indexAt(pos)
-        if not index.isValid():
-            return
-        path = index.data(Qt.ItemDataRole.UserRole)
+        path = index.data(Qt.ItemDataRole.UserRole) if index.isValid() else None
         if not path:
             return
         is_file = os.path.isfile(path)
+
+        clipboard = getattr(self, "_file_clipboard", None)
+        clip_path, clip_mode = clipboard if clipboard else (None, None)
 
         menu = QMenu(self)
         if is_file:
@@ -541,6 +552,24 @@ class FileTreeDrawer(QFrame):
             menu.addAction(act_edit)
             menu.addSeparator()
 
+        act_copy = QAction("📋 Copia", self)
+        act_copy.triggered.connect(lambda: self._copy_item(path))
+        menu.addAction(act_copy)
+
+        act_cut = QAction("✂️ Taglia", self)
+        act_cut.triggered.connect(lambda: self._cut_item(path))
+        menu.addAction(act_cut)
+
+        act_paste = QAction("📌 Incolla", self)
+        act_paste.setEnabled(clipboard is not None)
+        # Incolla nella cartella dell'elemento cliccato (o nella sua parent
+        # se si e' cliccato un file): come in un file manager.
+        act_paste.triggered.connect(
+            lambda: self._paste_item(clip_path, clip_mode, path))
+        menu.addAction(act_paste)
+
+        menu.addSeparator()
+
         act_rename = QAction("📝 Rinomina", self)
         act_rename.triggered.connect(lambda: self._rename_item(path))
         menu.addAction(act_rename)
@@ -550,6 +579,94 @@ class FileTreeDrawer(QFrame):
         menu.addAction(act_delete)
 
         menu.exec(self.tree.viewport().mapToGlobal(pos))
+
+    # ------------------------------------------------------------------
+    # File tree: copia / taglia / incolla
+    # ------------------------------------------------------------------
+
+    def _copy_item(self, path):
+        """Copia il path nella clipboard interna del file manager."""
+        self._file_clipboard = (path, "copy")
+        try:
+            if self.main_win and hasattr(self.main_win, "statusBar"):
+                self.main_win.statusBar().showMessage(
+                    f"📋 Copiato: {os.path.basename(path)}", 3000)
+        except Exception:
+            pass
+
+    def _cut_item(self, path):
+        """Taglia il path (spostamento al prossimo Incolla)."""
+        self._file_clipboard = (path, "cut")
+        try:
+            if self.main_win and hasattr(self.main_win, "statusBar"):
+                self.main_win.statusBar().showMessage(
+                    f"✂️ Tagliato: {os.path.basename(path)}", 3000)
+        except Exception:
+            pass
+
+    def _paste_item(self, src: str, mode: str, target: str):
+        """Incolla la clipboard nella cartella dell'elemento cliccato.
+
+        Se il target e' un file si incolla nella sua cartella (comportamento
+        da file manager); se e' una cartella, dentro la cartella.
+        """
+        try:
+            if not src or not os.path.exists(src):
+                self._file_clipboard = None
+                return
+            # Cartella di destinazione
+            if os.path.isdir(target):
+                dst_dir = target
+            else:
+                dst_dir = os.path.dirname(target) or \
+                    (self.model._root_path
+                     if hasattr(self.model, '_root_path') else str(BASE_DIR))
+
+            src_abs = os.path.abspath(src)
+            dst_dir_abs = os.path.abspath(dst_dir)
+            # Non incollare una cartella dentro se stessa o un suo figlio
+            if os.path.isdir(src_abs) and (
+                    dst_dir_abs == src_abs
+                    or dst_dir_abs.startswith(src_abs + os.sep)):
+                QMessageBox.warning(
+                    self, "Incolla non valido",
+                    "Non si puo' incollare una cartella dentro se stessa.")
+                return
+            if mode == "cut" and os.path.dirname(src_abs) == dst_dir_abs:
+                return  # stessa cartella: niente da fare
+
+            dst = self._unique_dest(dst_dir_abs, os.path.basename(src_abs))
+            if mode == "cut":
+                shutil.move(src_abs, dst)
+                self._file_clipboard = None  # taglia: si svuota dopo l'incolla
+            else:
+                if os.path.isdir(src_abs):
+                    shutil.copytree(src_abs, dst, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(src_abs, dst)
+            self._reload_tree()
+        except Exception as e:
+            QMessageBox.warning(self, "Errore", f"Incolla non riuscito:\n{e}")
+
+    @staticmethod
+    def _unique_dest(dst_dir: str, name: str) -> str:
+        """Nome destinazione senza sovrascritture: 'nome (1).ext', ecc."""
+        base, ext = os.path.splitext(name)
+        cand = os.path.join(dst_dir, name)
+        n = 1
+        while os.path.exists(cand):
+            cand = os.path.join(dst_dir, f"{base} ({n}){ext}")
+            n += 1
+        return cand
+
+    def _reload_tree(self):
+        """Ricarica l'albero dopo una modifica al filesystem."""
+        self.model.set_root_path(
+            self.model._root_path
+            if hasattr(self.model, '_root_path') and self.model._root_path
+            else str(BASE_DIR.resolve())
+        )
+        self.tree.setRootIndex(QModelIndex())
 
     # ==================================================================
     # File tree: rename / delete
@@ -563,13 +680,7 @@ class FileTreeDrawer(QFrame):
             new_path = os.path.join(os.path.dirname(path), new_name)
             try:
                 os.rename(path, new_path)
-                # Ricarica l'albero per riflettere il nuovo nome
-                self.model.set_root_path(
-                    self.model._root_path
-                    if hasattr(self.model, '_root_path') and self.model._root_path
-                    else str(BASE_DIR.resolve())
-                )
-                self.tree.setRootIndex(QModelIndex())
+                self._reload_tree()
             except Exception as e:
                 QMessageBox.warning(self, "Errore", f"Impossibile rinominare:\n{e}")
 
@@ -587,13 +698,7 @@ class FileTreeDrawer(QFrame):
                     os.remove(path)
                 else:
                     shutil.rmtree(path)
-                # Ricarica l'albero
-                self.model.set_root_path(
-                    self.model._root_path
-                    if hasattr(self.model, '_root_path') and self.model._root_path
-                    else str(BASE_DIR.resolve())
-                )
-                self.tree.setRootIndex(QModelIndex())
+                self._reload_tree()
             except Exception as e:
                 QMessageBox.warning(self, "Errore", f"Impossibile eliminare:\n{e}")
 
@@ -790,13 +895,15 @@ class FileTreeDrawer(QFrame):
         h = self.tree.header()
         h.setStretchLastSection(False)
         h.setMinimumSectionSize(8)
-        # Colonne 0-2: fisse con dimensione minima (triangolo, checkbox, icona)
+        # Colonne 0-2: compatte (il Name deve avere spazio per leggersi).
+        # Prima erano 100px l'una: in un drawer stretto il nome restava
+        # ridotto a ~150px ("TEST..."). Ora: triangolo, checkbox, icona.
         h.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        h.resizeSection(0, 100)  # triangolino espansione
+        h.resizeSection(0, 18)   # triangolino espansione
         h.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
-        h.resizeSection(1, 100)  # checkbox selezione
+        h.resizeSection(1, 30)   # checkbox selezione
         h.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        h.resizeSection(2, 100)  # icona file
+        h.resizeSection(2, 34)   # icona file
         # Colonna 3: si allarga per riempire lo spazio rimanente
         h.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         h.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft)
@@ -1047,15 +1154,26 @@ class FileTreeDrawer(QFrame):
             return
         if getattr(self, "_refreshing_tasks", False):
             return
+        # Aggiornamenti di display fatti da noi (glyph/titolo): non sono
+        # click dell'utente, non vanno loggati come selezione.
+        if getattr(self, "_updating_display", False):
+            return
         checked = item.checkState() == Qt.CheckState.Checked
         mark = "✓" if checked else "✗"
         stato = "selezionato" if checked else "deselezionato"
         tid = item.data(Qt.ItemDataRole.UserRole)
+        titolo = self._task_base_title(item)
         if self._GUI_DEBUG:
-            print(f"[DEBUG] Lavori e compiti (colonna ✓): {mark} {stato} elemento='{tid} - {item.text()}'")
+            print(f"[DEBUG] Lavori e compiti (colonna ✓): {mark} {stato} elemento='{tid} - {titolo}'")
         _click_log("task", stato,
                     self.main_win.get_current_project_path() if self.main_win else "",
-                    f"{tid} - {item.text()}")
+                    f"{tid} - {titolo}")
+        # Sync difensivo della riga visiva (la checkbox della riga deve
+        # rispecchiare lo stato dell'item anche se il toggle e' arrivato
+        # da _toggle_select_all_tasks senza blockSignals).
+        row = self._task_row(item)
+        if row is not None:
+            row.set_checked(checked)
         if checked:
             item.setSelected(True)
         else:
@@ -1092,7 +1210,7 @@ class FileTreeDrawer(QFrame):
             for i in range(self.task_list.count()):
                 it = self.task_list.item(i)
                 if it and it.data(Qt.ItemDataRole.UserRole) == tid:
-                    titolo = it.text()
+                    titolo = self._task_base_title(it)
                     break
             _click_log("task", "elimina",
                         self.main_win.get_current_project_path() if self.main_win else "",
@@ -1125,13 +1243,9 @@ class FileTreeDrawer(QFrame):
             ok, msg = _restart_task(task_id)
             if ok:
                 if item is not None:
-                    txt = item.text()
-                    if txt.startswith("↻ "):
-                        txt = txt[2:]
-                    if txt.endswith(" [restart]"):
-                        txt = txt[:-10]
-                    item.setText(f"↻ {txt} [restart]")
-                    item.setForeground(QColor("#16a34a"))
+                    self._update_task_display(
+                        item, "↻", "#16a34a",
+                        f"{self._task_base_title(item)} [restart]")
                 # Refresh via ControlCenter
                 parent = self.parent()
                 while parent and not hasattr(parent, '_refresh_coda_card'):
@@ -1206,7 +1320,7 @@ class FileTreeDrawer(QFrame):
         Firma variadica per compatibilita' con TaskListWidget.on_refresh_requested
         (chiama senza argomenti).
 
-        Le righe usano TaskItemRow via setItemWidget: checkbox allineata col
+        Le righe sono disegnate da TaskItemDelegate: checkbox allineata col
         pulsante ☑ e pallino di stato colorato
         (verde=fatto, giallo=in lavorazione, rosso=in attesa).
         """
@@ -1240,14 +1354,20 @@ class FileTreeDrawer(QFrame):
             self._refreshing_tasks = False
 
     # ==================================================================
-    # Righe task: creazione e helper (TaskItemRow + setItemWidget)
+    # Righe task: creazione e helper (delegate TaskItemDelegate)
     # ==================================================================
 
     def _append_task_row(self, t: dict):
-        """Aggiunge una riga task: item (checkbox + dati) + TaskItemRow visuale.
+        """Aggiunge una riga task alla lista (disegnata da TaskItemDelegate).
 
-        Il titolo "vero" viene conservato in UserRole+1 (il testo dell'item
-        resta vuoto: la riga visiva lo copre interamente).
+        Contratto dati dell'item:
+        - UserRole      = task_id
+        - UserRole + 1  = titolo base
+        - UserRole + 2  = glyph di stato (○/▶/✓/...)
+        - UserRole + 3  = colore di stato (#rrggbb)
+        Il testo dell'item resta VUOTO: il delegate disegna tutto.
+        Niente flag ItemIsUserCheckable: il toggle lo fa il delegate in
+        editorEvent (evita il doppio toggle nativo).
         """
         task_id = str(t.get("id", ""))
         base_title = str(t.get("title", t.get("description", "?")))[:80]
@@ -1257,32 +1377,16 @@ class FileTreeDrawer(QFrame):
         item = QListWidgetItem()
         item.setData(Qt.ItemDataRole.UserRole, task_id)
         item.setData(Qt.ItemDataRole.UserRole + 1, base_title)
-        item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+        item.setData(Qt.ItemDataRole.UserRole + 2, icon)
+        item.setData(Qt.ItemDataRole.UserRole + 3, color)
         item.setCheckState(Qt.CheckState.Unchecked)
         item.setToolTip(f"{base_title}\nStato: {st}")
-        item.setSizeHint(_QSize(0, 26))
+        item.setSizeHint(_QSize(0, 30))
         self.task_list.addItem(item)
 
-        row = TaskItemRow(icon, color, base_title)
-        row.setToolTip(item.toolTip())
-        self.task_list.setItemWidget(item, row)
-        # Checkbox della riga -> stato dell'item (log in _on_task_item_changed)
-        row.check.toggled.connect(
-            lambda checked, it=item: self._on_row_check_toggled(it, checked))
-        # Click singolo (shift+click debug) e doppio click (riavvio veloce)
-        row.clicked.connect(lambda it=item: self._on_task_item_clicked(it))
-        row.double_clicked.connect(
-            lambda it=item: self._on_task_double_clicked(
-                str(it.data(Qt.ItemDataRole.UserRole))))
-        # Menu contestuale: stessa firma di TaskListWidget.on_context_menu
-        row.context_requested.connect(
-            lambda gpos, it=item: self._on_task_context_menu(
-                self.task_list.mapFromGlobal(gpos)))
-
     def _task_row(self, item):
-        """Widget TaskItemRow associato a item (o None)."""
-        w = self.task_list.itemWidget(item)
-        return w if isinstance(w, TaskItemRow) else None
+        """Compat: il widget riga non esiste piu' (delegate). Ritorna None."""
+        return None
 
     def _task_base_title(self, item) -> str:
         """Titolo base del task (senza icone/prefissi di stato)."""
@@ -1292,16 +1396,17 @@ class FileTreeDrawer(QFrame):
         return str(t)
 
     def _update_task_display(self, item, icon: str, color: str, title: str):
-        """Aggiorna la riga visiva (pallino + titolo) e il titolo base."""
-        item.setData(Qt.ItemDataRole.UserRole + 1, title)
-        row = self._task_row(item)
-        if row is not None:
-            row.set_display(icon, color, title)
-        else:
-            item.setText(f"{icon} {title}")
+        """Aggiorna glyph+colore+titolo della riga (ridisegno via delegate)."""
+        self._updating_display = True
+        try:
+            item.setData(Qt.ItemDataRole.UserRole + 1, title)
+            item.setData(Qt.ItemDataRole.UserRole + 2, icon)
+            item.setData(Qt.ItemDataRole.UserRole + 3, color)
+        finally:
+            self._updating_display = False
 
     def _on_row_check_toggled(self, item, checked: bool):
-        """Sync checkbox della riga -> stato dell'item (log via itemChanged)."""
+        """Compat (delegate): il toggle passa da editorEvent -> itemChanged."""
         stato = Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked
         if item.checkState() != stato:
             item.setCheckState(stato)
@@ -1332,15 +1437,9 @@ class FileTreeDrawer(QFrame):
                              details="Task messo in pausa dall'utente")
             ok, msg = _pause_task(task_id)
             if ok and item:
-                txt = item.text() if hasattr(item, 'text') else ""
-                for prefix in ["⏸ ", "▶ ", "🛑 ", "↻ "]:
-                    if txt.startswith(prefix):
-                        txt = txt[len(prefix):]
-                if " [paused]" in txt: txt = txt.replace(" [paused]", "")
-                if " [restart]" in txt: txt = txt.replace(" [restart]", "")
-                if " [stopped]" in txt: txt = txt.replace(" [stopped]", "")
-                item.setText(f"⏸ {txt} [paused]")
-                item.setForeground(QColor("#6b7280"))
+                self._update_task_display(
+                    item, "⏸", "#6b7280",
+                    f"{self._task_base_title(item)} [paused]")
                 parent = self.parent()
                 while parent and not hasattr(parent, '_refresh_coda_card'):
                     parent = parent.parent()
@@ -1356,15 +1455,9 @@ class FileTreeDrawer(QFrame):
                              details="Task riavviato dall'utente")
             ok, msg = _resume_single_task(task_id)
             if ok and item:
-                txt = item.text() if hasattr(item, 'text') else ""
-                for prefix in ["⏸ ", "▶ ", "🛑 ", "↻ "]:
-                    if txt.startswith(prefix):
-                        txt = txt[len(prefix):]
-                if " [paused]" in txt: txt = txt.replace(" [paused]", "")
-                if " [restart]" in txt: txt = txt.replace(" [restart]", "")
-                if " [stopped]" in txt: txt = txt.replace(" [stopped]", "")
-                item.setText(f"▶ {txt}")
-                item.setForeground(QColor("#f59e0b"))
+                self._update_task_display(
+                    item, "▶", "#eab308",
+                    f"{self._task_base_title(item)} [in lavorazione]")
                 parent = self.parent()
                 while parent and not hasattr(parent, '_refresh_coda_card'):
                     parent = parent.parent()
@@ -1457,13 +1550,9 @@ class FileTreeDrawer(QFrame):
                 pass
             if ok:
                 if item:
-                    txt = item.text() if hasattr(item, 'text') else ""
-                    if txt.startswith("↻ "):
-                        txt = txt[2:]
-                    if txt.endswith(" [restart]"):
-                        txt = txt[:-10]
-                    item.setText(f"🛑 {txt} [stopped]")
-                    item.setForeground(QColor("#dc2626"))
+                    self._update_task_display(
+                        item, "🛑", "#991b1b",
+                        f"{self._task_base_title(item)} [stopped]")
                 # Refresh via ControlCenter
                 parent = self.parent()
                 while parent and not hasattr(parent, '_refresh_coda_card'):
@@ -1539,28 +1628,49 @@ class FileTreeDrawer(QFrame):
                       key=lambda f: (prio.get(Path(f).name, 10), f))
 
     def _show_task_details(self, task_id):
-        """Mostra un dialog con i dettagli completi del task."""
+        """Mostra un dialog con i dettagli completi del task.
+
+        I task della lista "Lavori e Compiti" vivono nel queue.json del
+        progetto (load_tasks); il DB globale tasks/queue.db contiene solo i
+        task dell'orchestratore. Prima si cerca nel JSON, poi si fa fallback
+        sul DB — prima il dialog non si apriva mai per i task JSON.
+        """
         try:
             from PyQt6.QtWidgets import (
                 QDialog, QFormLayout, QTextEdit, QPlainTextEdit,
             )
 
+            task = None
             db_path = BASE_DIR / 'tasks' / 'queue.db'
-            if not db_path.exists():
-                QMessageBox.warning(self, "Database",
-                                    "Database coda non trovato.")
-                return
-            con = sqlite3.connect(str(db_path))
-            cur = con.cursor()
-            cur.execute("SELECT * FROM tasks WHERE id=?", (task_id,))
-            row = cur.fetchone()
-            cols = [d[0] for d in cur.description]
-            con.close()
+            try:
+                project_path = (
+                    self.main_win.get_current_project_path()
+                    if hasattr(self, 'main_win') and self.main_win else None
+                )
+                for t in load_tasks(project_path):
+                    if str(t.get("id")) == task_id:
+                        task = dict(t)
+                        break
+            except Exception as e:
+                print(f"lettura task da queue.json: {e}")
 
-            if not row:
-                return
+            if task is None:
+                if not db_path.exists():
+                    QMessageBox.warning(self, "Database",
+                                        "Task non trovato nel progetto e "
+                                        "database coda assente.")
+                    return
+                con = sqlite3.connect(str(db_path))
+                cur = con.cursor()
+                cur.execute("SELECT * FROM tasks WHERE id=?", (task_id,))
+                row = cur.fetchone()
+                if row:
+                    cols = [d[0] for d in cur.description]
+                    task = dict(zip(cols, row))
+                con.close()
 
-            task = dict(zip(cols, row))
+            if not task:
+                return
 
             dlg = QDialog(self)
             dlg.setWindowTitle(f"📋 Dettagli task {task_id[:12]}")
@@ -1812,13 +1922,9 @@ class FileTreeDrawer(QFrame):
                 pass
             if ok:
                 if item:
-                    txt = item.text() if hasattr(item, 'text') else ""
-                    if txt.startswith("↻ "):
-                        txt = txt[2:]
-                    if txt.endswith(" [restart]"):
-                        txt = txt[:-10]
-                    item.setText(f"↻ {txt} [restart]")
-                    item.setForeground(QColor("#16a34a"))
+                    self._update_task_display(
+                        item, "↻", "#16a34a",
+                        f"{self._task_base_title(item)} [restart]")
                 parent = self.parent()
                 while parent and not hasattr(parent, '_refresh_coda_card'):
                     parent = parent.parent()

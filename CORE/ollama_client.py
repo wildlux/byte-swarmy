@@ -13,6 +13,8 @@ import urllib.error
 from pathlib import Path
 from typing import Optional
 
+from CORE.constants import DEFAULT_NUM_CTX
+
 
 class ModelClient:
     """

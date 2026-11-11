@@ -420,12 +420,29 @@ class Worker:
             f"{correction[:500]}\n\n" if correction else ""
         )
 
+        # 🆕 Skill procedurale: se una skill matcha il task la iniettiamo.
+        # Per i modelli piccoli la skill riduce le scelte libere: seguono
+        # la ricetta (passi + template) invece di progettare da zero.
+        # Guardia anti-duplicato: al retry la description contiene GIA' la
+        # skill (il correction prompt la re-inietta) — non duplicare.
+        skill_block = ""
+        try:
+            _desc = str(task.get("description", ""))
+            if "## SKILL" not in _desc:
+                from CORE.skills import find_skill, format_skill_block
+                _sk = find_skill(task.get("title", ""), _desc)
+                if _sk is not None:
+                    skill_block = format_skill_block(_sk)
+        except Exception:
+            skill_block = ""  # fail-open: mai bloccare il worker per le skill
+
         return (
             f"## TASK\n{task.get('title', '')}\n\n"
             f"## DESCRIPTION\n{task.get('description', '')}\n\n"
             f"## PROJECT STATE\n{self._project_state()}\n\n"
             f"## PERSISTENT CONTEXT\n{persistent_context}\n\n"
             f"## RULES\n{Planner.WORKER_CONSTRAINTS}\n\n"
+            f"{skill_block}"
             "PLAN (follow strictly):\n"
             "1. write_file(path, content) to CREATE the file with the requested code\n"
             "2. read_file(path) or lint_code(path) ONLY to VERIFY what you wrote\n"

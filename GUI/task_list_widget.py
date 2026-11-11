@@ -144,9 +144,17 @@ class TaskListWidget(QFrame):
     # ── Handler pulsanti (chiamano i callback opzionali) ──
 
     def _on_select_all_clicked(self):
-        self._toggle_select_all()
+        # Il toggle lo fa UNO solo dei due: se il drawer ha passato il
+        # callback (che gestisce item + righe visive), delegate a lui.
+        # Prima veniva fatto _toggle_select_all() E il callback -> doppio
+        # toggle che si annullava: il secondo click sembrava non funzionare.
         if self._on_select_all_toggled:
             self._on_select_all_toggled(self._is_select_all_checked())
+        else:
+            self._toggle_select_all()
+        # Indicatore di stato sul pulsante: ☐ quando tutto è selezionato
+        self.btn_select_all.setText(
+            "☐" if self._is_select_all_checked() else "☑")
 
     def _on_refresh_clicked(self):
         if self._on_refresh_requested:
@@ -237,11 +245,15 @@ class TaskListWidget(QFrame):
             }
             icon = icon_map.get(st, "○")
             color = color_map.get(st, "#888")
-            item = QListWidgetItem(f"{icon} {title}")
+            # Contratto dati del delegate: UserRole+1/2/3 = titolo/glyph/colore.
+            # Niente ItemIsUserCheckable: il toggle lo gestisce il delegate
+            # (flag nativo = doppio toggle con la checkbox disegnata a mano).
+            item = QListWidgetItem()
             item.setData(_Qt.ItemDataRole.UserRole, tid)
-            item.setFlags(item.flags() | _Qt.ItemFlag.ItemIsUserCheckable)
+            item.setData(_Qt.ItemDataRole.UserRole + 1, str(title))
+            item.setData(_Qt.ItemDataRole.UserRole + 2, icon)
+            item.setData(_Qt.ItemDataRole.UserRole + 3, color)
             item.setCheckState(_Qt.CheckState.Unchecked)
-            item.setForeground(QColor(color))
             self.task_list.addItem(item)
 
     def toggle_select_all(self):
@@ -270,11 +282,12 @@ class TaskListWidget(QFrame):
         }
         icon = icon_map.get(status, "○")
         color = color_map.get(status, "#888")
-        item = QListWidgetItem(f"{icon} {title}")
+        item = QListWidgetItem()
         item.setData(_Qt.ItemDataRole.UserRole, task_id)
-        item.setFlags(item.flags() | _Qt.ItemFlag.ItemIsUserCheckable)
+        item.setData(_Qt.ItemDataRole.UserRole + 1, str(title))
+        item.setData(_Qt.ItemDataRole.UserRole + 2, icon)
+        item.setData(_Qt.ItemDataRole.UserRole + 3, color)
         item.setCheckState(_Qt.CheckState.Unchecked)
-        item.setForeground(QColor(color))
         self.task_list.addItem(item)
 
     def delete_checked_tasks(self):

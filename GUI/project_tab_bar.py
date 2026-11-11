@@ -128,18 +128,18 @@ class ProjectTabBar(QTabBar):
 
         A differenza del close-button di default di Qt (che ignora i margini
         del CSS), questo widget ha controllo pixel-perfect:
-          - 15px di margine sinistro (tra testo e ×)
-          - 15px di margine destro (tra × e bordo del tab)
+          - 3px di margine sinistro (tra testo e ×)
+          - il tab ha padding-right 20px: la × sta attaccata al bordo destro
         Il click emette tabCloseRequested come il button di default.
         """
-        # Larghezza totale: 8px sx + 16px (× icona) + 8px dx = 32px.
+        # Larghezza totale: 3px sx + 14px (× icona) + 1px dx = 18px.
         btn = QPushButton("✕")
-        btn.setFixedSize(32, 24)
+        btn.setFixedSize(18, 22)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.setToolTip("Chiudi questo progetto")
         # setContentsMargins funziona SEMPRE (a differenza del CSS close-button):
-        # 8px a sinistra (tra testo e ×) + 8px a destra (tra × e bordo).
-        btn.setContentsMargins(8, 0, 8, 0)
+        # 3px a sinistra (tra testo e ×) — minimi, come richiesto.
+        btn.setContentsMargins(3, 0, 0, 0)
         btn.setStyleSheet(
             "QPushButton {"
             "  background:transparent; border:none; "

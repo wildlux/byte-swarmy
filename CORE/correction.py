@@ -83,6 +83,20 @@ def build_correction_prompt(original_task: str,
         f"## ERROR\n{limit_error(stderr)}",
     ]
 
+    # 🆕 Re-inietta la skill del task: al retry il modello deve correggere
+    # RISPETTANDO la ricetta (passi+template), non improvvisando. La sezione
+    # sta prima dei blocchi troncabili (previous code) per sopravvivere al
+    # cap globale del prompt.
+    skill_block = ""
+    try:
+        from CORE.skills import find_skill, format_skill_block
+        _sk = find_skill(original_task)
+        if _sk is not None:
+            skill_block = format_skill_block(_sk)
+            parts += ["", skill_block]
+    except Exception:
+        pass  # fail-open: senza skill il correction prompt resta invariato
+
     code = sanitize_paths(previous_code or "")
     if code:
         prev = "\n".join(code.splitlines()[:MAX_PROMPT_CHARS // 40])
@@ -93,7 +107,12 @@ def build_correction_prompt(original_task: str,
 
     prompt = "\n".join(parts)
 
-    if len(prompt) > 2000:               # cap totale: description non esplode
-        prompt = prompt[:2000]
+    # Cap totale: description non esplode. Con la skill presente il cap
+    # cresce della sua lunghezza — la ricetta NON deve venire troncata
+    # (e il directive tail deve restare in coda). fail_with_correction
+    # sopporta description fino a 4000 caratteri.
+    cap = 2000 + len(skill_block)
+    if len(prompt) > cap:
+        prompt = prompt[:cap]
 
     return f"{prompt}\n\n{_DIRECTIVE_TAIL}"
