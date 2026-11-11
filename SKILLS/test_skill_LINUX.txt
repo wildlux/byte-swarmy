@@ -1,0 +1,20 @@
+
+Il tuo orchestratore (lo script Python che hai in BYTE-SWARM) intercetterà questa chiamata, la inoltrerà al tuo LLM specializzato per Linux (magari un modello più piccolo e veloce, caricato in un'altra istanza di Ollama), e restituirà il comando generato al modello principale, che poi lo eseguirà (sotto la supervisione dei tuoi guardrail).
+
+### 🔧 Cosa manca per migliorare le Skill
+
+Anche se le Skill funzionano, ci sono diversi aspetti che puoi affinare per renderle più robuste e manutenibili. La letteratura e le esperienze di chi le usa in produzione (come Perplexity) indicano alcune direzioni chiare.
+
+1. **Trattare la Skill come una directory, non un file**. Una Skill matura non è un singolo `SKILL.md`, ma una **cartella** che può contenere script, riferimenti a documentazione pesante, template e file di configurazione[reference:3]. Questo permette di mantenere il file di istruzioni principale focalizzato e di caricare le risorse solo quando servono.
+
+2. **Sfruttare la "divulgazione progressiva" (Progressive Disclosure)**. Il principio è: **non caricare tutto il contesto in una volta**. La Skill dovrebbe essere attivata solo quando necessario, e le sue istruzioni dovrebbero essere concise, rimandando a file esterni per i dettagli[reference:4]. Un `SKILL.md` efficace è **denso di segnale**, non di rumore[reference:5].
+
+3. **Spiegare il "perché", non solo il "cosa"**. I modelli moderni sono intelligenti e rispondono meglio a istruzioni che spiegano la *ragione* dietro una procedura, piuttosto che a comandi perentori in maiuscolo. Invece di scrivere "NON usare `rm -rf`", spiega *perché* è pericoloso e *quali* sono le alternative sicure[reference:6].
+
+4. **Concentrarsi sui "gotcha" (casi limite)**. La conoscenza più preziosa in una Skill non è ciò che è ovvio, ma **ciò che è controintuitivo o soggetto a errori**. I "trucchi del mestiere" e le eccezioni sono il contenuto di massimo valore[reference:7].
+
+5. **Testare e valutare l'impatto di ogni Skill**. Non tutte le Skill migliorano le prestazioni. È fondamentale testare ogni Skill con e senza di essa per vedere se c'è un **miglioramento misurabile** (un "lift" nelle valutazioni)[reference:8]. Se una Skill non apporta un beneficio chiaro, va rimossa o riscritta.
+
+6. **Mantenere le Skill focalizzate e componibili**. È meglio avere molte Skill piccole e specializzate (es. una per SQL, una per la revisione legale) che un'unica Skill gigante. Questo permette di caricare solo quelle pertinenti al task corrente e facilita la manutenzione da parte di team diversi[reference:9].
+
+In sintesi, per migliorare le tue Skill, dovresti trattarle come **artefatti di conoscenza strutturati**, non come semplici prompt. Devono essere focalizzate, ben documentate nei loro "perché", organizzate in directory con risorse e testate per dimostrare il loro valore. E, come hai intuito, possono diventare il punto di orchestrazione ideale per **delegare compiti a LLM specializzati**, mantenendo il tuo modello principale snello e focalizzato sul ragionamento di alto livello.
