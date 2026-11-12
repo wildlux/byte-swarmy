@@ -54,6 +54,12 @@ class ModelClient:
         model_cfg = self.models_cfg[model_key]
         model_name = model_cfg["name"]
 
+        # 🆕 Timeout PER MODELLO: i modelli grandi (o le macchine lente)
+        # possono superare il default [ollama].request_timeout — la suite
+        # T8/T9/T10 col 4B ha bruciato 3 task su "LLM call failed: timed
+        # out" a 300 s esatti.
+        model_timeout = model_cfg.get("timeout", self.timeout)
+
         # Rotation: scarica il modello precedente se diverso
         if self.current_model is not None and self.current_model != model_name:
             self._unload(self.current_model)
@@ -82,7 +88,7 @@ class ModelClient:
         self.log.debug(f"calling model {model_name} (key={model_key}), "
                        f"prompt_len={len(prompt)}")
 
-        response = self._post("/api/chat", payload)
+        response = self._post("/api/chat", payload, timeout=model_timeout)
         content = response.get("message", {}).get("content", "").strip()
         self._save_call_metrics(model_key, model_name, response)
         return content
@@ -147,6 +153,9 @@ class ModelClient:
         model_cfg = self.models_cfg[model_key]
         model_name = model_cfg["name"]
 
+        # 🆕 Timeout per modello (vedi call()): override da [models.*]
+        model_timeout = model_cfg.get("timeout", self.timeout)
+
         # Rotation: scarica modello precedente se diverso
         if self.current_model is not None and self.current_model != model_name:
             self._unload(self.current_model)
@@ -197,7 +206,7 @@ class ModelClient:
         first_token_time = None
 
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            with urllib.request.urlopen(req, timeout=model_timeout) as resp:
                 for line in resp:
                     if not line.strip():
                         continue

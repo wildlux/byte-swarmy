@@ -301,7 +301,45 @@ progetto in `<progetto>/.byteswarm/codemap.db`, rebuild **incrementale** per mti
 **Prova live (routing attivo)**: task di riuso su `PR_TEST_progetto` — `route: "complessità media → worker_coder | impatto media (1 file, profondità 0, simboli citati: Statistiche, media, mediana)"` — il grafo ha visto i 3 simboli in `utils.py`, il task è restato sul base, PASS al 1° tentativo.
 
 ### Risultati suite comparativa T1–T10 (routing OFF, stessa pipeline)
-*(in esecuzione — `state/suite_compare/results.json`, runner `scripts/suite_compare.py`)*
+
+`state/suite_compare/results.json` · runner `scripts/suite_compare.py` · tentativi max 3
+
+| Task | 3B (worker_coder) | 4B (worker_coder_big) | Delta tempo |
+|---|---|---|---|
+| T1 statistiche | ✅ 2 att, 22 s | ❌ 3 att, 262 s | ×12 |
+| T2 convertitore | ✅ 1 att, 10 s | ✅ 2 att, 165 s | ×17 |
+| T3 Collezione | ✅ 1 att, 9 s | ❌ 3 att, 301 s | — |
+| T4 palindromo+frequenza | ✅ 1 att, 11 s | ❌ 3 att, 315 s | — |
+| T5 rubrica JSON | ✅ 1 att, 10 s | ✅ 1 att, 56 s | ×5 |
+| T6 fibonacci | ✅ 1 att, 8 s | ✅ 3 att, 249 s | ×32 |
+| T7 GUI PyQt6 | ✅ 1 att, 27 s | ✅ 3 att, 324 s | ×12 |
+| T8 Stack+eccezioni | ✅ 2 att, 23 s | ❌ 2 att, 405 s | — |
+| T9 decoratore | ✅ 1 att, 11 s | ❌ 1 att, 300 s (timeout LLM) | — |
+| T10 matrice | ✅ 1 att, 7 s | ❌ 1 att, 300 s (timeout LLM) | — |
+| **Totale** | **10/10 ✅ · 139 s** | **4/10 ✅ · 2.678 s** | **×19 più lento** |
+
+**Tassonomia fallimenti 4B** (ogni fallimento ONESTAMENTE beccato dai gate — mai codice rotto passato):
+1. **Prosa prima del codice** ×4 (T1/T3/T4/T8 @1: "Okay, let's tackle…") → **fixata**: SYSTEM_DIRECT "la prima riga DEVE essere ```python" + `extract_code` tronca la prosa alla prima riga Python
+2. **Placeholder copiato letterale** ×1 (T4@2: `{{ PRINT THE EXACT MARKERS }}`) → **fixata**: py-text-analyze usa righe-commento inerti al posto di placeholder in prosa
+3. **try senza except** ×1 (T3@2) → **fixata**: py-class-module con `except Exception` di default + regola "mai cancellare un except"
+4. **Classe senza istanza** ×1 (T1@2: `Statistiche.media(lista)`) → **fixata**: SYSTEM_DIRECT regola 8 "usa un'ISTANZA"
+5. **Timeout LLM** ×3 (T8@2, T9@1, T10@1 — 300 s esatti = limite client) → **infrastruttura**: la generazione 4B non finisce entro 300 s su questa macchina (throttling osservato: T8 405 s, ventola rallentata — conferma utente); temperatura ora 52–64 °C
+
+**Conclusione onesta**: su QUESTA macchina (4 GB, throttling sotto carico) il 4B NON è un heavy valido: 4/10 vs 10/10, ×19 più lento, e va in timeout sui task lunghi. Il 3B + skill + gate host è il sistema migliore. Candidato heavy alternativo: `granite4:7b-a1b-h` (MoE ~1B attivi, 4,2 GB) → verdict sotto.
+
+### Spot-check heavy: 4B vs granite4 (codice nuovo, post P1–P5)
+
+`state/suite_compare/spotcheck.json` · runner `scripts/spotcheck_heavy.py` · routing OFF
+
+| Run | Esito | Tempo | Note |
+|---|---|---|---|
+| 4B / T9 (decoratore) | ❌ FAIL 1 att | 304,6 s | timeout LLM ~300 s ANCORA con il system prompt nuovo: la generazione 4B non finisce su questa macchina |
+| granite4 / T9 | ✅ ok 1 att | **31,2 s** | `SOMMA=5000050000` corretto + tempo di esecuzione stampato |
+| granite4 / T1 (statistiche) | ✅ ok 1 att | **10,1 s** | `Media: 4.0 Mediana: 4 Moda: [2]` — il 3B aveva fatto T1 in 2 tentativi (22 s) |
+
+**Verdict `[complexity_routing]`**: `heavy_model = "worker_granite"` (SCELTO e impostato in config.toml). granite4:7b-a1b-h è veloce quanto il base (10–31 s), corretto al 1° tentativo su entrambi gli spot, e passa dove il 4B non riesce nemmeno a finire la generazione. RAM: 7,6 GB totali, rotazione ollama scarica il modello precedente → 4,2 GB ci stanno (verificato live, nessun thrashing). Il 4B `kirito1/qwen3-coder:4b` resta in config come `[models.worker_coder_big]` NON heavy (disattivabile/installabile dal pannello, timeout per-modello 600 s).
+
+**Audit pattern-trappola skill (post P3/P5)**: scansionate tutte le 14 skill di `SKILLS/` — nessun altro placeholder condizionale-in-prosa (`{{ ONLY IF … }}`, `{{ PRINT THE … }}`); i rimasti sono tutti segnaposto legittimi da riempire o commenti inerti. Trappola estinta.
 
 ### Ottimizzazioni skill/prompt/tools (dalla diagnosi dei fallimenti)
 
@@ -310,3 +348,6 @@ progetto in `<progetto>/.byteswarm/codemap.db`, rebuild **incrementale** per mti
 **P3 — py-text-analyze (skill)**: la riga-placeholder `{{ PRINT THE EXACT MARKERS THE TASK REQUESTS }}` è stata copiata LETTERALMENTE dal 4B → sostituirla con un print concreto + regola.
 **P4 — regola istanza (prompt)**: il 4B chiama `Statistiche.media(lista)` senza istanza (AttributeError) → in SYSTEM_DIRECT: "se il PROJECT MAP ha una class, usa un'ISTANZA (obj = Class(); obj.method())".
 **P5 — try/except fragili (skill)**: T3@2 "expected 'except' or 'finally'" → rinforzare il template py-class-module con il blocco try/except completo da non spezzare.
+**P6 — timeout per-modello (tool, `CORE/ollama_client.py`)**: i 3 timeout T8/T9/T10 erano `LLM call failed: timed out` a 300 s esatti (limite globale `[ollama].request_timeout`). Fix: ogni `[models.*]` può ora avere `timeout = N` che sovrasta il default (`model_cfg.get("timeout", self.timeout)` in `call()` e `call_streaming()`); `worker_coder_big` → 600 s. Unit + regressione verdi.
+
+**Stato**: P1–P6 ✅ applicati e verificati (unit + regressione 35/35 e 7/7 + spot-check live). Audit skill: nessun'altra trappola presente.

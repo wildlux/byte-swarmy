@@ -40,6 +40,8 @@ seed = 42
 # Heavy per il routing semplice (CORE/routing.py): consigliato entro
 # 4GB dal JSON di conoscenza. Finché NON è installato (⬇ nel pannello
 # Attori) il routing resta automaticamente sul modello base.
+# timeout per modello: la suite comparativa ha mostrato generazioni
+# >300 s (T8/T9/T10 in timeout) su questa macchina in throttling.
 name = "kirito1/qwen3-coder:4b"
 temperature = 0.2
 top_p = 0.8
@@ -49,14 +51,35 @@ repeat_last_n = 256
 num_ctx = 8192
 num_predict = 1024
 seed = 42
+timeout = 600
 
 [complexity_routing]
-# Routing SEMPLICE per complessità (CORE/routing.py): task 'alta' →
-# heavy_model SOLO se installato; altrimenti fallback automatico sul
-# modello base. NON confondere con [routing] (più sotto), che governa
-# la scelta direct/ReAct dell'orchestrator.
+# Routing per complessità (CORE/routing.py): task 'alta' → heavy_model
+# SOLO se installato; altrimenti fallback automatico sul modello base.
+# NON confondere con [routing] (più sotto), che governa la scelta
+# direct/ReAct dell'orchestrator.
+#
+# Verdict heavy (spotcheck_heavy.py, state/suite_compare/spotcheck.json):
+#   kirito1/qwen3-coder:4b  → SCARTATO: suite 4/10, ×19 più lento,
+#     generazione >300 s (T8/T9/T10 in timeout) su questa macchina.
+#   granite4:7b-a1b-h (MoE ~1B attivi) → SCELTO: T9 ok 1 att 31 s,
+#     T1 ok 1 att 10 s (il 3B aveva fatto T1 in 2 tentativi); veloce
+#     come il base, passa dove il 4B non finisce nemmeno a generare.
 enabled = true
-heavy_model = "worker_coder_big"
+heavy_model = "worker_granite"
+
+[models.worker_granite]
+# Candidato heavy alternativo (spot-check suite): granite4 MoE ~1B
+# parametri attivi — velocità del 3B, capacità attesa superiore.
+name = "granite4:7b-a1b-h"
+temperature = 0.2
+top_p = 0.8
+top_k = 20
+repeat_penalty = 1.1
+repeat_last_n = 256
+num_ctx = 8192
+num_predict = 1024
+seed = 42
 
 [models.worker_general]
 name = "qwen2.5:1.5b"

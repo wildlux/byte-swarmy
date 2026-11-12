@@ -33,12 +33,12 @@ def main():
     coll = {{ CLASS NAME }}()
     try:
         {{ FILL IT, e.g. coll.add("a") }}
-    except {{ ERROR CLASS }} as e:
+    except Exception as e:
         print(e)
-    {{ ONLY IF THE TASK ASKS THE LENGTH: print(f"LEN= {len(coll)}") — remove this line otherwise }}
+    # se il task chiede la lunghezza, stampa: print(f"LEN={len(coll)}")
     try:
         {{ DRAIN IT, e.g. while True: print(coll.pop()) }}
-    except {{ ERROR CLASS }} as e:
+    except Exception as e:
         print(e)
 
 
@@ -48,6 +48,13 @@ if __name__ == "__main__":
 
 RULES:
 - ONE file only: project/main.py. Standard library only.
+- Replace EVERY {{...}} placeholder with real code. A placeholder left
+  in the file is a SYNTAX ERROR. NEVER delete an `except` line: if you
+  open a `try:` you MUST keep its `except` block.
+- If the task names CUSTOM exceptions (e.g. StackOverflowError),
+  define them as `class NomeError(Exception)` and use THEM in the
+  except lines instead of Exception.
+- Keep the two `try/except` blocks of the template intact.
 - If the PROJECT MAP already contains the requested class/function,
   IMPORT it from its file (e.g. `from utils import Statistiche`) and
   USE it — do NOT redefine it. Redefine only if the map has nothing.

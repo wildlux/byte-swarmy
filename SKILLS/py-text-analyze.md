@@ -36,7 +36,8 @@ def main():
     counts = conta_parole(frase)
     for word, n in counts.items():
         print(f"{word}: {n}")
-    {{ PRINT THE EXACT MARKERS THE TASK REQUESTS }}
+    # se il task chiede la parola più frequente, stampa:
+    # print(f"PIU_FREQUENTE={max(counts, key=counts.get)}")
 
 
 if __name__ == "__main__":
@@ -45,10 +46,14 @@ if __name__ == "__main__":
 
 RULES:
 - ONE file only: project/main.py. Standard library only.
+- Replace EVERY {{...}} placeholder with real code. A placeholder left
+  in the file is a SYNTAX ERROR.
 - Word extraction happens FIRST with regex `[a-zàèéìòù]+`: punctuation
   and spaces disappear BY CONSTRUCTION — never count on the whole
   phrase string.
 - Palindrome: keep ONLY letters (isalpha), lowercase, then compare
   with the reverse.
 - Most frequent word = max(counts, key=counts.get) — a REAL word from
-  the split, never the whole phrase.
+  the split, never the whole phrase. If the task asks a specific
+  marker, print it EXACTLY (uncomment and adapt the commented line,
+  using the marker NAME the task requests).
