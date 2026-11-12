@@ -368,7 +368,9 @@ def run_direct(task: dict, project_root: str,
                filename: str = DEFAULT_FILENAME,
                enable_routing: Optional[bool] = None,
                oracle_checks: Optional[list[str]] = None,
-               behavioral_check: bool = False) -> dict:
+               behavioral_check: bool = False,
+               clarify: bool = False,
+               ask_fn=None) -> dict:
     """Esegue il task in modalita' diretta (modello SENZA tool).
 
     Args:
@@ -391,6 +393,27 @@ def run_direct(task: dict, project_root: str,
     """
     title = str(task.get("title", ""))
     description = str(task.get("description", ""))
+
+    # Q6 — Chiarimento interattivo: se il task è ambiguo e clarify=True,
+    # rileva le domande e arricchisce il task con le risposte (se
+    # disponibili). Fail-open: se non c'è ask_fn, procede senza.
+    if clarify:
+        try:
+            from CORE.clarifier import detect_ambiguity, clarify as _clarify
+            qs = detect_ambiguity(title, description)
+            if qs and ask_fn is not None:
+                from CORE.clarifier import clarify_loop
+                result = clarify_loop(title, description, ask_fn=ask_fn)
+                title = result.enriched_title
+                description = result.enriched_description
+            elif qs:
+                # Nessun ask_fn: logga l'ambiguità e procedi
+                logging.getLogger("skill_executor").info(
+                    "[clarifier] task ambiguo, %d domande non risolte: %s",
+                    len(qs), [q.id for q in qs])
+        except Exception:
+            pass  # fail-open
+
     root = Path(project_root)
     out_path = root / filename
 

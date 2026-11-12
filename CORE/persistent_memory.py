@@ -167,6 +167,37 @@ def record_error(error_type: str, error_message: str, context: str = "") -> None
     save_memory(mem)
 
 
+def record_preference(key: str, value: str) -> None:
+    """Q4 — Registra una preferenza utente emersa dal chiarimento.
+
+    Le preferenze vengono accumulate in user_profile.style_preferences
+    (o in un campo dedicato) e iniettate nel prompt del worker per
+    task successivi. Fail-open.
+    """
+    try:
+        mem = load_memory()
+        profile = mem.setdefault("user_profile", {})
+        prefs = profile.setdefault("clarification_preferences", {})
+        prefs[key] = value
+        # Mantieni solo le ultime 30 preferenze
+        if len(prefs) > 30:
+            # Rimuovi le più vecchie (prima chiave inserita)
+            oldest = list(prefs.keys())[0]
+            del prefs[oldest]
+        save_memory(mem)
+    except Exception:
+        pass
+
+
+def get_preferences() -> dict:
+    """Q4 — Recupera le preferenze utente dal chiarimento."""
+    try:
+        mem = load_memory()
+        return mem.get("user_profile", {}).get("clarification_preferences", {})
+    except Exception:
+        return {}
+
+
 def record_task_completed(task_id: str, title: str, result: str) -> None:
     """Registra un task completato nella history."""
     mem = load_memory()

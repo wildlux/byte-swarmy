@@ -155,3 +155,74 @@ class TestFormatQuestions(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestPersistPreferences(unittest.TestCase):
+    """Q4 — Persistenza delle risposte del chiarimento."""
+
+    def setUp(self):
+        import tempfile
+        from pathlib import Path
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(__import__("shutil").rmtree, self.tmp, ignore_errors=True)
+        import CORE.persistent_memory as pm
+        pm.MEMORY_FILE = self.tmp / "persistent_memory.json"
+
+    def test_record_preference(self):
+        from CORE.persistent_memory import record_preference, get_preferences
+        record_preference("Quale DB?", "SQLite")
+        prefs = get_preferences()
+        self.assertEqual(prefs.get("Quale DB?"), "SQLite")
+
+    def test_multiple_preferences(self):
+        from CORE.persistent_memory import record_preference, get_preferences
+        record_preference("Quale DB?", "SQLite")
+        record_preference("Quale framework?", "Flask")
+        prefs = get_preferences()
+        self.assertEqual(len(prefs), 2)
+
+    def test_clarify_saves_preferences(self):
+        from CORE.clarifier import clarify
+        from CORE.persistent_memory import get_preferences
+        r0 = clarify("rifattorizza il modulo auth per usare OAuth2")
+        if not r0.questions:
+            self.skipTest("no questions")
+        answers = {q.id: "1" for q in r0.questions}
+        clarify("rifattorizza il modulo auth per usare OAuth2", answers=answers)
+        prefs = get_preferences()
+        self.assertTrue(len(prefs) > 0)
+
+
+class TestClarificationDialogSmoke(unittest.TestCase):
+    """Q2 — Smoke test del dialog PyQt6 (offscreen)."""
+
+    def test_import(self):
+        try:
+            from GUI.clarification_dialog import ClarificationDialog, _QT_AVAILABLE
+            self.assertTrue(True)
+        except ImportError:
+            self.skipTest("PyQt6 non disponibile")
+
+    def test_qt_available(self):
+        try:
+            from GUI.clarification_dialog import _QT_AVAILABLE
+            if not _QT_AVAILABLE:
+                self.skipTest("PyQt6 non disponibile")
+            self.assertTrue(_QT_AVAILABLE)
+        except ImportError:
+            self.skipTest("PyQt6 non disponibile")
+
+    def test_dialog_creation(self):
+        try:
+            from PyQt6.QtWidgets import QApplication
+            from GUI.clarification_dialog import ClarificationDialog, _QT_AVAILABLE
+            from CORE.clarifier import Question
+            if not _QT_AVAILABLE:
+                self.skipTest("PyQt6 non disponibile")
+            app = QApplication.instance() or QApplication([])
+            qs = [Question(id="Q1", text="Test?", options=["a", "b"])]
+            dlg = ClarificationDialog(qs)
+            self.assertIsNotNone(dlg._dialog)
+            dlg._dialog.close()
+        except ImportError:
+            self.skipTest("PyQt6 non disponibile")

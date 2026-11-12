@@ -195,6 +195,12 @@ def clarify(task_title: str, task_description: str = "",
     for q in questions:
         ans = answers.get(q.id, "non specificato")
         enriched_parts.append(f"- {q.text} → {ans}")
+        # Q4: salva la preferenza
+        try:
+            from CORE.persistent_memory import record_preference
+            record_preference(q.text[:60], ans)
+        except Exception:
+            pass
 
     result.enriched_title = task_title
     result.enriched_description = "\n".join(enriched_parts)
