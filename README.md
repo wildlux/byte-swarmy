@@ -197,8 +197,83 @@ Cosa puoi vedere:
 
 ---
 
-## Architettura
+## Architettura: i 3 LLM
 
+BYTE-SWARMY usa **3 LLM specializzati** che si dividono i compiti. Non un
+unico modello che fa tutto, ma tre ruoli distinti che collaborano:
+
+| # | Ruolo | Modello | Compito | Quando si attiva |
+|---|---|---|---|---|
+| 1 | **Timestral** (termico) | qwen2.5:0.5b | Monitora temperatura CPU/GPU, adatta i parametri LLM (temperatura, top_p, num_ctx, max_steps) in base allo stato termico. Modula il tick rate dell'orchestratore. | Sempre (ogni 30 s) |
+| 2 | **LLM worker** (coder) | qwen2.5-coder:3b (base) / granite4:7b-a1b-h (heavy) | Genera codice, esegue task, scrive file. Il modello che "lavora". | Ad ogni task |
+| 3 | **Decision model** (planner) | tev1:4b | Scompone i task generici in 2-8 sotto-task atomici. Decide la struttura del lavoro. | Solo per task generici/complessi |
+
+### Come si dividono i compiti
+
+```
+Task in ingresso
+       ↓
+Intent Router (zero LLM, fuzzy matching)
+       ↓
+┌─────────────────────────────────────────────┐
+│  Orchestratore (qwen2.5:0.5b — Timestral)  │
+│  • Tick ogni 30s (modulato da Timestral)   │
+│  • Monitora RAM, disco, temperatura         │
+│  • Decide: swarm cmd? execute? generic?     │
+└─────────────────────────────────────────────┘
+       ↓
+   ┌───┴───┐
+   │       │
+   ↓       ↓
+Generic?  Complex?
+   ↓       ↓
+Decision  Planner
+Model     (phi3:mini)
+(tev1:4b) (decomposizione
+   ↓       2-5 subtask)
+   ↓       ↓
+   └───┬───┘
+       ↓
+   Worker (qwen2.5-coder:3b o granite4)
+   • Genera codice (direct mode o ReAct)
+   • Routing per complessità: keyword + impatto dal grafo
+   • Skill injection + gate statico/runtime
+   • Correction loop (≤3 retry)
+       ↓
+   Audit Worker (review)
+       ↓
+   APPROVE → git commit + memoria persistente
+   REJECT → retry con feedback
+```
+
+### Perché 3 LLM e non 1?
+
+| Motivo | Dettaglio |
+|---|---|
+| **Specializzazione** | Un modello da 0.5B (Timestral) è veloce e leggero per il monitoraggio; un 3B (worker) è capace per il codice; un 4B (decision) è sufficiente per la decomposizione. |
+| **Rotazione VRAM** | Un solo modello alla volta in VRAM (4 GB). I 3 LLM si alternano: Timestral sempre in RAM, worker e decision model si caricano/scaricano. |
+| **Separazione dei ruoli** | Il decision model scompone, il worker esegue, il Timestral monitora. Nessuno fa il lavoro dell'altro. |
+| **Fail-open** | Se un LLM non è disponibile, il sistema degrada (es. routing OFF, fallback al base). |
+
+### Routing per complessità (Fase 6-7)
+
+Prima di ogni esecuzione, il sistema sceglie il modello worker:
+
+1. **Complessità percettiva (keyword)**: parole come "decoratore", "thread", "lock" → livello `media`/`alta`
+2. **Impatto reale (grafo code_map)**: simbodo citati nel task → file toccati (definizione ∪ chiamate), profondità BFS. ≥2 file o profondità ≥3 → `alta`
+3. **Isteresi**: una volta heavy, i task `media` restano heavy; solo `bassa` torna al base
+4. **Guardia termica**: sotto carico critico (CPU ≥75, GPU ≥80) l'heavy viene evitato
+
+| Livello | Modello | Quando |
+|---|---|---|
+| `bassa` | qwen2.5-coder:3b (base) | Task semplici, nessun simbodo citato |
+| `media` | qwen2.5-coder:3b (base) | 1-2 concetti medi o 1 file toccato |
+| `alta` | granite4:7b-a1b-h (heavy) | Keyword avanzate o ≥2 file toccati |
+| fallback | qwen2.5-coder:3b (base) | Heavy non installato o termico critico |
+
+---
+
+## Architettura
 | Componente | Ruolo | Stack |
 |---|---|---|
 | **Intent Router** | Classifica input libero multilingue (IT/EN/ZH) in task strutturati | Python (rapidfuzz) |
