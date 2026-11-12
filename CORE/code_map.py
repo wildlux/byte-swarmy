@@ -240,6 +240,20 @@ def symbols(project_root: str | Path) -> list[dict]:
         return []
 
 
+def calls(project_root: str | Path) -> list[dict]:
+    """Tutte le chiamate (file, caller, callee, line) — per il grafo."""
+    try:
+        conn = sqlite3.connect(db_path(project_root), timeout=2)
+        rows = conn.execute(
+            "SELECT file, caller, callee, line FROM calls "
+            "ORDER BY file, line").fetchall()
+        conn.close()
+        return [{"file": r[0], "caller": r[1], "callee": r[2], "line": r[3]}
+                for r in rows]
+    except Exception:
+        return []
+
+
 def find_symbol(project_root: str | Path, name: str) -> dict | None:
     """Ricerca per nome (match esatto o suffisso di qualname)."""
     want = str(name or "").strip()

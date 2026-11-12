@@ -463,10 +463,16 @@ class Worker:
         res = run_direct(task, project_root, model_key=self.model_key,
                          client=self.models, max_retries=3)
         self.last_code = str(res.get("code") or "")
+        # 🆕 Fase 7: la decisione di routing visibile nei log/memoria
+        route_txt = str(res.get("route") or "")
+        if route_txt:
+            self.log.info(f"[{self.agent_id}] [routing] {route_txt}")
         self.memory.add_event({
             "type": "task_end" if res["ok"] else "task_failed",
             "content": (f"direct mode: {res['path']} tentativi="
-                        f"{res['attempts']} errore={res['error']}"),
+                        f"{res['attempts']} errore={res['error']} "
+                        f"model={res.get('model', self.model_key)} "
+                        f"route={route_txt or 'n/d'}"),
         })
         code = self.last_code
         preview = (code[:160] + "...") if len(code) > 160 else code

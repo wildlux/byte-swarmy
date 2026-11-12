@@ -1,21 +1,26 @@
-"""CORE/routing.py — Routing SEMPLICE per complessità del task.
+"""CORE/routing.py — Routing per complessità del task.
 
-I modelli piccoli passano i task concreti-deterministici (suite Fase 2:
-9/10) ma falliscono sui concetti astratti e sui multi-step (T9, T4).
-Regola: task di complessità ALTA → modello "heavy" SE installato,
-altrimenti fallback AUTOMATICO sul modello base. Fail-open ovunque:
-senza config, senza heavy installato o senza ollama si usa il base —
-mai crash, mai task perso.
+Fase 6 (SEMPLICE, keyword): i modelli piccoli passano i task
+concreti-deterministici (suite Fase 2: 9/10) ma falliscono sui concetti
+astratti e multi-step (T9, T4). Task di complessità ALTA → modello
+"heavy" SE installato, altrimenti fallback AUTOMATICO sul base.
 
-Il routing è attivo SOLO in live (client iniettato = test → off):
-i test devono restare deterministici.
+Fase 7 (COMPLESSO, grafo): la decisione considera anche l'IMPATTO REALE
+del task sul progetto, dal DATABASE della mappa codice (CORE/code_map):
+simboli citati nel task → file toccati (definizione + chiamate),
+profondità delle dipendenze a valle (chi chiama chi). ≥2 file toccati
+oppure profondità ≥3 → heavy anche se le parole del task sembrano
+semplici. Isteresi: una volta heavy si resta heavy sui task 'media'
+(si torna al base solo con 'bassa') per non sfarfallare tra task.
 
-Fase 7 (piano): decisione sull'IMPATTO reale usando il grafo del
-code_map (file toccati, profondità chiamate) al posto delle keyword.
+Fail-open ovunque: senza config, senza heavy installato o senza ollama
+si usa il base — mai crash, mai task perso. Attivo SOLO con client
+reale (CLI/GUI), mai con client finti da test (determinismo).
 """
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Optional
 
 # Keyword che indicano concetti dove i modelli piccoli falliscono da
@@ -52,6 +57,118 @@ MEDIUM_KEYWORDS = [
 ]
 
 LEVELS = ("bassa", "media", "alta")
+
+_RANK = {"bassa": 0, "media": 1, "alta": 2}
+
+# Isteresi: stato sticky tra task consecutivi (processo GUI lungo).
+_HYST = {"heavy": False}
+
+# Impatto: profondità BFS oltre la quale il task è 'alta' comunque.
+MAX_CALL_DEPTH = 3
+# Impatto: nomi più corti di così ('id', 'x') sono rumore nel testo.
+MIN_SYMBOL_LEN = 3
+
+
+def _max_level(a: str, b: str) -> str:
+    return a if _RANK.get(a, 0) >= _RANK.get(b, 0) else b
+
+
+def _apply_hysteresis(level: str) -> str:
+    """Isteresi: una volta heavy, 'media' resta heavy; 'bassa' resetta."""
+    if level == "alta":
+        _HYST["heavy"] = True
+        return level
+    if _HYST["heavy"] and level == "media":
+        return "alta"  # sticky: no sfarfallio tra task consecutivi
+    if level == "bassa":
+        _HYST["heavy"] = False
+    return level
+
+
+def reset_hysteresis() -> None:
+    """Reset dello sticky (per i test e per un nuovo batch di task)."""
+    _HYST["heavy"] = False
+
+
+def estimate_impact(text: str, project_root: str | Path,
+                    exclude_files: Optional[set[str]] = None,
+                    ) -> dict:
+    """Impatto REALE del task sul progetto, dal grafo del code_map.
+
+    Per Fase 7 (idea utente: il DB mappa il codice → la decisione usa
+    il DB, non solo le parole). Cosa misura:
+      - cited:  simboli del progetto CITATI nel testo del task
+                (match a confine di parola, case-sensitive: i nomi
+                Python lo sono; min 3 char per evitare rumore)
+      - files:  file che DEFINISCONO i simboli citati ∪ file che li
+                CHIAMANO (il file target è escluso: sta per essere
+                riscritto, i suoi simboli sono rumore)
+      - depth:  profondità BFS delle dipendenze a valle (chi chiama i
+                chiamanti), cap MAX_CALL_DEPTH
+      - tests:  almeno un file toccato è un test (copertura)
+
+    Livello: '' (nessun simbolo citato) · 'media' (1 file toccato) ·
+    'alta' (≥2 file toccati oppure profondità ≥ MAX_CALL_DEPTH).
+    Mai solleva.
+    """
+    out = {"cited": [], "files": [], "depth": 0, "tests": False,
+           "level": ""}
+    try:
+        from CORE import code_map as cm
+        root = Path(project_root)
+        cm.rebuild(root)
+        syms = cm.symbols(root)
+        call_rows = cm.calls(root)
+    except Exception:
+        return out
+    if not syms:
+        return out
+
+    text_s = str(text or "")
+    ex = {str(e) for e in (exclude_files or ())}
+    by_name: dict[str, list[dict]] = {}
+    for s in syms:
+        if s["file"] in ex:
+            continue
+        by_name.setdefault(s["name"], []).append(s)
+
+    cited = [n for n in sorted(by_name) if len(n) >= MIN_SYMBOL_LEN
+             and re.search(r"(?<!\w)" + re.escape(n) + r"(?!\w)", text_s)]
+    if not cited:
+        return out
+    out["cited"] = cited[:8]
+
+    def_files = {s["file"] for n in cited for s in by_name[n]}
+    call_files = {c["file"] for c in call_rows
+                  if c["callee"] in cited and c["file"] not in ex}
+    touched = def_files | call_files
+    out["files"] = sorted(touched)
+
+    # BFS a valle: callee→caller (ultimo segmento del qualname). I file
+    # dei chiamanti TRANSITIVI non contano come "toccati", ma servono a
+    # profondità e copertura test (un test che chiama un chiamante
+    # copre il simbolo citato).
+    bfs_files: set[str] = set()
+    frontier = set(cited)
+    depth = 0
+    for _ in range(MAX_CALL_DEPTH):
+        rows = [c for c in call_rows
+                if c["callee"] in frontier and c["file"] not in ex]
+        nxt = {c["caller"].split(".")[-1] for c in rows} - frontier
+        if not nxt:
+            break
+        depth += 1
+        bfs_files |= {c["file"] for c in rows}
+        frontier |= nxt
+    out["depth"] = depth
+    out["tests"] = any(f.lower().startswith("test")
+                       for f in (touched | bfs_files))
+
+    if len(touched) >= 2 or depth >= MAX_CALL_DEPTH:
+        out["level"] = "alta"
+    else:
+        out["level"] = "media"
+    return out
 
 
 def _hits(text: str, keywords: list[str]) -> int:
@@ -91,57 +208,107 @@ def estimate_complexity(text: str) -> tuple[int, str]:
     return score, level
 
 
+def _route_decide(title: str, description: str = "",
+                  config: Optional[dict] = None,
+                  base_key: str = "worker_coder",
+                  installed: Optional[set[str]] = None,
+                  project_root: Optional[str] = None,
+                  exclude_files: Optional[set[str]] = None,
+                  ) -> tuple[str, str, str]:
+    """Corpo della decisione: (model_key, livello, motivi grezzi)."""
+    text = f"{title}\n{description}"
+    _score, kw_level = estimate_complexity(text)
+    level = kw_level
+    imp_level = ""
+    reason_bits: list[str] = []
+    if project_root is not None:
+        try:
+            imp = estimate_impact(text, project_root, exclude_files)
+        except Exception:
+            imp = {"level": "", "cited": [], "files": [], "depth": 0,
+                   "tests": False}
+        imp_level = imp.get("level", "")
+        if imp_level:
+            level = _max_level(level, imp_level)
+            reason_bits.append(
+                f"impatto {imp_level} ({len(imp['files'])} file, "
+                f"profondità {imp['depth']}, simboli citati: "
+                f"{', '.join(imp['cited'][:4]) or '—'})")
+        else:
+            reason_bits.append("nessun simbolo di progetto citato")
+    level = _apply_hysteresis(level)
+    if (level == "alta" and kw_level != "alta"
+            and imp_level != "alta"):
+        reason_bits.append("isteresi: resta heavy dal task precedente")
+
+    if level != "alta":
+        return base_key, level, "; ".join(reason_bits)
+    cfg = config or {}
+    rt = cfg.get("complexity_routing") or {}
+    if not rt.get("enabled", True):
+        return base_key, level, "; ".join(reason_bits + ["routing off"])
+    heavy_key = str(rt.get("heavy_model", "") or "")
+    if not heavy_key:
+        return base_key, level, "; ".join(reason_bits)
+    heavy_cfg = (cfg.get("models") or {}).get(heavy_key) or {}
+    heavy_name = str(heavy_cfg.get("name", "") or "")
+    if not heavy_name:
+        return base_key, level, "; ".join(reason_bits)
+    try:
+        from CORE import model_knowledge as mk
+        if not mk.is_installed(heavy_name, installed):
+            return (base_key, level,
+                    "; ".join(reason_bits + [
+                        f"heavy {heavy_name} NON installato: fallback"]))
+    except Exception:
+        return base_key, level, "; ".join(reason_bits)
+    return heavy_key, level, "; ".join(reason_bits)
+
+
 def route_model_key(title: str, description: str = "",
                     config: Optional[dict] = None,
                     base_key: str = "worker_coder",
                     installed: Optional[set[str]] = None,
-                    ) -> tuple[str, str]:
-    """(model_key_da_usare, livello) — heavy SOLO se alta+installata.
+                    project_root: Optional[str] = None,
+                    exclude_files: Optional[set[str]] = None,
+                    ) -> tuple[str, str, str]:
+    """(model_key_da_usare, livello, DECISIONE leggibile).
 
-    Args:
-        config: config.toml caricata (cerca [complexity_routing] e
-            [models.*]; NON la sezione [routing] dell'orchestrator).
-        base_key: modello base (chiave [models.*]).
-        installed: set dei modelli installati (None → ollama list).
+    Decisione (Fase 7): livello = MAX tra
+      - complessità percettiva (keyword: estimate_complexity)
+      - IMPATTO REALE sul progetto (estimate_impact, se project_root è
+        dato: simboli citati nel task → file toccati/profondità dal DB)
+    con ISTERESI: una volta heavy, un task 'media' resta heavy; si torna
+    al base solo con un task 'bassa' (niente sfarfallio tra task).
 
-    Fail-open: qualsiasi cosa manchi → (base_key, level).
+    Il terzo elemento è la frase completa tipo
+    "complessità alta → worker_coder_big | impatto alta (…); isteresi…"
+    pronta per il dict del risultato e per i log.
+
+    Fail-open: qualsiasi cosa manchi → (base_key, level, motivo).
     """
-    text = f"{title}\n{description}"
-    _score, level = estimate_complexity(text)
-    if level != "alta":
-        return base_key, level
-    cfg = config or {}
-    rt = cfg.get("complexity_routing") or {}
-    if not rt.get("enabled", True):
-        return base_key, level
-    heavy_key = str(rt.get("heavy_model", "") or "")
-    if not heavy_key:
-        return base_key, level
-    heavy_cfg = (cfg.get("models") or {}).get(heavy_key) or {}
-    heavy_name = str(heavy_cfg.get("name", "") or "")
-    if not heavy_name:
-        return base_key, level
-    try:
-        from CORE import model_knowledge as mk
-        if not mk.is_installed(heavy_name, installed):
-            return base_key, level  # heavy non installato: fallback
-    except Exception:
-        return base_key, level
-    return heavy_key, level
+    key, level, bits = _route_decide(
+        title, description, config, base_key, installed,
+        project_root, exclude_files)
+    heavy = str(((config or {}).get("complexity_routing") or {})
+                .get("heavy_model", ""))
+    if key != base_key:
+        head = f"complessità {level} → {key} (heavy {heavy})"
+    elif level == "alta" and heavy:
+        head = (f"complessità {level} → {base_key} "
+                f"(heavy {heavy} NON installato: fallback)")
+    else:
+        head = f"complessità {level} → {base_key}"
+    return key, level, (f"{head} | {bits}" if bits else head)
 
 
 def explain(title: str, description: str = "",
             config: Optional[dict] = None,
             base_key: str = "worker_coder",
-            installed: Optional[set[str]] = None) -> str:
+            installed: Optional[set[str]] = None,
+            project_root: Optional[str] = None,
+            exclude_files: Optional[set[str]] = None) -> str:
     """Spiegazione leggibile della decisione (per log GUI)."""
-    score, level = estimate_complexity(f"{title}\n{description}")
-    key, _ = route_model_key(title, description, config, base_key, installed)
-    heavy = str(((config or {}).get("complexity_routing") or {}).get("heavy_model", ""))
-    if key != base_key:
-        return (f"complessità {level} (score {score}) → {key} "
-                f"(heavy {heavy} installato)")
-    if level == "alta" and heavy:
-        return (f"complessità {level} (score {score}) → {base_key} "
-                f"(heavy {heavy} NON installato: fallback)")
-    return f"complessità {level} (score {score}) → {base_key}"
+    return route_model_key(
+        title, description, config, base_key, installed,
+        project_root, exclude_files)[2]

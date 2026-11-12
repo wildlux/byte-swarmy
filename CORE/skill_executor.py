@@ -61,11 +61,14 @@ _GUI_HINTS = ("QApplication", "QGuiApplication", "app.exec", "mainloop", "Tk(")
 # (T3 elementi quottati, T4 punteggiatura, T5 match esatto, T9 range
 # ridotto). Restano brevi e imperative: un 3B affoga nei discorsi lunghi.
 SYSTEM_DIRECT = (
-    "You are a code generator. Output ONLY one fenced ```python code "
-    "block with the COMPLETE file content. No explanations, no text "
-    "outside the code block. If a SKILL recipe is provided, follow it "
-    "EXACTLY: fill ONLY the {{...}} placeholders and keep every other "
-    "line unchanged.\n"
+    "You are a code generator. Your response MUST START on the FIRST "
+    "line with one fenced ```python code block containing the COMPLETE "
+    "file content. NEVER write any text before or after the code block: "
+    "no 'Okay', no explanations, no thinking, no notes.\n"
+    "If a SKILL recipe is provided, follow it EXACTLY: fill ONLY the "
+    "{{...}} placeholders and keep every other line unchanged. A "
+    "{{...}} placeholder left in the code is a SYNTAX ERROR — replace "
+    "EVERY one of them with real code.\n"
     "Rules:\n"
     "1. Implement EVERY function, method, class or exception the task "
     "names. Omit none.\n"
@@ -79,7 +82,10 @@ SYSTEM_DIRECT = (
     "5. Searching a name means SUBSTRING match (Mario matches Mario "
     "Rossi) unless the task says exact equality.\n"
     "6. print() exactly the markers the task requests (e.g. SOMMA=...).\n"
-    "7. Standard library only."
+    "7. Standard library only.\n"
+    "8. If the PROJECT MAP shows a class, use an INSTANCE "
+    "(obj = Class(); obj.method()) — never call methods directly on "
+    "the class itself."
 )
 
 _CODE_FENCE_RE = re.compile(r"```(?:python|py)?\s*\n(.*?)```", re.S | re.I)
@@ -90,7 +96,11 @@ def extract_code(text: str) -> str:
 
     Preferisce il blocco rinchiuso piu' lungo (i modelli piccoli a volte
     aggiungono frammenti di esempio); se non ci sono fence ma il testo
-    sembra codice puro, lo restituisce intiero.
+    sembra codice puro, lo restituisce intiero — ma PRIMA tronca tutto
+    cio' che precede la prima riga davvero-Python: i modelli piu' grandi
+    a volte ignorano il system prompt e aprono con prosa ("Okay, let's
+    tackle this problem..."), che altrimenti brucerebbe un tentativo di
+    py_compile.
     """
     raw = str(text or "")
     blocks = _CODE_FENCE_RE.findall(raw)
@@ -98,7 +108,17 @@ def extract_code(text: str) -> str:
         best = max(blocks, key=len).strip("\n")
         return best[:MAX_CODE_CHARS]
     stripped = raw.strip()
-    # Codice puro senza fence: deve sembrare Python (keyword note o print).
+    # Senza fence: cerco la prima riga che PUO' essere codice (import /
+    # from / def / class / print( / @decoratore) e scarto la prosa prima
+    # di essa. Le regex sono ancorate a inizio riga con spazio dopo la
+    # keyword: "definitely…" NON matcha "def ".
+    lines = stripped.splitlines()
+    for i, line in enumerate(lines):
+        if re.match(r"^(import |from |def |class |print\(|@)", line):
+            if i > 0:
+                stripped = "\n".join(lines[i:])
+            break
+    # Deve sembrare Python (keyword note o print).
     # Niente clausole con precedenza ambigua tipo `not x is False` —
     # il confronto resta esplicito e leggibile.
     looks_like_code = bool(
@@ -260,11 +280,25 @@ def _default_client(cfg=None):
                        logging.getLogger("skill_executor"))
 
 
+def _is_real_client(client) -> bool:
+    """True se il client è None (CLI) o il ModelClient reale (worker
+    GUI) → routing attivo. Un client finto (test) lo spegne: i test
+    devono restare deterministici."""
+    if client is None:
+        return True
+    try:
+        from CORE.ollama_client import ModelClient
+        return isinstance(client, ModelClient)
+    except Exception:
+        return False
+
+
 def run_direct(task: dict, project_root: str,
                model_key: str = "worker_coder",
                client=None,
                max_retries: int = 3,
-               filename: str = DEFAULT_FILENAME) -> dict:
+               filename: str = DEFAULT_FILENAME,
+               enable_routing: Optional[bool] = None) -> dict:
     """Esegue il task in modalita' diretta (modello SENZA tool).
 
     Args:
@@ -273,11 +307,12 @@ def run_direct(task: dict, project_root: str,
             come prompt di correzione iniziale).
         project_root: cartella progetto dove scrivere il file.
         model_key: chiave in [models.*] di CONFIG/config.toml.
-        client: ModelClient iniettabile (test); default auto-costruito.
-            IN TEST (client iniettato) il routing e' SPENTO: i test
-            devono restare deterministici.
+        client: ModelClient iniettabile; default auto-costruito. Con
+            client None o ModelClient REALE il routing e' attivo
+            (Fasi 6-7); con un client finto (test) resta OFF.
         max_retries: tentativi totali (generazione + correzioni).
         filename: file di output (default main.py, come le skill).
+        enable_routing: forzatura esplicita del routing; None = auto.
 
     Returns:
         dict {ok, path, attempts, error, model, route?, code?, history}
@@ -289,13 +324,15 @@ def run_direct(task: dict, project_root: str,
     root = Path(project_root)
     out_path = root / filename
 
-    # 🆕 Routing per complessità (Fase 6): SOLO in live. Il risultato
-    # arricchito dice QUALE modello ha lavorato e PERCHÉ (route).
-    live = client is None
+    # 🆕 Routing per complessità + IMPATTO (Fasi 6-7): livello = max
+    # (keyword, grafo del code_map), con isteresi. Il risultato dice
+    # QUALE modello ha lavorato e PERCHÉ (route).
+    if enable_routing is None:
+        enable_routing = _is_real_client(client)
     used_model = model_key
     route_reason = ""
     cfg = None
-    if live:
+    if enable_routing:
         log = logging.getLogger("skill_executor")
         try:
             from CORE.orchestrator import load_config
@@ -304,12 +341,11 @@ def run_direct(task: dict, project_root: str,
             cfg = None
         try:
             from CORE import model_knowledge as mk
-            from CORE.routing import explain, route_model_key
+            from CORE.routing import route_model_key
             installed = mk.installed_names()
-            used_model, _level = route_model_key(
-                title, description, cfg, model_key, installed)
-            route_reason = explain(title, description, cfg, model_key,
-                                   installed)
+            used_model, _level, route_reason = route_model_key(
+                title, description, cfg, model_key, installed,
+                project_root=str(root), exclude_files={filename})
             log.info("[routing] %s", route_reason)
         except Exception:
             route_reason = ""  # fail-open: resta il modello base

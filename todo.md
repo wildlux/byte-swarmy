@@ -284,11 +284,29 @@ progetto in `<progetto>/.byteswarm/codemap.db`, rebuild **incrementale** per mti
 
 **Bilancio**: skill = giù in complessità percettiva; routing = su in capacità del modello; il gate (compile→static→runtime) è il componente che tiene insieme i due nei due sensi. Restano per Fase 7: regressione completa suite T1–T10 sul 4B (ora fattibile), routing complesso su grafo del code_map.
 
-## Fase 7 — Routing COMPLESSO (piano, da implementare dopo la 6)
+## Fase 7 — Routing COMPLESSO (grafo del code_map)
 
-**Idea**: usare il DATABASE della mappa (Fase 4) per decidere il modello in base all'IMPATTO REALE del task sul progetto, non solo alle parole del titolo.
+**Idea (utente)**: usare il DATABASE della mappa (Fase 4) per decidere il modello in base all'IMPATTO REALE del task sul progetto, non solo alle parole del titolo.
 
-1. **Impatto dal grafo**: i simboli citati nel task (match nome nel DB) → sett di file toccati, profondità chiamate a valle (chi usa quei simboli), presenza di test che li coprono.
-2. **Regola di decisione**: ≥2 file toccati OR profondità ≥3 OR mappa > N simboli → heavy; con hysteresis (una volta heavy, resta heavy finché il task non torna semplice) per evitare sfarfallio.
-3. **Integrazione**: la decisione va nel task meta del dispatcher (`route: {level, model, reason}`) e nel log GUI (actors_log), così l'utente vede PERCHÉ.
-4. **Valutazione**: installare `kirito1/qwen3-coder:4b` (⬇ nel pannello), rifare la suite T1–T10 sui due modelli, tabella comparativa.
+- [x] **Impatto dal grafo** — `estimate_impact(text, project_root, exclude_files)` in `CORE/routing.py`:
+  - simboli citati nel task (match a confine-parola, case-sensitive, min 3 char) contro il DB
+  - file toccati = definizione ∪ chiamate dirette (file target escluso: sta per essere riscritto)
+  - profondità BFS a valle (callee→caller, cap 3) + flag `tests` (un test che chiama un chiamante copre il simbolo citato)
+  - livello: `''` (nessuna citazione) · `media` (1 file) · `alta` (≥2 file OR profondità ≥3)
+- [x] **Regola di decisione**: livello finale = MAX(keyword, impatto) + **isteresi** (una volta heavy, `media` resta heavy; solo `bassa` torna al base — niente sfarfallio tra task consecutivi). `reset_hysteresis()` per test/batch
+- [x] **Integrazione**: `run_direct(enable_routing=None)` — auto: attivo con client None (CLI) **o ModelClient reale** (worker GUI, che ora passa `self.models`); finto da test → OFF (determinismo). `route_model_key()` restituisce `(key, level, decisione_leggibile)`; il worker la registra in log + evento memoria (`model=` e `route=` nel meta)
+- [x] Accessor `code_map.calls()` per il grafo chiamate
+- [ ] **Valutazione**: suite T1–T10 su entrambi i modelli (stessa pipeline, routing OFF) → `scripts/suite_compare.py` → `state/suite_compare/results.json` *(in esecuzione)*
+
+**Prova live (routing attivo)**: task di riuso su `PR_TEST_progetto` — `route: "complessità media → worker_coder | impatto media (1 file, profondità 0, simboli citati: Statistiche, media, mediana)"` — il grafo ha visto i 3 simboli in `utils.py`, il task è restato sul base, PASS al 1° tentativo.
+
+### Risultati suite comparativa T1–T10 (routing OFF, stessa pipeline)
+*(in esecuzione — `state/suite_compare/results.json`, runner `scripts/suite_compare.py`)*
+
+### Ottimizzazioni skill/prompt/tools (dalla diagnosi dei fallimenti)
+
+**P1 — SYSTEM_DIRECT (prompt)**: il 4B brucia tentativi su prosa iniziale ("Okay, let's tackle…") senza fence → regola dura "la PRIMA riga dell'output DEVE essere ```python" + "un {{...}} lasciato nel codice è un errore di sintassi: sostituiscili TUTTI".
+**P2 — extract_code (tool)**: niente fence + prosa prima → oggi il testo intero va in py_compile e muore. Fix: nel fallback senza fence, tronca tutto ciò che precede la prima riga Python reale (`^(import |from |def |class |print\()`).
+**P3 — py-text-analyze (skill)**: la riga-placeholder `{{ PRINT THE EXACT MARKERS THE TASK REQUESTS }}` è stata copiata LETTERALMENTE dal 4B → sostituirla con un print concreto + regola.
+**P4 — regola istanza (prompt)**: il 4B chiama `Statistiche.media(lista)` senza istanza (AttributeError) → in SYSTEM_DIRECT: "se il PROJECT MAP ha una class, usa un'ISTANZA (obj = Class(); obj.method())".
+**P5 — try/except fragili (skill)**: T3@2 "expected 'except' or 'finally'" → rinforzare il template py-class-module con il blocco try/except completo da non spezzare.
