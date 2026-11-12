@@ -322,6 +322,71 @@ def calls(project_root: str | Path) -> list[dict]:
     except Exception:
         return []
 
+
+def relevant_symbols(project_root: str | Path,
+                     target_file: str | Path) -> list[dict]:
+    """Simbodo rilevanti per un modulo target: il modulo stesso + i suoi
+    dipendenti diretti (chi lo chiama e chi lui chiama). Riduce il rumore
+    nel prompt rispetto a tutta la mappa.
+
+    Fail-open: senza DB → lista vuota.
+    """
+    try:
+        rebuild(project_root)
+        target = str(target_file)
+        root = Path(project_root)
+        # Normalizza il target a path relativo
+        try:
+            target_rel = str(Path(target).relative_to(root))
+        except ValueError:
+            target_rel = target
+
+        # 1. Simbodo definiti nel target
+        result: list[dict] = []
+        seen: set[tuple] = set()
+        for s in symbols(project_root):
+            if s["file"] == target_rel:
+                key = (s["file"], s["name"], s["line"])
+                if key not in seen:
+                    seen.add(key)
+                    result.append(s)
+
+        # 2. File che chiamano simbodo del target → i loro simbodo
+        #    (dipendenti diretti, 1 livello)
+        target_syms = {s["name"] for s in result}
+        direct_files: set[str] = set()
+        for c in calls(project_root):
+            if c["callee"] in target_syms and c["file"] != target_rel:
+                direct_files.add(c["file"])
+        for f in direct_files:
+            for s in symbols(project_root):
+                if s["file"] == f:
+                    key = (s["file"], s["name"], s["line"])
+                    if key not in seen:
+                        seen.add(key)
+                        result.append(s)
+
+        # 3. File chiamati dal target (dipendenze del target)
+        callee_files: set[str] = set()
+        for c in calls(project_root):
+            if c["file"] == target_rel:
+                # trova il file che definisce il callee
+                for s in symbols(project_root):
+                    if s["name"] == c["callee"]:
+                        callee_files.add(s["file"])
+        for f in callee_files:
+            if f != target_rel:
+                for s in symbols(project_root):
+                    if s["file"] == f:
+                        key = (s["file"], s["name"], s["line"])
+                        if key not in seen:
+                            seen.add(key)
+                            result.append(s)
+
+        return result
+    except Exception:
+        return []
+
 # ── C1: atomizzatore di moduli ────────────────────────────────────────
 def decompose_module(path: str | Path) -> list[dict]:
     """Scompone un modulo in N task atomici (uno per funzione/classe).

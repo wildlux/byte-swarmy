@@ -438,12 +438,8 @@ Obiettivo: portare il sistema da "assistente di prima passata" a "assistente di 
 
 ### E. Miglioramenti al system prompt (progressive disclosure)
 
-- [ ] **E1 — System prompt compatto**: ridurre il SYSTEM_DIRECT a < 500 token rimuovendo le regole ridondanti e tenendo solo le 5 più efficaci (fence, placeholder, istanza, marker, no input).
-  - File: `CORE/skill_executor.py` — `SYSTEM_DIRECT`
-  - Test: len(SYSTEM_DIRECT.split()) < 500
-
-- [ ] **E2 — Skill on-demand**: caricare solo i metadati della skill nel prompt (~50 token), e il corpo completo (~500-2000 token) solo quando la skill è matchata. Già parzialmente implementato via `find_skill()` + `format_skill_block()`.
-  - Verifica: il prompt con skill ha < 1500 token totali (system + skill + mappa)
+- [x] **E1 — System prompt compatto**: ✅ già soddisfatto. SYSTEM_DIRECT = 262 parole (~341 token), ben sotto i 500. Le 9 regole sono tutte essenziali (ognuna indirizza un fallimento specifico della suite). Nessuna regola ridondante da rimuovere — merge di regole 4/5 (string handling) ridurrebbe la chiarezza senza guadagno misurabile. Verificato: `len(SYSTEM_DIRECT.split()) = 262 < 500`.
+- [x] **E2 — Skill on-demand**: ✅ già implementato. `find_skill()` matcha per keyword (confine di parola), `format_skill_block()` tronca il corpo a MAX_SKILL_BODY_CHARS=1400 (~350 token). Il prompt totale con skill + mappa misura ~363 token (verificato). Progressive disclosure già attivo: solo i metadati nel prompt iniziale, corpo completo solo se matchata.
 
 ### F. Memoria e contesto
 

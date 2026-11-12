@@ -96,11 +96,19 @@ def record_file_created(filepath: str, description: str = "") -> None:
 
 
 def record_error(error_type: str, error_message: str, context: str = "") -> None:
-    """Registra un errore comune per evitare di ripeterlo."""
+    """Registra un errore comune per evitare di ripeterlo.
+
+    M8-F1: compaction intelligente — errori simili (stesso tipo e
+    messaggio condiviso) vengono compressi in un'unica entry con
+    contatore, invece di occupare slot separati. Se la lista supera
+    MAX_ERRORS, le entry con lo stesso tipo vengono fuse (somma dei
+    count, messaggio più recente).
+    """
     mem = load_memory()
     errors = mem["common_errors"]
+    MAX_ERRORS = 20
 
-    # Verifica se simile a uno esistente
+    # 1. Cerca match esatto (tipo + prefisso messaggio)
     for e in errors:
         if e.get("type") == error_type and error_message[:50] in e.get("message", ""):
             e["count"] = e.get("count", 0) + 1
@@ -108,7 +116,22 @@ def record_error(error_type: str, error_message: str, context: str = "") -> None
             save_memory(mem)
             return
 
-    # Nuovo errore
+    # 2. Cerca match fuzzy: stesso tipo, messaggi che condividono
+    #    almeno 3 parole significative (>3 char)
+    msg_words = {w for w in error_message.lower().split() if len(w) > 3}
+    for e in errors:
+        if e.get("type") == error_type:
+            e_words = {w for w in e.get("message", "").lower().split()
+                       if len(w) > 3}
+            if len(msg_words & e_words) >= 3:
+                e["count"] = e.get("count", 0) + 1
+                e["last_seen"] = time.time()
+                # Aggiorna il messaggio se il nuovo è più recente
+                e["message"] = error_message[:200]
+                save_memory(mem)
+                return
+
+    # 3. Nuovo errore
     errors.append({
         "type": error_type,
         "message": error_message[:200],
@@ -117,8 +140,30 @@ def record_error(error_type: str, error_message: str, context: str = "") -> None
         "first_seen": time.time(),
         "last_seen": time.time(),
     })
-    # Mantieni solo gli ultimi 20
-    mem["common_errors"] = errors[-20:]
+
+    # 4. Compaction: se si supera MAX_ERRORS, fonde le entry con lo
+    #    stesso tipo (somma count, messaggio più recente)
+    if len(errors) > MAX_ERRORS:
+        merged: dict[str, dict] = {}
+        for e in errors:
+            t = e.get("type", "unknown")
+            if t in merged:
+                merged[t]["count"] = merged[t].get("count", 0) + e.get("count", 1)
+                merged[t]["last_seen"] = max(
+                    merged[t].get("last_seen", 0),
+                    e.get("last_seen", 0))
+                # Messaggio più recente
+                if e.get("last_seen", 0) > merged[t].get("last_seen", 0) - 1:
+                    merged[t]["message"] = e.get("message", merged[t]["message"])
+            else:
+                merged[t] = dict(e)
+        errors = list(merged.values())
+        # Se ancora troppi, tieni i più recenti
+        if len(errors) > MAX_ERRORS:
+            errors = sorted(errors, key=lambda e: e.get("last_seen", 0),
+                            reverse=True)[:MAX_ERRORS]
+
+    mem["common_errors"] = errors
     save_memory(mem)
 
 
