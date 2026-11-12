@@ -276,8 +276,11 @@ ollama pull phi3:mini
 # Worker coding (circa 1 GB)
 ollama pull qwen2.5-coder:1.5b
 
-# Worker coding pesante (GPU, ~2 GB) — consigliato per task di codice complessi
+# Worker coding base (GPU, ~2 GB) — task concreti e deterministici
 ollama pull qwen2.5-coder:3b
+
+# Heavy per complessità alta (MoE, ~4.2 GB) — refactoring e task complessi
+ollama pull granite4:7b-a1b-h
 
 # Worker general (circa 1 GB)
 ollama pull qwen2.5:1.5b
@@ -300,12 +303,19 @@ ollama pull tev1:4b
 ## Schema consigliato (4 GB RAM / 4 GB VRAM)
 
 ```
-Router (qwen2.5:0.5b, RAM)  →  Coder 3B Q4_K_M (GPU)  →  Verifica (test/compilatore)
-                              ↓ se il 3B fallisce definitivamente
-                    Coder 1.5B Q8 (RAM) come secondo tentativo
+Router (qwen2.5:0.5b, RAM)  →  Routing per complessità  →  Verifica (gate statici + runtime)
+                                ├─ semplice/media → Coder 3B Q4_K_M (GPU) · 10/10 suite T1–T10
+                                └─ alta (keyword o impatto ≥2 file) → granite4:7b-a1b-h (heavy)
+                                        ↓ heavy non installato: fallback automatico sul 3B
+        task comunque fallito → worker_general (RAM) come secondo tentativo
 ```
 
-I due coder sono della stessa famiglia e sbagliano in modo simile, quindi per la diversità si può aggiungere un modello di un'altra famiglia (es. `deepseek-coder:1.3b`).
+Il routing (`CORE/routing.py`) combina le parole del task con l'**impatto
+reale** calcolato sul grafo del code_map (simboli citati → file toccati e
+profondità delle dipendenze): un refactoring che tocca più file va
+automaticamente al heavy, il resto resta sul 3B. I due coder sono della
+stessa famiglia e sbagliano in modo simile, quindi per la diversità si può
+aggiungere un modello di un'altra famiglia (es. `deepseek-coder:1.3b`).
 
 > Il tab **Modelli** nella GUI può auto-selezionare i modelli migliori per il
 > tuo hardware con un clic (pulsante "Auto-Select"). Puoi anche eseguire un
@@ -530,6 +540,33 @@ them via `tools.run_bash` in the sandbox. No LLM invoked.
 | `type=generic` | Decision Model (`tev1:4b`) → 2–8 subtask |
 | Keyword complesse ("sistema", "multi") | Planner (`phi3:mini`) → 2–5 subtask |
 | Altrimenti | Worker diretto |
+
+### Routing per complessità (worker coding, Fasi 6–7)
+
+Prima di ogni esecuzione diretta (`CORE/skill_executor.run_direct`) il
+sistema sceglie il modello combinando due segnali (`CORE/routing.py`):
+
+- **Complessità percettiva (keyword)**: concetti dove i modelli piccoli
+  falliscono sistematicamente (decoratore, thread, lock…) → livello
+  `media`/`alta`;
+- **Impatto reale (grafo del code_map)**: i simboli del progetto citati nel
+  task (match a confine di parola contro il DB della mappa) dicono quanti
+  file il task tocca (definizione ∪ chiamate) e a che profondità arrivano
+  le dipendenze a valle. ≥2 file toccati o profondità ≥3 → `alta`.
+
+Livello `alta` → heavy `worker_granite` (`granite4:7b-a1b-h`, MoE con ~1B
+parametri attivi) **se installato**, altrimenti fallback automatico sul
+base — fail-open ovunque: senza config o senza ollama si usa sempre il
+base, mai un crash. **Isteresi**: una volta heavy, i task `media` restano
+heavy; solo un task `bassa` torna al 3B (niente sfarfallio tra task
+consecutivi). Attivo solo in live (CLI/GUI): con un client finto da test
+resta OFF per il determinismo. Ogni modello può definire il proprio
+`timeout` in `[models.*]`, che sovrascrive `[ollama].request_timeout`.
+
+Verifica sperimentale (suite T1–T10, routing OFF, stessa pipeline):
+3B **10/10 in 139 s**; 4B 4/10 in 2.678 s (×19 più lento, timeout LLM) →
+scartato; `granite4:7b-a1b-h` spot-check 2/2 (31 s e 10 s, primo
+tentativo) → scelto come heavy. I test unit sono in `tests/test_routing.py`.
 
 ### Timestral — tuning dinamico + LLM Tuner
 

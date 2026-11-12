@@ -90,7 +90,10 @@ The "hands" of the system. A coding agent that operates inside a strict
 bubblewrap sandbox.
 - **Specialisations**:
   - `worker_coder`: optimised for implementation and refactoring
-    (e.g., `qwen2.5-coder:1.5b`).
+    (e.g., `qwen2.5-coder:3b` — 10/10 on the T1–T10 suite).
+  - `worker_granite`: complexity-routing heavy for high-impact tasks
+    (e.g., `granite4:7b-a1b-h`, MoE ~1B active params — verified first
+    attempt on the heavy spot-check).
   - `worker_general`: optimised for research, audit and general tasks
     (e.g., `qwen2.5:1.5b`).
 - **ReAct loop** (max 6 steps, 400 tokens/step): `Thought → Action (tool
@@ -270,16 +273,23 @@ Activity Panel.
 9. Worker calls `done=true` → Auditor reviews → APPROVE/REJECT.
 10. On APPROVE → `mark_done` + `git_commit` + persistent memory updated.
 11. On REJECT → `mark_failed` (retries up to 10 times, then `stuck`).
-12. **Fallback modello:** se `worker_coder` (qwen2.5-coder:3b, GPU) fallisce
+12. **Routing per complessità (live only):** prima dell'esecuzione diretta
+    il sistema stima keyword + IMPATTO reale (`CORE/routing.py`, grafo del
+    code_map: simboli citati → file toccati, BFS a valle). Livello `alta`
+    → `worker_granite` (granite4:7b-a1b-h) se installato, con isteresi
+    sticky (`media` resta heavy, `bassa` torna al base); fail-open.
+13. **Fallback modello:** se `worker_coder` (qwen2.5-coder:3b, GPU) fallisce
     definitivamente, il task viene rimesso in `pending` e rieseguito con
     `worker_general` (qwen2.5:1.5b, RAM) come secondo tentativo.
 
 ## Schema consigliato (4 GB RAM / 4 GB VRAM)
 
 ```
-Router (qwen2.5:0.5b, RAM)  →  Coder 3B Q4_K_M (GPU)  →  Verifica (test/compilatore)
-                              ↓ se il 3B fallisce definitivamente
-                    Coder 1.5B Q8 (RAM) come secondo tentativo
+Router (qwen2.5:0.5b, RAM)  →  Routing per complessità  →  Verifica (gate statici + runtime)
+                                ├─ semplice/media → Coder 3B Q4_K_M (GPU) · 10/10 suite T1–T10
+                                └─ alta (keyword o impatto ≥2 file) → granite4:7b-a1b-h (heavy)
+                                        ↓ heavy non installato: fallback automatico sul 3B
+        task comunque fallito → worker_general (RAM) come secondo tentativo
 ```
 
 I due coder sono della stessa famiglia e sbagliano in modo simile; per la

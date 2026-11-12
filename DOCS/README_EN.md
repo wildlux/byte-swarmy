@@ -151,6 +151,7 @@ What you can see:
 | **Orchestrator** | Main loop, dispatch, safety checks, swarm commands | Python |
 | **Planner** | Decomposes complex tasks | Ollama |
 | **Decision Model** | Decomposes generic tasks into 2–8 atomic subtasks | Ollama (`tev1:4b`) |
+| **Complexity Router** | Picks heavy vs base coding model by keywords + real impact from the code_map graph | Python |
 | **Worker** | Executes the atomic task: 21 tools, ReAct loop, token streaming | Ollama |
 | **Audit Worker** | Reviewer: approves/rejects the worker's output | Ollama |
 | **Model Selector** | 0–100 algorithm to pick the best model per role | Python |
@@ -214,6 +215,12 @@ ollama pull phi3:mini
 
 # Coding worker (~1 GB)
 ollama pull qwen2.5-coder:1.5b
+
+# Coding worker base (GPU, ~2 GB) — concrete, deterministic tasks
+ollama pull qwen2.5-coder:3b
+
+# Complexity-routing heavy (MoE, ~4.2 GB) — refactoring and complex tasks
+ollama pull granite4:7b-a1b-h
 
 # General worker (~1 GB)
 ollama pull qwen2.5:1.5b
@@ -438,6 +445,32 @@ Instant response, zero tokens.
 | `type=generic` | Decision Model (`tev1:4b`) → 2–8 subtasks |
 | Complex keywords ("system", "multi") | Planner (`phi3:mini`) → 2–5 subtasks |
 | Otherwise | Worker directly |
+
+### Complexity routing (coding worker, Phases 6–7)
+
+Before every direct run (`CORE/skill_executor.run_direct`) the system picks
+the model by combining two signals (`CORE/routing.py`):
+
+- **Perceived complexity (keywords)**: concepts where small models fail
+  systematically (decorators, threads, locks…) → level `medium`/`high`;
+- **Real impact (code_map graph)**: project symbols cited in the task
+  (word-boundary match against the map database) tell how many files the
+  task touches (definitions ∪ call sites) and how deep the downstream
+  dependency chain goes. ≥2 touched files or depth ≥3 → `high`.
+
+Level `high` → heavy `worker_granite` (`granite4:7b-a1b-h`, MoE with ~1B
+active parameters) **if installed**, otherwise automatic fallback to the
+base model — fail-open everywhere: no config or no ollama always means the
+base model, never a crash. **Hysteresis**: once heavy, `medium` tasks stay
+heavy; only a `low` task returns to the 3B (no flapping between
+consecutive tasks). Live-only (CLI/GUI): with a fake test client it stays
+OFF for determinism. Each model may also define its own `timeout` in
+`[models.*]`, overriding `[ollama].request_timeout`.
+
+Measured on this 4 GB machine (suite T1–T10, routing OFF, same pipeline):
+3B **10/10 in 139 s**; 4B 4/10 in 2,678 s (×19 slower, LLM timeouts) →
+rejected; `granite4:7b-a1b-h` spot-check 2/2 (31 s and 10 s, first
+attempt) → chosen as heavy. Unit tests live in `tests/test_routing.py`.
 
 ### Timestral — dynamic tuning
 
