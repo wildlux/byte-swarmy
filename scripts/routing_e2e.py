@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -97,6 +98,8 @@ def main() -> int:
         dt = round(time.monotonic() - t0, 1)
         res["done"] = True
         res["secs"] = dt
+        res["started_at"] = started_at
+        res["finished_at"] = datetime.now().isoformat()
         results[rid] = res
         out_path.write_text(
             json.dumps(results, indent=2, ensure_ascii=False),
