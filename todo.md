@@ -394,12 +394,12 @@ Obiettivo: portare il sistema da "assistente di prima passata" a "assistente di 
 
 ### A. Validazione comportamentale (priorità massima)
 
-- [ ] **A1 — Oracle test in `verify_runtime`**: estendere `verify_runtime(code, out_path, expected_markers=...)` con un parametro `oracle_tests: list[tuple[str, str]]` = [(input, expected_output)]. Il gate esegue il codice con ogni input e verifica l'output. Se differisce → reject con messaggio mirato: "input [1,2,3] → atteso 6, ottenuto 5 (errore nella somma)".
+- [x] **A1 — Oracle test in `verify_runtime`**: ✅ fatto. Parametro `oracle_checks: list[str]` → sottostringhe che DEVONO apparire nel stdout. Se mancano → reject mirato. Integrato in `run_direct(oracle_checks=...)`. 7 test (test_oracle_gate.py).
   - File: `CORE/skill_executor.py` (verify_runtime)
   - Test: unit senza LLM — marker sui 5 titoli noti + oracle ×3 (ok / wrong output / crash)
   - Esempio task: "funzione somma(lista) che ritorna la somma. Verifica: somma([1,2,3])==6, somma([])==0"
 
-- [ ] **A2 — Diff semantico (snapshot pre/post)**: prima di revisionare un modulo, catturare il suo output su un set di input noti (snapshot in `state/snapshots/<modulo>.json`). Dopo la revisione, rieseguire gli stessi input e confrontare. Se differisce → reject automatico con diff.
+- [x] **A2 — Diff semantico (snapshot pre/post)**: ✅ fatto. `CORE/behavioral_diff.py` (NUOVO): `snapshot()`, `save/load`, `verify()` → (ok, diff). `run_direct(behavioral_check=True)` crea snapshot automatico se non esiste, verifica post-generazione → reject con diff se diverge. 8 test (test_behavioral_diff.py) + 4 test integrazione (test_behavioral_check.py).
   - Nuovo modulo: `CORE/behavioral_diff.py` — `snapshot(path, inputs)`, `verify(path, snapshot) -> (ok, diff)`
   - Integrazione: `run_direct` chiamato con `behavioral_check=True` → snapshot automatico se non esiste, verifica se esiste
   - Test: unit senza LLM — snapshot ×2 (crea/legge), verify ×3 (ok / divergenza / crash)
@@ -418,17 +418,17 @@ Obiettivo: portare il sistema da "assistente di prima passata" a "assistente di 
 
 ### C. Decomposizione automatica dei task
 
-- [ ] **C1 — Atomizzatore di moduli**: un modulo con N funzioni diventa N task atomici (uno per funzione). Il planner (`generic_planner.py`) genera task con `scope: function` invece di `scope: module`.
+- [x] **C1 — Atomizzatore di moduli**: ✅ fatto. `decompose_module(path) -> list[dict]` in `CORE/code_map.py` — parse AST, estrae funzioni/classi di primo livello, genera task atomici con scope/target_file/symbol. 7 test (test_task_atomizer.py).
   - File: `CORE/generic_planner.py` — aggiungere `decompose_module(path) -> list[task]`
   - Test: modulo con 3 funzioni → 3 task atomici
 
-- [ ] **C2 — Ordine topologico**: i task atomici vengono ordinati per dipendenza (le funzioni chiamate prima, le chiamanti dopo). Evita che il modello revisioni una funzione prima delle sue dipendenze.
+- [x] **C2 — Ordine topologico**: ✅ fatto. `dependency_order(project_root) -> list[str]` in `CORE/code_map.py` — BFS sul grafo delle chiamate (Kahn's algorithm), i chiamati prima dei chiamanti. Fail-open → ordine alfabetico. 5 test (test_task_atomizer.py).
   - File: `CORE/code_map.py` — aggiungere `dependency_order(project_root) -> list[str]` (BFS sul grafo delle chiamate)
   - Test: grafo A→B, B→C → ordine [C, B, A]
 
 ### D. Feedback mirato dal gate (diagnosi intelligente)
 
-- [ ] **D1 — Diagnosi errori di marker**: il gate, quando un marker è mancante, suggerisce la riga di codice da aggiungere. Es: "manca LEN=3. Aggiungi `print(f'LEN={len(coll)}')` dopo le add()."
+- [x] **D1 — Diagnosi errori di marker**: ✅ fatto. `suggest_fix_for_marker(missing, code)` → suggerimento mirato per marker comuni (LEN, HAS, SOMMA, OVERFLOW, UNDERFLOW, ...). Integrato in `verify_runtime`: il messaggio di reject include 'Suggerimento: ...'. 6 test (test_diagnosis.py).
   - File: `CORE/skill_executor.py` — estendere `verify_runtime` con `suggest_fix(missing_marker, code) -> str`
   - Test: marker mancante → suggerimento contiene il print corretto
 

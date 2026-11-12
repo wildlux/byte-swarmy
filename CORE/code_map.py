@@ -322,6 +322,120 @@ def calls(project_root: str | Path) -> list[dict]:
     except Exception:
         return []
 
+# ── C1: atomizzatore di moduli ────────────────────────────────────────
+def decompose_module(path: str | Path) -> list[dict]:
+    """Scompone un modulo in N task atomici (uno per funzione/classe).
+
+    Deterministico: parse AST, estrae i simboli di primo livello.
+    Ogni task ha: title, description, scope, target_file, symbol.
+    Fail-open: file non parsabile → lista vuota.
+    """
+    path = Path(path)
+    try:
+        src = path.read_text(encoding="utf-8")
+        tree = ast.parse(src)
+    except Exception:
+        return []
+    tasks: list[dict] = []
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            tasks.append({
+                "title": f"Revisiona la funzione {node.name} in {path.name}",
+                "description": (f"Funzione {node.name} (riga {node.lineno}) "
+                                f"del modulo {path.name}."),
+                "scope": "function",
+                "target_file": str(path),
+                "symbol": node.name,
+                "kind": "function",
+            })
+        elif isinstance(node, ast.ClassDef):
+            tasks.append({
+                "title": f"Revisiona la classe {node.name} in {path.name}",
+                "description": (f"Classe {node.name} (riga {node.lineno}) "
+                                f"del modulo {path.name}."),
+                "scope": "class",
+                "target_file": str(path),
+                "symbol": node.name,
+                "kind": "class",
+            })
+    return tasks
+
+
+# ── C2: ordine topologico delle dipendenze ────────────────────────────
+def dependency_order(project_root: str | Path) -> list[str]:
+    """Ordina i file per dipendenza: i chiamati prima, i chiamanti dopo.
+
+    BFS sul grafo delle chiamate: per ogni call (file=F1, callee=X),
+    trova il file F2 che definisce X → F2 deve venire prima di F1.
+    Fail-open: senza DB o senza chiamate → ordine alfabetico.
+    """
+    try:
+        rebuild(project_root)
+        call_rows = calls(project_root)
+        sym_rows = symbols(project_root)
+    except Exception:
+        return []
+    if not call_rows or not sym_rows:
+        try:
+            root = Path(project_root)
+            return sorted(str(p.relative_to(root))
+                          for p in root.rglob("*.py")
+                          if not (SKIP_DIRS & set(p.relative_to(root).parts)))
+        except Exception:
+            return []
+
+    # Mappa: nome simbodo → file che lo definisce
+    definer: dict[str, str] = {}
+    for sym in sym_rows:
+        definer.setdefault(sym["name"], sym["file"])
+        definer.setdefault(sym["qualname"], sym["file"])
+
+    # Grafo file-level: F1 dipende da F2 se F1 chiama un simbodo
+    # definito in F2
+    deps: dict[str, set[str]] = {}
+    all_files: set[str] = set()
+    for c in call_rows:
+        all_files.add(c["file"])
+        callee_file = definer.get(c["callee"])
+        if callee_file and callee_file != c["file"]:
+            deps.setdefault(c["file"], set()).add(callee_file)
+            all_files.add(callee_file)
+
+    # Topological sort (Kahn's algorithm)
+    in_degree = {f: len(deps.get(f, set())) for f in all_files}
+    for f in all_files:
+        if f not in in_degree:
+            in_degree[f] = 0
+
+    from collections import deque
+    queue = deque(sorted(f for f in all_files if in_degree[f] == 0))
+    result: list[str] = []
+    while queue:
+        f = queue.popleft()
+        result.append(f)
+        for other in list(all_files):
+            if f in deps.get(other, set()):
+                deps[other].discard(f)
+                in_degree[other] -= 1
+                if in_degree[other] == 0 and other not in result:
+                    queue.append(other)
+                    # re-sort for determinism
+                    queue = deque(sorted(queue))
+
+    # Aggiungi i file non nel grafo (isolati) in ordine alfabetico
+    try:
+        root = Path(project_root)
+        all_py = sorted(str(p.relative_to(root))
+                        for p in root.rglob("*.py")
+                        if not (SKIP_DIRS & set(p.relative_to(root).parts)))
+        for f in all_py:
+            if f not in result:
+                result.append(f)
+    except Exception:
+        pass
+
+    return result
+
 
 def find_symbol(project_root: str | Path, name: str) -> dict | None:
     """Ricerca per nome (match esatto o suffisso di qualname)."""
