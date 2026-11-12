@@ -59,52 +59,6 @@
 
 ---
 
-## Sicurezza
-
-> **Regola 0 — la difesa è sempre attiva.**
-> Ogni task è trattato come potenzialmente ostile (prompt injection). La policy
-> di sicurezza è applicata nel codice a ogni chiamata di tool e **non può essere
-> disattivata** da configurazione, prompt, task MCP o output del modello.
-
-BYTE-SWARMY esegue codice generato da LLM piccoli con i permessi dell'utente che
-avvia l'orchestratore. Le protezioni incluse bloccano i comandi più pericolosi,
-ma **non sostituiscono un isolamento di sistema**:
-
-- `run_bash` non usa una shell: allowlist, blacklist e path confinati in `project/`;
-- sandbox bubblewrap: filesystem isolato, rete bloccata, PID/user namespace separati;
-- escape `/etc` bloccato (`--tmpfs /etc` + `--remount-ro`);
-- `git push` / `pull` / `remote add|remove` sono disabilitati per i worker;
-- ambiente sanificato (niente token, `SSH_AUTH_SOCK`, `HOME` reale);
-- limiti di CPU, memoria, dimensione file e timeout sul process group;
-- quota disco su `project/` (500 MB default);
-- task MCP ricostruiti da zero e URL limitati a `http`/`https`;
-- audit log con rotazione in `logs/security.log`;
-- AST scanner: blocca `eval`, `exec`, `pickle` prima del sandbox;
-- anti-escape guardrail: blocca artefatti `\"`, `//` e righe duplicate nei file generati.
-
-`[security] enabled = false` in `config.toml` viene **ignorato** e registrato
-come `CRITICAL`: il flag esiste solo per retrocompatibilità.
-
-Per dati reali è necessario aggiungere l'isolamento di sistema (utente dedicato,
-cgroup, firewall):
-
-```bash
-./setup-hardening.sh                  # diagnostica, nessuna modifica
-sudo ./setup-hardening.sh --all       # utente byteswarmy + cgroup + firewall
-```
-
-Dettagli, modello di minaccia, rischi residui e rollback:
-**[SECURITY.md](SECURITY.md)**.
-
-Verifica della policy:
-
-```bash
-python -m pytest tests/ -v            # 226 test + 131 subtest: security, sandbox, escape-gate, intent, execute, decision-feedback, correction, thermal-gate, repo-hygiene, dotfile-security, scheduler, settings, actors-panel, MCP E2E, USB protocol/differential, Timestral E2E (+3 E2E live)
-tail -f logs/security.log
-```
-
----
-
 ## Panoramica
 
 BYTE-SWARMY è un sistema multi-agente che gira interamente in locale su hardware
@@ -160,6 +114,52 @@ dopo un riavvio.
 
 **Acronimo:** **B**yte-**S**warm **W**ith **A**utonomous **R**esource
 **M**anagement & **Y**ield.
+
+---
+
+## Sicurezza
+
+> **Regola 0 — la difesa è sempre attiva.**
+> Ogni task è trattato come potenzialmente ostile (prompt injection). La policy
+> di sicurezza è applicata nel codice a ogni chiamata di tool e **non può essere
+> disattivata** da configurazione, prompt, task MCP o output del modello.
+
+BYTE-SWARMY esegue codice generato da LLM piccoli con i permessi dell'utente che
+avvia l'orchestratore. Le protezioni incluse bloccano i comandi più pericolosi,
+ma **non sostituiscono un isolamento di sistema**:
+
+- `run_bash` non usa una shell: allowlist, blacklist e path confinati in `project/`;
+- sandbox bubblewrap: filesystem isolato, rete bloccata, PID/user namespace separati;
+- escape `/etc` bloccato (`--tmpfs /etc` + `--remount-ro`);
+- `git push` / `pull` / `remote add|remove` sono disabilitati per i worker;
+- ambiente sanificato (niente token, `SSH_AUTH_SOCK`, `HOME` reale);
+- limiti di CPU, memoria, dimensione file e timeout sul process group;
+- quota disco su `project/` (500 MB default);
+- task MCP ricostruiti da zero e URL limitati a `http`/`https`;
+- audit log con rotazione in `logs/security.log`;
+- AST scanner: blocca `eval`, `exec`, `pickle` prima del sandbox;
+- anti-escape guardrail: blocca artefatti `\"`, `//` e righe duplicate nei file generati.
+
+`[security] enabled = false` in `config.toml` viene **ignorato** e registrato
+come `CRITICAL`: il flag esiste solo per retrocompatibilità.
+
+Per dati reali è necessario aggiungere l'isolamento di sistema (utente dedicato,
+cgroup, firewall):
+
+```bash
+./setup-hardening.sh                  # diagnostica, nessuna modifica
+sudo ./setup-hardening.sh --all       # utente byteswarmy + cgroup + firewall
+```
+
+Dettagli, modello di minaccia, rischi residui e rollback:
+**[SECURITY.md](SECURITY.md)**.
+
+Verifica della policy:
+
+```bash
+python -m pytest tests/ -v            # 226 test + 131 subtest: security, sandbox, escape-gate, intent, execute, decision-feedback, correction, thermal-gate, repo-hygiene, dotfile-security, scheduler, settings, actors-panel, MCP E2E, USB protocol/differential, Timestral E2E (+3 E2E live)
+tail -f logs/security.log
+```
 
 ---
 
@@ -325,6 +325,143 @@ Prima di ogni esecuzione, il sistema sceglie il modello worker:
 │                                                              │
 └──────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Come funziona
+
+### Intent Router (multilingue)
+
+Free-form input (Quick Command Bar) passes through `INTENT/router.py` before
+entering the queue: the text is classified with fuzzy matching (`rapidfuzz`)
+against 28 intents in `INTENT/intents.json` (314 triggers total), the language
+is detected (Italian, English, Chinese) and extracted parameters end up in the
+task metadata. If the intent is not recognised with sufficient confidence, the
+task degrades to `generic` and goes through the Decision Model.
+
+### Swarm commands (zero LLM)
+
+8 commands are intercepted by the orchestrator before dispatch and handled
+directly with Python handlers. Instant response, zero tokens.
+
+### Execute handler (zero LLM)
+
+Tasks with `type=execute` are parsed by `CORE/execute_handler.py` which
+extracts shell commands (gcc, python, make) from the description and executes
+them via `tools.run_bash` in the sandbox. No LLM invoked.
+
+### Routing deterministico
+
+| Tipo di task | Destinazione |
+|---|---|
+| Swarm command | Handler diretto (no LLM) |
+| `type=execute` | Execute Handler (gcc/python/make, no LLM) |
+| `type=generic` | Decision Model (`tev1:4b`) → 2–8 subtask |
+| Keyword complesse ("sistema", "multi") | Planner (`phi3:mini`) → 2–5 subtask |
+| Altrimenti | Worker diretto |
+
+### Routing per complessità (worker coding, Fasi 6–7)
+
+Prima di ogni esecuzione diretta (`CORE/skill_executor.run_direct`) il
+sistema sceglie il modello combinando due segnali (`CORE/routing.py`):
+
+- **Complessità percettiva (keyword)**: concetti dove i modelli piccoli
+  falliscono sistematicamente (decoratore, thread, lock…) → livello
+  `media`/`alta`;
+- **Impatto reale (grafo del code_map)**: i simboli del progetto citati nel
+  task (match a confine di parola contro il DB della mappa) dicono quanti
+  file il task tocca (definizione ∪ chiamate) e a che profondità arrivano
+  le dipendenze a valle. ≥2 file toccati o profondità ≥3 → `alta`.
+
+Livello `alta` → heavy `worker_granite` (`granite4:7b-a1b-h`, MoE con ~1B
+parametri attivi) **se installato**, altrimenti fallback automatico sul
+base — fail-open ovunque: senza config o senza ollama si usa sempre il
+base, mai un crash. **Isteresi**: una volta heavy, i task `media` restano
+heavy; solo un task `bassa` torna al 3B (niente sfarfallio tra task
+consecutivi). Attivo solo in live (CLI/GUI): con un client finto da test
+resta OFF per il determinismo. Ogni modello può definire il proprio
+`timeout` in `[models.*]`, che sovrascrive `[ollama].request_timeout`.
+
+Verifica sperimentale (suite T1–T10, routing OFF, stessa pipeline):
+3B **10/10 in 139 s**; 4B 4/10 in 2.678 s (×19 più lento, timeout LLM) →
+scartato; `granite4:7b-a1b-h` spot-check 2/2 (31 s e 10 s, primo
+tentativo) → scelto come heavy. I test unit sono in `tests/test_routing.py`.
+
+### Timestral — tuning dinamico + LLM Tuner
+
+Timestral samples CPU + GPU temperature every 30 seconds. Based on the thermal
+state, two things happen:
+
+1. **Tick modulation**: `fast` (×0.6) / `normal` (×1.0) / `slow` (×1.7–2.5) /
+   `pause` (no dispatch).
+2. **LLM Tuner**: adjusts LLM parameters for the current thermal profile:
+
+| Profile | temp | top_p | num_predict | num_ctx | max_steps |
+|---------|------|-------|-------------|---------|-----------|
+| **FAST** (< 50°C) | 0.25 | 0.92 | 600 | 3072 | 8 |
+| **NORMAL** (50–65°C) | 0.15 | 0.85 | 450 | 3072 | 6 |
+| **SLOW** (65–85°C) | 0.08 | 0.78 | 300 | 2048 | 5 |
+| **PAUSE** (> 85°C) | 0.05 | 0.70 | 200 | 1536 | 4 |
+
+### Timestral predittivo (EMA)
+
+`MONITORING/predictive.py` uses Exponential Moving Average + linear regression
+to estimate "minutes to thermal threshold". Pure stdlib, no numpy.
+
+### Intelligent Model Selector
+
+`CORE/model_selector.py` scores every Ollama model 0–100 for each role. Hard
+gates (VRAM/RAM/capability) + soft scoring (family, name, quantization,
+thermal). Returns top 1 + 3 alternatives per role.
+
+### Dynamic KV cache
+
+`INTENT/metrics.py` estimates KV cache with the real formula
+`2 (K+V) × layers × kv_heads × head_dim × 2 × tokens`, using a
+`MODEL_ARCHITECTURES` table for known models.
+
+### Model Benchmark Suite
+
+`CORE/benchmark.py` runs a 3-test suite (code generation, summarization,
+classification) on each model. Results saved to `state/model_benchmarks.json`.
+qwen2.5-coder:1.5b scored 100/100, avg 31.8 tok/s.
+
+### Exception Hardening
+
+`CORE/exception_handler.py` classifies errors (model_unavailable, model_timeout,
+tool_error, sandbox_violation, parse_error) and recommends actions (retry,
+abort, simplify, pivot) with exponential backoff.
+
+### State Recovery
+
+`CORE/state_recovery.py` reconstructs worker context from the immutable SQLite
+event store on restart, minimizing context loss after crashes.
+
+### Persistent Memory
+
+4 tiers:
+
+- **short_term** — current task events (RAM);
+- **working** — compact context used in the prompt;
+- **long_term** — persistent summary after compaction (SQLite event store);
+- **persistent** — cross-task memory: existing files, common errors, recent
+  tasks, **user preferences** (preferred language, type hints, frameworks,
+  styles extracted via pattern matching). Injected into the worker's prompt.
+
+### Safety valve
+
+| Condizione | Azione |
+|---|---|
+| RAM > 95% | Pause dispatch, auto-resume |
+| Free disk < 1 GB | Pause and block new writes |
+| CPU temp > 90 °C | Thermal pause |
+| GPU temp > 95 °C | Thermal pause |
+| CPU load > 95% for 60 s | Pause to avoid thrashing |
+| 10 consecutive failures | Task in `stuck` state |
+| Crash dell'orchestratore | Watchdog riavvia il processo |
+| 3 tool call identiche | Circuit breaker: pivot obbligato |
+| Project/ > 500 MB | Disk quota: write_file rifiutato |
+| SIGTERM | Save state, unload models, clean exit |
 
 ---
 
@@ -581,143 +718,6 @@ Push è **manuale solo**. I worker non possono modificare remote o push.
 ./sync.sh --status
 ./sync.sh --log
 ```
-
----
-
-## Come funziona
-
-### Intent Router (multilingue)
-
-Free-form input (Quick Command Bar) passes through `INTENT/router.py` before
-entering the queue: the text is classified with fuzzy matching (`rapidfuzz`)
-against 28 intents in `INTENT/intents.json` (314 triggers total), the language
-is detected (Italian, English, Chinese) and extracted parameters end up in the
-task metadata. If the intent is not recognised with sufficient confidence, the
-task degrades to `generic` and goes through the Decision Model.
-
-### Swarm commands (zero LLM)
-
-8 commands are intercepted by the orchestrator before dispatch and handled
-directly with Python handlers. Instant response, zero tokens.
-
-### Execute handler (zero LLM)
-
-Tasks with `type=execute` are parsed by `CORE/execute_handler.py` which
-extracts shell commands (gcc, python, make) from the description and executes
-them via `tools.run_bash` in the sandbox. No LLM invoked.
-
-### Routing deterministico
-
-| Tipo di task | Destinazione |
-|---|---|
-| Swarm command | Handler diretto (no LLM) |
-| `type=execute` | Execute Handler (gcc/python/make, no LLM) |
-| `type=generic` | Decision Model (`tev1:4b`) → 2–8 subtask |
-| Keyword complesse ("sistema", "multi") | Planner (`phi3:mini`) → 2–5 subtask |
-| Altrimenti | Worker diretto |
-
-### Routing per complessità (worker coding, Fasi 6–7)
-
-Prima di ogni esecuzione diretta (`CORE/skill_executor.run_direct`) il
-sistema sceglie il modello combinando due segnali (`CORE/routing.py`):
-
-- **Complessità percettiva (keyword)**: concetti dove i modelli piccoli
-  falliscono sistematicamente (decoratore, thread, lock…) → livello
-  `media`/`alta`;
-- **Impatto reale (grafo del code_map)**: i simboli del progetto citati nel
-  task (match a confine di parola contro il DB della mappa) dicono quanti
-  file il task tocca (definizione ∪ chiamate) e a che profondità arrivano
-  le dipendenze a valle. ≥2 file toccati o profondità ≥3 → `alta`.
-
-Livello `alta` → heavy `worker_granite` (`granite4:7b-a1b-h`, MoE con ~1B
-parametri attivi) **se installato**, altrimenti fallback automatico sul
-base — fail-open ovunque: senza config o senza ollama si usa sempre il
-base, mai un crash. **Isteresi**: una volta heavy, i task `media` restano
-heavy; solo un task `bassa` torna al 3B (niente sfarfallio tra task
-consecutivi). Attivo solo in live (CLI/GUI): con un client finto da test
-resta OFF per il determinismo. Ogni modello può definire il proprio
-`timeout` in `[models.*]`, che sovrascrive `[ollama].request_timeout`.
-
-Verifica sperimentale (suite T1–T10, routing OFF, stessa pipeline):
-3B **10/10 in 139 s**; 4B 4/10 in 2.678 s (×19 più lento, timeout LLM) →
-scartato; `granite4:7b-a1b-h` spot-check 2/2 (31 s e 10 s, primo
-tentativo) → scelto come heavy. I test unit sono in `tests/test_routing.py`.
-
-### Timestral — tuning dinamico + LLM Tuner
-
-Timestral samples CPU + GPU temperature every 30 seconds. Based on the thermal
-state, two things happen:
-
-1. **Tick modulation**: `fast` (×0.6) / `normal` (×1.0) / `slow` (×1.7–2.5) /
-   `pause` (no dispatch).
-2. **LLM Tuner**: adjusts LLM parameters for the current thermal profile:
-
-| Profile | temp | top_p | num_predict | num_ctx | max_steps |
-|---------|------|-------|-------------|---------|-----------|
-| **FAST** (< 50°C) | 0.25 | 0.92 | 600 | 3072 | 8 |
-| **NORMAL** (50–65°C) | 0.15 | 0.85 | 450 | 3072 | 6 |
-| **SLOW** (65–85°C) | 0.08 | 0.78 | 300 | 2048 | 5 |
-| **PAUSE** (> 85°C) | 0.05 | 0.70 | 200 | 1536 | 4 |
-
-### Timestral predittivo (EMA)
-
-`MONITORING/predictive.py` uses Exponential Moving Average + linear regression
-to estimate "minutes to thermal threshold". Pure stdlib, no numpy.
-
-### Intelligent Model Selector
-
-`CORE/model_selector.py` scores every Ollama model 0–100 for each role. Hard
-gates (VRAM/RAM/capability) + soft scoring (family, name, quantization,
-thermal). Returns top 1 + 3 alternatives per role.
-
-### Dynamic KV cache
-
-`INTENT/metrics.py` estimates KV cache with the real formula
-`2 (K+V) × layers × kv_heads × head_dim × 2 × tokens`, using a
-`MODEL_ARCHITECTURES` table for known models.
-
-### Model Benchmark Suite
-
-`CORE/benchmark.py` runs a 3-test suite (code generation, summarization,
-classification) on each model. Results saved to `state/model_benchmarks.json`.
-qwen2.5-coder:1.5b scored 100/100, avg 31.8 tok/s.
-
-### Exception Hardening
-
-`CORE/exception_handler.py` classifies errors (model_unavailable, model_timeout,
-tool_error, sandbox_violation, parse_error) and recommends actions (retry,
-abort, simplify, pivot) with exponential backoff.
-
-### State Recovery
-
-`CORE/state_recovery.py` reconstructs worker context from the immutable SQLite
-event store on restart, minimizing context loss after crashes.
-
-### Persistent Memory
-
-4 tiers:
-
-- **short_term** — current task events (RAM);
-- **working** — compact context used in the prompt;
-- **long_term** — persistent summary after compaction (SQLite event store);
-- **persistent** — cross-task memory: existing files, common errors, recent
-  tasks, **user preferences** (preferred language, type hints, frameworks,
-  styles extracted via pattern matching). Injected into the worker's prompt.
-
-### Safety valve
-
-| Condizione | Azione |
-|---|---|
-| RAM > 95% | Pause dispatch, auto-resume |
-| Free disk < 1 GB | Pause and block new writes |
-| CPU temp > 90 °C | Thermal pause |
-| GPU temp > 95 °C | Thermal pause |
-| CPU load > 95% for 60 s | Pause to avoid thrashing |
-| 10 consecutive failures | Task in `stuck` state |
-| Crash dell'orchestratore | Watchdog riavvia il processo |
-| 3 tool call identiche | Circuit breaker: pivot obbligato |
-| Project/ > 500 MB | Disk quota: write_file rifiutato |
-| SIGTERM | Save state, unload models, clean exit |
 
 ---
 
