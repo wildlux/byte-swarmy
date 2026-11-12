@@ -505,3 +505,81 @@ Obiettivo: portare il sistema da "assistente di prima passata" a "assistente di 
 - G1-G2: 2 ore (miglioramenti M8)
 
 **Totale: ~3-4 giorni di lavoro**
+
+---
+
+## Fase 9 — Domande interattive per decisioni complesse (UX)
+
+**Idea (utente)**: quando il task è complesso o richiede decisioni importanti (architettura, linguaggio, docker, kubernetes, servizi), il sistema deve MOSTRARE una domanda all'utente con scelte numerate (1, 2, 3...) prima di iniziare. L'utente clicca/seleziona la soluzione e il sistema continua finché non ha esaurito le domande. Solo dopo inizia il lavoro. Questo evita calcoli a vuoto e assicura comprensione al 100%.
+
+### Principio
+- **Non iniziare mai** un task complesso senza aver chiarito i punti ambigui
+- Le domande appaiono come messaggi nel GUI (o CLI) con opzioni numerate
+- L'utente risponde → il sistema raffina → nuove domande se necessario → solo quando tutto è chiaro, inizia
+- Ogni domanda riduce l'ambiguità; il loop termina quando non ci sono più dubbi
+
+### Componenti da implementare
+- [ ] **Q1 — Rilevamento ambiguità**: il planner (o il decision model) analizza il task e identifica i punti ambigui (architettura? linguaggio? framework? deployment? servizi?). Se nessun punto ambiguo → procedi direttamente.
+  - File: `CORE/generic_planner.py` o nuovo `CORE/clarifier.py`
+  - Output: lista di domande con opzioni numerate
+  - Test: task ambiguo → lista di domande; task chiaro → lista vuota
+
+- [ ] **Q2 — Messaggio interattivo GUI**: il sistema mostra la domanda nel GUI (tab Coda Task o popup) con opzioni 1, 2, 3... e un campo per risposta libera. L'utente seleziona → la risposta viene aggiunta al contesto del task.
+  - File: `GUI/control_center.py` — nuovo widget `ClarificationDialog`
+  - Test: UI smoke test (offscreen) — dialog si apre, selezione funziona
+
+- [ ] **Q3 — Loop di chiarimento**: dopo la risposta dell'utente, il sistema rivaluta: ci sono ancora ambiguità? Se sì → nuova domanda. Se no → procedi con il task originale arricchito dalle risposte.
+  - File: `CORE/orchestrator.py` — aggiungere stato "clarifying" al lifecycle
+  - Test: mock di 3 round di chiarimento → task parte solo al 3°
+
+- [ ] **Q4 — Persistenza delle risposte**: le risposte dell'utente vengono salvate nel contesto del task (metadata) e nella persistent memory (preferenze utente).
+  - File: `CORE/persistent_memory.py` — aggiungere `record_preference(key, value)`
+  - Test: risposta salvata → recuperabile in task successivi
+
+- [ ] **Q5 — Modalità CLI**: in CLI, le domande appaiono come testo con opzioni numerate, l'utente digita il numero. `python -m CORE.clarifier "task" --interactive`
+  - File: `CORE/clarifier.py` — CLI interattiva
+  - Test: input simulato → output corretto
+
+- [ ] **Q6 — Integrazione con il Refactor-Loop**: il Refactor-Loop (Mappatura → Analisi → Intervento → Validazione) può attivare il chiarimento nella fase di Analisi se trova ambiguità nel codice esistente.
+  - File: `CORE/worker.py` — aggiungere hook `on_ambiguity(task, questions)`
+
+### Esempio di flusso
+
+```
+Utente: "rifattorizza il modulo auth per usare OAuth2"
+
+Sistema: "Ho bisogno di chiarire alcuni punti prima di iniziare:
+
+  1. Quale provider OAuth2? 
+     1) Google
+     2) GitHub
+     3) Entrambi
+     4) Altro (specifica)
+
+  2. Vuoi mantenere la compatibilità con il login password esistente?
+     1) Sì (dual auth)
+     2) No (solo OAuth2)
+
+  3. Quale framework HTTP usi? (rilevato: Flask)
+     1) Flask (confermato)
+     2) Altro
+
+Rispondi con i numeri (es. 1,3,1): "
+
+Utente: "1,1,1"
+
+Sistema: "Chiarito: OAuth2 Google, dual auth, Flask. Procedo con il refactoring."
+→ Inizia il lavoro con contesto completo
+```
+
+### Test previsti
+- `tests/test_clarifier.py` — Q1 (rilevamento ambiguità ×5), Q3 (loop ×3), Q4 (persistenza ×2), Q5 (CLI ×2)
+- `tests/test_clarification_gui.py` — Q2 (smoke offscreen ×2)
+
+### Stima
+- Q1-Q3: 1 giorno (core logic)
+- Q4-Q5: mezza giornata (persistenza + CLI)
+- Q6: mezza giornata (integrazione Refactor-Loop)
+- GUI widget: 1 giorno (PyQt6 dialog)
+
+**Totale: ~3 giorni di lavoro**
