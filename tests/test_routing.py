@@ -17,6 +17,9 @@ Copre:
      non è cambiato dall'ultima chiamata (TTL 5 s)
   G. M7 isteresi persistente su disco — il riavvio del processo
      non perde lo sticky (max 30 min di età)
+  H. M9 routing anche in ReAct — Worker._route_model_key() decide
+     il model_key del loop ReAct come run_direct, con fail-open e
+     determinismo per client finti
 
 Tutti i test sono SENZA LLM: progetti temporanei + client finti.
 """
@@ -521,6 +524,191 @@ class TestPersistentHysteresis(unittest.TestCase):
         data = json.loads(
             (self.tmpdir / "routing_hysteresis.json").read_text())
         self.assertFalse(data["heavy"])
+
+
+# ── M9: routing anche in ReAct (Worker._route_model_key) ──────────────
+class TestWorkerRoutingReAct(unittest.TestCase):
+    """H. Worker._route_model_key decide il model_key del loop ReAct
+    con lo stesso contratto di run_direct: fail-open per client finti
+    (determinismo dei test) e routing attivo per ModelClient reale."""
+
+    def setUp(self):
+        reset_hysteresis()
+        # Patch temporaneo: solleviamo _route_model_key come metodo
+        # statico, e sostituiamo ModelClient con uno stub che fa finta
+        # di essere "reale" per il test. Evitiamo di costruire un
+        # Worker completo (che servirebbe tools/memory/logger pesanti).
+        self._orig_real_check = None
+
+    def tearDown(self):
+        reset_hysteresis()
+
+    def _make_route_method(self, is_real: bool, project_root: str = "."):
+        """Crea un callable che simula Worker._route_model_key con
+        attributi controllati: is_real decide se il routing è attivo,
+        project_root serve al code_map. Restituisce (callable, models)."""
+        # Simuliamo un ModelClient: ha models_cfg come dict vuoto (per
+        # _direct_mode_enabled che non entriamo); is_real controlla il
+        # check `isinstance(self.models, ModelClient)`.
+        # Per il test usiamo un trucco: monkey-patchiamo
+        # CORE.ollama_client.ModelClient con uno stub marker class.
+        import CORE.ollama_client as oc
+
+        class FakeModelClient:
+            """Stub marker:._route_model_key vede isinstance(ModelClient)
+            True perché sostituiamo temporaneamente la classe."""
+            pass
+
+        if is_real:
+            self._orig_ModelClient = oc.ModelClient
+            oc.ModelClient = FakeModelClient
+            models = FakeModelClient()
+        else:
+            self._orig_ModelClient = getattr(oc, "ModelClient", None)
+            models = object()  # NON è un ModelClient → routing off
+
+        # Simuliamo un Worker con gli attributi minimi che
+        # _route_model_key legge: self.models, self.tools, self.model_key
+        # Niente classi inner (Python name scope non vede il param):
+        # usiamo una semplice namespace object via SimpleNamespace.
+        from types import SimpleNamespace
+
+        class _StubLogger:
+            def warning(self, msg): pass
+            def info(self, msg): pass
+
+        # Reusiamo il metodo reale di Worker
+        from CORE.worker import Worker
+        stub_tools = SimpleNamespace(project_root=project_root)
+        stub_logger = _StubLogger()
+
+        def make_stub(model_key):
+            w = SimpleNamespace(
+                model_key=model_key,
+                models=models,
+                tools=stub_tools,
+                log=stub_logger,
+                agent_id="test-worker",
+            )
+            # Binda il metodo reale con l'istanza finta (unbound method
+            # di Worker = funzione che riceve self come primo arg)
+            w._route_model_key = lambda task: Worker._route_model_key(w, task)
+            return w
+
+        return make_stub, models, oc
+
+    def tearDown_oc(self, oc):
+        if hasattr(self, "_orig_ModelClient") and self._orig_ModelClient is not None:
+            oc.ModelClient = self._orig_ModelClient
+
+    def test_client_finto_routing_off_determinismo(self):
+        """Un Worker con client NON-ModelClient (test) deve restituire
+        il model_key invariato e route vuota — come run_direct."""
+        make_stub, _models, oc = self._make_route_method(is_real=False)
+        try:
+            w = make_stub(BASE)
+            key, level, route = w._route_model_key(
+                {"title": TASK_ALTA_KW, "description": ""})
+            self.assertEqual(key, BASE)
+            self.assertEqual(route, "")  # nessuna decisione registrata
+            self.assertEqual(level, "")  # routing off
+        finally:
+            self.tearDown_oc(oc)
+
+    def test_client_reale_alta_va_heavy(self):
+        """Un Worker con ModelClient reale + task ALTA + heavy installato
+        deve routare verso l'heavy (worker_granite)."""
+        # Patch mk.installed_names per simulare heavy installato
+        import CORE.model_knowledge as mk
+        orig_installed = getattr(mk, "installed_names", None)
+        mk.installed_names = lambda: {GRANITE_NAME}
+        # Patch load_config per restituire il nostro CFG
+        import CORE.orchestrator as orch
+        orig_load = getattr(orch, "load_config", None)
+        orch.load_config = lambda: CFG
+        try:
+            make_stub, _models, oc = self._make_route_method(is_real=True)
+            w = make_stub(BASE)
+            key, level, route = w._route_model_key(
+                {"title": TASK_ALTA_KW, "description": ""})
+            self.assertEqual(key, "worker_granite")
+            self.assertEqual(level, "alta")
+            self.assertIn("complessità alta", route)
+            self.assertIn("worker_granite", route)
+        finally:
+            self.tearDown_oc(oc)
+            if orig_installed is not None:
+                mk.installed_names = orig_installed
+            if orig_load is not None:
+                orch.load_config = orig_load
+
+    def test_client_reale_bassa_resta_base(self):
+        """Un Worker con ModelClient reale + task BASSA resta sul base."""
+        import CORE.model_knowledge as mk
+        orig_installed = getattr(mk, "installed_names", None)
+        mk.installed_names = lambda: {GRANITE_NAME}
+        import CORE.orchestrator as orch
+        orig_load = getattr(orch, "load_config", None)
+        orch.load_config = lambda: CFG
+        try:
+            make_stub, _models, oc = self._make_route_method(is_real=True)
+            w = make_stub(BASE)
+            key, level, route = w._route_model_key(
+                {"title": TASK_BANALE, "description": ""})
+            self.assertEqual(key, BASE)
+            self.assertEqual(level, "bassa")
+            self.assertIn("complessità bassa", route)
+        finally:
+            self.tearDown_oc(oc)
+            if orig_installed is not None:
+                mk.installed_names = orig_installed
+            if orig_load is not None:
+                orch.load_config = orig_load
+
+    def test_fail_open_se_routing_solleva(self):
+        """Se route_model_key solleva, _route_model_key deve restituire
+        il model_key base + level/route vuoti (fail-open, mai crash)."""
+        orig_route = _routing_mod.route_model_key
+        def boom(*a, **kw):
+            raise RuntimeError("simulato")
+        _routing_mod.route_model_key = boom
+        try:
+            make_stub, _models, oc = self._make_route_method(is_real=True)
+            w = make_stub(BASE)
+            key, level, route = w._route_model_key(
+                {"title": TASK_ALTA_KW, "description": ""})
+            self.assertEqual(key, BASE)
+            self.assertEqual(level, "")
+            self.assertEqual(route, "")
+        finally:
+            _routing_mod.route_model_key = orig_route
+            self.tearDown_oc(oc)
+
+    def test_routing_decisione_registrata_in_memoria(self):
+        """Verifica indiretta: il routing è attivo quando il Worker
+        chiama _route_model_key con ModelClient reale. L'evento viene
+        aggiunto in memoria SOLO se route_reason non è vuoto."""
+        import CORE.model_knowledge as mk
+        orig_installed = getattr(mk, "installed_names", None)
+        mk.installed_names = lambda: {GRANITE_NAME}
+        import CORE.orchestrator as orch
+        orig_load = getattr(orch, "load_config", None)
+        orch.load_config = lambda: CFG
+        try:
+            make_stub, _models, oc = self._make_route_method(is_real=True)
+            w = make_stub(BASE)
+            # Verifichiamo che con ALTA, route_reason è popolato
+            # (l'evento in memoria lo fa il caller, non il metodo,
+            # ma il metodo ritorna la stringa per il caller).
+            key, level, route = w._route_model_key(
+                {"title": TASK_ALTA_KW, "description": ""})
+            self.assertTrue(route)  # non vuoto = caller registra l'evento
+        finally:
+            self.tearDown_oc(oc)
+            if orig_installed is not None:
+                mk.installed_names = orig_installed
+            if orig_load is not None:
+                orch.load_config = orig_load
 
 
 if __name__ == "__main__":

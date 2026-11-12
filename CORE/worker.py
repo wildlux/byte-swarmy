@@ -162,6 +162,24 @@ class Worker:
         if self._direct_mode_enabled():
             return self._execute_direct(task)
 
+        # 🆕 M9 — Routing anche in ReAct: stesso meccanismo di run_direct
+        # (complessità MAX(keyword, impatto dal grafo) + isteresi M7 +
+        # guardia termica M4). Decide QUALE modello esegue il loop ReAct:
+        # task ALTA + heavy installato + non in zona pausa termica →
+        # worker_granite, altrimenti resta sul base. Fail-open totale:
+        # se qualcosa manca resta self.model_key. Il routing è attivo
+        # SOLO con ModelClient reale (CLI/GUI); client finti (test) lo
+        # disattivano per mantenere i test deterministici.
+        routed_key, _route_level, route_reason = self._route_model_key(task)
+        if route_reason:
+            self.log.info(f"[{self.agent_id}] [routing] {route_reason}")
+            self.memory.add_event({
+                "type": "routing_decision",
+                "content": route_reason,
+                "model": routed_key,
+                "base_model": self.model_key,
+            })
+
         is_tdd_required = False  # TDD disabilitato
         tdd_verified = True
 
@@ -187,7 +205,7 @@ class Worker:
                 raw_parts = []
                 token_count = 0
                 for token in self.models.call_streaming(
-                    model_key=self.model_key,
+                    model_key=routed_key,
                     prompt=prompt,
                     system=self.SYSTEM,
                     # 1024: con 400 il JSON di write_file veniva TRONCATO
@@ -250,7 +268,7 @@ class Worker:
                     )
                     raw_parts2 = []
                     for token in self.models.call_streaming(
-                        model_key=self.model_key,
+                        model_key=routed_key,
                         prompt=prompt,
                         system=self.SYSTEM,
                         max_tokens=1024,
@@ -434,6 +452,62 @@ class Worker:
             return bool(cfg.get("no_tools", False))
         except Exception:
             return False
+
+    def _route_model_key(self, task: dict) -> tuple[str, str, str]:
+        """M9 — Decide il model_key per il loop ReAct (come run_direct).
+
+        Ritorna (model_key, livello, decisione_leggibile) — la stessa
+        3-tuple di route_model_key, così il caller può registrare il
+        motivo nell'evento di memoria.
+
+        Combo: complessità MAX(keyword, impatto dal grafo code_map) +
+        isteresi persistente (M7) + guardia termica (M4). Heavy
+        installato + non in zona pausa → worker_granite; altrimenti
+        resta sul base. Fail-open ovunque: se qualcosa manca resta
+        self.model_key con livello e route vuoti.
+
+        Attivo SOLO con ModelClient reale (CLI/GUI); client finti
+        (test) lo disattivano per mantenere i test deterministici —
+        stesso contratto di _is_real_client in skill_executor.
+        """
+        # Detezione client reale: stesso check di run_direct
+        try:
+            from CORE.ollama_client import ModelClient
+            real = isinstance(self.models, ModelClient)
+        except Exception:
+            real = False
+        if not real:
+            return (self.model_key, "", "")  # test: routing OFF, determinismo
+        title = str(task.get("title", ""))
+        description = str(task.get("description", ""))
+        try:
+            project_root = str(getattr(self.tools, "project_root", "./project"))
+        except Exception:
+            project_root = "./project"
+        try:
+            from CORE.routing import route_model_key
+            from CORE import model_knowledge as mk
+            cfg = getattr(self.models, "config", None) or getattr(
+                self.models, "models_cfg", {})
+            # Se models_cfg è il dict di [models.*] serve il config intero
+            # (route_model_key legge complexity_routing). Proviamo a
+            # caricarlo via orchestrator.load_config se disponibile.
+            try:
+                from CORE.orchestrator import load_config
+                cfg = load_config()
+            except Exception:
+                pass
+            installed = mk.installed_names()
+            # exclude_files: il file target del task (rumore per il
+            # code_map). Default "main.py" come in run_direct.
+            exclude = {"main.py"}
+            return route_model_key(
+                title, description, cfg, self.model_key, installed,
+                project_root=project_root, exclude_files=exclude)
+        except Exception as e:
+            self.log.warning(
+                f"[{self.agent_id}] routing fail-open: {e}")
+            return (self.model_key, "", "")
 
     def _execute_direct(self, task: dict) -> str:
         """Generazione DIRETTA per modelli senza tool (CORE.skill_executor).
