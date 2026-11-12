@@ -354,6 +354,16 @@ progetto in `<progetto>/.byteswarm/codemap.db`, rebuild **incrementale** per mti
 **Stato**: P1–P6 ✅ applicati e verificati (unit + regressione 35/35 e 7/7 + spot-check live). Audit skill: nessun'altra trappola presente.
 
 ### Compattazione skill (Fase 8 — extra)
+- [x] **Skill compattate**: 21 → 18 file (merge 5 py-refactor-* in 1). Boilerplate ridondante rimosso da tutti i skill (già in SYSTEM_DIRECT). MAX_SKILL_BODY_CHARS 1400 → 2500 (nessuna skill troncata). Verificato: skill matching intatto su 10 task di test.
+
+### Skill Qt (Fase 8 — extra)
+- [x] **pyqt6-basics**: finestra base con pulsante e label → ok (1 att)
+- [x] **pyqt6-model-view**: QAbstractTableModel con validazione → ok (1 att, ROWS=2 COLS=2)
+- [x] **pyqt6-threading**: QThread worker con progresso → ok (1 att, DONE=ok)
+- [ ] **pyqt6-graphics**: QGraphicsScene/View con item multipli (non ancora creato)
+- [ ] **pyqt6-network**: QUdpSocket/QNetworkAccessManager (non ancora creato) (unit + regressione 35/35 e 7/7 + spot-check live). Audit skill: nessun'altra trappola presente.
+
+### Compattazione skill (Fase 8 — extra)
 - [x] **Skill compattate**: 21 → 18 file (merge 5 py-refactor-* in 1). Boilerplate ridondante rimosso da tutti i skill (già in SYSTEM_DIRECT). MAX_SKILL_BODY_CHARS 1400 → 2500 (nessuna skill troncata). Verificato: skill matching intatto su 10 task di test. (unit + regressione 35/35 e 7/7 + spot-check live). Audit skill: nessun'altra trappola presente.
 
 ---
