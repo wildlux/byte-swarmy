@@ -69,8 +69,10 @@ enabled = true
 heavy_model = "worker_granite"
 
 [models.worker_granite]
-# Candidato heavy alternativo (spot-check suite): granite4 MoE ~1B
-# parametri attivi — velocità del 3B, capacità attesa superiore.
+# Heavy per complessità alta (verdict spot-check 2/2: T9 31 s, T1 10 s,
+# primo tentativo — vedi todo.md). MoE ~1B parametri attivi.
+# timeout esplicito: ereditava i 300 s globali — un task lungo non deve
+# morire di timeout come il 4B.
 name = "granite4:7b-a1b-h"
 temperature = 0.2
 top_p = 0.8
@@ -80,6 +82,7 @@ repeat_last_n = 256
 num_ctx = 8192
 num_predict = 1024
 seed = 42
+timeout = 600
 
 [models.worker_general]
 name = "qwen2.5:1.5b"

@@ -61,6 +61,9 @@ MODELS = ["worker_coder", "worker_coder_big"]
 
 
 def main() -> int:
+    # Modelli da CLI (es. `python3 scripts/suite_compare.py worker_granite`),
+    # default: la comparativa storica 3B vs 4B.
+    models = sys.argv[1:] or MODELS
     out_dir = Path("state/suite_compare")
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "results.json"
@@ -70,7 +73,7 @@ def main() -> int:
             results = json.loads(out_path.read_text(encoding="utf-8"))
         except Exception:
             results = {}
-    for model in MODELS:
+    for model in models:
         results.setdefault(model, {})
         for tid, text in TASKS:
             if tid in results[model] and results[model][tid].get("done"):

@@ -10,7 +10,9 @@ STEPS (follow in order):
 2. Replace ONLY the {{...}} placeholders. Do NOT add extra features.
 3. done=true with a one-line result.
 
-TEMPLATE (keep every line that has no {{...}} exactly as-is):
+TEMPLATE (keep every line that has no {{...}} exactly as-is — the ONLY
+exception: `# HINT` lines, to turn into real print() lines when the
+task requires the markers shown):
 ```python
 class {{ CLASS NAME }}:
     def __init__(self):
@@ -35,11 +37,16 @@ def main():
         {{ FILL IT, e.g. coll.add("a") }}
     except Exception as e:
         print(e)
-    # se il task chiede la lunghezza, stampa: print(f"LEN={len(coll)}")
-    try:
-        {{ DRAIN IT, e.g. while True: print(coll.pop()) }}
-    except Exception as e:
-        print(e)
+    # HINT: if the task requires markers (e.g. LEN=3, HAS=True), ADD
+    # real print() lines producing EXACTLY them, e.g.:
+    # print(f"LEN={len(coll)}")   |   print(f"HAS={'b' in coll}")
+    # DRAIN sicuro: UN iteratore solo, poi next(it) finché StopIteration.
+    it = iter(coll)
+    while True:
+        try:
+            print(next(it))
+        except StopIteration:
+            break
 
 
 if __name__ == "__main__":
@@ -51,6 +58,16 @@ RULES:
 - Replace EVERY {{...}} placeholder with real code. A placeholder left
   in the file is a SYNTAX ERROR. NEVER delete an `except` line: if you
   open a `try:` you MUST keep its `except` block.
+- DRAIN pattern: create the iterator ONCE (`it = iter(coll)`) OUTSIDE
+  the loop, then `next(it)` inside it. `next(iter(x))` INSIDE a while
+  loop creates a FRESH iterator every turn → never raises
+  StopIteration → INFINITE LOOP. The safest drain is plain
+  `for item in coll: print(item)`.
+- MARKERS: read the task and print EVERY marker it requests, EXACTLY
+  as written (LEN=3, HAS=True, each element per line...). The `# HINT`
+  comments in the template show HOW: turn them into real print()
+  lines when the task requires those values. A required marker left
+  out = the task FAILS the runtime check.
 - If the task names CUSTOM exceptions (e.g. StackOverflowError),
   define them as `class NomeError(Exception)` and use THEM in the
   except lines instead of Exception.

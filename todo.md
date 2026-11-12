@@ -352,3 +352,36 @@ progetto in `<progetto>/.byteswarm/codemap.db`, rebuild **incrementale** per mti
 **P6 — timeout per-modello (tool, `CORE/ollama_client.py`)**: i 3 timeout T8/T9/T10 erano `LLM call failed: timed out` a 300 s esatti (limite globale `[ollama].request_timeout`). Fix: ogni `[models.*]` può ora avere `timeout = N` che sovrasta il default (`model_cfg.get("timeout", self.timeout)` in `call()` e `call_streaming()`); `worker_coder_big` → 600 s. Unit + regressione verdi.
 
 **Stato**: P1–P6 ✅ applicati e verificati (unit + regressione 35/35 e 7/7 + spot-check live). Audit skill: nessun'altra trappola presente.
+
+---
+
+## Coda migliorie (piano approvato — in corso)
+
+**🎯 Immediate** — chiudono i buchi della Fase 7
+- [x] **M1 — Suite completa T1–T10 su granite4**: l'heavy è verificato solo su 2 spot (T9/T1). Stessa pipeline del 3B (routing OFF, max_retries 3) → `scripts/suite_compare.py worker_granite` → `state/suite_compare/results.json`. Verdict valido solo con la suite intera.
+  - **Passata 1**: **7/10** in ~257 s (3B: 10/10 in 139 s) — T2 ❌ T3 ❌ T8 ❌. Lo spot-check 2/2 era un campione troppo piccolo: conferma che serviva la suite intera.
+  - Tassonomia fallimenti granite4 (tutti pattern fixabili col prompt/skill):
+    1. **`input()` interattivo** ×2 (T2 ×3 EOFError; T3 timeout 15 s = attesa input/loop) → granite scrive script interattivi, il runtime è non-interattivo; il 3B hard-codifica naturalmente
+    2. **Marker non letterale** ×1 (T8: stampa `OVERFLOW=Stack Overflow` invece di `OVERFLOW=ok`)
+    3. **Drain infinito** ×1 (T3: `next(iter(coll))` dentro `while True` = iteratore fresh a ogni giro → mai StopIteration)
+    4. **Hint inerti non attivati** ×1 (T3: le righe-commento `# se il task chiede…` restano commenti — l'header "keep every line exactly as-is" vinceva sulla regola)
+  - **P7 (prompt, `SYSTEM_DIRECT`, ora 9 regole)**: regola 7 "MAI `input()`/stdin: hard-codica i valori d'esempio del task" + regola 6 rafforzata "stampa il valore LETTERALE scritto nel task (ok, True, 42…), mai il messaggio dell'eccezione".
+  - **P8 (skill `py-class-module`)**: drain sicuro nel template (iteratore UNICO fuori dal loop, `next(it)` dentro, `except StopIteration: break`) al posto del placeholder `{{ DRAIN IT … }}` + regola drain.
+  - **P8b (stessa skill)**: hint marker esplicita in inglese + regola MARKERS + riconciliazione nell'HEADER del template ("unica eccezione: le righe `# HINT`").
+  - **Evoluzione granite4**: 7/10 → **9/10** (P7: T2 ✅ 7,9 s, T8 ✅ 12,8 s, tutti 1° tentativo) → **10/10** (T3 ✅ 2 att, 32,8 s). Totale effettivo ~175 s vs 3B 139 s: parità di qualità, granite leggermente più lento.
+  - **Verdict heavy CONFERMATO**: `worker_granite` 10/10 con la suite intera — non più 2 spot. Le trappole erano dell'ecosistema skill/prompt, non del modello: il 3B le navigava, granite no — riparate, ora entrambi 10/10.
+- [x] **M2 — Test e2e del routing LIVE**: `scripts/routing_e2e.py` → `state/suite_compare/routing_e2e.json`. Percorso completo VERIFICATO: task che cita simboli su progetto multi-file → impatto **alta** (2 file, profondità 2, test coperto) → decisione `complessità alta → worker_granite` → granite4 esegue davvero (heavy_picked=True) → **ok in 3 tentativi** (att. 1–2: lista grezza senza marker → gate lo becca → correzione → att. 3 `MEDIA=4 MEDIANA=4` ✅). Il loop gate+correction + routing lavorano insieme come progettato.
+- [~] **M3 — Refactoring live su progetto vero**: il caso d'uso per cui esiste l'impatto dal grafo. NB onesta: il direct mode scrive UN file — un refactoring multi-file vero richiede prima **M9** (routing in ReAct). Ripianificato: M3 dopo M9.
+
+**🔧 Robustezza**
+- [ ] **M4 — Routing termico**: Timestral sa se la CPU è in throttling → il routing consulta lo stato termico e, sotto carico critico, resta sul base (lezione 4B: l'heavy muore di throttling). Hook in `_route_decide`, fail-open invariato.
+- [x] **M5 — `timeout` esplicito per granite4**: ereditava i 300 s globali; un task lungo potrebbe sforare. → `timeout = 600` in `[models.worker_granite]` (una riga).
+- [ ] **M6 — `code_map` incrementale**: `estimate_impact` fa `cm.rebuild(root)` a OGNI decisione → su un progetto grande è il collo di bottiglia. Rebuild solo dei file con mtime cambiato (logica differenziale sul DB esistente).
+- [ ] **M7 — Isteresi persistente**: `_HYST` vive in memoria → riavvio GUI la perde. Scrivere lo sticky in `state/` per stabilità tra sessioni.
+
+**🚀 Ambiziose**
+- [ ] **M8 — Memoria dei fallimenti → skill suggerite**: dopo N fallimenti simili senza skill (prosa, placeholder, try senza except…), proporre in GUI una bozza di skill da approvare. La libreria cresce sui TUOI errori ricorrenti.
+- [ ] **M9 — Routing anche in ReAct**: oggi vale solo per `run_direct`; i task con tool loop usano sempre il base.
+- [ ] **M10 — Benchmark evidence-based**: `model_selector.py` incorpora i risultati reali della suite (es. 10/10 del 3B come dato hard) accanto alle euristiche.
+
+**Ordine di esecuzione**: M5 ✅ → M1 ✅ → M2 ✅ → poi M4/M6/M7 (robustezza), M9 (routing in ReAct), quindi M3 (refactoring vero, dipende da M9), infine M8/M10.
