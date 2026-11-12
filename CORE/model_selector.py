@@ -7,6 +7,13 @@ Algoritmo:
 3. Per ogni ruolo, calcola score per ogni modello candidato
 4. Ritorna config raccomandato con spiegazione
 
+M10 — Evidence boost: i punteggi euristicci (famiglia, nome,
+quantizzazione, RAM) sono integrati con i risultati REALI della suite
+T1-T10 salvati in `state/suite_compare/results.json`. Un modello che
+ha 10/10 documentati riceve +30; 5-9/10 → +15; <5 o assente → 0.
+Fail-open: file assente/corrotto/config non leggibile → nessun boost,
+si resta sulle euristiche (comportamento pre-M10).
+
 Usage:
     from CORE.model_selector import get_recommendations, apply_recommendations
     recs = get_recommendations()
@@ -20,6 +27,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
 import urllib.request
 from pathlib import Path
 from typing import Optional
@@ -31,6 +39,11 @@ from CORE.constants import OLLAMA_HOST, DEFAULT_NUM_CTX
 
 
 log = logging.getLogger("byte-swarmy.model_selector")
+
+
+# Path predefinito dei risultati della suite comparativa (M10).
+SUITE_RESULTS_PATH = Path("state/suite_compare/results.json")
+CONFIG_PATH_DEFAULT = "CONFIG/config.toml"
 
 
 # ====================================================================
@@ -163,12 +176,164 @@ def get_ram_info() -> dict:
 
 
 # ====================================================================
+# M10 — Evidence boost (risultati suite reali)
+# ====================================================================
+
+def load_suite_evidence(
+    results_path: Path | str = SUITE_RESULTS_PATH,
+    config_path: Path | str = CONFIG_PATH_DEFAULT,
+) -> dict:
+    """Legge state/suite_compare/results.json e mappa chiavi → nomi.
+
+    Il JSON ha chiavi = model_key (es. `worker_coder`) e valori = dict
+    {T1: {ok, attempts, secs, done}, T2: ...}. Per usare l'evidence in
+    score_model_for_role (che lavora con `model["name"]` Ollama come
+    `qwen2.5-coder:3b`), dobbiamo mappare model_key → name leggendo
+    `CONFIG/config.toml [models.<key>].name`.
+
+    Ritorna:
+        {
+            "qwen2.5-coder:3b": {
+                "model_key": "worker_coder",
+                "pass": 10, "total": 10, "mean_secs": 13.9,
+                "mean_attempts": 1.1, "score": 100.0,
+            },
+            ...
+        }
+    Fail-open: file assente/corrotto/config illeggibile → {}.
+    """
+    out: dict[str, dict] = {}
+    try:
+        rp = Path(results_path)
+        if not rp.exists():
+            return {}
+        data = json.loads(rp.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            return {}
+    except Exception:
+        return {}
+
+    # model_key → ollama_name dal config.toml
+    key_to_name: dict[str, str] = {}
+    try:
+        try:
+            import tomllib  # Python 3.11+
+        except ImportError:
+            return {}  # senza tomllib niente mappatura → niente evidence
+        cp = Path(config_path)
+        if not cp.exists():
+            return {}
+        with open(cp, "rb") as f:
+            cfg = tomllib.load(f)
+        for k, v in (cfg.get("models") or {}).items():
+            if isinstance(v, dict) and v.get("name"):
+                key_to_name[k] = str(v["name"])
+    except Exception:
+        return {}
+
+    for model_key, per_task in data.items():
+        if not isinstance(per_task, dict):
+            continue
+        name = key_to_name.get(model_key, "")
+        if not name:
+            continue  # modello non in config → salto (non posso mappare)
+        total = 0
+        passed = 0
+        secs = 0.0
+        attempts = 0
+        for tid, res in per_task.items():
+            if not isinstance(res, dict):
+                continue
+            total += 1
+            if res.get("ok"):
+                passed += 1
+            secs += float(res.get("secs") or 0)
+            attempts += int(res.get("attempts") or 0)
+        if total == 0:
+            continue
+        mean_secs = round(secs / total, 2)
+        mean_attempts = round(attempts / total, 2)
+        pass_rate = passed / total
+        # Score evidence: 10/10 → 100, 5/10 → 50, 0/10 → 0
+        out[name] = {
+            "model_key": model_key,
+            "pass": passed,
+            "total": total,
+            "mean_secs": mean_secs,
+            "mean_attempts": mean_attempts,
+            "score": round(pass_rate * 100, 1),
+        }
+    return out
+
+
+def _evidence_boost_for_model(
+    model_name: str,
+    evidence: dict,
+) -> tuple[float, str]:
+    """(boost, reason) per un modello in base all'evidence.
+
+    Logica (soglie decise sulla suite Fase 7):
+      - 10/10 → +30 (è il modello "già provato buono")
+      - 7-9/10 → +20
+      - 5-6/10 → +10
+      - 1-4/10 → -10 (penalty: ha tentativi falliti documentati)
+      - 0/10 → -20 (penalty forte)
+      - assente → (0, "") — nessuna evidence, resta sulle euristiche
+
+    Bonus secondario: se mean_attempts ≤ 1.2 (correzioni al primo
+    colpo quasi sempre) → +5; se mean_secs ≤ 15 → +5 (velocità).
+    """
+    if not evidence:
+        return 0.0, ""
+    e = evidence.get(model_name)
+    if not e:
+        return 0.0, ""
+    passed = e["pass"]
+    total = e["total"]
+    if total == 0:
+        return 0.0, ""
+    pass_rate = passed / total
+    if pass_rate >= 1.0:
+        boost = 30.0
+        tier = f"evidence {passed}/{total}"
+    elif pass_rate >= 0.7:
+        boost = 20.0
+        tier = f"evidence {passed}/{total}"
+    elif pass_rate >= 0.5:
+        boost = 10.0
+        tier = f"evidence {passed}/{total}"
+    elif pass_rate >= 0.1:
+        boost = -10.0
+        tier = f"evidence {passed}/{total} (weak)"
+    else:
+        boost = -20.0
+        tier = f"evidence {passed}/{total} (rejected)"
+    reasons = [tier]
+    # Bonus secondari (solo se già pass_rate > 0)
+    if pass_rate > 0:
+        if e.get("mean_attempts", 99) <= 1.2:
+            boost += 5.0
+            reasons.append(f"low retries ({e['mean_attempts']}/task)")
+        if e.get("mean_secs", 999) <= 15.0:
+            boost += 5.0
+            reasons.append(f"fast ({e['mean_secs']}s/task)")
+    return boost, "; ".join(reasons)
+
+
+# ====================================================================
 # Algoritmo di scoring
 # ====================================================================
 
-def score_model_for_role(model: dict, role: str, hardware: dict) -> tuple:
+def score_model_for_role(model: dict, role: str, hardware: dict,
+                         evidence: Optional[dict] = None) -> tuple:
     """Calcola score (0-100) per un modello in un ruolo.
     Ritorna (score, reason_str).
+
+    M10 — `evidence` (opzionale, dict da load_suite_evidence) aggiunge
+    un boost/penalty basato sui risultati REALI della suite T1-T10:
+    un modello 10/10 documentato riceve +30, uno 0/10 riceve -20.
+    Fail-open: se `evidence` è None non viene applicato (si resta sulle
+    euristiche, comportamento pre-M10).
     """
     role_def = ROLE_DEFINITIONS[role]
     reasons = []
@@ -266,6 +431,15 @@ def score_model_for_role(model: dict, role: str, hardware: dict) -> tuple:
         score -= 5  # troppo grosso senza quantization
         reasons.append("unquantized (BF16/F16) - too big")
 
+    # 7. M10 — Evidence boost (risultati suite T1-T10 reali)
+    if evidence is not None:
+        boost, ev_reason = _evidence_boost_for_model(
+            model["name"], evidence)
+        if boost != 0 or ev_reason:
+            score += boost
+            if ev_reason:
+                reasons.append(ev_reason)
+
     # Clamp 0-100
     score = max(0, min(100, score))
     return (score, "; ".join(reasons))
@@ -284,15 +458,19 @@ def get_recommendations(
             ...
             "_hardware": {"vram_gb": 4.0, "ram_gb": 16.0, "gpu_temp": 65},
             "_available_models": 23,
+            "_evidence": {"qwen2.5-coder:3b": {...}, ...},  # M10
         }
     """
     models = get_ollama_models(ollama_host)
     hardware = {**get_gpu_info(), **get_ram_info()}
+    # M10 — carica l'evidence una sola volta (fail-open totale)
+    evidence = load_suite_evidence(SUITE_RESULTS_PATH, config_path)
 
     recs = {
         "_hardware": hardware,
         "_available_models": len(models),
         "_timestamp": __import__("time").time(),
+        "_evidence": evidence,  # M10: visibile per debug/display
     }
 
     for role in ROLE_DEFINITIONS:
@@ -303,7 +481,8 @@ def get_recommendations(
         # Score tutti i modelli
         scored = []
         for m in models:
-            score, reason = score_model_for_role(m, role, hardware)
+            score, reason = score_model_for_role(m, role, hardware,
+                                                 evidence=evidence)
             if score > 0:
                 scored.append((score, m, reason))
 
@@ -431,6 +610,15 @@ def format_recommendations(recs: dict) -> str:
                  f"RAM {hw.get('ram_gb', 0):.1f}GB | "
                  f"GPU {hw.get('temp_c', 0):.0f}°C")
     lines.append(f"Modelli disponibili: {recs.get('_available_models', 0)}")
+    # M10 — mostra se l'evidence è stata caricata
+    ev = recs.get("_evidence") or {}
+    if ev:
+        lines.append(f"Evidence suite: {len(ev)} modello/i con risultati "
+                     f"T1-T10 documentati")
+    else:
+        lines.append("Evidence suite: NESSUNA (lanciare "
+                     "`python scripts/suite_compare.py worker_coder` per "
+                     "generarla e ottenere boost evidence-based)")
     lines.append("")
 
     for role in ROLE_DEFINITIONS:
