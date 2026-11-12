@@ -462,6 +462,18 @@ def run_direct(task: dict, project_root: str,
         error = runtime_error
         # fallimento runtime → il loop rientra con il correction prompt
 
+    # M8 — memoria dei fallimenti → skill suggerite: classifica il
+    # fallimento e, se la firma raggiunge la soglia, genera una bozza
+    # di skill in state/skill_proposals/ (approvazione via CLI/GUI).
+    # Fail-open: un errore qui non blocca mai il risultato del task.
+    try:
+        from CORE import skill_proposer as _sp
+        _title = str(task.get("title", ""))
+        _sig = _sp.classify_failure(str(error or ""), str(code or ""))
+        _sp.record_failure(_sig, _title, str(error or ""))
+    except Exception:
+        pass
+
     return {"ok": False, "path": str(out_path), "attempts": attempts,
             "error": error, "model": used_model, "route": route_reason,
             "code": code[:MAX_CODE_CHARS],
