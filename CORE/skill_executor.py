@@ -442,7 +442,11 @@ def run_direct(task: dict, project_root: str,
     # Per py-arch-decision la mappa confonde (il modello ricicla simboli
     # esistenti invece di seguire il template del pattern scelto).
     try:
-        if sk is not None and getattr(sk, "get", lambda k, d=None: d)("id") == "py-arch-decision":
+        _skip = (sk is not None and (
+            getattr(sk, "get", lambda k, d=None: d)("id", "").startswith("py-refactor-")
+            or getattr(sk, "get", lambda k, d=None: d)("id", "") == "py-arch-decision"
+        ))
+        if _skip:
             map_section = ""
         else:
             map_section = render_map_section(root, exclude_files={filename})
