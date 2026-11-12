@@ -163,6 +163,64 @@ tail -f logs/security.log
 
 ---
 
+## Quanto lontano potrebbe andare il tuo agente in Locale?
+
+BYTE-SWARMY nasce da una domanda concreta: **con un modello piccolo (1.5B–4B), un buon system prompt e delle skill, si può arrivare a un livello di autonomia accettabile per lo sviluppo software?**
+
+La risposta, basata su dati misurati su questa macchina (4 GB RAM / 4 GB VRAM), è: **sì, ma con un'architettura che compensa l'intelligenza del modello con la verifica del risultato.**
+
+### Cosa funziona bene (90%+ di successo)
+
+| Capacità | Come | Esempio |
+|---|---|---|
+| Task concreti e deterministici | Skill + template + gate | Statistiche, Fibonacci, LRU Cache |
+| Trasformazioni sintattiche | Skill di refactoring + correction loop | Rename symbol, aggiunta type hints |
+| Scelte architetturali semplici | Decision tree codificato (py-arch-decision) | "file grande → GENERATOR" |
+| Revisione moduli (prima passata) | Refactor-Loop + gate comportamentale | Applica specifiche atomiche |
+| Autocorrezione | Gate statico + runtime + marker + oracle | Cattura errori e riprova (≤3 tentativi) |
+
+### Cosa NON funziona (il modello non è un senior)
+
+| Limite | Perché | Soluzione nel sistema |
+|---|---|---|
+| Ragionamento architetturale vero | 3B segue pattern, non comprende | Decision tree pre-codificato |
+| Generalizzazione da esempi | Serve skill per ogni pattern | Skill suggerite dai fallimenti (M8) |
+| Cattura errori propri | Il modello non sa di sbagliare | Gate esterno (statico + runtime + marker) |
+| Task fuori dalle ricette note | Nessuna skill → fallimento | Fail-open: il gate lo dice onestamente |
+| Architetture complesse | Contesto limitato (3072 token) | Decomposizione atomica (C1) |
+
+### Il vero valore: il sistema, non il modello
+
+Il 3B da solo vale poco. Ma il **sistema** (skill + gate + routing + correction loop + persistent memory) lo rende affidabile al **95%+** su task concreti. È come avere un junior con:
+- Un manuale di procedure perfetto (skill)
+- Un code reviewer automatico (gate)
+- Un tech lead che assegna il lavoro (routing)
+- Un feedback loop che dice "hai sbagliato X, rifai" (correction)
+
+**Il valore vero è nel sistema, non nel modello.** E il sistema è onesto: non mente. `ok=true` solo se il codice gira E produce i marker attesi.
+
+### Quanto lontano si può andare con questo approccio?
+
+| Scenario | Livello raggiungibile | Condizione |
+|---|---|---|
+| Task concreti e ben specificati | **95%+ affidabile** | Skill presente + gate attivo |
+| Trasformazioni sintattiche (rename, typehints) | **90%+ affidabile** | Skill concreta + template |
+| Refactoring multi-file | **70-80% affidabile** | ReAct + tool multipli + gate |
+| Architettura/design | **Non affidabile** | Serve modello 30B+ (impossibile su 4 GB) |
+| Task completamente nuovi (no skill) | **Fallisce onestamente** | Il gate lo dice, non mente |
+
+### La risposta alla tua domanda
+
+**Sì, puoi avvicinarti a un livello accettabile** — ma solo se:
+1. **Scomponi** il lavoro in task atomici (un modulo, una funzione alla volta)
+2. **Codifichi** le tue specifiche come skill (ricette concrete)
+3. **Verifichi** il risultato con gate automatici (non ti fidi del modello)
+4. **Accetti** che il 5-10% dei casi richiederà intervento manuale
+
+Il sistema non è un senior. È un **junior supervisionato** che, con le procedure giuste, lavora in modo affidabile e onesto. E l'onestà (il gate che dice "no, questo non va") vale più dell'intelligenza.
+
+---
+
 ## Perché BYTE-SWARMY?
 
 | Senza BYTE-SWARMY | Con BYTE-SWARMY |
@@ -876,64 +934,6 @@ python -m CORE.model_selector --apply   # applica al config
 python -m CORE.benchmark                # benchmark tutti i modelli
 python -m CORE.benchmark --model qwen2.5-coder:1.5b  # solo uno
 ```
-
----
-
-## Quanto lontano potrebbe andare il tuo agente in Locale?
-
-BYTE-SWARMY nasce da una domanda concreta: **con un modello piccolo (1.5B–4B), un buon system prompt e delle skill, si può arrivare a un livello di autonomia accettabile per lo sviluppo software?**
-
-La risposta, basata su dati misurati su questa macchina (4 GB RAM / 4 GB VRAM), è: **sì, ma con un'architettura che compensa l'intelligenza del modello con la verifica del risultato.**
-
-### Cosa funziona bene (90%+ di successo)
-
-| Capacità | Come | Esempio |
-|---|---|---|
-| Task concreti e deterministici | Skill + template + gate | Statistiche, Fibonacci, LRU Cache |
-| Trasformazioni sintattiche | Skill di refactoring + correction loop | Rename symbol, aggiunta type hints |
-| Scelte architetturali semplici | Decision tree codificato (py-arch-decision) | "file grande → GENERATOR" |
-| Revisione moduli (prima passata) | Refactor-Loop + gate comportamentale | Applica specifiche atomiche |
-| Autocorrezione | Gate statico + runtime + marker + oracle | Cattura errori e riprova (≤3 tentativi) |
-
-### Cosa NON funziona (il modello non è un senior)
-
-| Limite | Perché | Soluzione nel sistema |
-|---|---|---|
-| Ragionamento architetturale vero | 3B segue pattern, non comprende | Decision tree pre-codificato |
-| Generalizzazione da esempi | Serve skill per ogni pattern | Skill suggerite dai fallimenti (M8) |
-| Cattura errori propri | Il modello non sa di sbagliare | Gate esterno (statico + runtime + marker) |
-| Task fuori dalle ricette note | Nessuna skill → fallimento | Fail-open: il gate lo dice onestamente |
-| Architetture complesse | Contesto limitato (3072 token) | Decomposizione atomica (C1) |
-
-### Il vero valore: il sistema, non il modello
-
-Il 3B da solo vale poco. Ma il **sistema** (skill + gate + routing + correction loop + persistent memory) lo rende affidabile al **95%+** su task concreti. È come avere un junior con:
-- Un manuale di procedure perfetto (skill)
-- Un code reviewer automatico (gate)
-- Un tech lead che assegna il lavoro (routing)
-- Un feedback loop che dice "hai sbagliato X, rifai" (correction)
-
-**Il valore vero è nel sistema, non nel modello.** E il sistema è onesto: non mente. `ok=true` solo se il codice gira E produce i marker attesi.
-
-### Quanto lontano si può andare con questo approccio?
-
-| Scenario | Livello raggiungibile | Condizione |
-|---|---|---|
-| Task concreti e ben specificati | **95%+ affidabile** | Skill presente + gate attivo |
-| Trasformazioni sintattiche (rename, typehints) | **90%+ affidabile** | Skill concreta + template |
-| Refactoring multi-file | **70-80% affidabile** | ReAct + tool multipli + gate |
-| Architettura/design | **Non affidabile** | Serve modello 30B+ (impossibile su 4 GB) |
-| Task completamente nuovi (no skill) | **Fallisce onestamente** | Il gate lo dice, non mente |
-
-### La risposta alla tua domanda
-
-**Sì, puoi avvicinarti a un livello accettabile** — ma solo se:
-1. **Scomponi** il lavoro in task atomici (un modulo, una funzione alla volta)
-2. **Codifichi** le tue specifiche come skill (ricette concrete)
-3. **Verifichi** il risultato con gate automatici (non ti fidi del modello)
-4. **Accetti** che il 5-10% dei casi richiederà intervento manuale
-
-Il sistema non è un senior. È un **junior supervisionato** che, con le procedure giuste, lavora in modo affidabile e onesto. E l'onestà (il gate che dice "no, questo non va") vale più dell'intelligenza.
 
 ---
 
