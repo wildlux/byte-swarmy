@@ -385,3 +385,112 @@ progetto in `<progetto>/.byteswarm/codemap.db`, rebuild **incrementale** per mti
 - [x] **M3 — Refactoring live su progetto vero**: ✅ fatto (commits 45c1cf7 + 9126598, +8 test + 1 skill). Skill `py-refactor-rename` (renaming multi-file) + keyword "palindroma" sistemata + demo live multi-file con routing per impatto + worker ReAct + tool multipli. NB: il direct mode scrive un file — il refactoring vero è passato al ReAct (M9), come previsto.
 
 **Ordine di esecuzione**: M1 ✅ M2 ✅ M3 ✅ M4 ✅ M5 ✅ M6 ✅ M7 ✅ M8 ✅ M9 ✅ M10 ✅ — **tutte le migliorie approvate sono state implementate, testate e committate.**
+
+---
+
+## Piano miglioramenti — Fase 8 (escluso hardware)
+
+Obiettivo: portare il sistema da "assistente di prima passata" a "assistente di revisione affidabile" per la revisione/riorganizzazione di molti moduli secondo le specifiche dell'utente. Focus: **qualità della validazione**, non capacità del modello.
+
+### A. Validazione comportamentale (priorità massima)
+
+- [ ] **A1 — Oracle test in `verify_runtime`**: estendere `verify_runtime(code, out_path, expected_markers=...)` con un parametro `oracle_tests: list[tuple[str, str]]` = [(input, expected_output)]. Il gate esegue il codice con ogni input e verifica l'output. Se differisce → reject con messaggio mirato: "input [1,2,3] → atteso 6, ottenuto 5 (errore nella somma)".
+  - File: `CORE/skill_executor.py` (verify_runtime)
+  - Test: unit senza LLM — marker sui 5 titoli noti + oracle ×3 (ok / wrong output / crash)
+  - Esempio task: "funzione somma(lista) che ritorna la somma. Verifica: somma([1,2,3])==6, somma([])==0"
+
+- [ ] **A2 — Diff semantico (snapshot pre/post)**: prima di revisionare un modulo, catturare il suo output su un set di input noti (snapshot in `state/snapshots/<modulo>.json`). Dopo la revisione, rieseguire gli stessi input e confrontare. Se differisce → reject automatico con diff.
+  - Nuovo modulo: `CORE/behavioral_diff.py` — `snapshot(path, inputs)`, `verify(path, snapshot) -> (ok, diff)`
+  - Integrazione: `run_direct` chiamato con `behavioral_check=True` → snapshot automatico se non esiste, verifica se esiste
+  - Test: unit senza LLM — snapshot ×2 (crea/legge), verify ×3 (ok / divergenza / crash)
+
+- [ ] **A3 — Gate di regressione nel Refactor-Loop**: il protocollo Refactor-Loop (Mappatura → Analisi → Intervento → Validazione) deve includere uno step "Comportamento preservato?" che confronta il modulo revisionato con lo snapshot. Se il comportamento cambia → REJECT con diff, non APPROVE.
+  - File: `CORE/worker.py` o `CORE/auditor.py` — aggiungere `check_behavioral_regression()` al flusso di audit
+  - Test: simulare un modulo che cambia comportamento → audit REJECT
+
+### B. Skill di trasformazione (nuove skill per il refactoring)
+
+- [ ] **B1 — Skill `py-refactor-rename`**: già esistente — migliorare il template con esempio concreto di rename multi-file (sed + verifica)
+- [ ] **B2 — Skill `py-refactor-extract`**: estrazione di una funzione da un blocco di codice. Template: identifica il blocco, crea la funzione, sostituisci il blocco con la chiamata.
+- [ ] **B3 — Skill `py-refactor-typehints`**: aggiunta di type hints a tutte le funzioni. Template: `def f(x: int) -> int:` con annotazioni per parametri e return.
+- [ ] **B4 — Skill `py-refactor-sync-to-async`**: conversione da sincrono ad asincrono. Template: `async def`, `await`, `asyncio.gather`.
+- [ ] **B5 — Skill `py-refactor-modularize`**: separazione di un modulo monolitico in più file. Template: identifica le responsabilità, crea i file, aggiorna gli import.
+
+### C. Decomposizione automatica dei task
+
+- [ ] **C1 — Atomizzatore di moduli**: un modulo con N funzioni diventa N task atomici (uno per funzione). Il planner (`generic_planner.py`) genera task con `scope: function` invece di `scope: module`.
+  - File: `CORE/generic_planner.py` — aggiungere `decompose_module(path) -> list[task]`
+  - Test: modulo con 3 funzioni → 3 task atomici
+
+- [ ] **C2 — Ordine topologico**: i task atomici vengono ordinati per dipendenza (le funzioni chiamate prima, le chiamanti dopo). Evita che il modello revisioni una funzione prima delle sue dipendenze.
+  - File: `CORE/code_map.py` — aggiungere `dependency_order(project_root) -> list[str]` (BFS sul grafo delle chiamate)
+  - Test: grafo A→B, B→C → ordine [C, B, A]
+
+### D. Feedback mirato dal gate (diagnosi intelligente)
+
+- [ ] **D1 — Diagnosi errori di marker**: il gate, quando un marker è mancante, suggerisce la riga di codice da aggiungere. Es: "manca LEN=3. Aggiungi `print(f'LEN={len(coll)}')` dopo le add()."
+  - File: `CORE/skill_executor.py` — estendere `verify_runtime` con `suggest_fix(missing_marker, code) -> str`
+  - Test: marker mancante → suggerimento contiene il print corretto
+
+- [ ] **D2 — Diagnosi errori di logica**: il gate, quando un oracle test fallisce, confronta input/expected/actual e suggerisce: "input [1,2,3] → atteso 6, ottenuto 5. Probabile errore: off-by-one in range (usa range(1, n+1))."
+  - File: `CORE/skill_executor.py` — estendere `verify_runtime` con `diagnose_logic_error(input, expected, actual) -> str`
+  - Test: input [1,2,3], expected 6, actual 5 → suggerimento contiene "off-by-one"
+
+### E. Miglioramenti al system prompt (progressive disclosure)
+
+- [ ] **E1 — System prompt compatto**: ridurre il SYSTEM_DIRECT a < 500 token rimuovendo le regole ridondanti e tenendo solo le 5 più efficaci (fence, placeholder, istanza, marker, no input).
+  - File: `CORE/skill_executor.py` — `SYSTEM_DIRECT`
+  - Test: len(SYSTEM_DIRECT.split()) < 500
+
+- [ ] **E2 — Skill on-demand**: caricare solo i metadati della skill nel prompt (~50 token), e il corpo completo (~500-2000 token) solo quando la skill è matchata. Già parzialmente implementato via `find_skill()` + `format_skill_block()`.
+  - Verifica: il prompt con skill ha < 1500 token totali (system + skill + mappa)
+
+### F. Memoria e contesto
+
+- [ ] **F1 — Memory compaction intelligente**: invece di troncare a 50 eventi, comprimere gli errori simili in un'unica entry con contatore. Es: 5 errori "input() interattivo" → 1 entry con count=5.
+  - File: `CORE/persistent_memory.py` — modificare `record_error()` per merge intelligente
+  - Test: 5 errori simili → 1 entry con count=5
+
+- [ ] **F2 — Contesto per modulo**: quando si revisiona un modulo, iniettare nel prompt solo i simboli di quel modulo + i suoi dipendenti diretti (non tutta la mappa). Riduce il rumore.
+  - File: `CORE/code_map.py` — aggiungere `relevant_symbols(project_root, target_file) -> list[dict]`
+  - Test: modulo A dipende da B → simboli di A + B, non di C
+
+### G. Skill suggerite dai fallimenti (M8 — già fatto, miglioramenti)
+
+- [ ] **G1 — Skill suggerite con template concreto**: la bozza di skill generata da M8 dovrebbe includere un template concreto (non solo la regola), basato sulla firma del fallimento.
+  - File: `CORE/skill_proposer.py` — `_create_proposal()` genera template concreto
+  - Test: bozza generata contiene un blocco ```python con codice
+
+- [ ] **G2 — Auto-approvazione dopo N successi**: se una skill suggerita viene usata 3 volte senza fallimenti, approvarla automaticamente (con log).
+  - File: `CORE/skill_proposer.py` — aggiungere `auto_approve_if_stable(sig, threshold=3)`
+
+---
+
+## Ordine di esecuzione consigliato
+
+1. **A1** (oracle test) — il miglioramento a più alto impatto per la revisione
+2. **A2** (diff semantico) — complemento di A1
+3. **D1** (diagnosi marker) — migliora il correction loop
+4. **C1** (atomizzatore) — rende i task più gestibili per il 3B
+5. **B2-B5** (nuove skill di trasformazione) — espande le capacità
+6. **F1, F2** (memoria e contesto) — riduce il rumore
+7. **G1, G2** (miglioramenti M8) — chiude il cerchio
+
+## Test previsti
+
+- `tests/test_behavioral_diff.py` — A2 (snapshot/verify, 5 test)
+- `tests/test_oracle_gate.py` — A1 (oracle test, 5 test)
+- `tests/test_task_atomizer.py` — C1, C2 (5 test)
+- `tests/test_skill_proposer.py` — già esistente, +2 test per G1, G2
+
+## Stima
+
+- A1-A3: 1 giorno (validazione comportamentale)
+- B2-B5: mezza giornata (4 skill nuove)
+- C1-C2: mezza giornata (decomposizione)
+- D1-D2: mezza giornata (diagnosi)
+- E1-E2: 2 ore (prompt compatto)
+- F1-F2: 2 ore (memoria/contesto)
+- G1-G2: 2 ore (miglioramenti M8)
+
+**Totale: ~3-4 giorni di lavoro**
