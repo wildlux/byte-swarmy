@@ -696,6 +696,27 @@ python -m CORE.model_selector --apply   # apply to config
 
 ---
 
+## How far could your agent go locally?
+
+See the Italian README (`README.md` in the repository root) for the full
+discussion: *"Quanto lontano potrebbe andare il tuo agente in Locale?"*
+
+Short answer: **yes, you can reach an acceptable level** — but only if you:
+
+1. **Decompose** work into atomic tasks (one module, one function at a time)
+2. **Codify** your specs as skills (concrete recipes)
+3. **Verify** results with automatic gates (don't trust the model)
+4. **Accept** that 5–10% of cases will need manual intervention
+
+The system is not a senior. It is a **supervised junior** that, with the
+right procedures, works reliably and honestly. Honesty (the gate that says
+"no, this doesn't work") is worth more than model intelligence.
+
+See `README.md` § *"Quanto lontano potrebbe andare il tuo agente in Locale?"*
+for the full capability table, limitations, and conditions.
+
+---
+
 ## Known limitations
 
 - **One model loaded at a time**: rotation is explicit (4 GB VRAM constraint).
