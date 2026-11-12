@@ -187,7 +187,35 @@ def _create_proposal(signature: str, task_title: str, error: str,
         draft_path = PROPOSALS_DIR / f"{prop_id}.md"
         PROPOSALS_DIR.mkdir(parents=True, exist_ok=True)
 
-        # Bozza: skill base + sezione "regola appresa" + esempio fallimento
+        # G1: Bozza con template CONCRETO (non solo la regola).
+        # Il template è basato sulla firma: include un esempio di codice
+        # corretto che il modello può copiare e adattare.
+        templates = {
+            "input_interattivo": (
+                "import sys\n\n"
+                "# MAI usare input(): hard-codifica i valori del task\n"
+                "valori = [25]  # esempio dal task\n"
+                "for v in valori:\n"
+                "    risultato = v * 9 / 5 + 32\n"
+                "    print(f\"RISULTATO={risultato}\")\n"),
+            "marker_mancante": (
+                "# Stampa TUTTI i marker richiesti dal task\n"
+                "print(f\"MARKER={valore}\")  # adatta nome e valore\n"),
+            "try_senza_except": (
+                "try:\n"
+                "    {{ FILL IT }}\n"
+                "except Exception as e:\n"
+                "    print(e)\n"),
+            "loop_infinito": (
+                "it = iter(coll)\n"
+                "while True:\n"
+                "    try:\n"
+                "        print(next(it))\n"
+                "    except StopIteration:\n"
+                "        break\n"),
+        }
+        template = templates.get(signature, "# {{ IMPLEMENTAZIONE }}\n")
+
         learned = (
             "\n\n---\n# REGOLA APPRESA (bozza — da approvare)\n\n"
             f"Firma fallimento: `{signature}` ({info['label']})\n"
@@ -196,6 +224,8 @@ def _create_proposal(signature: str, task_title: str, error: str,
             f"Ultimo errore: {error[:200]}\n\n"
             "## Regola\n"
             f"{info['rule']}\n\n"
+            "## Template concreto\n"
+            f"```python\n{template}```\n\n"
             "## Azione richiesta\n"
             "Rivedi questa bozza, modificala se necessario, poi approva con:\n"
             f"  python -m CORE.skill_proposer --approve {prop_id}\n"
@@ -285,6 +315,35 @@ def reject_proposal(prop_id: str) -> bool:
         return False
     except Exception:
         return False
+
+
+# ── G2: auto-approvazione dopo N successi ─────────────────────────────
+def record_skill_usage(skill_id: str, success: bool) -> Optional[str]:
+    """Traccia l'uso di una skill suggerita. Se usata 3 volte senza
+    fallimenti → auto-approvazione (con log). Ritorna l'id approvato
+    o None. Fail-open.
+    """
+    try:
+        data = _load_failures()
+        usage = data.setdefault("usage", {})
+        u = usage.setdefault(skill_id, {"success": 0, "fail": 0})
+        if success:
+            u["success"] = u.get("success", 0) + 1
+        else:
+            u["fail"] = u.get("fail", 0) + 1
+        _save_failures(data)
+
+        # Auto-approve se 3 successi consecutivi senza fallimenti
+        if (u.get("success", 0) >= 3 and u.get("fail", 0) == 0):
+            # Trova la proposta pendente con questo skill_id
+            for sig, info in data.get("proposals", {}).items():
+                if info.get("status") == "pending" and sig in skill_id:
+                    ok = approve_proposal(info["id"])
+                    if ok:
+                        return info["id"]
+        return None
+    except Exception:
+        return None
 
 
 def _cli() -> int:

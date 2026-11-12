@@ -443,34 +443,36 @@ Obiettivo: portare il sistema da "assistente di prima passata" a "assistente di 
 
 ### F. Memoria e contesto
 
-- [ ] **F1 — Memory compaction intelligente**: invece di troncare a 50 eventi, comprimere gli errori simili in un'unica entry con contatore. Es: 5 errori "input() interattivo" → 1 entry con count=5.
+- [x] **F1 — Memory compaction intelligente**: ✅ fatto. `record_error()` ora fa merge fuzzy (stesso tipo + ≥3 parole comuni) e compaction per tipo quando si superano 20 entry. 5 test (test_memory_compaction.py).
   - File: `CORE/persistent_memory.py` — modificare `record_error()` per merge intelligente
   - Test: 5 errori simili → 1 entry con count=5
 
-- [ ] **F2 — Contesto per modulo**: quando si revisiona un modulo, iniettare nel prompt solo i simboli di quel modulo + i suoi dipendenti diretti (non tutta la mappa). Riduce il rumore.
+- [x] **F2 — Contesto per modulo**: ✅ fatto. `relevant_symbols(project_root, target_file)` in `CORE/code_map.py` — simbodo del modulo target + dipendenti diretti. 5 test (test_relevant_symbols.py).
   - File: `CORE/code_map.py` — aggiungere `relevant_symbols(project_root, target_file) -> list[dict]`
   - Test: modulo A dipende da B → simboli di A + B, non di C
 
 ### G. Skill suggerite dai fallimenti (M8 — già fatto, miglioramenti)
 
-- [ ] **G1 — Skill suggerite con template concreto**: la bozza di skill generata da M8 dovrebbe includere un template concreto (non solo la regola), basato sulla firma del fallimento.
+- [x] **G1 — Skill suggerite con template concreto**: ✅ fatto. `_create_proposal()` ora include un blocco ```python con template concreto per ogni firma (input_interattivo, marker_mancante, try_senza_except, loop_infinito). La bozza è pronta da copiare e adattare, non solo da leggere.
   - File: `CORE/skill_proposer.py` — `_create_proposal()` genera template concreto
   - Test: bozza generata contiene un blocco ```python con codice
 
-- [ ] **G2 — Auto-approvazione dopo N successi**: se una skill suggerita viene usata 3 volte senza fallimenti, approvarla automaticamente (con log).
+- [x] **G2 — Auto-approvazione dopo N successi**: ✅ fatto. `record_skill_usage(skill_id, success)` traccia l'uso in `state/skill_proposals/failures.json` (sezione `usage`). Dopo 3 successi consecutivi senza fallimenti → auto-approvazione (con log). Integrato in `run_direct` su successo.
   - File: `CORE/skill_proposer.py` — aggiungere `auto_approve_if_stable(sig, threshold=3)`
 
 ---
 
 ## Ordine di esecuzione consigliato
 
-1. **A1** (oracle test) — il miglioramento a più alto impatto per la revisione
-2. **A2** (diff semantico) — complemento di A1
-3. **D1** (diagnosi marker) — migliora il correction loop
-4. **C1** (atomizzatore) — rende i task più gestibili per il 3B
-5. **B2-B5** (nuove skill di trasformazione) — espande le capacità
-6. **F1, F2** (memoria e contesto) — riduce il rumore
-7. **G1, G2** (miglioramenti M8) — chiude il cerchio
+1. **A1** (oracle test) ✅ — il miglioramento a più alto impatto per la revisione
+2. **A2** (diff semantico) ✅ — complemento di A1
+3. **D1** (diagnosi marker) ✅ — migliora il correction loop
+4. **C1** (atomizzatore) ✅ — rende i task più gestibili per il 3B
+5. **C2** (ordine topologico) ✅ — dipendenze risolte
+6. **B2-B5** (nuove skill di trasformazione) ✅ — espande le capacità
+7. **F1, F2** (memoria e contesto) ✅ — riduce il rumore
+8. **G1, G2** (miglioramenti M8) ✅ — chiude il cerchio
+9. **E1-E2** (progressive disclosure) ✅ — ottimizza il contesto
 
 ## Test previsti
 

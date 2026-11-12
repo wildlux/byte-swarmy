@@ -546,6 +546,14 @@ def run_direct(task: dict, project_root: str,
             except Exception:
                 pass  # fail-open
 
+        # G2 — traccia l'uso della skill su successo (per auto-approvazione)
+        if runtime_error is None and skill_block:
+            try:
+                from CORE import skill_proposer as _sp
+                _sp.record_skill_usage(getattr(sk, "get", lambda k, d=None: d)("id", "unknown") if sk else "unknown", True)
+            except Exception:
+                pass
+
         if runtime_error is None:
             return {"ok": True, "path": str(out_path), "attempts": attempts,
                     "error": None, "model": used_model,
