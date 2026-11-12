@@ -386,8 +386,13 @@ def run_direct(task: dict, project_root: str,
 
     # 🆕 Mappa del codice del progetto (AST → SQLite): simboli esistenti
     # nel prompt + arricchimento degli errori statici. Fail-open totale.
+    # Per py-arch-decision la mappa confonde (il modello ricicla simboli
+    # esistenti invece di seguire il template del pattern scelto).
     try:
-        map_section = render_map_section(root, exclude_files={filename})
+        if sk is not None and getattr(sk, "get", lambda k, d=None: d)("id") == "py-arch-decision":
+            map_section = ""
+        else:
+            map_section = render_map_section(root, exclude_files={filename})
     except Exception:
         map_section = ""
 

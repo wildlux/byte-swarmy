@@ -54,6 +54,9 @@ TASKS = [
     ("T20", "Implementa un unittest.TestCase con 3 test: test_somma, "
             "test_sottrazione, test_moltiplicazione. Nel main esegui i "
             "test con unittest.main(exit=False) e stampa TEST_PASSATI=3."),
+    ("T21", "Crea un sistema che legge un file grande riga per riga e conta "
+            "le parole uniche, stampa COUNT=5. Scegli il pattern architetturale "
+            "migliore per memoria O(1)."),
 ]
 
 
