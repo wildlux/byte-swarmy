@@ -7,8 +7,7 @@ keywords: api, http, request, richiesta, rest, get, post, url, urllib, scarica d
 
 STEPS (follow in order):
 1. Create project/main.py using the TEMPLATE below.
-2. Replace ONLY the {{...}} placeholders. Do NOT add extra features.
-3. done=true with a one-line result.
+2. 3. done=true with a one-line result.
 
 TEMPLATE (keep every line that has no {{...}} exactly as-is):
 ```python
@@ -38,8 +37,7 @@ if __name__ == "__main__":
 ```
 
 RULES:
-- ONE file only: project/main.py. Standard library only.
-- Replace EVERY {{...}} placeholder with real code. Example: `{{ MARKER }}`
+- - Replace EVERY {{...}} placeholder with real code. Example: `{{ MARKER }}`
   becomes `STATO={resp.status}` so the line reads print(f"STATO={resp.status}")
   — use the EXACT name and value the task requests.
 - Default `urllib.request` (requests ONLY if already in the venv).

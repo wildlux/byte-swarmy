@@ -7,8 +7,7 @@ keywords: decoratore, decoratori, decorator, misura_tempo, timing, tempo di esec
 
 STEPS (follow in order):
 1. Create project/main.py using the TEMPLATE below.
-2. Replace ONLY the {{...}} placeholders. Do NOT add extra features.
-3. done=true with a one-line result.
+2. 3. done=true with a one-line result.
 
 TEMPLATE (keep every line that has no {{...}} exactly as-is):
 ```python
@@ -44,8 +43,7 @@ if __name__ == "__main__":
 ```
 
 RULES:
-- ONE file only: project/main.py. Standard library only.
-- The decorator MUST be defined and applied with @ to the target
+- - The decorator MUST be defined and applied with @ to the target
   function. Never measure with inline time.time() calls.
 - Use the EXACT quantity from the task: "somma i numeri da 1 a 100000"
   means `sum(range(1, 100001))` = 5000050000. Never shrink the range.

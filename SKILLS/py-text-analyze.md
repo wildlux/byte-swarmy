@@ -1,14 +1,13 @@
 ---
 id: py-text-analyze
 title: Python text analysis (word frequency + palindrome) (single file)
-keywords: frequenza, frequency, conta parole, word count, parole ripetute, palindromo, palindroma, palindrome, analisi testo, split
+keywords: frequenza, frequency, conta parole, word count, parole ripetute, palindromo, palindrome, analisi testo, split
 ---
 # Recipe: text analysis — word frequency + palindrome (single file)
 
 STEPS (follow in order):
 1. Create project/main.py using the TEMPLATE below.
-2. Replace ONLY the {{...}} placeholders. Do NOT add extra features.
-3. done=true with a one-line result.
+2. 3. done=true with a one-line result.
 
 TEMPLATE (keep every line that has no {{...}} exactly as-is):
 ```python
@@ -34,8 +33,6 @@ def main():
     frase = "{{ TEXT }}"
     print(f"PALINDROMO={is_palindromo(frase)}")
     counts = conta_parole(frase)
-    for word, n in counts.items():
-        print(f"{word}: {n}")
     # se il task chiede la parola più frequente, stampa:
     # print(f"PIU_FREQUENTE={max(counts, key=counts.get)}")
 
@@ -45,15 +42,6 @@ if __name__ == "__main__":
 ```
 
 RULES:
-- ONE file only: project/main.py. Standard library only.
-- Replace EVERY {{...}} placeholder with real code. A placeholder left
-  in the file is a SYNTAX ERROR.
-- Word extraction happens FIRST with regex `[a-zàèéìòù]+`: punctuation
-  and spaces disappear BY CONSTRUCTION — never count on the whole
-  phrase string.
-- Palindrome: keep ONLY letters (isalpha), lowercase, then compare
-  with the reverse.
-- Most frequent word = max(counts, key=counts.get) — a REAL word from
-  the split, never the whole phrase. If the task asks a specific
-  marker, print it EXACTLY (uncomment and adapt the commented line,
-  using the marker NAME the task requests).
+- - - Word extraction happens FIRST with regex `[a-zàèéìòù]+`: punctuation and spaces disappear BY CONSTRUCTION — never count on the whole phrase string.
+- Palindrome: keep ONLY letters (isalpha), lowercase, then compare with the reverse.
+- Most frequent word = max(counts, key=counts.get) — a REAL word from the split, never the whole phrase. If the task asks a specific marker, print it EXACTLY (uncomment and adapt the commented line, using the marker NAME the task requests).

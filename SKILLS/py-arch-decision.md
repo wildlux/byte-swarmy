@@ -7,22 +7,21 @@ keywords: architettura, architecture, pattern, design, scelta, trade-off, strutt
 
 STEPS (follow in order):
 1. Leggi il task e scegli UN pattern dalla tabella DECISION TREE.
-2. Stampa PATTERN_SCELTO=<nome> e TRADEOFF=<motivazione in 1 riga>.
-3. Create project/main.py using the TEMPLATE below.
-4. Replace ONLY the {{...}} placeholders. Do NOT add extra features.
-5. done=true with a one-line result.
+2. Stampa # PATTERN_SCELTO=<nome> e # TRADEOFF=<motivazione> come prime 2 righe del file.
+3. Create project/main.py using il TEMPLATE generico + il pattern scelto.
+4. 5. done=true with a one-line result.
 
 ## DECISION TREE (scegli il PRIMO che matcha)
 
-| # | Se il task menziona... | Pattern | Perché |
-|---|---|---|---|
-| 1 | file grande, streaming, riga per riga, memoria limitata | GENERATOR | O(1) memoria |
-| 2 | risorsa da aprire/chiudere, with, cleanup | CONTEXT_MANAGER | Cleanup automatico |
-| 3 | wrappare, misurare, ritentare, loggare, cache | DECORATOR | Riusabile |
-| 4 | thread, concorrenza, producer-consumer, lock | THREADING | Thread-safe |
-| 5 | stato condiviso, CRUD, persistenza, dati | CLASS | Stato esplicito |
-| 6 | CLI, argomenti, flag, sottocomandi | ARGPARSE | Standard |
-| fallback | nessuno dei precedenti | CLASS | Più generico |
+| # | Se il task menziona... | Pattern |
+|---|---|---|
+| 1 | file grande, streaming, riga per riga, memoria limitata | GENERATOR |
+| 2 | risorsa da aprire/chiudere, with, cleanup | CONTEXT_MANAGER |
+| 3 | wrappare, misurare, ritentare, loggare, cache | DECORATOR |
+| 4 | thread, concorrenza, producer-consumer, lock | THREADING |
+| 5 | stato condiviso, CRUD, persistenza, dati | CLASS |
+| 6 | CLI, argomenti, flag, sottocomandi | ARGPARSE |
+| fallback | nessuno dei precedenti | CLASS |
 
 TEMPLATE (keep every line that has no {{...}} exactly as-is):
 ```python
@@ -40,15 +39,7 @@ if __name__ == "__main__":
 ```
 
 RULES:
-- ONE file only: project/main.py. Standard library only.
-- PRIMA di scrivere codice, la prima riga del file DEVE essere:
-  # PATTERN_SCELTO=<nome>  (es. GENERATOR, CONTEXT_MANAGER, DECORATOR,
-  THREADING, CLASS, ARGPARSE)
-- La seconda riga DEVE essere:
-  # TRADEOFF=<motivazione in 1 riga>
-- Poi il codice del pattern scelto.
-- Il marker PATTERN_SCELTO deve essere il primo output su stdout? NO:
-  PATTERN_SCELTO è un commento nel CODICE, non un print. Il print()
-  stampa solo i marker del task (es. COUNT=5, SOMMA=15).
-- Replace EVERY {{...}} placeholder with real code.
-- Se il task non rientra in nessuna categoria → usa CLASS (fallback).
+- - PRIMA di scrivere codice, la prima riga del file DEVE essere: # PATTERN_SCELTO=<nome>
+- La seconda riga DEVE essere: # TRADEOFF=<motivazione in 1 riga>
+- PATTERN_SCELTO è un commento nel CODICE, non un print. Il print() stampa solo i marker del task.
+- - Se il task non rientra in nessuna categoria → usa CLASS (fallback).

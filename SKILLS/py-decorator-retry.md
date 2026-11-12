@@ -1,14 +1,13 @@
 ---
 id: py-decorator-retry
 title: Python retry decorator (single file)
-keywords: decoratore, decoratori, decorator, retry, ritenta, ritentare, tentativo, tentativi, riuscire, fallisce
+keywords: decoratore, decoratori, decorator, retry, ritenta, tentativo, tentativi
 ---
 # Recipe: retry decorator (single file)
 
 STEPS (follow in order):
 1. Create project/main.py using the TEMPLATE below.
-2. Replace ONLY the {{...}} placeholders. Do NOT add extra features.
-3. done=true with a one-line result.
+2. 3. done=true with a one-line result.
 
 TEMPLATE (keep every line that has no {{...}} exactly as-is):
 ```python
@@ -53,8 +52,7 @@ if __name__ == "__main__":
 ```
 
 RULES:
-- ONE file only: project/main.py. Standard library only.
-- Il decorator retry MUST essere definito e applicato con @ alla funzione.
+- - Il decorator retry MUST essere definito e applicato con @ alla funzione.
 - Stampare TENTATIVO=n ad OGNI tentativo (incluso l'ultimo riuscito).
 - La funzione target deve fallire le prime 2 volte e riuscire la 3a.
 - Usare un contatore esterno (_chiamate) per simulare il fallimento.

@@ -7,8 +7,7 @@ keywords: unittest, test unitari, testcase, asserzioni, verifica automatica, tes
 
 STEPS (follow in order):
 1. Create project/main.py using the TEMPLATE below.
-2. Replace ONLY the {{...}} placeholders. Do NOT add extra features.
-3. done=true with a one-line result.
+2. 3. done=true with a one-line result.
 
 TEMPLATE (keep every line that has no {{...}} exactly as-is):
 ```python
@@ -50,11 +49,7 @@ if __name__ == "__main__":
 ```
 
 RULES:
-- ONE file only: project/main.py. Standard library only.
-- Test class inherits unittest.TestCase; methods start with test_.
-- Cover BOTH the success case AND the error case when the function can
-  fail (assertRaises).
+- - Test class inherits unittest.TestCase; methods start with test_.
+- Cover BOTH the success case AND the error case when the function can fail (assertRaises).
 - One assert per concept: assertEqual, assertTrue, assertRaises.
-- ALWAYS include the `if __name__ == "__main__"` block that runs the
-  tests and prints TEST_PASSATI=N (N = numero di test passati).
-- Do NOT use `unittest.main()` alone — it doesn't print TEST_PASSATI.
+- ALWAYS include the `if __name__ == "__main__"` block that runs the tests and prints TEST_PASSATI=N. Do NOT use `unittest.main()` alone.

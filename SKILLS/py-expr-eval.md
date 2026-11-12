@@ -7,8 +7,7 @@ keywords: espressione, expression, eval, valuta, parser, variabili, dizionario, 
 
 STEPS (follow in order):
 1. Create project/main.py using the TEMPLATE below.
-2. Replace ONLY the {{...}} placeholders. Do NOT add extra features.
-3. done=true with a one-line result.
+2. 3. done=true with a one-line result.
 
 TEMPLATE (keep every line that has no {{...}} exactly as-is):
 ```python
@@ -28,8 +27,7 @@ if __name__ == "__main__":
 ```
 
 RULES:
-- ONE file only: project/main.py. Standard library only.
-- Usa eval() con __builtins__ disabilitati e il dizionario delle
+- - Usa eval() con __builtins__ disabilitati e il dizionario delle
   variabili come globals/locals — MAI eval() senza restrizioni.
 - Sostituisci il dizionario e l'espressione con quelli del task.
 - Stampa RISULTATO= con il valore calcolato.
