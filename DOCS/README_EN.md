@@ -419,6 +419,47 @@ Push is **manual only**. Workers cannot modify remotes or push.
 
 ---
 
+## Architecture: the 3 LLMs
+
+BYTE-SWARMY uses **3 specialised LLMs** that divide the work. Not one
+model doing everything, but three distinct roles collaborating:
+
+| # | Role | Model | Task | When active |
+|---|---|---|---|---|
+| 1 | **Timestral** (thermal) | qwen2.5:0.5b | Monitors CPU/GPU temperature, adapts LLM parameters (temperature, top_p, num_ctx, max_steps) based on thermal state. Modulates orchestrator tick rate. | Always (every 30 s) |
+| 2 | **LLM worker** (coder) | qwen2.5-coder:3b (base) / granite4:7b-a1b-h (heavy) | Generates code, executes tasks, writes files. The model that "works". | Per task |
+| 3 | **Decision model** (planner) | tev1:4b | Decomposes generic tasks into 2-8 atomic subtasks. Decides work structure. | Only for generic/complex tasks |
+
+### Why 3 LLMs and not 1?
+
+| Reason | Detail |
+|---|---|
+| **Specialisation** | A 0.5B model (Timestral) is fast and light for monitoring; a 3B (worker) is capable for code; a 4B (decision) is sufficient for decomposition. |
+| **VRAM rotation** | Only one model in VRAM at a time (4 GB). The 3 LLMs alternate: Timestral always in RAM, worker and decision model load/unload. |
+| **Role separation** | Decision model decomposes, worker executes, Timestral monitors. None does the other's job. |
+| **Fail-open** | If an LLM is unavailable, the system degrades (e.g., routing OFF, fallback to base). |
+
+### Complexity routing (Phases 6-7)
+
+Before each execution, the system picks the worker model:
+
+1. **Perceived complexity (keywords)**: words like "decorator", "thread", "lock" → level `medium`/`high`
+2. **Real impact (code_map graph)**: symbols cited in the task → files touched, BFS depth. ≥2 files or depth ≥3 → `high`
+3. **Hysteresis**: once heavy, medium tasks stay heavy; only `low` returns to base
+4. **Thermal guard**: under critical load, heavy is avoided
+
+| Level | Model | When |
+|---|---|---|
+| `low` | qwen2.5-coder:3b (base) | Simple tasks, no symbols cited |
+| `medium` | qwen2.5-coder:3b (base) | 1-2 medium concepts or 1 file touched |
+| `high` | granite4:7b-a1b-h (heavy) | Advanced keywords or ≥2 files touched |
+| fallback | qwen2.5-coder:3b (base) | Heavy not installed or thermal critical |
+
+See the Italian README (`README.md` in the repository root) for the full
+discussion: *"Quanto lontano potrebbe andare il tuo agente in Locale?"*
+
+---
+
 ## How it works
 
 ### Intent Router (multilingual)
