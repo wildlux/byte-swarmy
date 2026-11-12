@@ -1,3 +1,16 @@
+## Aggiornamento (2026-11-12)
+La specifica originale è stata implementata (Ciclo 1-2). Da allora il sistema è stato esteso con:
+- Complexity routing (Fasi 6-7): keyword + impatto dal grafo code_map
+- Behavioral validation (A1, A2): oracle test + diff semantico
+- Skill proposer (M8): memoria fallimenti → skill suggerite
+- Thermal routing (M4): guardia termica nell'heavy selection
+- 18 skill files (da 14 originali)
+- 160+ test in 12 batterie
+
+Vedi `todo.md` e `REPORT.md` per i dettagli.
+
+---
+
 Specifica originale di hardening — BYTE-SWARMY
 Stato: Archiviata — implementata nel Ciclo 1-2 (vedi todo.md).Data: 2026-10-25Scopo: conservare la specifica tecnica completa data in input agli agentiper l'implementazione dell'hardening di sicurezza. Documenta le decisioniarchitetturali, le regex di allowlist/blacklist e i criteri di accettazione.
 

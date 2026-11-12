@@ -170,6 +170,14 @@ with patch('platform.system', return_value='Darwin'), \
 - **NVIDIA**: installa `nvidia-smi` (pacchetto `nvidia-utils` su Linux)
 - **AMD**: installa ROCm (`rocm-smi` deve essere nel PATH)
 
+### Thermal Routing (M4 — Fase 8)
+Il routing per complessità consulta lo stato termico prima di scegliere il modello heavy:
+- Se CPU ≥ 75°C o GPU ≥ 80°C → l'heavy viene evitato, si resta sul base.
+- Lezione della suite comparativa: il 4B muore di throttling (300s timeout), il 3B regge.
+- Campione fresco da `state/timestral_history.json` (GUI, <120s) o lettura diretta `/sys` (CLI).
+- Fail-open: se la lettura termica fallisce, l'heavy parte comunque.
+- Configurabile: `[complexity_routing] thermal_guard = true/false`.
+
 ### Strategy sbagliata
 Forza manualmente in `CONFIG/config.toml`:
 ```toml

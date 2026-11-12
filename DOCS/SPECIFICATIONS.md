@@ -23,13 +23,22 @@ byte-swarmy/
 ├── CORE/           orchestrator, worker, planner, auditor, tools, sandbox,
 │                   memory, memory_provider, ollama_client, task_dispatcher,
 │                   constants, ast_scanner, mcp_client, persistent_memory,
-│                   model_selector
+│                   model_selector, skill_executor, skills, routing,
+│                   code_map, behavioral_diff, skill_proposer, benchmark,
+│                   execute_handler, exception_handler, state_recovery
 ├── INTENT/         router, bridge, metrics, intents.json
 ├── SAFETY/         security, security_checks, watchdog
 ├── MONITORING/     thermal_manager, system_monitor, lifecycle_manager
 ├── GUI/            control_center (PyQt6)
 ├── CONFIG/         config.toml
-├── tests/          test_security, test_sandbox, test_intent_integration, run_tests
+├── tests/          39+ test files (usability, correction, routing, skill_proposer,
+│                   model_selector, oracle_gate, behavioral_diff, diagnosis,
+│                   task_atomizer, memory_compaction, relevant_symbols, ...)
+├── SKILLS/         18 skill files (py-cli-script, py-class-module, ...)
+├── state/          timestral_history.json, persistent_memory.json,
+│                   last_metrics.json, streaming.txt, orchestrator.pid,
+│                   suite_compare/, suite_complex/, snapshots/,
+│                   skill_proposals/
 ├── state/          timestral_history.json, persistent_memory.json, last_metrics.json,
 │                   streaming.txt, orchestrator.pid
 ├── tasks/          queue.db (SQLite, source of truth), queue.json (GUI dual-write)
@@ -145,3 +154,52 @@ Security is enforced at the **Tool Layer**, not the Prompt Layer.
 - Live Activity Panel: 2-column layout beside the task table with streaming tokens, step, thought, tool call, metrics.
 - ModelsTab: ComboBox per role populated from `ollama list`, Auto-Select button (applies `model_selector`), per-model Test button (measures tok/s), Save & Restart (writes config + restarts orchestrator). Config tab auto-reloads from disk when revisited.
 - Themeable: dark (default) and light themes, persisted in `state/gui_theme.json`, toggle in toolbar.
+
+
+## 13. Recent Additions (Fase 6–8, P1–P15)
+
+### 13.1 Complexity Routing
+- `CORE/routing.py`: `estimate_complexity()` (keywords) + `estimate_impact()` (code_map graph).
+- Level = MAX(keyword, impact) + hysteresis (sticky heavy). Thermal guard: under critical load, heavy is avoided.
+- `route_model_key()` returns (key, level, decision_string). `run_direct(enable_routing=None)`: auto (client None or real ModelClient → ON; fake → OFF).
+- Per-model timeout: `[models.*] timeout` overrides `[ollama].request_timeout`.
+
+### 13.2 Code Map (AST → SQLite)
+- `CORE/code_map.py`: incremental rebuild (mtime), symbols/calls/imports tables.
+- `format_map()`: excludes test files. `relevant_symbols()`: target + direct deps.
+- `decompose_module()`: AST → atomic tasks. `dependency_order()`: topological sort.
+- `estimate_impact()`: symbols cited → files touched, BFS depth, test coverage.
+
+### 13.3 Skill System
+- 18 skill files in `SKILLS/`. Keyword-based matcher (word-boundary, case-insensitive).
+- `CORE/skills.py`: `find_skill()`, `format_skill_block()` (cap 2500 chars).
+- Progressive disclosure: metadata only initially, full body when matched.
+- `CORE/skill_proposer.py`: failure memory → skill drafts (M8). 9 failure signatures.
+- Skills: py-cli-script, py-class-module, py-context-manager, py-decorator, py-decorator-retry, py-generators, py-http-api, py-inheritance, py-json-store, py-regex, py-text-analyze, py-threading, py-unittest, py-argparse, py-expr-eval, py-arch-decision, py-refactor, pyqt6-basics, pyqt6-model-view, pyqt6-threading.
+
+### 13.4 Behavioral Validation (A1, A2)
+- `verify_runtime()`: oracle_checks (substrings that MUST appear in stdout).
+- `suggest_fix_for_marker()`: targeted suggestion for missing markers.
+- `CORE/behavioral_diff.py`: snapshot/verify/diff semantico for refactoring safety.
+- `run_direct(oracle_checks=..., behavioral_check=...)`.
+
+### 13.5 Memory & Context
+- `CORE/persistent_memory.py`: fuzzy merge (same type + ≥3 common words), compaction when exceeding 20 entries.
+- `relevant_symbols()`: target module + direct dependencies (reduces prompt noise).
+
+### 13.6 Report & Documentation
+- `REPORT.md`: consolidated test report (auto-generated).
+- `scripts/generate_report.py`: report generator.
+- Test runners now record `started_at` and `finished_at` (ISO 8601) in results.
+
+### 13.7 Model Configuration
+- Base: qwen2.5-coder:3b (10/10 suite, 139s).
+- Heavy: granite4:7b-a1b-h (10/10 suite, ~175s, e2e routing PASS).
+- Rejected: kirito1/qwen3-coder:4b (4/10, ×19 slower, timeout).
+- Per-model timeout: worker_coder_big=600s, worker_granite=600s.
+
+### 13.8 Test Suite
+- 160+ tests across 12 batteries.
+- Complex suite (T11-T21): 11/11 ok.
+- Complex data suite (600 tasks, sampled): 12/17 ok (70.6%).
+- All batteries green.

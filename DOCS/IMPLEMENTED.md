@@ -198,5 +198,54 @@ This file tracks every significant feature, fix, and architectural change implem
   `DEEPSEEK_AI_logo.webp`), scalati a 40×24 px (aspect ratio mantenuto).
   Paolo Lo Bello mantiene l'emoji 👤. Verificato in entrambi i temi.
 
+## 🚀 Cycle 13 — Complexity Routing & Code Map (2026-11-12)
+
+- [x] **Fase 6 — Routing SEMPLICE**: `CORE/routing.py` — `estimate_complexity()` (keyword-based). Task 'alta' → heavy model se installato, fallback automatico. Fail-open ovunque.
+- [x] **Fase 7 — Routing COMPLESSO**: `estimate_impact()` — simbodo citati nel task (match word-boundary) → file toccati (definizione ∪ chiamate), profondità BFS (cap 3), copertura test transitiva. Livello = MAX(keyword, impatto) + isteresi sticky.
+- [x] **Code Map**: `CORE/code_map.py` — AST → SQLite (files, symbols, calls, imports). Rebuild incrementale per mtime. `format_map()` per prompt injection (esclude test files). `relevant_symbols()` per contesto per modulo.
+- [x] **Skill System**: 18 skill files in `SKILLS/`. Keyword-based matcher. Progressive disclosure. `MAX_SKILL_BODY_CHARS = 2500`.
+- [x] **Complexity Routing**: `route_model_key()` → (key, level, decision_string). `run_direct(enable_routing=None)`: auto (client None o real ModelClient → ON; fake → OFF).
+- [x] **Thermal Guard**: sotto carico critico (CPU ≥75, GPU ≥80) l'heavy viene evitato.
+- [x] **Per-model Timeout**: `[models.*] timeout` sovrasta `[ollama].request_timeout`.
+
+## 🚀 Cycle 14 — Validation & Diagnostics (2026-11-12)
+
+- [x] **A1 — Oracle Test**: `verify_runtime(oracle_checks=[...])` — sottostringhe che DEVONO apparire nel stdout. `run_direct(oracle_checks=...)`.
+- [x] **A2 — Behavioral Diff**: `CORE/behavioral_diff.py` — snapshot/verify/diff semantico. `run_direct(behavioral_check=True)`.
+- [x] **D1 — Diagnosi intelligente**: `suggest_fix_for_marker()` — suggerimento mirato per marker mancanti. Integrato in `verify_runtime`.
+- [x] **C1 — Atomizzatore**: `decompose_module(path)` — parse AST → task atomici per funzione/classe.
+- [x] **C2 — Ordine topologico**: `dependency_order(project_root)` — Kahn's algorithm sul grafo delle chiamate.
+- [x] **Skill Proposer (M8)**: `CORE/skill_proposer.py` — 9 firme di fallimento → bozza di skill dopo 3 occorrenze. Auto-approvazione dopo 3 successi.
+
+## 🚀 Cycle 15 — Optimizations (2026-11-12)
+
+- [x] **P1-P15**: 15 ottimizzazioni skill/prompt/tools dalla diagnosi dei fallimenti della suite:
+  - P1: SYSTEM_DIRECT rafforzato (fence, placeholder, istanza)
+  - P2: extract_code tronca prosa alla prima riga Python
+  - P3: py-text-analyze placeholder → commento inerte
+  - P4: regola istanza in SYSTEM_DIRECT
+  - P5: py-class-module except Exception di default
+  - P6: timeout per-modello in ollama_client
+  - P7: no input(), marker letterale
+  - P8: drain sicuro nel template
+  - P9: context manager self. esplicito
+  - P10: py-decorator ripristinato a timing-only
+  - P11: py-argparse template concreto
+  - P12: py-unittest blocco __main__ concreto
+  - P13: py-expr-eval (nuova skill)
+  - P14: marker con valore-variabile (TENTATIVO=n)
+  - P15: py-arch-decision (decision tree + template)
+- [x] **Compattazione skill**: 21 → 18 file (merge 5 py-refactor-* in 1). Boilerplate rimosso. MAX_SKILL_BODY_CHARS 1400 → 2500.
+- [x] **Skill Qt**: pyqt6-basics, pyqt6-model-view, pyqt6-threading (tutte testate live).
+- [x] **F1-F2**: Memory compaction intelligente + contesto per modulo.
+- [x] **G1-G2**: Skill suggerite con template concreto + auto-approvazione.
+
+## 🚀 Cycle 16 — Report & Documentation (2026-11-12)
+
+- [x] **REPORT.md**: report consolidato (138 righe) con riepilogo modelli, suite T1-T10, spot-check, e2e routing, suite complessa T11-T21, suite dati complessi, batterie unit, miglioramenti P1-P15 e Fase 8.
+- [x] **generate_report.py**: generatore report automatico.
+- [x] **Timestamp nei test runner**: started_at/finished_at (ISO 8601) in tutti i risultati.
+- [x] **DOCS aggiornati**: SPECIFICATIONS.md, IMPLEMENTED.md, README.md (IT/EN), AGENT.md.
+
 ## 🔓 Open follow-ups
 UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protocol parser, USB differential analysis, dedicated user `byteswarmy`, usbmon/tshark automation, unification of GUI→SQLite queue (FM14).

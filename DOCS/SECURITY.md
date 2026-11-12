@@ -337,6 +337,12 @@ tar -xzf backups/backup-<timestamp>.tar.gz -C project/
 
 ---
 
+## 7.5 Validazione comportamentale (A1, A2 — Fase 8)
+- **Oracle Test**: `verify_runtime(oracle_checks=[...])` verifica che sottostringhe attese appaiano nel stdout. Se mancano → reject con suggerimento mirato.
+- **Behavioral Diff**: `CORE/behavioral_diff.py` — snapshot del comportamento pre-revisione, verifica post-revisione → reject con diff se diverge. `run_direct(behavioral_check=True)`.
+- **Diagnosi intelligente**: `suggest_fix_for_marker()` — suggerisce la riga di codice da aggiungere per marker mancanti.
+- **Skill Proposer (M8)**: classifica i fallimenti in 9 firme, genera bozze di skill dopo 3 occorrenze. Auto-approvazione dopo 3 successi.
+
 ## 8. Note di progettazione per i piccoli LLM
 
 Le regole sono volutamente rigide e ripetitive:
