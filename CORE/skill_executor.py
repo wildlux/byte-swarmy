@@ -179,6 +179,39 @@ def _normalize_eq(text: str) -> str:
     return re.sub(r"\s*=\s*", "=", str(text or ""))
 
 
+def suggest_fix_for_marker(missing_marker: str, code: str = "") -> str:
+    """D1 — Diagnosi intelligente: suggerisce la riga di codice da
+    aggiungere per un marker mancante.
+
+    Es: "LEN=3" → "Aggiungi: print(f'LEN={len(coll)}') dopo le add()."
+    Fail-open: se non riconosce il marker → suggerimento generico.
+    """
+    # Estrai il nome del marker (prima del =)
+    name = missing_marker.split("=", 1)[0].strip().upper()
+    # Suggerimenti per marker comuni
+    suggestions = {
+        "LEN": "print(f'LEN={len(coll)}')  # dopo le add()",
+        "HAS": "print(f'HAS={\"b\" in coll}')  # dopo le add()",
+        "SOMMA": "print(f'SOMMA={result}')  # dopo il calcolo",
+        "MEDIANA": "print(f'MEDIANA={mediana}')  # dopo il calcolo",
+        "MEDIA": "print(f'MEDIA={media}')  # dopo il calcolo",
+        "COUNT": "print(f'COUNT={count}')  # dopo il conteggio",
+        "TOTALE": "print(f'TOTALE={total}')  # dopo la somma",
+        "RISULTATO": "print(f'RISULTATO={result}')  # dopo il calcolo",
+        "VALORE": "print(f'VALORE={valore}')  # dopo l'operazione",
+        "OVERFLOW": "print('OVERFLOW=ok')  # nel blocco except",
+        "UNDERFLOW": "print('UNDERFLOW=ok')  # nel blocco except",
+        "PALINDROMO": "print(f'PALINDROMO={is_palindromo(frase)}')",
+        "TROVATO": "print(f'TROVATO={numero}')  # dopo la ricerca",
+        "TEMPO": "print(f'TEMPO={elapsed_ms}')  # dopo la misura",
+        "TEST_PASSATI": "print(f'TEST_PASSATI={passed}')  # dopo i test",
+    }
+    if name in suggestions:
+        return f"Aggiungi: {suggestions[name]}"
+    # Marker generico: suggerisci un print con il nome del marker
+    return f"Aggiungi: print(f'{name}={{valore}}')  # con il valore atteso"
+
+
 def verify_runtime(code: str, out_path: Path,
                    expected_markers: Optional[list[tuple[str, str]]] = None,
                    oracle_checks: Optional[list[str]] = None,
@@ -252,16 +285,21 @@ def verify_runtime(code: str, out_path: Path,
                 missing.append(f"{n}={v}")
         if missing:
             got = _normalize_eq(stdout)[:200] or "(vuoto)"
+            fixes = [suggest_fix_for_marker(m, code) for m in missing]
+            fix_hint = " | ".join(fixes)
             return ("RUNTIME ERROR: output atteso mancante: "
-                    f"{', '.join(missing)}. Output ottenuto: {got}"), stdout
+                    f"{', '.join(missing)}. Output ottenuto: {got}. "
+                    f"Suggerimento: {fix_hint}"), stdout
     # A1 — Oracle checks: sottostringhe che DEVONO apparire nel stdout
     # (es. valori attesi non in formato marker, o condizioni specifiche).
     # Ogni check è una stringa; se manca → reject con messaggio mirato.
     for check in (oracle_checks or []):
         if check not in (stdout or ""):
             got = _normalize_eq(stdout)[:200] or "(vuoto)"
+            fix = suggest_fix_for_marker(check, code)
             return (f"RUNTIME ERROR: output atteso mancante: {check}. "
-                    f"Output ottenuto: {got}"), stdout
+                    f"Output ottenuto: {got}. "
+                    f"Suggerimento: {fix}"), stdout
     return None, stdout
 
 
