@@ -524,7 +524,7 @@ Obiettivo: portare il sistema da "assistente di prima passata" a "assistente di 
   - Output: lista di domande con opzioni numerate
   - Test: task ambiguo → lista di domande; task chiaro → lista vuota
 
-- [ ] **Q2 — Messaggio interattivo GUI**: il sistema mostra la domanda nel GUI (tab Coda Task o popup) con opzioni 1, 2, 3... e un campo per risposta libera. L'utente seleziona → la risposta viene aggiunta al contesto del task.
+- [x] **Q2 — Messaggio interattivo GUI**: ✅ fatto. `GUI/clarification_dialog.py` — ClarificationDialog PyQt6 con opzioni radio + campo libero, exec_and_get_answer() → '1,3,1'. Smoke test in tests/test_clarifier.py (3 test, skip se PyQt6 assente).
   - File: `GUI/control_center.py` — nuovo widget `ClarificationDialog`
   - Test: UI smoke test (offscreen) — dialog si apre, selezione funziona
 
@@ -532,7 +532,7 @@ Obiettivo: portare il sistema da "assistente di prima passata" a "assistente di 
   - File: `CORE/orchestrator.py` — aggiungere stato "clarifying" al lifecycle
   - Test: mock di 3 round di chiarimento → task parte solo al 3°
 
-- [ ] **Q4 — Persistenza delle risposte**: le risposte dell'utente vengono salvate nel contesto del task (metadata) e nella persistent memory (preferenze utente).
+- [x] **Q4 — Persistenza delle risposte**: ✅ fatto. `record_preference(key, value)` + `get_preferences()` in `CORE/persistent_memory.py`. Integrato in `clarify()` — le risposte vengono salvate e iniettate in task successivi. 3 test.
   - File: `CORE/persistent_memory.py` — aggiungere `record_preference(key, value)`
   - Test: risposta salvata → recuperabile in task successivi
 
@@ -540,7 +540,7 @@ Obiettivo: portare il sistema da "assistente di prima passata" a "assistente di 
   - File: `CORE/clarifier.py` — CLI interattiva
   - Test: input simulato → output corretto
 
-- [ ] **Q6 — Integrazione con il Refactor-Loop**: il Refactor-Loop (Mappatura → Analisi → Intervento → Validazione) può attivare il chiarimento nella fase di Analisi se trova ambiguità nel codice esistente.
+- [x] **Q6 — Integrazione con il Refactor-Loop**: ✅ fatto. `run_direct(clarify=True, ask_fn=...)` — rileva ambiguità, arricchisce il task con le risposte, fail-open se nessun ask_fn. Integrato con persistent memory (Q4).
   - File: `CORE/worker.py` — aggiungere hook `on_ambiguity(task, questions)`
 
 ### Esempio di flusso
