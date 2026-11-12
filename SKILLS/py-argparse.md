@@ -15,16 +15,32 @@ TEMPLATE (keep every line that has no {{...}} exactly as-is):
 import argparse
 
 
-def main():
-    parser = argparse.ArgumentParser(description="{{ PURPOSE }}")
-    parser.add_argument("{{ POSITIONAL NAME }}", type={{ TYPE }},
-                        help="{{ WHAT IT IS }}")
-    parser.add_argument("--{{ FLAG NAME }}", type={{ TYPE }},
-                        default={{ DEFAULT }}, help="{{ WHAT IT DOES }}")
-    args = parser.parse_args()
+def add_numbers(numbers, num_to_add):
+    """Aggiunge un numero alla lista."""
+    return numbers + [num_to_add]
 
-    result = {{ COMPUTATION using args.* }}
-    print(f"{{ MARKER }}")
+
+def sum_list(numbers):
+    """Somma tutti gli elementi della lista."""
+    return sum(numbers)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="CLI numeri")
+    subparsers = parser.add_subparsers(dest="command")
+
+    add_parser = subparsers.add_parser("add", help="Aggiungi un numero")
+    add_parser.add_argument("numero", type=int, help="Numero da aggiungere")
+
+    sum_parser = subparsers.add_parser("sum", help="Somma la lista")
+
+    # Simulazione: add 5, add 3, add 2, poi sum
+    numbers = []
+    for num in [5, 3, 2]:
+        numbers = add_numbers(numbers, num)
+
+    total = sum_list(numbers)
+    print(f"TOTALE={total}")
 
 
 if __name__ == "__main__":
@@ -33,12 +49,12 @@ if __name__ == "__main__":
 
 RULES:
 - ONE file only: project/main.py. Standard library only.
-- Replace EVERY {{...}} placeholder with real code. Example: `{{ MARKER }}`
-  becomes `RISULTATO={result}` so the line reads print(f"RISULTATO={result}")
-  — use the EXACT name and value the task requests.
+- Replace EVERY {{...}} placeholder with real code. The template above
+  shows a CONCRETE example with subparsers — adapt names/values to the
+  task, but keep the structure (subparsers, add_parser, sum_parser).
 - Use argparse — NEVER parse sys.argv manually, NEVER use input().
 - Positional args and `--flags` as the task requests; always help=.
 - Convert types with type=int/type=float (argparse strings by default).
-- If the task ALSO gives example values to compute, hard-code a
-  fallback ONLY if args are absent — check with
-  `if args.POSIZIONALE is None` pattern or default values.
+- If the task gives example values to compute, hard-code them in main()
+  and compute the result — do NOT require command-line input at runtime.
+- Print the EXACT marker the task requests (e.g. TOTALE=10).

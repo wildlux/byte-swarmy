@@ -196,9 +196,12 @@ class TestRouteModelKey(unittest.TestCase):
 
     def setUp(self):
         reset_hysteresis()
+        self._orig_thermal = _routing_mod._thermal_blocked
+        _routing_mod._thermal_blocked = lambda: ""
 
     def tearDown(self):
         reset_hysteresis()
+        _routing_mod._thermal_blocked = self._orig_thermal
 
     def test_banale_al_base(self):
         key, lv, _why = route_model_key(TASK_BANALE, "", CFG, BASE,
@@ -254,6 +257,8 @@ class TestExplainAndRunDirect(unittest.TestCase):
 
     def setUp(self):
         reset_hysteresis()
+        self._orig_thermal = _routing_mod._thermal_blocked
+        _routing_mod._thermal_blocked = lambda: ""
         self.proj = Path(tempfile.mkdtemp())
         (self.proj / "utils.py").write_text(
             "class Helper:\n    def aiuto(self):\n        pass\n",
@@ -261,6 +266,7 @@ class TestExplainAndRunDirect(unittest.TestCase):
 
     def tearDown(self):
         reset_hysteresis()
+        _routing_mod._thermal_blocked = self._orig_thermal
         shutil.rmtree(self.proj, ignore_errors=True)
 
     def test_explain_delega_alla_decisione(self):
@@ -626,6 +632,10 @@ class TestWorkerRoutingReAct(unittest.TestCase):
         import CORE.orchestrator as orch
         orig_load = getattr(orch, "load_config", None)
         orch.load_config = lambda: CFG
+        # Patch thermal: macchina "fredda" per il test
+        import CORE.routing as _rt
+        orig_thermal = _rt._thermal_blocked
+        _rt._thermal_blocked = lambda: ""
         try:
             make_stub, _models, oc = self._make_route_method(is_real=True)
             w = make_stub(BASE)
@@ -641,6 +651,7 @@ class TestWorkerRoutingReAct(unittest.TestCase):
                 mk.installed_names = orig_installed
             if orig_load is not None:
                 orch.load_config = orig_load
+            _rt._thermal_blocked = orig_thermal
 
     def test_client_reale_bassa_resta_base(self):
         """Un Worker con ModelClient reale + task BASSA resta sul base."""

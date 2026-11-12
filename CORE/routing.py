@@ -404,7 +404,7 @@ def _route_decide(title: str, description: str = "",
         blocked = _thermal_blocked()
     except Exception:
         blocked = ""  # fail-open: heavy parte comunque
-    if blocked:
+    if blocked and rt.get("thermal_guard", True):
         return (base_key, level,
                 "; ".join(reason_bits + [blocked]))
     return heavy_key, level, "; ".join(reason_bits)

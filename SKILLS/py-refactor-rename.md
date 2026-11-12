@@ -1,7 +1,7 @@
 ---
 id: py-refactor-rename
 title: Refactoring multi-file (rename symbol across project)
-keywords: refactoring, rinomina, rename, simbolo, symbol, classe, class, funzione, function, metodo, method, multi-file, tutti i file, progetto, aggiorna, riferimenti, references
+keywords: refactoring, rinomina, rename, multi-file, tutti i file, aggiorna, riferimenti, references
 ---
 # Recipe: Refactoring multi-file (rename a symbol across the project)
 

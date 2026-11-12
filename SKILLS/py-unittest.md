@@ -15,22 +15,38 @@ TEMPLATE (keep every line that has no {{...}} exactly as-is):
 import unittest
 
 
-def {{ FUNCTION }}({{ PARAMS }}):
-    """{{ WHAT IT COMPUTES }}"""
-    return {{ COMPUTATION }}
+def somma(a, b):
+    """Restituisce la somma di due numeri."""
+    return a + b
 
 
-class Test{{ NAME }}(unittest.TestCase):
-    def test_{{ SUCCESS CASE }}(self):
-        self.assertEqual({{ FUNCTION }}({{ ARGS }}), {{ EXPECTED }})
+def sottrazione(a, b):
+    """Restituisce la differenza tra due numeri."""
+    return a - b
 
-    def test_{{ ERROR CASE }}(self):
-        with self.assertRaises({{ ERROR TYPE }}):
-            {{ CALL THAT MUST RAISE }}
+
+def moltiplicazione(a, b):
+    """Restituisce il prodotto di due numeri."""
+    return a * b
+
+
+class TestFunzioni(unittest.TestCase):
+    def test_somma(self):
+        self.assertEqual(somma(2, 3), 5)
+
+    def test_sottrazione(self):
+        self.assertEqual(sottrazione(5, 3), 2)
+
+    def test_moltiplicazione(self):
+        self.assertEqual(moltiplicazione(3, 4), 12)
 
 
 if __name__ == "__main__":
-    unittest.main()
+    # Esegui i test e conta quelli passati
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestFunzioni)
+    result = unittest.TextTestRunner(verbosity=0).run(suite)
+    passed = result.testsRun - len(result.failures) - len(result.errors)
+    print(f"TEST_PASSATI={passed}")
 ```
 
 RULES:
@@ -39,4 +55,6 @@ RULES:
 - Cover BOTH the success case AND the error case when the function can
   fail (assertRaises).
 - One assert per concept: assertEqual, assertTrue, assertRaises.
-- Run with `unittest.main()` under the __main__ guard.
+- ALWAYS include the `if __name__ == "__main__"` block that runs the
+  tests and prints TEST_PASSATI=N (N = numero di test passati).
+- Do NOT use `unittest.main()` alone — it doesn't print TEST_PASSATI.

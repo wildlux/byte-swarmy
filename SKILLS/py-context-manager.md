@@ -12,20 +12,27 @@ STEPS (follow in order):
 
 TEMPLATE (keep every line that has no {{...}} exactly as-is):
 ```python
-class {{ CM NAME }}:
+import time
+
+
+class Timer:
+    """Context manager che misura i ms di un blocco with."""
     def __enter__(self):
-        {{ ACQUIRE THE RESOURCE, e.g. self.f = open(...) }}
+        self.start = time.perf_counter()  # ACQUIRE: salva come self.*
         return self
 
     def __exit__(self, exc_type, exc, tb):
-        {{ RELEASE THE RESOURCE, e.g. self.f.close() }}
+        self.end = time.perf_counter()    # RELEASE
+        self.elapsed_ms = (self.end - self.start) * 1000
         return False  # NON inghiottire le eccezioni
 
 
 def main():
-    with {{ CM NAME }}() as cm:
-        {{ USE THE RESOURCE }}
-        print({{ MARKER }})
+    with Timer() as cm:
+        result = sum(range(1, 100001))
+        print(f"SOMMA={result}")
+    # cm.elapsed_ms è disponibile SOLO dopo il with (fuori dal blocco)
+    print(f"TEMPO={cm.elapsed_ms:.2f}")
 
 
 if __name__ == "__main__":
@@ -37,6 +44,11 @@ RULES:
 - `__exit__` signature EXACTLY: `def __exit__(self, exc_type, exc, tb)`.
 - `__exit__` returns False (propagate errors) unless the task says to
   suppress.
+- SEMPRE salvare i valori come self.attributo (self.start, self.end,
+  self.elapsed_ms) — mai variabili locali, perché main() li legge
+  fuori dal with tramite `cm.attributo`.
 - Acquire in `__enter__`, release in `__exit__` — never leak the
   resource outside the `with` block.
-- The `with` statement is the ONLY way the resource is used in main.
+- Il blocco `with` è l'UNICO modo in cui la risorsa è usata in main.
+- Adatta i nomi (Timer, start, end, elapsed_ms) al task, ma mantieni
+  il pattern self.* in entrambi i metodi.

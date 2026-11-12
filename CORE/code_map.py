@@ -351,6 +351,11 @@ def render_map_section(project_root: str | Path,
     if not rows:
         return ""
     ex = {str(e) for e in (exclude_files or ())}
+    # I file di test (test_*.py) non sono API del progetto: i loro simboli
+    # (feature_x, TestFeatureX, test_somma, …) confondono il modello
+    # (visto in suite_complex T16: il modello ha copiato feature_x).
+    ex = ex | {r["file"] for r in rows
+               if Path(r["file"]).name.startswith(("test_", "Test"))}
 
     by_file: dict[str, list[dict]] = {}
     for r in rows:

@@ -234,8 +234,17 @@ def verify_runtime(code: str, out_path: Path,
     markers = expected_markers or []
     if markers:
         norm = _normalize_eq(stdout)
-        missing = [f"{n}={v}" for n, v in markers
-                   if f"{n}={v}" not in norm]
+        missing = []
+        for n, v in markers:
+            # Marker con valore-variabile (singola lettera, es. TENTATIVO=n):
+            # il modello stampa TENTATIVO=1, TENTATIVO=2... → confronto
+            # per prefisso, non per valore letterale.
+            if len(v) == 1 and v.isalpha():
+                if not any(ln.strip().startswith(f"{n}=")
+                           for ln in stdout.splitlines()):
+                    missing.append(f"{n}={v}")
+            elif f"{n}={v}" not in norm:
+                missing.append(f"{n}={v}")
         if missing:
             got = _normalize_eq(stdout)[:200] or "(vuoto)"
             return ("RUNTIME ERROR: output atteso mancante: "
