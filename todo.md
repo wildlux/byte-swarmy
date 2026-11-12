@@ -168,11 +168,11 @@ vede l'output sbagliato (T3 LEN=2, T5 TROVATO assente, T9 SOMMA=55).
 4. Risultato arricchito: chiave `stdout` (per CLI/debug).
 
 ### Task
-- [ ] Implementazione: `extract_expected_markers` + `verify_runtime` + integrazione `run_direct` + tail direct in `build_correction_prompt`
-- [ ] Test unità senza LLM: marker sui 10 titoli (attesi: T3 LEN+HAS, T4 PALINDROMO, T5 TROVATO, T8 OVERFLOW+UNDERFLOW, T9 SOMMA, altri vuoti); runtime ×5 (ok / NameError / marker mancante / GUI timeout=successo / loop infinito); loop FakeClient bad→good (attempts=2, correction prompt con errore runtime e niente JSON tail)
-- [ ] Live (setup completo Fase 3): T3, T4, T5, T9 → attesi PASS attempt 1
-- [ ] **Demo del loop**: T9 SENZA la skill `py-decorator` (condizione Fase 1 + verifica runtime) → attempt 1 deve FALLIRE runtime (SOMMA sbagliata) → il correction prompt la può aggiustare?
-- [ ] Risultati + bilancio finale in questa sezione
+- [x] Implementazione: `extract_expected_markers` + `verify_runtime` + integrazione `run_direct` + tail direct in `build_correction_prompt` *(vinta nel blocco Risultati qui sotto)*
+- [x] Test unità senza LLM: marker sui 10 titoli (attesi: T3 LEN+HAS, T4 PALINDROMO, T5 TROVATO, T8 OVERFLOW+UNDERFLOW, T9 SOMMA, altri vuoti); runtime ×5 (ok / NameError / marker mancante / GUI timeout=successo / loop infinito); loop FakeClient bad→good (attempts=2, correction prompt con errore runtime e niente JSON tail)
+- [x] Live (setup completo Fase 3): T3, T4, T5, T9 → attesi PASS attempt 1
+- [x] **Demo del loop**: T9 SENZA la skill `py-decorator` (condizione Fase 1 + verifica runtime) → attempt 1 deve FALLIRE runtime (SOMMA sbagliata) → il correction prompt la può aggiustare?
+- [x] Risultati + bilancio finale in questa sezione
 
 ### Risultati Fase 3
 
@@ -296,7 +296,8 @@ progetto in `<progetto>/.byteswarm/codemap.db`, rebuild **incrementale** per mti
 - [x] **Regola di decisione**: livello finale = MAX(keyword, impatto) + **isteresi** (una volta heavy, `media` resta heavy; solo `bassa` torna al base — niente sfarfallio tra task consecutivi). `reset_hysteresis()` per test/batch
 - [x] **Integrazione**: `run_direct(enable_routing=None)` — auto: attivo con client None (CLI) **o ModelClient reale** (worker GUI, che ora passa `self.models`); finto da test → OFF (determinismo). `route_model_key()` restituisce `(key, level, decisione_leggibile)`; il worker la registra in log + evento memoria (`model=` e `route=` nel meta)
 - [x] Accessor `code_map.calls()` per il grafo chiamate
-- [ ] **Valutazione**: suite T1–T10 su entrambi i modelli (stessa pipeline, routing OFF) → `scripts/suite_compare.py` → `state/suite_compare/results.json` *(in esecuzione)*
+- [x] **Valutazione**: suite T1–T10 su entrambi i modelli (stessa pipeline, routing OFF) → `scripts/suite_compare.py` → `state/suite_compare/results.json` — tabella e verdict nelle sezioni sotto; heavy scelto: **worker_granite** (spot-check sotto)
+- [x] **Test unit committati**: `tests/test_routing.py` — 19 test senza LLM (impatto ×5, isteresi ×3, decisione ×7, explain+run_direct ×4) in 0,14 s; finora erano solo heredoc effimeri
 
 **Prova live (routing attivo)**: task di riuso su `PR_TEST_progetto` — `route: "complessità media → worker_coder | impatto media (1 file, profondità 0, simboli citati: Statistiche, media, mediana)"` — il grafo ha visto i 3 simboli in `utils.py`, il task è restato sul base, PASS al 1° tentativo.
 

@@ -3,6 +3,7 @@
   "consigliati_entro_4gb": {
     "Programmazione": [
       "qwen2.5-coder:3b",
+      "granite4:7b-a1b-h",
       "kirito1/qwen3-coder:4b"
     ],
     "Sicurezza Informatica": [
@@ -75,7 +76,7 @@
     {
       "nome": "kirito1/qwen3-coder:4b",
       "categoria": "Programmazione",
-      "utilizzo": "Coding Edge",
+      "utilizzo": "Coding Edge (lento su HW modesti)",
       "vram_ok": true
     },
     {
@@ -106,7 +107,7 @@
       "nome": "granite4:7b-a1b-h",
       "categoria": "Programmazione",
       "utilizzo": "MoE Efficiente",
-      "vram_ok": false
+      "vram_ok": true
     },
     {
       "nome": "gemma4:e2b",
