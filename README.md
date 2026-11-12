@@ -37,25 +37,15 @@
 
 ## Indice
 
-- [Sicurezza](#sicurezza)
 - [Panoramica](#panoramica)
-- [Perché BYTE-SWARMY?](#perché-byte-swarmy)
-- [Demo](#demo)
-- [Architettura](#architettura)
-- [Requisiti](#requisiti)
-- [Installazione](#installazione)
-- [Avvio rapido](#avvio-rapido)
+- [Architettura e come funziona](#architettura-e-come-funziona)
+- [Requisiti e installazione](#requisiti-e-installazione)
 - [Utilizzo](#utilizzo)
-- [Come funziona](#come-funziona)
-- [Sicurezza in profondità](#sicurezza-in-profondità)
+- [Sicurezza](#sicurezza)
 - [Struttura del progetto](#struttura-del-progetto)
 - [Sviluppo e test](#sviluppo-e-test)
-- [Limiti noti](#limiti-noti)
-- [Troubleshooting](#troubleshooting)
-- [Compatibilità](#compatibilità)
-- [Contribuire](#contribuire)
-- [Licenza](#licenza)
-- [Ringraziamenti](#ringraziamenti)
+- [Limiti noti e troubleshooting](#limiti-noti-e-troubleshooting)
+- [Compatibilità, contribuire e licenza](#compatibilità-contribuire-e-licenza)
 
 ---
 
@@ -117,53 +107,35 @@ dopo un riavvio.
 
 ---
 
-## Sicurezza
-
-> **Regola 0 — la difesa è sempre attiva.**
-> Ogni task è trattato come potenzialmente ostile (prompt injection). La policy
-> di sicurezza è applicata nel codice a ogni chiamata di tool e **non può essere
-> disattivata** da configurazione, prompt, task MCP o output del modello.
-
-BYTE-SWARMY esegue codice generato da LLM piccoli con i permessi dell'utente che
-avvia l'orchestratore. Le protezioni incluse bloccano i comandi più pericolosi,
-ma **non sostituiscono un isolamento di sistema**:
-
-- `run_bash` non usa una shell: allowlist, blacklist e path confinati in `project/`;
-- sandbox bubblewrap: filesystem isolato, rete bloccata, PID/user namespace separati;
-- escape `/etc` bloccato (`--tmpfs /etc` + `--remount-ro`);
-- `git push` / `pull` / `remote add|remove` sono disabilitati per i worker;
-- ambiente sanificato (niente token, `SSH_AUTH_SOCK`, `HOME` reale);
-- limiti di CPU, memoria, dimensione file e timeout sul process group;
-- quota disco su `project/` (500 MB default);
-- task MCP ricostruiti da zero e URL limitati a `http`/`https`;
-- audit log con rotazione in `logs/security.log`;
-- AST scanner: blocca `eval`, `exec`, `pickle` prima del sandbox;
-- anti-escape guardrail: blocca artefatti `\"`, `//` e righe duplicate nei file generati.
-
-`[security] enabled = false` in `config.toml` viene **ignorato** e registrato
-come `CRITICAL`: il flag esiste solo per retrocompatibilità.
-
-Per dati reali è necessario aggiungere l'isolamento di sistema (utente dedicato,
-cgroup, firewall):
-
-```bash
-./setup-hardening.sh                  # diagnostica, nessuna modifica
-sudo ./setup-hardening.sh --all       # utente byteswarmy + cgroup + firewall
-```
-
-Dettagli, modello di minaccia, rischi residui e rollback:
-**[SECURITY.md](SECURITY.md)**.
-
-Verifica della policy:
-
-```bash
-python -m pytest tests/ -v            # 226 test + 131 subtest: security, sandbox, escape-gate, intent, execute, decision-feedback, correction, thermal-gate, repo-hygiene, dotfile-security, scheduler, settings, actors-panel, MCP E2E, USB protocol/differential, Timestral E2E (+3 E2E live)
-tail -f logs/security.log
-```
+| Senza BYTE-SWARMY | Con BYTE-SWARMY |
+|---|---|
+| Compri una GPU da €2000 | Usa il tuo laptop del 2015 (GPU opzionale) |
+| Dipendi da API cloud a consumo | Tutto in locale, gratis per sempre |
+| 8 GB di RAM come minimo | 4 GB di RAM bastano |
+| Codice nel cloud di terze parti | Codice tuo, sempre, ovunque |
+| Coda task persa se chiudi il terminale | Stato persistito in SQLite |
+| L'LLM decide cosa eseguire | Orchestratore deterministico + Intent Router |
+| Fidi del prompt di sistema | Policy di sicurezza nel codice (Rule 0) |
+| Modelli hardcoded nel config | Auto-selezione intelligente basata su hardware |
+| Parametri LLM fissi | Timestral LLM Tuner adatta i parametri al calore |
 
 ---
 
-## Quanto lontano potrebbe andare il tuo agente in Locale?
+<p align="center">
+  <em>Control Center: 7 tab, toggle button, temperature CPU/GPU colorate, Live Activity Panel con streaming token e LLM Tuner indicator.</em>
+</p>
+
+Cosa puoi vedere:
+
+- il worker `worker_coder` che esegue un task con token streaming in tempo reale;
+- Timestral che mostra temperatura CPU e GPU in tempo reale + predizione EMA;
+- il LLM Tuner che adatta parametri in base allo stato termico (🎚️ LLM Tuned: SLOW);
+- il tab Modelli con Auto-Select che sceglie il modello migliore per ogni ruolo;
+- il benchmark modelli con score 100/100;
+- l'audit log che registra ogni comando eseguito o bloccato dalla policy;
+- la coda con task pending, in esecuzione e completati.
+
+---
 
 BYTE-SWARMY nasce da una domanda concreta: **con un modello piccolo (1.5B–4B), un buon system prompt e delle skill, si può arrivare a un livello di autonomia accettabile per lo sviluppo software?**
 
@@ -221,41 +193,7 @@ Il sistema non è un senior. È un **junior supervisionato** che, con le procedu
 
 ---
 
-## Perché BYTE-SWARMY?
-
-| Senza BYTE-SWARMY | Con BYTE-SWARMY |
-|---|---|
-| Compri una GPU da €2000 | Usa il tuo laptop del 2015 (GPU opzionale) |
-| Dipendi da API cloud a consumo | Tutto in locale, gratis per sempre |
-| 8 GB di RAM come minimo | 4 GB di RAM bastano |
-| Codice nel cloud di terze parti | Codice tuo, sempre, ovunque |
-| Coda task persa se chiudi il terminale | Stato persistito in SQLite |
-| L'LLM decide cosa eseguire | Orchestratore deterministico + Intent Router |
-| Fidi del prompt di sistema | Policy di sicurezza nel codice (Rule 0) |
-| Modelli hardcoded nel config | Auto-selezione intelligente basata su hardware |
-| Parametri LLM fissi | Timestral LLM Tuner adatta i parametri al calore |
-
----
-
-## Demo
-
-<p align="center">
-  <em>Control Center: 7 tab, toggle button, temperature CPU/GPU colorate, Live Activity Panel con streaming token e LLM Tuner indicator.</em>
-</p>
-
-Cosa puoi vedere:
-
-- il worker `worker_coder` che esegue un task con token streaming in tempo reale;
-- Timestral che mostra temperatura CPU e GPU in tempo reale + predizione EMA;
-- il LLM Tuner che adatta parametri in base allo stato termico (🎚️ LLM Tuned: SLOW);
-- il tab Modelli con Auto-Select che sceglie il modello migliore per ogni ruolo;
-- il benchmark modelli con score 100/100;
-- l'audit log che registra ogni comando eseguito o bloccato dalla policy;
-- la coda con task pending, in esecuzione e completati.
-
----
-
-## Architettura: i 3 LLM
+## Architettura e come funziona
 
 BYTE-SWARMY usa **3 LLM specializzati** che si dividono i compiti. Non un
 unico modello che fa tutto, ma tre ruoli distinti che collaborano:
@@ -331,7 +269,6 @@ Prima di ogni esecuzione, il sistema sceglie il modello worker:
 
 ---
 
-## Architettura
 | Componente | Ruolo | Stack |
 |---|---|---|
 | **Intent Router** | Classifica input libero multilingue (IT/EN/ZH) in task strutturati | Python (rapidfuzz) |
@@ -385,8 +322,6 @@ Prima di ogni esecuzione, il sistema sceglie il modello worker:
 ```
 
 ---
-
-## Come funziona
 
 ### Intent Router (multilingue)
 
@@ -523,7 +458,7 @@ event store on restart, minimizing context loss after crashes.
 
 ---
 
-## Requisiti
+## Requisiti e installazione
 
 - Linux (testato su Kubuntu/Ubuntu; qualsiasi distro con Python 3.11+)
 - Python 3.11+ (per `tomllib` nella standard library)
@@ -570,8 +505,6 @@ ollama pull tev1:4b
 >
 > Verifica con `ollama ps` quanto va in GPU e quanto in CPU: se un modello è "x% CPU", sta sforando la VRAM e la velocità crolla.
 
-## Schema consigliato (4 GB RAM / 4 GB VRAM)
-
 ```
 Router (qwen2.5:0.5b, RAM)  →  Routing per complessità  →  Verifica (gate statici + runtime)
                                 ├─ semplice/media → Coder 3B Q4_K_M (GPU) · 10/10 suite T1–T10
@@ -593,8 +526,6 @@ aggiungere un modello di un'altra famiglia (es. `deepseek-coder:1.3b`).
 
 ---
 
-## Installazione
-
 ```bash
 git clone https://github.com/wildlux/byte-swarmy.git
 cd byte-swarmy
@@ -611,8 +542,6 @@ cd byte-swarmy
 - directory di lavoro: `state/`, `logs/`, `tasks/`, `project/`, `backups/`.
 
 ---
-
-## Avvio rapido
 
 ### Avvio completo
 
@@ -779,7 +708,51 @@ Push è **manuale solo**. I worker non possono modificare remote o push.
 
 ---
 
-## Sicurezza in profondità
+## Sicurezza
+
+> **Regola 0 — la difesa è sempre attiva.**
+> Ogni task è trattato come potenzialmente ostile (prompt injection). La policy
+> di sicurezza è applicata nel codice a ogni chiamata di tool e **non può essere
+> disattivata** da configurazione, prompt, task MCP o output del modello.
+
+BYTE-SWARMY esegue codice generato da LLM piccoli con i permessi dell'utente che
+avvia l'orchestratore. Le protezioni incluse bloccano i comandi più pericolosi,
+ma **non sostituiscono un isolamento di sistema**:
+
+- `run_bash` non usa una shell: allowlist, blacklist e path confinati in `project/`;
+- sandbox bubblewrap: filesystem isolato, rete bloccata, PID/user namespace separati;
+- escape `/etc` bloccato (`--tmpfs /etc` + `--remount-ro`);
+- `git push` / `pull` / `remote add|remove` sono disabilitati per i worker;
+- ambiente sanificato (niente token, `SSH_AUTH_SOCK`, `HOME` reale);
+- limiti di CPU, memoria, dimensione file e timeout sul process group;
+- quota disco su `project/` (500 MB default);
+- task MCP ricostruiti da zero e URL limitati a `http`/`https`;
+- audit log con rotazione in `logs/security.log`;
+- AST scanner: blocca `eval`, `exec`, `pickle` prima del sandbox;
+- anti-escape guardrail: blocca artefatti `\"`, `//` e righe duplicate nei file generati.
+
+`[security] enabled = false` in `config.toml` viene **ignorato** e registrato
+come `CRITICAL`: il flag esiste solo per retrocompatibilità.
+
+Per dati reali è necessario aggiungere l'isolamento di sistema (utente dedicato,
+cgroup, firewall):
+
+```bash
+./setup-hardening.sh                  # diagnostica, nessuna modifica
+sudo ./setup-hardening.sh --all       # utente byteswarmy + cgroup + firewall
+```
+
+Dettagli, modello di minaccia, rischi residui e rollback:
+**[SECURITY.md](SECURITY.md)**.
+
+Verifica della policy:
+
+```bash
+python -m pytest tests/ -v            # 226 test + 131 subtest: security, sandbox, escape-gate, intent, execute, decision-feedback, correction, thermal-gate, repo-hygiene, dotfile-security, scheduler, settings, actors-panel, MCP E2E, USB protocol/differential, Timestral E2E (+3 E2E live)
+tail -f logs/security.log
+```
+
+---
 
 | Livello | Comportamento |
 |---|---|
@@ -937,7 +910,8 @@ python -m CORE.benchmark --model qwen2.5-coder:1.5b  # solo uno
 
 ---
 
-## Limiti noti
+## Limiti noti e troubleshooting
+
 - **Un solo modello caricato alla volta**: rotation è esplicita (vincolo 4 GB VRAM).
 - **Worker sequenziali**: nessun parallelismo, un task alla volta.
 - **Contesto limitato** (3072 token, ridotto a 1536 quando caldo): i task grandi vengono scomposti.
@@ -947,8 +921,6 @@ python -m CORE.benchmark --model qwen2.5-coder:1.5b  # solo uno
 - **Nessun sandbox di kernel**: l'isolamento completo richiede system hardening.
 
 ---
-
-## Troubleshooting
 
 | Sintomo | Causa probabile | Soluzione |
 |---|---|---|
@@ -968,7 +940,7 @@ python -m CORE.benchmark --model qwen2.5-coder:1.5b  # solo uno
 
 ---
 
-## Compatibilità
+## Compatibilità, contribuire e licenza
 
 - **OS:** Linux (testato su Kubuntu/Ubuntu). Su Windows/macOS disattiva Timestral.
 - **Python:** 3.11+ per `tomllib`; su 3.10 installa `tomli`.
@@ -979,8 +951,6 @@ python -m CORE.benchmark --model qwen2.5-coder:1.5b  # solo uno
 - **GUI:** PyQt6 con wheel disponibili per Python 3.14.
 
 ---
-
-## Contribuire
 
 Il progetto è pensato per essere esteso. Le aree più aperte (vedi `todo.md`):
 
@@ -996,13 +966,9 @@ Per modifiche che toccano la sicurezza, aggiorna anche `SECURITY.md` e la suite
 
 ---
 
-## Licenza
-
 Rilasciato sotto licenza MIT. Vedi [LICENSE](LICENSE).
 
 ---
-
-## Ringraziamenti
 
 - [Ollama](https://ollama.com) per l'esecuzione locale dei modelli
 - [PyQt6](https://www.riverbankcomputing.com/software/pyq/) per la GUI
@@ -1023,3 +989,4 @@ Rilasciato sotto licenza MIT. Vedi [LICENSE](LICENSE).
 ```
 
 > *"The swarm works. You think elsewhere."*
+
