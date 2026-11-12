@@ -214,6 +214,61 @@ def suggest_fix_for_marker(missing_marker: str, code: str = "") -> str:
     return f"Aggiungi: print(f'{name}={{valore}}')  # con il valore atteso"
 
 
+def diagnose_logic_error(inp: str, expected: str, actual: str) -> str:
+    """D2 — Diagnosi intelligente per errori di logica.
+
+    Confronta input/expected/actual e suggerisce la causa probabile.
+    Fail-open: se non riconosce il pattern → suggerimento generico.
+    """
+    inp = str(inp or "")
+    expected = str(expected or "")
+    actual = str(actual or "")
+    # Pattern comuni di errore
+    suggestions = []
+    try:
+        # Off-by-one: expected = actual ± 1
+        try:
+            e_val = float(expected)
+            a_val = float(actual)
+            if abs(e_val - a_val) == 1:
+                suggestions.append(
+                    "probabile errore off-by-one: controlla i bound del "
+                    "range (usa range(1, n+1) per 1..n)")
+        except (ValueError, TypeError):
+            pass
+
+        # Lista vuota: expected non vuoto, actual vuoto
+        if expected and not actual:
+            suggestions.append(
+                "output vuoto: il programma non stampa nulla — verifica "
+                "che i print() siano presenti e non condizionati")
+
+        # Valore troppo grande: somma doppia
+        try:
+            e_val = float(expected)
+            a_val = float(actual)
+            if a_val == e_val * 2 or a_val == e_val + e_val:
+                suggestions.append(
+                    "valore doppio: probabile doppio conteggio — verifica "
+                    "che non si aggiungano elementi duplicati")
+        except (ValueError, TypeError):
+            pass
+
+        # Stringa invece di numero
+        if expected.isdigit() if expected else False and not (actual or "").isdigit():
+            suggestions.append(
+                "tipo sbagliato: atteso numero, ottenuto stringa — "
+                "converti con int()/float()")
+
+    except Exception:
+        pass
+
+    if suggestions:
+        return " | ".join(suggestions)
+    return ("verifica la logica: input=%s, atteso=%s, ottenuto=%s"
+            % (inp[:60], expected[:60], actual[:60]))
+
+
 def verify_runtime(code: str, out_path: Path,
                    expected_markers: Optional[list[tuple[str, str]]] = None,
                    oracle_checks: Optional[list[str]] = None,

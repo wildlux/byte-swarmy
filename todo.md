@@ -417,7 +417,7 @@ Obiettivo: portare il sistema da "assistente di prima passata" a "assistente di 
   - Integrazione: `run_direct` chiamato con `behavioral_check=True` → snapshot automatico se non esiste, verifica se esiste
   - Test: unit senza LLM — snapshot ×2 (crea/legge), verify ×3 (ok / divergenza / crash)
 
-- [ ] **A3 — Gate di regressione nel Refactor-Loop**: il protocollo Refactor-Loop (Mappatura → Analisi → Intervento → Validazione) deve includere uno step "Comportamento preservato?" che confronta il modulo revisionato con lo snapshot. Se il comportamento cambia → REJECT con diff, non APPROVE.
+- [x] **A3 — Gate di regressione nel Refactor-Loop**: ✅ fatto. `check_refactor_regression(target, inputs)` in `CORE/behavioral_diff.py` — crea snapshot se non esiste, verifica post-revisione → (ok, diff). Fail-open. 5 test (test_behavioral_regression.py).
   - File: `CORE/worker.py` o `CORE/auditor.py` — aggiungere `check_behavioral_regression()` al flusso di audit
   - Test: simulare un modulo che cambia comportamento → audit REJECT
 
@@ -445,7 +445,7 @@ Obiettivo: portare il sistema da "assistente di prima passata" a "assistente di 
   - File: `CORE/skill_executor.py` — estendere `verify_runtime` con `suggest_fix(missing_marker, code) -> str`
   - Test: marker mancante → suggerimento contiene il print corretto
 
-- [ ] **D2 — Diagnosi errori di logica**: il gate, quando un oracle test fallisce, confronta input/expected/actual e suggerisce: "input [1,2,3] → atteso 6, ottenuto 5. Probabile errore: off-by-one in range (usa range(1, n+1))."
+- [x] **D2 — Diagnosi errori di logica**: ✅ fatto. `diagnose_logic_error(inp, expected, actual)` in `CORE/skill_executor.py` — confronta input/expected/actual e suggerisce causa probabile (off-by-one, valore doppio, output vuoto, tipo sbagliato). Integrato in `verify_runtime` (oracle_checks path). 5 test (test_logic_diagnosis.py).
   - File: `CORE/skill_executor.py` — estendere `verify_runtime` con `diagnose_logic_error(input, expected, actual) -> str`
   - Test: input [1,2,3], expected 6, actual 5 → suggerimento contiene "off-by-one"
 

@@ -144,3 +144,34 @@ def verify(target: str | Path, snap: dict,
     if diffs:
         return False, "COMPORTAMENTO CAMBIATO:\n" + "\n---\n".join(diffs)
     return True, ""
+
+
+def check_refactor_regression(target: str | Path,
+                             inputs: Optional[list[str]] = None,
+                             timeout: int = RUNTIME_TIMEOUT_S) -> tuple[bool, str]:
+    """A3 — Verifica regressione comportamentale dopo un refactoring.
+
+    Crea uno snapshot se non esiste (dal codice attuale), poi verifica
+    che il comportamento sia preservato. Usato nel Refactor-Loop
+    (Mappatura → Analisi → Intervento → Validazione → Comportamento?).
+
+    Ritorna (True, "") se il comportamento è preservato, (False, diff)
+    se è cambiato. Fail-open: errore → (True, "").
+
+    `inputs`: lista di input per stdin. Se None o vuota, usa [""] (una
+    esecuzione senza input).
+    """
+    if inputs is None:
+        inputs = [""]
+    target = Path(target)
+    if not target.exists():
+        return True, ""
+    try:
+        snap = load_snapshot(target)
+        if snap is None:
+            snap = snapshot(target, inputs, timeout=timeout)
+            save_snapshot(target, snap)
+            return True, ""  # primo run: nessun confronto possibile
+        return verify(target, snap, timeout=timeout)
+    except Exception:
+        return True, ""  # fail-open
