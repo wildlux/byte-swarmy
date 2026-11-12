@@ -374,14 +374,14 @@ progetto in `<progetto>/.byteswarm/codemap.db`, rebuild **incrementale** per mti
 - [~] **M3 — Refactoring live su progetto vero**: il caso d'uso per cui esiste l'impatto dal grafo. NB onesta: il direct mode scrive UN file — un refactoring multi-file vero richiede prima **M9** (routing in ReAct). Ripianificato: M3 dopo M9.
 
 **🔧 Robustezza**
-- [ ] **M4 — Routing termico**: Timestral sa se la CPU è in throttling → il routing consulta lo stato termico e, sotto carico critico, resta sul base (lezione 4B: l'heavy muore di throttling). Hook in `_route_decide`, fail-open invariato.
-- [x] **M5 — `timeout` esplicito per granite4**: ereditava i 300 s globali; un task lungo potrebbe sforare. → `timeout = 600` in `[models.worker_granite]` (una riga).
-- [ ] **M6 — `code_map` incrementale**: `estimate_impact` fa `cm.rebuild(root)` a OGNI decisione → su un progetto grande è il collo di bottiglia. Rebuild solo dei file con mtime cambiato (logica differenziale sul DB esistente).
-- [ ] **M7 — Isteresi persistente**: `_HYST` vive in memoria → riavvio GUI la perde. Scrivere lo sticky in `state/` per stabilità tra sessioni.
+- [x] **M4 — Routing termico**: ✅ fatto (commit 358dfdb, +15 test). Hook in `_route_decide`: se Timestral è in zona pausa (CPU ≥75/GPU ≥80, stessa soglia del gatekeeper) l'heavy viene evitato e si resta sul base. Campione fresco da `state/timestral_history.json` se <120 s, altrimenti lettura /sys (percorso CLI). Fail-open.
+- [x] **M6 — `code_map` incrementale**: ✅ *già implementato* e verificato — `rebuild()` fa `stat().st_mtime_ns` per file e salta i file invariati ("invariato: niente re-parse"). L'assunzione originale ("rebuild a ogni decisione = collo di bottiglia") era errata: il costo per decisione è solo un `rglob` + `stat` per file. Nessuna modifica necessaria.
+- [x] **M7 — Isteresi persistente**: ✅ fatto (commit 358dfdb). `_HYST` scrive su `state/routing_hysteresis.json` (con timestamp); sticky più vecchio di 1800 s viene scartato; `reset_hysteresis()` pulisce memoria e disco.
 
 **🚀 Ambiziose**
-- [ ] **M8 — Memoria dei fallimenti → skill suggerite**: dopo N fallimenti simili senza skill (prosa, placeholder, try senza except…), proporre in GUI una bozza di skill da approvare. La libreria cresce sui TUOI errori ricorrenti.
-- [ ] **M9 — Routing anche in ReAct**: oggi vale solo per `run_direct`; i task con tool loop usano sempre il base.
-- [ ] **M10 — Benchmark evidence-based**: `model_selector.py` incorpora i risultati reali della suite (es. 10/10 del 3B come dato hard) accanto alle euristiche.
+- [ ] **M8 — Memoria dei fallimenti → skill suggerite**: dopo N fallimenti simili senza skill (prosa, placeholder, try senza except…), proporre in GUI una bozza di skill da approvare. La libreria cresce sui TUOI errori ricorrenti. *(unica rimasta)*
+- [x] **M9 — Routing anche in ReAct**: ✅ fatto (commit 9727c5a, +5 test, demo live). `Worker._route_model_key(task)` decide il modello per il loop ReAct (stessa 3-tuple di `route_model_key`), attivo solo con ModelClient reale (test → OFF, determinismo). Routing in `run_direct` + ReAct + log/event memoria.
+- [x] **M10 — Benchmark evidence-based**: ✅ fatto (commit 96502f1, +24 test, demo live). `CORE/model_selector.py` incorpora i risultati reali di `state/suite_compare/results.json` (10/10 del 3B come dato hard) accanto alle euristiche.
+- [x] **M3 — Refactoring live su progetto vero**: ✅ fatto (commits 45c1cf7 + 9126598, +8 test + 1 skill). Skill `py-refactor-rename` (renaming multi-file) + keyword "palindroma" sistemata + demo live multi-file con routing per impatto + worker ReAct + tool multipli. NB: il direct mode scrive un file — il refactoring vero è passato al ReAct (M9), come previsto.
 
-**Ordine di esecuzione**: M5 ✅ → M1 ✅ → M2 ✅ → poi M4/M6/M7 (robustezza), M9 (routing in ReAct), quindi M3 (refactoring vero, dipende da M9), infine M8/M10.
+**Ordine di esecuzione**: M1 ✅ M2 ✅ M3 ✅ M4 ✅ M5 ✅ M6 ✅ (già fatto) M7 ✅ M9 ✅ M10 ✅ → rimane solo **M8** (skill suggerite dai fallimenti).
