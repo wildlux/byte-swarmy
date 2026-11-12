@@ -32,6 +32,13 @@ _DIRECTIVE_TAIL = (
     'format: {"action": "write_file", "args": ["<path>", "<fixed code>"]}):'
 )
 
+# Variante per la modalita' DIRETTA (skill_executor): il modello senza
+# tool deve ritornare CODICE, non un passo JSON ReAct.
+_DIRECTIVE_TAIL_DIRECT = (
+    "Return the COMPLETE corrected file as ONE ```python code block. "
+    "No explanations, no JSON."
+)
+
 
 def sanitize_paths(text: str) -> str:
     """Anonimizza i path assoluti /home/<utente>/... -> [PATH]/..."""
@@ -63,13 +70,18 @@ def clamp(text: str, max_chars: int = MAX_PROMPT_CHARS) -> str:
 def build_correction_prompt(original_task: str,
                             previous_code: str,
                             stderr: str,
-                            previous_prompt: Optional[str] = None) -> str:
+                            previous_prompt: Optional[str] = None,
+                            direct: bool = False) -> str:
     """Prompt direttivo di correzione (ogni sezione <= 500 caratteri).
 
     Args:
         original_task: titolo/descrizione originale del task.
         previous_code: codice scritto nell'ultimo tentativo (puo' essere "").
-        stderr: errore catturato (proviene da run_result o eccezione worker).
+        stderr: errore catturato (proviene da run_result, eccezione worker
+            o verifica runtime di skill_executor).
+        previous_prompt: prompt precedente, se gia' sovrascritto.
+        direct: True = modalita' diretta (il modello ritorna un blocco
+            ```python completo, non un passo JSON ReAct).
         previous_prompt: prompt precedente, se gia' sovrascritto.
 
     Returns:
@@ -115,4 +127,5 @@ def build_correction_prompt(original_task: str,
     if len(prompt) > cap:
         prompt = prompt[:cap]
 
-    return f"{prompt}\n\n{_DIRECTIVE_TAIL}"
+    tail = _DIRECTIVE_TAIL_DIRECT if direct else _DIRECTIVE_TAIL
+    return f"{prompt}\n\n{tail}"

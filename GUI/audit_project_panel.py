@@ -160,6 +160,10 @@ class AuditProjectPanel(QWidget):
 
         # Gate summary (badge grande PASS/FAIL) — bottoni colore dal tema
         self.gate_summary = QLabel("<i>Gate non ancora eseguito</i>")
+        # RichText ESPlicito: il testo del risultato ha il tag <span> sulla
+        # 3ª riga e l'euristica di Qt (mightBeRichText) guarda solo la 1ª —
+        # senza questo, il markup veniva mostrato come testo letterale.
+        self.gate_summary.setTextFormat(Qt.TextFormat.RichText)
         self.gate_summary.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.gate_summary.setStyleSheet(
             "padding:16px; font-size:16px; font-weight:bold;"
@@ -306,12 +310,12 @@ class AuditProjectPanel(QWidget):
         warn = result.get("warning_count", 0)
         total = result.get("total_findings", 0)
 
-        # Gate summary
+        # Gate summary (rich text: i \n verrebbero collassati → <br>)
         if gate == "PASS":
             self.gate_summary.setText(
-                f"✓ GATE PASS\n"
-                f"Nessuna categoria bloccante con critical\n"
-                f"<span style='font-size:12px;'>"
+                f"✓ GATE PASS<br>"
+                f"Nessuna categoria bloccante con critical<br>"
+                f"<span style='font-size:12px; font-weight:normal;'>"
                 f"Totale: {total} finding (critical: {crit}, warning: {warn}, mode: {mode})"
                 f"</span>"
             )
@@ -321,9 +325,9 @@ class AuditProjectPanel(QWidget):
             _theme_banner(self.gate_summary, "ok")
         else:
             self.gate_summary.setText(
-                f"✗ GATE FAIL\n"
-                f"Almeno una categoria bloccante ha critical da risolvere\n"
-                f"<span style='font-size:12px;'>"
+                f"✗ GATE FAIL<br>"
+                f"Almeno una categoria bloccante ha critical da risolvere<br>"
+                f"<span style='font-size:12px; font-weight:normal;'>"
                 f"Totale: {total} finding (critical: {crit}, warning: {warn}, mode: {mode})"
                 f"</span>"
             )

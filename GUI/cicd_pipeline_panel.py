@@ -154,6 +154,7 @@ class CICDPipelinePanel(QWidget):
 
         # Simulazione reale: py_compile per build, test discovery per test, ecc.
         success = True
+        cancelled = False
         try:
             if key == "build":
                 self.output.appendPlainText("  → py_compile di tutti i moduli...")
@@ -189,8 +190,34 @@ class CICDPipelinePanel(QWidget):
                 # Reindirizza a _do_git_save della main window
                 main = self._find_main()
                 if main and hasattr(main, "device_panel"):
-                    main.device_panel._do_git_save()
-                    self.output.appendPlainText("  ✓ Push completato (vedi log git)")
+                    # Contratto di ritorno REALE: il push può essere
+                    # annullato nel dialog di conferma ("No") o fallire
+                    # per remote. Prima il pannello mostrava
+                    # "✓ Push completato" anche quando l'utente diceva No.
+                    res = main.device_panel._do_git_save() or {}
+                    status = res.get("status", "unknown")
+                    if status == "cancelled":
+                        self.output.appendPlainText(
+                            "  ⚠️ Push ANNULLATO dall'utente: nessun "
+                            "salvataggio eseguito")
+                        cancelled = True
+                    elif res.get("errors"):
+                        self.output.appendPlainText(
+                            f"  ✗ Push fallito su {len(res['errors'])} "
+                            f"remote:")
+                        for rname, rerr in res["errors"]:
+                            self.output.appendPlainText(
+                                f"     • {rname}: {str(rerr)[:120]}")
+                        success = False
+                    elif status == "pushed":
+                        self.output.appendPlainText(
+                            f"  ✓ Push completato su {res.get('total', 0)} "
+                            f"remote (vedi log git)")
+                    else:
+                        self.output.appendPlainText(
+                            "  ⚠️ Nessun push eseguito (nessun remote "
+                            "configurato?)")
+                        cancelled = True
                 else:
                     self.output.appendPlainText("  ⚠️  device_panel non trovato")
                     success = False
@@ -200,7 +227,14 @@ class CICDPipelinePanel(QWidget):
             success = False
 
         # Stato finale
-        if success:
+        if cancelled:
+            # annullato ≠ fallito: ambra, non rosso — ma NON "completato"
+            self.stages[key].setText("🟡 annullato")
+            self.stages[key].setStyleSheet(
+                "color:#b45309; font-weight:bold; padding:4px 10px; "
+                "background:#fef3c7; border-radius:6px;"
+            )
+        elif success:
             self.stages[key].setText("✅ completato")
             self.stages[key].setStyleSheet(
                 "color:#16a34a; font-weight:bold; padding:4px 10px; "

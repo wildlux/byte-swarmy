@@ -133,7 +133,7 @@ class DevicePanel(QFrame):
         else:
             self.git_btn.setToolTip(f"Salva su {', '.join(names)}")
 
-    def _do_git_save(self):
+    def _do_git_save(self) -> dict:
         """Salva (push) su tutti i remote Git configurati.
 
         Implementazione reale:
@@ -145,6 +145,14 @@ class DevicePanel(QFrame):
 
         Se non ci sono remote configurati nel settings store, usa i remote
         git locali (rilevati con `git remote -v`) come fallback.
+
+        Returns:
+            dict con lo stato REALE (il push puo' essere annullato nel
+            dialog di conferma o fallire per remote):
+              {"status": "pushed" | "cancelled",
+               "total": <remote coinvolti>, "errors": [(name, err), …]}
+            Chiamanti come la pipeline CI/CD usano 'status' per NON
+            mostrare "✓ Push completato" quando l'utente ha detto No.
         """
         import time as _time, os as _os
         from GUI import settings_store as ss
@@ -161,7 +169,9 @@ class DevicePanel(QFrame):
                 remote_list=[(n, "(remote git locale)", r) for r, n in self.git_remotes],
             )
             if not ok:
-                return
+                print("[GIT] Push annullato dall'utente.")
+                return {"status": "cancelled",
+                        "total": len(self.git_remotes), "errors": []}
             errors = []
             for rtype, name in self.git_remotes:
                 err = self._git_push_one(name, None, branch=None)
@@ -173,7 +183,8 @@ class DevicePanel(QFrame):
                 errors=errors,
                 remote_list=[(n, "(remote git locale)") for r, n in self.git_remotes],
             )
-            return
+            return {"status": "pushed", "total": len(self.git_remotes),
+                    "errors": errors}
 
         # 3) **C1**: dialog di conferma con lista dei remote
         remote_list_for_dialog = []
@@ -224,6 +235,8 @@ class DevicePanel(QFrame):
             errors=errors,
             remote_list=[(n, u) for n, u, _ in remote_list_for_dialog],
         )
+        return {"status": "pushed", "total": len(configured),
+                "errors": errors}
 
     def _confirm_push(self, title: str, remote_list) -> bool:
         """C1: dialog di conferma prima del push. Ritorna True se l'utente

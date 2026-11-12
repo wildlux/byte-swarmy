@@ -1,0 +1,9 @@
+I migliori per il tuo HP (entro 4GB):
+
+Coding: qwen2.5-coder:3b o kirito1/qwen3-coder:4b.
+
+Sicurezza: tev1:0.8b e nexus-security.
+
+Reasoning: deepseek-r1:1.5b (fantastico per problemi logici).
+
+Chat: qwen3:4b o llama3.2:3b.

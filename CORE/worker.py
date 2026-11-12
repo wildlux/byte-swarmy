@@ -156,6 +156,12 @@ class Worker:
             "content": f"{task.get('title', '')}: {task.get('description', '')[:200]}",
         })
 
+        # 🆕 Modalità diretta (senza tool): la skill sostituisce il loop
+        # ReAct. Attiva se l'attore LLM (CONFIG/actors.json) o il modello
+        # (CONFIG/config.toml [models.*]) hanno no_tools=true.
+        if self._direct_mode_enabled():
+            return self._execute_direct(task)
+
         is_tdd_required = False  # TDD disabilitato
         tdd_verified = True
 
@@ -405,6 +411,69 @@ class Worker:
 
         self.memory.add_event({"type": "max_steps_reached"})
         return "ERROR: max steps reached without completion"
+
+    def _direct_mode_enabled(self) -> bool:
+        """True se questo worker deve girare in modalità DIRETTA (senza tool).
+
+        Due livelli (l'attore vince sul modello):
+          1. master override: CONFIG/actors.json → llm.no_tools
+             (pannello Attori → LLM → "Generazione diretta")
+          2. per-modello: CONFIG/config.toml → [models.<model_key>] no_tools
+             (pannello Configurazione → Modelli LLM → Worker Coder/General)
+
+        Fail-open: se qualcosa manca, resta il loop ReAct classico.
+        """
+        try:
+            from GUI.actors_panel import load_actors
+            if bool(load_actors().get("llm", {}).get("no_tools", False)):
+                return True
+        except Exception:
+            pass
+        try:
+            cfg = self.models.models_cfg.get(self.model_key, {})
+            return bool(cfg.get("no_tools", False))
+        except Exception:
+            return False
+
+    def _execute_direct(self, task: dict) -> str:
+        """Generazione DIRETTA per modelli senza tool (CORE.skill_executor).
+
+        Il modello risponde con UN blocco di codice; l'host estrae, scrive
+        il file nel progetto, verifica con py_compile e corregge fino a 3
+        tentativi (correction prompt con skill re-iniettata).
+
+        Stesso contratto di execute(): stringa; prefisso "ERROR" → il
+        dispatcher arma il correction loop (che usa self.last_code).
+        """
+        from CORE.skill_executor import run_direct
+
+        project_root = str(getattr(self.tools, "project_root", "./project"))
+        self.log.info(
+            f"[{self.agent_id}] modalità DIRETTA (senza tool) attiva "
+            f"per il modello '{self.model_key}'")
+        # Segnala il progresso nella GUI (stesso canale dello streaming)
+        try:
+            sf = Path("state/streaming.txt")
+            sf.parent.mkdir(parents=True, exist_ok=True)
+            sf.write_text("[direct mode] generazione con skill in corso…",
+                          encoding="utf-8")
+        except Exception:
+            pass
+
+        res = run_direct(task, project_root, model_key=self.model_key,
+                         client=self.models, max_retries=3)
+        self.last_code = str(res.get("code") or "")
+        self.memory.add_event({
+            "type": "task_end" if res["ok"] else "task_failed",
+            "content": (f"direct mode: {res['path']} tentativi="
+                        f"{res['attempts']} errore={res['error']}"),
+        })
+        code = self.last_code
+        preview = (code[:160] + "...") if len(code) > 160 else code
+        if res["ok"]:
+            return (f"File generato in modalità diretta: {res['path']} "
+                    f"(tentativi: {res['attempts']})\n{preview}")
+        return f"ERROR: generazione diretta fallita: {res['error']}"
 
     def _build_initial_prompt(self, task: dict, context: str,
                               correction: str = "") -> str:

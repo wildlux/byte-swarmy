@@ -102,8 +102,9 @@ def find_skill(title: str, description: str = "",
     """Skill migliore per il task, o None se nessuna matcha.
 
     Punteggio: occorrenze delle keywords su titolo (peso 3) e descrizione
-    (peso 1), match per confine di parola. Deterministico: a parita' vince
-    lo score piu' alto, poi il titolo piu' corto.
+    (peso 1), match per confine di parola. Deterministico: a parita' di
+    score vince la skill con la keyword matchata piu' lunga (piu'
+    specifica), poi il titolo piu' corto.
     """
     _reload()
     if not _cache["skills"]:
@@ -111,24 +112,30 @@ def find_skill(title: str, description: str = "",
     title_l = str(title or "").lower()
     desc_l = str(description or "").lower()
 
-    def _score(skill: dict) -> float:
-        score = 0.0
-        for kw in skill["keywords"]:
+    best, best_score = None, 0.0
+    best_kw_len = 0  # keyword matchata più lunga (parità → specificità)
+    for sk in _cache["skills"]:
+        s = 0.0
+        top = 0
+        for kw in sk["keywords"]:
             if not kw:
                 continue
             pat = re.compile(r"(?<!\w)" + re.escape(kw) + r"(?!\w)")
             if pat.search(title_l):
-                score += 3.0 * min(len(kw), 12)
+                s += 3.0 * min(len(kw), 12)
+                top = max(top, min(len(kw), 12))
             if desc_l and pat.search(desc_l):
-                score += 1.0 * min(len(kw), 12)
-        return score
-
-    best, best_score = None, 0.0
-    for sk in _cache["skills"]:
-        s = _score(sk)
-        if s > best_score or (s == best_score > 0 and best is not None
-                              and len(sk["title"]) < len(best["title"])):
-            best, best_score = sk, s
+                s += 1.0 * min(len(kw), 12)
+                top = max(top, min(len(kw), 12))
+        better = (
+            s > best_score
+            or (s == best_score > 0
+                and (top > best_kw_len
+                     or (top == best_kw_len and best is not None
+                         and len(sk["title"]) < len(best["title"]))))
+        )
+        if better:
+            best, best_score, best_kw_len = sk, s, top
     return best if best_score > 0 else None
 
 

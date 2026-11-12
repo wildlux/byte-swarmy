@@ -25,6 +25,7 @@ htmlcov/
 state/
 logs/
 backups/
+.audit_status.json
 
 # --- Coda task (runtime SQLite/JSON, non versionare) ---
 tasks/*

@@ -1,0 +1,202 @@
+{
+  "source": "CATEGORIZZAZIONE_LLM (DeepSeek 2026-11-11 + note entro 4GB)",
+  "consigliati_entro_4gb": {
+    "Programmazione": [
+      "qwen2.5-coder:3b",
+      "kirito1/qwen3-coder:4b"
+    ],
+    "Sicurezza Informatica": [
+      "tev1:0.8b",
+      "nexus-security"
+    ],
+    "Pensiero Profondo": [
+      "deepseek-r1:1.5b"
+    ],
+    "Chat Generale": [
+      "qwen3:4b",
+      "llama3.2:3b"
+    ]
+  },
+  "modelli": [
+    {
+      "nome": "tev1:0.8b",
+      "categoria": "Sicurezza Informatica",
+      "utilizzo": "Red Team / Pentesting",
+      "vram_ok": true
+    },
+    {
+      "nome": "tev1:4b",
+      "categoria": "Sicurezza Informatica",
+      "utilizzo": "Red Team Avanzato",
+      "vram_ok": false
+    },
+    {
+      "nome": "nexus-security",
+      "categoria": "Sicurezza Informatica",
+      "utilizzo": "Analisi Vulnerabilità",
+      "vram_ok": true
+    },
+    {
+      "nome": "dolphin-mistral:7b",
+      "categoria": "Sicurezza Informatica",
+      "utilizzo": "Security Research",
+      "vram_ok": false
+    },
+    {
+      "nome": "dolphin-llama3:8b",
+      "categoria": "Sicurezza Informatica",
+      "utilizzo": "Security Research",
+      "vram_ok": false
+    },
+    {
+      "nome": "llama2-uncensored",
+      "categoria": "Sicurezza Informatica",
+      "utilizzo": "Security Research",
+      "vram_ok": true
+    },
+    {
+      "nome": "gemma-1B-LinuxCLI",
+      "categoria": "SysAdmin",
+      "utilizzo": "Comandi Linux / Bash",
+      "vram_ok": true
+    },
+    {
+      "nome": "qwen2.5-coder:1.5b",
+      "categoria": "Programmazione",
+      "utilizzo": "Coding Veloce",
+      "vram_ok": true
+    },
+    {
+      "nome": "qwen2.5-coder:3b",
+      "categoria": "Programmazione",
+      "utilizzo": "Coding Bilanciato",
+      "vram_ok": true
+    },
+    {
+      "nome": "kirito1/qwen3-coder:4b",
+      "categoria": "Programmazione",
+      "utilizzo": "Coding Edge",
+      "vram_ok": true
+    },
+    {
+      "nome": "starcoder2:3b",
+      "categoria": "Programmazione",
+      "utilizzo": "Coding Generale",
+      "vram_ok": true
+    },
+    {
+      "nome": "deepseek-coder:1.3b",
+      "categoria": "Programmazione",
+      "utilizzo": "Script Veloce",
+      "vram_ok": true
+    },
+    {
+      "nome": "deepseek-coder:6.7b",
+      "categoria": "Programmazione",
+      "utilizzo": "Debugging Complesso",
+      "vram_ok": false
+    },
+    {
+      "nome": "codellama:7b",
+      "categoria": "Programmazione",
+      "utilizzo": "Coding Generale",
+      "vram_ok": true
+    },
+    {
+      "nome": "granite4:7b-a1b-h",
+      "categoria": "Programmazione",
+      "utilizzo": "MoE Efficiente",
+      "vram_ok": false
+    },
+    {
+      "nome": "gemma4:e2b",
+      "categoria": "Programmazione",
+      "utilizzo": "Coding Edge",
+      "vram_ok": false
+    },
+    {
+      "nome": "gemma4-e2b-claude-coder",
+      "categoria": "Programmazione",
+      "utilizzo": "Agente AI",
+      "vram_ok": false
+    },
+    {
+      "nome": "deepseek-r1:1.5b",
+      "categoria": "Pensiero Profondo",
+      "utilizzo": "Reasoning / CoT",
+      "vram_ok": true
+    },
+    {
+      "nome": "phi3:mini",
+      "categoria": "Pensiero Profondo",
+      "utilizzo": "Logica Compatta",
+      "vram_ok": true
+    },
+    {
+      "nome": "qwen3-8b-32k",
+      "categoria": "Pensiero Profondo",
+      "utilizzo": "Contesto Lungo",
+      "vram_ok": false
+    },
+    {
+      "nome": "llama3-gradient",
+      "categoria": "Pensiero Profondo",
+      "utilizzo": "Contesto Ultra-Lungo",
+      "vram_ok": false
+    },
+    {
+      "nome": "translategemma:4b",
+      "categoria": "Traduzioni",
+      "utilizzo": "Traduzione Pura",
+      "vram_ok": true
+    },
+    {
+      "nome": "qwen2.5vl:3b",
+      "categoria": "Visione",
+      "utilizzo": "OCR / Immagini",
+      "vram_ok": true
+    },
+    {
+      "nome": "moondream:latest",
+      "categoria": "Visione",
+      "utilizzo": "Analisi Immagini Base",
+      "vram_ok": true
+    },
+    {
+      "nome": "nomic-embed-text",
+      "categoria": "Embeddings",
+      "utilizzo": "RAG / Vettori",
+      "vram_ok": true
+    },
+    {
+      "nome": "llama3.2:3b",
+      "categoria": "Chat Generale",
+      "utilizzo": "Assistente",
+      "vram_ok": true
+    },
+    {
+      "nome": "mistral:7b-instruct",
+      "categoria": "Chat Generale",
+      "utilizzo": "Scrittura / Istruzioni",
+      "vram_ok": false
+    },
+    {
+      "nome": "qwen3:4b",
+      "categoria": "Chat Generale",
+      "utilizzo": "Chat Bilanciata",
+      "vram_ok": true
+    },
+    {
+      "nome": "qwen3.5:4b",
+      "categoria": "Chat Generale",
+      "utilizzo": "Chat Nuova Gen",
+      "vram_ok": true
+    },
+    {
+      "nome": "gemini-3-flash-preview",
+      "categoria": "Cloud",
+      "utilizzo": "Massima Intelligenza",
+      "vram_ok": "Cloud"
+    }
+  ]
+}

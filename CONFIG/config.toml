@@ -30,9 +30,33 @@ top_p = 0.8
 top_k = 20
 repeat_penalty = 1.1
 repeat_last_n = 256
-num_ctx = 4096
-num_predict = 512
+# Contesto maggiorato: 8192 fa comodo con skill + task + correzioni;
+# num_predict 1024 evita file completi troncati a metà.
+num_ctx = 8192
+num_predict = 1024
 seed = 42
+
+[models.worker_coder_big]
+# Heavy per il routing semplice (CORE/routing.py): consigliato entro
+# 4GB dal JSON di conoscenza. Finché NON è installato (⬇ nel pannello
+# Attori) il routing resta automaticamente sul modello base.
+name = "kirito1/qwen3-coder:4b"
+temperature = 0.2
+top_p = 0.8
+top_k = 20
+repeat_penalty = 1.1
+repeat_last_n = 256
+num_ctx = 8192
+num_predict = 1024
+seed = 42
+
+[complexity_routing]
+# Routing SEMPLICE per complessità (CORE/routing.py): task 'alta' →
+# heavy_model SOLO se installato; altrimenti fallback automatico sul
+# modello base. NON confondere con [routing] (più sotto), che governa
+# la scelta direct/ReAct dell'orchestrator.
+enabled = true
+heavy_model = "worker_coder_big"
 
 [models.worker_general]
 name = "qwen2.5:1.5b"

@@ -83,12 +83,14 @@ class ConfigPanel(QFrame):
                     ("top_p", "Top P", "spin_float", (0.0, 1.0, 0.05)),
                     ("num_ctx", "Context window", "spin_int", (512, 32768, 256)),
                     ("num_predict", "Max tokens", "spin_int", (64, DEFAULT_NUM_CTX, 64)),
+                    ("no_tools", "Modalità diretta (senza tool)", "check", None),
                 ]),
                 ("Worker General", "worker_general", [
                     ("name", "Modello", "combo", []),
                     ("temperature", "Temperature", "spin_float", (0.0, 2.0, 0.05)),
                     ("num_ctx", "Context window", "spin_int", (512, 32768, 256)),
                     ("num_predict", "Max tokens", "spin_int", (64, DEFAULT_NUM_CTX, 64)),
+                    ("no_tools", "Modalità diretta (senza tool)", "check", None),
                 ]),
                 ("Embedding", "embedding", [
                     ("name", "Modello embedding", "combo", []),
@@ -188,7 +190,14 @@ class ConfigPanel(QFrame):
         lay.addLayout(btn_row)
 
     def _build_section(self, title, path, fields):
-        """Costruisce una sezione collassabile con i campi."""
+        """Costruisce una sezione collassabile con i campi.
+
+        Supporta due formati (fix: la sezione "🧠 Modelli LLM" è annidata):
+          - fields = [(nome, label, tipo, params), ...] → campi piatti
+            (i widget si registrano come "{path}.{nome}" in _widgets)
+          - fields = [(sub_titolo, sub_path, sub_fields), ...] →
+            sotto-sezioni annidate (es. Orchestratore/Planner/Worker…)
+        """
         section = CollapsibleSection(title, icon="⚙")
         try:
             data = self._get_nested(self._config, path)
@@ -197,6 +206,16 @@ class ConfigPanel(QFrame):
 
         if not data and not fields:
             section.add_widget(QLabel(f"<i>Sezione {path} non presente nel config</i>"))
+            return section
+
+        # Sotto-sezioni annidate: ogni campo è (titolo, sub_path, campi)
+        if fields and all(
+                isinstance(f, (tuple, list)) and len(f) == 3
+                and isinstance(f[2], (list, tuple))
+                for f in fields):
+            for sub_title, sub_path, sub_fields in fields:
+                section.add_widget(self._build_section(
+                    sub_title, f"{path}.{sub_path}", sub_fields))
             return section
 
         form = QFormLayout()
@@ -209,7 +228,9 @@ class ConfigPanel(QFrame):
                 form.addRow(label, widget)
                 self._widgets[f"{path}.{field_name}"] = widget
 
-        section.add_layout(form)
+        # NB: CollapsibleSection NON ha add_layout (solo add_widget):
+        # il QFormLayout va incartato in un QWidget (helper _wrap_form).
+        section.add_widget(self._wrap_form(form))
         return section
 
     def _wrap_form(self, form_layout):

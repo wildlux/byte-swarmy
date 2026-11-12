@@ -13,9 +13,9 @@ STEPS (follow in order):
 
 TEMPLATE (keep every line that has no {{...}} exactly as-is):
 ```python
-def {{ FUNCTION NAME, e.g. somma }}({{ PARAMETERS, e.g. a, b }}):
+def {{ FUNCTION NAME, taken from the task }}({{ PARAMETERS, taken from the task }}):
     """{{ WHAT IT COMPUTES, one line }}."""
-    return {{ COMPUTATION, e.g. a + b }}
+    return {{ COMPUTATION, taken from the task }}
 
 
 def main():
@@ -31,8 +31,17 @@ if __name__ == "__main__":
 
 RULES:
 - ONE file only: project/main.py. Standard library only.
+- If the PROJECT MAP already contains a function that does the job,
+  IMPORT and USE it instead of rewriting it.
 - print() the final result so the user sees it.
 - NO argparse, NO classes, NO menus, NO threads, NO extra files.
+- Use the EXACT numbers, names and quantities from the task. Never
+  shrink the problem: "somma i numeri da 1 a 100000" means
+  sum(range(1, 100001)), not a small example.
+- Quoted items (even single letters like 'a') are string literals.
+- Clean text as instructed: palindromes → strip ALL punctuation AND
+  spaces, lowercase. Word counts → strip punctuation, lowercase, then
+  split on spaces (NEVER join the words into one string).
 
 DONE WHEN:
 - project/main.py exists and lint_code passes.
