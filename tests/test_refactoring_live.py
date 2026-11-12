@@ -323,3 +323,18 @@ class TestWorkerRefactoringFailOpen(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestSkillMatchRefactorRename(unittest.TestCase):
+    """M3v2 — verifica che il task di refactoring matcha la skill
+    py-refactor-rename (creata apposta per dare al 3B la ricetta del
+    refactoring multi-file, evitando il loop su main.py)."""
+
+    def test_skill_py_refactor_rename_matcha_il_task(self):
+        from CORE.skills import find_skill
+        sk = find_skill(TASK, "")
+        self.assertIsNotNone(sk,
+                             "Il task deve matchare qualche skill")
+        self.assertEqual(sk["id"], "py-refactor-rename",
+                         f"Deve matchare py-refactor-rename, "
+                         f"ottenuto {sk['id']}")

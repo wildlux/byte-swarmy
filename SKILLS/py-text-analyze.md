@@ -1,7 +1,7 @@
 ---
 id: py-text-analyze
 title: Python text analysis (word frequency + palindrome) (single file)
-keywords: frequenza, frequency, conta parole, word count, parole ripetute, palindromo, palindrome, analisi testo, split
+keywords: frequenza, frequency, conta parole, word count, parole ripetute, palindromo, palindroma, palindrome, analisi testo, split
 ---
 # Recipe: text analysis — word frequency + palindrome (single file)
 
