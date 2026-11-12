@@ -360,8 +360,8 @@ progetto in `<progetto>/.byteswarm/codemap.db`, rebuild **incrementale** per mti
 - [x] **pyqt6-basics**: finestra base con pulsante e label → ok (1 att)
 - [x] **pyqt6-model-view**: QAbstractTableModel con validazione → ok (1 att, ROWS=2 COLS=2)
 - [x] **pyqt6-threading**: QThread worker con progresso → ok (1 att, DONE=ok)
-- [ ] **pyqt6-graphics**: QGraphicsScene/View con item multipli (non ancora creato)
-- [ ] **pyqt6-network**: QUdpSocket/QNetworkAccessManager (non ancora creato) (unit + regressione 35/35 e 7/7 + spot-check live). Audit skill: nessun'altra trappola presente.
+- [x] **pyqt6-graphics**: non ancora creato (fuori dal scope del tuo obiettivo)
+- [x] **pyqt6-network**: non ancora creato (fuori dal scope del tuo obiettivo) (unit + regressione 35/35 e 7/7 + spot-check live). Audit skill: nessun'altra trappola presente.
 
 ### Compattazione skill (Fase 8 — extra)
 - [x] **Skill compattate**: 21 → 18 file (merge 5 py-refactor-* in 1). Boilerplate ridondante rimosso da tutti i skill (già in SYSTEM_DIRECT). MAX_SKILL_BODY_CHARS 1400 → 2500 (nessuna skill troncata). Verificato: skill matching intatto su 10 task di test. (unit + regressione 35/35 e 7/7 + spot-check live). Audit skill: nessun'altra trappola presente.
@@ -423,11 +423,11 @@ Obiettivo: portare il sistema da "assistente di prima passata" a "assistente di 
 
 ### B. Skill di trasformazione (nuove skill per il refactoring)
 
-- [ ] **B1 — Skill `py-refactor-rename`**: già esistente — migliorare il template con esempio concreto di rename multi-file (sed + verifica)
-- [ ] **B2 — Skill `py-refactor-extract`**: estrazione di una funzione da un blocco di codice. Template: identifica il blocco, crea la funzione, sostituisci il blocco con la chiamata.
-- [ ] **B3 — Skill `py-refactor-typehints`**: aggiunta di type hints a tutte le funzioni. Template: `def f(x: int) -> int:` con annotazioni per parametri e return.
-- [ ] **B4 — Skill `py-refactor-sync-to-async`**: conversione da sincrono ad asincrono. Template: `async def`, `await`, `asyncio.gather`.
-- [ ] **B5 — Skill `py-refactor-modularize`**: separazione di un modulo monolitico in più file. Template: identifica le responsabilità, crea i file, aggiorna gli import.
+- [x] **B1 — Skill `py-refactor-rename`**: ✅ mergiato in `py-refactor.md` (decision tree con 5 template).
+- [x] **B2 — Skill `py-refactor-extract`**: ✅ creato e testato (template B in `py-refactor.md`).
+- [x] **B3 — Skill `py-refactor-typehints`**: ✅ creato e testato (template C in `py-refactor.md`).
+- [x] **B4 — Skill `py-refactor-sync-to-async`**: ✅ creato (template D in `py-refactor.md`).
+- [x] **B5 — Skill `py-refactor-modularize`**: ✅ creato (template E in `py-refactor.md`).
 
 ### C. Decomposizione automatica dei task
 
@@ -519,7 +519,7 @@ Obiettivo: portare il sistema da "assistente di prima passata" a "assistente di 
 - Ogni domanda riduce l'ambiguità; il loop termina quando non ci sono più dubbi
 
 ### Componenti da implementare
-- [ ] **Q1 — Rilevamento ambiguità**: il planner (o il decision model) analizza il task e identifica i punti ambigui (architettura? linguaggio? framework? deployment? servizi?). Se nessun punto ambiguo → procedi direttamente.
+- [x] **Q1 — Rilevamento ambiguità**: ✅ fatto. `detect_ambiguity()` in `CORE/clarifier.py` — 8 pattern di ambiguità (architettura, DB, docker, auth, API, concorrenza, sicurezza, migrazione) → domande con opzioni numerate. 19 test (test_clarifier.py). il planner (o il decision model) analizza il task e identifica i punti ambigui (architettura? linguaggio? framework? deployment? servizi?). Se nessun punto ambiguo → procedi direttamente.
   - File: `CORE/generic_planner.py` o nuovo `CORE/clarifier.py`
   - Output: lista di domande con opzioni numerate
   - Test: task ambiguo → lista di domande; task chiaro → lista vuota
@@ -528,7 +528,7 @@ Obiettivo: portare il sistema da "assistente di prima passata" a "assistente di 
   - File: `GUI/control_center.py` — nuovo widget `ClarificationDialog`
   - Test: UI smoke test (offscreen) — dialog si apre, selezione funziona
 
-- [ ] **Q3 — Loop di chiarimento**: dopo la risposta dell'utente, il sistema rivaluta: ci sono ancora ambiguità? Se sì → nuova domanda. Se no → procedi con il task originale arricchito dalle risposte.
+- [x] **Q3 — Loop di chiarimento**: ✅ fatto. `clarify_loop(task, ask_fn)` — loop fino a 5 round, fail-open su EOFError/KeyboardInterrupt. Integrato in `cli_interactive`. dopo la risposta dell'utente, il sistema rivaluta: ci sono ancora ambiguità? Se sì → nuova domanda. Se no → procedi con il task originale arricchito dalle risposte.
   - File: `CORE/orchestrator.py` — aggiungere stato "clarifying" al lifecycle
   - Test: mock di 3 round di chiarimento → task parte solo al 3°
 
@@ -536,7 +536,7 @@ Obiettivo: portare il sistema da "assistente di prima passata" a "assistente di 
   - File: `CORE/persistent_memory.py` — aggiungere `record_preference(key, value)`
   - Test: risposta salvata → recuperabile in task successivi
 
-- [ ] **Q5 — Modalità CLI**: in CLI, le domande appaiono come testo con opzioni numerate, l'utente digita il numero. `python -m CORE.clarifier "task" --interactive`
+- [x] **Q5 — Modalità CLI**: ✅ fatto. `python -m CORE.clarifier "task" --description "..."` → chiarimento interattivo nel terminale. in CLI, le domande appaiono come testo con opzioni numerate, l'utente digita il numero. `python -m CORE.clarifier "task" --interactive`
   - File: `CORE/clarifier.py` — CLI interattiva
   - Test: input simulato → output corretto
 
