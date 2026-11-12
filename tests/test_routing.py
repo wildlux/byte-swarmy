@@ -11,15 +11,23 @@ Copre:
   D. explain (delega) + run_direct: client finto = routing OFF
      (determinismo dei test), enable_routing=True = decisione nel dict,
      classificazione client reale vs finto
+  E. M4 routing termico — _thermal_blocked cablato in _route_decide:
+     in zona pausa (CPU ≥75 °C, GPU ≥80 °C) l'heavy NON parte
+  F. M6 signature cache di code_map.rebuild — no-op se il progetto
+     non è cambiato dall'ultima chiamata (TTL 5 s)
+  G. M7 isteresi persistente su disco — il riavvio del processo
+     non perde lo sticky (max 30 min di età)
 
 Tutti i test sono SENZA LLM: progetti temporanei + client finti.
 """
 
 from __future__ import annotations
 
+import json
 import shutil
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -33,6 +41,8 @@ from CORE.routing import (  # noqa: E402
     route_model_key,
 )
 from CORE.skill_executor import _is_real_client, run_direct  # noqa: E402
+import CORE.routing as _routing_mod  # noqa: E402
+import CORE.code_map as _code_map_mod  # noqa: E402
 
 # Config di prova: stesso schema di CONFIG/config.toml (chiavi reali).
 CFG = {
@@ -292,6 +302,225 @@ class TestExplainAndRunDirect(unittest.TestCase):
             pass
 
         self.assertFalse(_is_real_client(FakeClient()))
+
+
+# ── M4: routing termico ────────────────────────────────────────────────
+class TestThermalRouting(unittest.TestCase):
+    """E. _thermal_blocked cablato in _route_decide — in zona pausa
+    l'heavy NON parte (lezione 4B della suite: modello grande muore
+    di throttling, piccolo regge)."""
+
+    def setUp(self):
+        reset_hysteresis()
+        # Salva l'originale per ripristinarlo in tearDown.
+        self._orig_blocked = _routing_mod._thermal_blocked
+
+    def tearDown(self):
+        reset_hysteresis()
+        _routing_mod._thermal_blocked = self._orig_blocked
+
+    def _mock_thermal(self, reason: str) -> None:
+        """Sostituisce _thermal_blocked con uno stub che ritorna `reason`."""
+        _routing_mod._thermal_blocked = lambda: reason
+
+    def test_alta_con_block_termico_resta_base(self):
+        self._mock_thermal(
+            "termico: cpu 80°C gpu 0°C ≥ soglia → heavy evitato")
+        key, lv, why = route_model_key(TASK_ALTA_KW, "", CFG, BASE,
+                                        {GRANITE_NAME})
+        self.assertEqual(key, BASE)
+        self.assertEqual(lv, "alta")  # il livello è alto, ma...
+        self.assertIn("termico", why)
+        self.assertIn("heavy evitato", why)
+
+    def test_alta_senza_block_termico_va_heavy(self):
+        self._mock_thermal("")
+        key, lv, why = route_model_key(TASK_ALTA_KW, "", CFG, BASE,
+                                        {GRANITE_NAME})
+        self.assertEqual(key, "worker_granite")
+        self.assertEqual(lv, "alta")
+        self.assertNotIn("termico", why)
+
+    def test_bassa_ignora_termico(self):
+        # Task basso non fa decisione heavy: il gate termico non
+        # appare nella motivazione (resta base a prescindere).
+        self._mock_thermal("termico: cpu 90°C")
+        key, lv, why = route_model_key(TASK_BANALE, "", CFG, BASE,
+                                        {GRANITE_NAME})
+        self.assertEqual(key, BASE)
+        self.assertEqual(lv, "bassa")
+        self.assertNotIn("termico", why)
+
+    def test_lettura_termica_fallisce_fail_open(self):
+        # Se _thermal_blocked solleva, il routing NON crasha: il
+        # try/except in _route_decide lo mangia → fail-open, l'heavy
+        # parte comunque (la guardia termica resta affidata al
+        # gatekeeper del loop, che ha la sua isteresi).
+        def boom() -> str:
+            raise RuntimeError("sensori morti")
+        _routing_mod._thermal_blocked = boom
+        key, lv, _why = route_model_key(TASK_ALTA_KW, "", CFG, BASE,
+                                          {GRANITE_NAME})
+        self.assertEqual(key, "worker_granite")  # fail-open → heavy
+        self.assertEqual(lv, "alta")
+
+    def test_block_termico_dopo_heavy_non_installato(self):
+        # Ordine: heavy NON installato ha la precedenza (fail-open
+        # più restrittivo). Con heavy installato + blocco termico →
+        # base per motivi termici (NON per "NON installato").
+        self._mock_thermal("termico: heavy evitato")
+        key, lv, why = route_model_key(TASK_ALTA_KW, "", CFG, BASE,
+                                        {GRANITE_NAME})
+        self.assertEqual(key, BASE)
+        self.assertIn("termico", why)
+        # Il "NON installato" appare SOLO quando heavy manca davvero;
+        # qui heavy è installato, il fallback è termico → la frase
+        # specifica "NON installato" non deve comparire nei bits.
+        # (Il head neutra dice solo "heavy non usato".)
+        # Cerchiamo la frase esatta del fallback NON-installato:
+        self.assertNotIn("NON installato: fallback", why)
+
+
+# ── M6: signature cache di code_map.rebuild ───────────────────────────
+class TestCodeMapSignatureCache(unittest.TestCase):
+    """F. Cache di signature (file_count, max_mtime) con TTL 5 s:
+    se il progetto non è cambiato, rebuild è no-op."""
+
+    def setUp(self):
+        _code_map_mod.reset_rebuild_cache()
+        self.proj = Path(tempfile.mkdtemp())
+        (self.proj / "a.py").write_text(
+            "def f():\n    return 1\n", encoding="utf-8")
+
+    def tearDown(self):
+        _code_map_mod.reset_rebuild_cache()
+        shutil.rmtree(self.proj, ignore_errors=True)
+
+    def test_seconda_chiamata_ritorna_stats_in_cache(self):
+        s1 = _code_map_mod.rebuild(self.proj)
+        cache_key = str(self.proj.resolve())
+        self.assertIn(cache_key, _code_map_mod._BUILD_CACHE)
+        s2 = _code_map_mod.rebuild(self.proj)
+        self.assertEqual(s1, s2)  # identiche (cache hit)
+
+    def test_nuovo_file_invalida_signature(self):
+        _code_map_mod.rebuild(self.proj)
+        # Aggiunge un file: signature cambia (count +1)
+        (self.proj / "b.py").write_text(
+            "def g():\n    return 2\n", encoding="utf-8")
+        # Importante: usa force=False — la cache deve accorgersi
+        # del cambio signature e rebuildare per davvero.
+        # Per evitare il TTL fresh, azzeriamo il ts della cache:
+        cache_key = str(self.proj.resolve())
+        if cache_key in _code_map_mod._BUILD_CACHE:
+            sig, stats, _ts = _code_map_mod._BUILD_CACHE[cache_key]
+            _code_map_mod._BUILD_CACHE[cache_key] = (sig, stats, 0.0)
+        s = _code_map_mod.rebuild(self.proj)
+        self.assertEqual(s["files"], 2)
+        # symbol count deve essere cresciuto (g in più di f)
+        self.assertGreater(s["symbols"], 1)
+
+    def test_force_salta_la_cache(self):
+        _code_map_mod.rebuild(self.proj)
+        cache_key = str(self.proj.resolve())
+        orig_ts = _code_map_mod._BUILD_CACHE[cache_key][2]
+        time.sleep(0.02)
+        # force=True: anche con signature uguale, deve ripassare
+        # dal branch SQL e aggiornare il ts della cache.
+        _code_map_mod.rebuild(self.proj, force=True)
+        new_ts = _code_map_mod._BUILD_CACHE[cache_key][2]
+        self.assertGreater(new_ts, orig_ts)
+
+    def test_ttl_scaduto_ricalcola(self):
+        _code_map_mod.rebuild(self.proj)
+        cache_key = str(self.proj.resolve())
+        # Forza il ts della cache a 100 s fa (oltre TTL di 5 s)
+        sig, stats, _ts = _code_map_mod._BUILD_CACHE[cache_key]
+        _code_map_mod._BUILD_CACHE[cache_key] = (sig, stats, time.time() - 100)
+        # Anche con signature uguale, il TTL scaduto deve far ripassare
+        # dal rebuild reale (verifico che il ts si aggiorni).
+        _code_map_mod.rebuild(self.proj)
+        new_ts = _code_map_mod._BUILD_CACHE[cache_key][2]
+        self.assertGreater(new_ts, time.time() - 10)
+
+    def test_reset_cache_pulisce(self):
+        _code_map_mod.rebuild(self.proj)
+        self.assertTrue(len(_code_map_mod._BUILD_CACHE) >= 1)
+        _code_map_mod.reset_rebuild_cache()
+        self.assertEqual(len(_code_map_mod._BUILD_CACHE), 0)
+
+
+# ── M7: isteresi persistente su disco ────────────────────────────────
+class TestPersistentHysteresis(unittest.TestCase):
+    """G. Lo sticky heavy sopravvive al riavvio del processo (entro
+    STICKY_MAX_AGE_S). File corrotto/assente → fail-open da False."""
+
+    def setUp(self):
+        # Reindirizza _HYST_FILE a un tempdir: i test non dipendono
+        # dal cwd e non inquinano la state/ reale del progetto.
+        self._orig_file = _routing_mod._HYST_FILE
+        self.tmpdir = Path(tempfile.mkdtemp())
+        _routing_mod._HYST_FILE = self.tmpdir / "routing_hysteresis.json"
+        # Simula processo fresco: memoria azzerata, non ancora caricata
+        _routing_mod._HYST = {"heavy": False, "loaded": False}
+
+    def tearDown(self):
+        _routing_mod._HYST_FILE = self._orig_file
+        _routing_mod._HYST = {"heavy": False, "loaded": False}
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    def test_sticky_salvato_e_letto_da_processo_fresco(self):
+        # Processo A: un task ALTA imposta sticky heavy
+        _k, lv, _why = route_model_key(TASK_ALTA_KW, "", CFG, BASE,
+                                         {GRANITE_NAME})
+        self.assertEqual(lv, "alta")
+        self.assertTrue((self.tmpdir / "routing_hysteresis.json").exists())
+        # Processo B (riavvio): memoria azzerata → _hyst_load legge il file
+        _routing_mod._HYST = {"heavy": False, "loaded": False}
+        _k, lv, why = route_model_key(TASK_MEDIA, "", CFG, BASE,
+                                        {GRANITE_NAME})
+        self.assertEqual(lv, "alta")  # isteresi dal disco
+        self.assertIn("isteresi", why)
+
+    def test_sticky_scaduto_ignorato(self):
+        # Scrive un file vecchio più di STICKY_MAX_AGE_S
+        sticky_file = self.tmpdir / "routing_hysteresis.json"
+        old_ts = time.time() - _routing_mod.STICKY_MAX_AGE_S - 100
+        sticky_file.write_text(json.dumps({"heavy": True, "ts": old_ts}),
+                                encoding="utf-8")
+        # Processo fresco: il file è troppo vecchio → fail-open da False
+        _routing_mod._HYST = {"heavy": False, "loaded": False}
+        _k, lv, _why = route_model_key(TASK_MEDIA, "", CFG, BASE,
+                                         {GRANITE_NAME})
+        self.assertNotEqual(lv, "alta")  # scaduto: non incollato
+
+    def test_file_corrotto_fail_open(self):
+        # File con JSON invalido: si parte da False (no crash).
+        (self.tmpdir / "routing_hysteresis.json").write_text(
+            "NOT-JSON-AT-ALL", encoding="utf-8")
+        _routing_mod._HYST = {"heavy": False, "loaded": False}
+        _k, lv, _why = route_model_key(TASK_MEDIA, "", CFG, BASE,
+                                         {GRANITE_NAME})
+        self.assertNotEqual(lv, "alta")
+
+    def test_file_assente_parte_da_false(self):
+        # Nessun file: prima chiamata con task MEDIA non diventa heavy
+        _k, lv, _why = route_model_key(TASK_MEDIA, "", CFG, BASE,
+                                         {GRANITE_NAME})
+        self.assertNotEqual(lv, "alta")
+
+    def test_bassa_dopo_alta_resetta_il_file(self):
+        # ALTA → BASSA: il file viene aggiornato (heavy=False)
+        route_model_key(TASK_ALTA_KW, "", CFG, BASE, {GRANITE_NAME})
+        self.assertTrue((self.tmpdir / "routing_hysteresis.json").exists())
+        # Processo B (riavvio): la BASSA deve "resettare" sticky
+        _routing_mod._HYST = {"heavy": False, "loaded": False}
+        # il file sul disco ha heavy=True; lo leggiamo.
+        # Ora processiamo una BASSA: deve scrivere heavy=False sul disco.
+        route_model_key(TASK_BANALE, "", CFG, BASE, {GRANITE_NAME})
+        data = json.loads(
+            (self.tmpdir / "routing_hysteresis.json").read_text())
+        self.assertFalse(data["heavy"])
 
 
 if __name__ == "__main__":

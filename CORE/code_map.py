@@ -16,12 +16,19 @@ Implementazione: stdlib `ast` (niente dipendenze) + SQLite per progetto
 in `<progetto>/.byteswarm/codemap.db`. Rebuild INCREMENTALE per mtime:
 solo i file cambiati vengono riparsi. Fail-open ovunque: senza DB o con
 file non parsabili la pipeline degrada, mai crash.
+
+M6 — signature cache: `estimate_impact` chiama `rebuild` a ogni decisione
+di routing. Su progetti grandi il collo di bottiglia NON è il parsing
+(gia incrementale) ma il `rglob + stat + sqlite connect` per ogni
+chiamata. Cache di signature `(file_count, max_mtime_ns)` con TTL:
+se il progetto non è cambiato dall'ultima chiamata, salta tutto.
 """
 from __future__ import annotations
 
 import ast
 import builtins
 import sqlite3
+import time
 from pathlib import Path
 
 DB_DIR = ".byteswarm"
@@ -33,6 +40,45 @@ SKIP_DIRS = {".byteswarm", "__pycache__", ".venv", "venv", ".git",
 
 MAX_MAP_CHARS = 1200  # cap della sezione nel prompt (8192 ctx: non affoga)
 MAX_UNKNOWN_REPORT = 6
+
+# M6: signature cache — se il progetto non è cambiato, rebuild è no-op.
+# TTL: il worker scrive un file ogni 30 s (tick), quindi 5 s di cache
+# coprono bene le chiamate ravvicinate (es. estimate_impact + render_map
+# per lo stesso task). Il cache key è il path assoluto del progetto.
+_BUILD_CACHE: dict[str, tuple[tuple[int, int], dict, float]] = {}
+_BUILD_TTL_S = 5.0
+
+
+def reset_rebuild_cache() -> None:
+    """Pulisce la cache di signature (test, forzatura refresh)."""
+    _BUILD_CACHE.clear()
+
+
+def _project_signature(root: Path) -> tuple[int, int]:
+    """(file_count, max_mtime_ns) — lettura leggera, niente parsing.
+
+    Costo: O(N) stat() per i .py del progetto (Niente SQL, niente AST).
+    Su un progetto di 500 file è ~5 ms; SQLite connect + schema +
+    SELECT per-file è ~50 ms. La cache rende il caso "nessun cambio"
+    (la maggioranza delle chiamate di routing) praticamente gratuito.
+    """
+    count = 0
+    max_mtime = 0
+    try:
+        for p in root.rglob("*.py"):
+            rel_parts = p.relative_to(root).parts
+            if SKIP_DIRS & set(rel_parts):
+                continue
+            try:
+                mtime = p.stat().st_mtime_ns
+            except OSError:
+                continue
+            count += 1
+            if mtime > max_mtime:
+                max_mtime = mtime
+    except Exception:
+        return (-1, -1)
+    return (count, max_mtime)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS files (
@@ -163,10 +209,29 @@ def _parse_py_file(path: Path) -> dict:
 
 
 # ── Rebuild incrementale ──────────────────────────────────────────────
-def rebuild(project_root: str | Path) -> dict:
-    """Aggiorna la mappa: solo i file cambiati (mtime). Mai solleva."""
+def rebuild(project_root: str | Path, *, force: bool = False) -> dict:
+    """Aggiorna la mappa: solo i file cambiati (mtime) + cache di
+    signature (M6). Mai solleva.
+
+    `force=True` salta la cache: per test e forzatura refresh."""
     root = Path(project_root)
     stats = {"files": 0, "symbols": 0, "db": str(db_path(root))}
+    # M6: fast path — se la signature (file_count, max_mtime) è
+    # uguale all'ultima chiamata e il TTL non è scaduto, salta tutto
+    # (niente SQLite, niente AST). Su progetti grandi e chiamate
+    # ravvicinate (estimate_impact + render_map_section per lo stesso
+    # task) è il salvavita prestazionale.
+    try:
+        sig = _project_signature(root)
+    except Exception:
+        sig = (-1, -1)
+    cache_key = str(root.resolve())
+    if not force and sig != (-1, -1):
+        cached = _BUILD_CACHE.get(cache_key)
+        if cached is not None:
+            cached_sig, cached_stats, cached_ts = cached
+            if cached_sig == sig and (time.time() - cached_ts) < _BUILD_TTL_S:
+                return cached_stats
     try:
         dbp = db_path(root)
         dbp.parent.mkdir(parents=True, exist_ok=True)
@@ -223,6 +288,10 @@ def rebuild(project_root: str | Path) -> dict:
         conn.close()
     except Exception:
         pass  # fail-open: mappa assente → prompt senza PROJECT MAP
+    # M6: aggiorna la cache di signature (anche in caso di fail-open,
+    # così la prossima chiamata con lo stesso progetto salta tutto).
+    if sig != (-1, -1):
+        _BUILD_CACHE[cache_key] = (sig, stats, time.time())
     return stats
 
 

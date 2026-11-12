@@ -393,6 +393,20 @@ def _route_decide(title: str, description: str = "",
                         f"heavy {heavy_name} NON installato: fallback"]))
     except Exception:
         return base_key, level, "; ".join(reason_bits)
+    # M4: guardia termica — se CPU/GPU è in zona pausa (soglie del
+    # gatekeeper: CPU ≥75 °C, GPU ≥80 °C) l'heavy NON parte: resta
+    # base. Lezione della suite comparativa: il modello grande muore
+    # di throttling (4B: 3 timeout su 300 s esatti), il piccolo regge.
+    # Fail-open: se la lettura termica fallisce, si va sull'heavy
+    # comunque (il gate termico resta affidato al gatekeeper del
+    # loop, che ha la sua isteresi — non è compito del routing).
+    try:
+        blocked = _thermal_blocked()
+    except Exception:
+        blocked = ""  # fail-open: heavy parte comunque
+    if blocked:
+        return (base_key, level,
+                "; ".join(reason_bits + [blocked]))
     return heavy_key, level, "; ".join(reason_bits)
 
 
@@ -426,8 +440,11 @@ def route_model_key(title: str, description: str = "",
     if key != base_key:
         head = f"complessità {level} → {key} (heavy {heavy})"
     elif level == "alta" and heavy:
+        # Fall-back al base con level=alta: il motivo esatto è nei bits
+        # (heavy NON installato, termico, isteresi, ecc.) — head neutra
+        # per non duplicare/contraddire il dettaglio nei bits.
         head = (f"complessità {level} → {base_key} "
-                f"(heavy {heavy} NON installato: fallback)")
+                f"(heavy {heavy} non usato)")
     else:
         head = f"complessità {level} → {base_key}"
     return key, level, (f"{head} | {bits}" if bits else head)
