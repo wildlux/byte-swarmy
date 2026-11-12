@@ -181,13 +181,18 @@ def _normalize_eq(text: str) -> str:
 
 def verify_runtime(code: str, out_path: Path,
                    expected_markers: Optional[list[tuple[str, str]]] = None,
+                   oracle_checks: Optional[list[str]] = None,
                    timeout: int = RUNTIME_TIMEOUT_S,
                    python: Optional[str] = None) -> tuple[Optional[str], str]:
     """Esegue il programma generato e verifica l'output REALE.
 
     Fail su: ① exit ≠ 0 ② traceback in stderr ③ marker NAME=value attesi
-    mancanti nel stdout (confronto normalizzato). I marker sono quelli
-    estratti dal testo del task: assenza di marker → solo exit/traceback.
+    mancanti nel stdout (confronto normalizzato) ④ oracle_checks (sottostringhe
+    che DEVONO apparire nel stdout, es. valori attesi non in formato marker).
+
+    I marker sono quelli estratti dal testo del task: assenza di marker →
+    solo exit/traceback + oracle_checks. I marker con valore-variabile
+    (singola lettera, es. TENTATIVO=n) vengono confrontati per prefisso.
 
     GUI (QApplication/mainloop nel codice): il timeout E' il successo —
     significa che il programma e' entrato nel loop eventi senza crash.
@@ -249,6 +254,14 @@ def verify_runtime(code: str, out_path: Path,
             got = _normalize_eq(stdout)[:200] or "(vuoto)"
             return ("RUNTIME ERROR: output atteso mancante: "
                     f"{', '.join(missing)}. Output ottenuto: {got}"), stdout
+    # A1 — Oracle checks: sottostringhe che DEVONO apparire nel stdout
+    # (es. valori attesi non in formato marker, o condizioni specifiche).
+    # Ogni check è una stringa; se manca → reject con messaggio mirato.
+    for check in (oracle_checks or []):
+        if check not in (stdout or ""):
+            got = _normalize_eq(stdout)[:200] or "(vuoto)"
+            return (f"RUNTIME ERROR: output atteso mancante: {check}. "
+                    f"Output ottenuto: {got}"), stdout
     return None, stdout
 
 
@@ -313,7 +326,9 @@ def run_direct(task: dict, project_root: str,
                client=None,
                max_retries: int = 3,
                filename: str = DEFAULT_FILENAME,
-               enable_routing: Optional[bool] = None) -> dict:
+               enable_routing: Optional[bool] = None,
+               oracle_checks: Optional[list[str]] = None,
+               behavioral_check: bool = False) -> dict:
     """Esegue il task in modalita' diretta (modello SENZA tool).
 
     Args:
@@ -396,6 +411,18 @@ def run_direct(task: dict, project_root: str,
     except Exception:
         map_section = ""
 
+    # A2 — Diff semantico: snapshot del comportamento pre-revisione.
+    _snap = None
+    if behavioral_check:
+        try:
+            from CORE import behavioral_diff as _bd
+            _snap = _bd.load_snapshot(out_path)
+            if _snap is None and out_path.exists():
+                _snap = _bd.snapshot(out_path, [""])
+                _bd.save_snapshot(out_path, _snap)
+        except Exception:
+            _snap = None
+
     attempts = 0
     error: Optional[str] = None
     code = ""
@@ -465,7 +492,18 @@ def run_direct(task: dict, project_root: str,
         # Gate RUNTIME (Fase 3): il programma viene ESEGUITO. Vedra' i
         # crash rimasti e l'output sbagliato che py_compile non vede.
         runtime_error, last_stdout = verify_runtime(
-            code, out_path, expected_markers=expected_markers)
+            code, out_path, expected_markers=expected_markers,
+            oracle_checks=oracle_checks)
+        # A2 — Verifica comportamentale post-generazione
+        if runtime_error is None and behavioral_check and _snap is not None:
+            try:
+                from CORE import behavioral_diff as _bd
+                _ok, _diff = _bd.verify(out_path, _snap)
+                if not _ok:
+                    runtime_error = _diff
+            except Exception:
+                pass  # fail-open
+
         if runtime_error is None:
             return {"ok": True, "path": str(out_path), "attempts": attempts,
                     "error": None, "model": used_model,
