@@ -214,7 +214,7 @@ start_orchestrator() {
 
 start_gui() {
     echo "🎨 Avvio GUI in foreground..."
-    echo "   (chiudi la GUI con X — l'orchestratore continua in background)"
+    echo "   (chiudi la GUI con X — ti verrà chiesto se terminare l'orchestratore)"
     echo
     # Avvia GUI in foreground (nuova interfaccia modulare: control_center + panels)
     python -m GUI.control_center

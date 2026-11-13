@@ -74,7 +74,7 @@ def load_settings() -> Dict:
     Se ``detect_gpu_at_startup=True`` e la strategia salvata non è mai
     stata sovrascritta dall'utente, ricalcola la default strategy.
     """
-    data = load_json("CONFIG/settings.json", dict(DEFAULTS))
+    data = load_json(SETTINGS_FILE, dict(DEFAULTS))
     if data is None:
         data = dict(DEFAULTS)
     # Merge con defaults per chiavi mancanti
@@ -90,7 +90,7 @@ def load_settings() -> Dict:
 
 def save_settings(settings: Dict) -> bool:
     """Salva le impostazioni in CONFIG/settings.json. Ritorna True se ok."""
-    return save_json("CONFIG/settings.json", settings)
+    return save_json(SETTINGS_FILE, settings)
 
 
 def get_theme() -> str:
@@ -200,6 +200,29 @@ def set_gui_debug(enabled: bool) -> bool:
     s = load_settings()
     s["gui_debug"] = bool(enabled)
     return save_settings(s)
+
+
+# ── Chiusura finestra & orchestratore ────────────────────────────────
+
+def get_close_action() -> str:
+    """Azione ricordata alla chiusura della finestra:
+    "" (chiedi ogni volta), "stop" (termina orchestratore),
+    "keep" (lascia l'orchestratore attivo in background)."""
+    try:
+        v = str(load_settings().get("close_action", "") or "")
+        return v if v in ("stop", "keep") else ""
+    except Exception:
+        return ""
+
+
+def set_close_action(action: str) -> bool:
+    """Salva l'azione ricordata alla chiusura ("" = chiedi ogni volta)."""
+    try:
+        s = load_settings()
+        s["close_action"] = action if action in ("stop", "keep") else ""
+        return save_settings(s)
+    except Exception:
+        return False
 
 
 # ── Zoom interfaccia ─────────────────────────────────────────────────

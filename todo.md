@@ -508,6 +508,10 @@ Obiettivo: portare il sistema da "assistente di prima passata" a "assistente di 
 
 ---
 
+## 🔒 Chiusura GUI & orchestratore (richiesta utente 2026-11-13)
+
+- [x] **Chiudi finestra → termina orchestratore PRIMA di chiudere**: ✅ fatto. `ControlCenter.closeEvent` — se l'orchestratore è attivo: dialog con [Termina e chiudi (default)] [Lascia attivo in background] [Annulla] + checkbox "Ricorda questa scelta" (salvata in `CONFIG/settings.json`, chiave `close_action`). Terminazione bloccante `_terminate_orchestrator_blocking`: SIGTERM → poll 0,2 s per max 5 s → SIGKILL di riserva → rimozione pid file. Validazione pid come byte-swarm.sh (cmdline deve contenere "orchestrator"/"watchdog": pid stantio o riutilizzato → non toccare). Fail-open: non blocca mai la chiusura. Bug collateral risolti: `_pid_alive` staticmethod corretto (zombie child visti morti), `load/save_settings` ora usano davvero `SETTINGS_FILE` (prima ignorato → test settings riparati), duplicato `_stop_orchestrator` rimosso. 10 test (tests/test_close_orchestrator.py) + smoke e2e offscreen con finestra reale OK.
+
 ## Fase 9 — Domande interattive per decisioni complesse (UX)
 
 **Idea (utente)**: quando il task è complesso o richiede decisioni importanti (architettura, linguaggio, docker, kubernetes, servizi), il sistema deve MOSTRARE una domanda all'utente con scelte numerate (1, 2, 3...) prima di iniziare. L'utente clicca/seleziona la soluzione e il sistema continua finché non ha esaurito le domande. Solo dopo inizia il lavoro. Questo evita calcoli a vuoto e assicura comprensione al 100%.
