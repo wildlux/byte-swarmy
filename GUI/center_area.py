@@ -223,6 +223,11 @@ class CenterArea(QWidget):
         self.panel_pages["hardware"] = HardwarePanel()
         self.detail_stack.addWidget(self.panel_pages["hardware"])
 
+        # Pannello "test" → TestSuitePanel (runner per-file con timeout)
+        from GUI.test_suite_panel import TestSuitePanel
+        self.panel_pages["test"] = TestSuitePanel()
+        self.detail_stack.addWidget(self.panel_pages["test"])
+
         self.main_stack.addWidget(self.detail_stack)
 
         root.addWidget(self.main_stack, stretch=1)

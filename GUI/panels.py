@@ -126,6 +126,9 @@ def build_plancia_cards(open_panel_callback):
         ("clean_code", "✨ Clean & Architecture Code",
          "Verifica qualità codice: lint, complexity, duplicazione, architettura",
          "Quality", "#7c3aed", 1, 1),
+        ("test", "🧪 Test Suite",
+         "Esegue la suite di test: runner per-file con timeout, esito salvato",
+         "Tests", "#ea580c", 1, 2),
     ]
 
     for key, title, subtitle, badge, badge_color, row, col in card_configs:

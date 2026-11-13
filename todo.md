@@ -15,10 +15,6 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
 ## Aperti
 
 ### GUI / UX
-- [ ] **Pannello Test nella Plancia di Controllo** (richiesta utente): menù
-  uguale agli altri pannelli. Runner per-file con timeout; test e2e/LLM
-  esclusi di default (il run completo si appende: include test che aspettano
-  Ollama). Risultato ultimo run salvato in `state/test_suite/`.
 - [ ] **R3 — Split `GUI/control_center.py`** (~5000 righe) in moduli per
   area (sidebar, centro, editor, debug bar), comportamento invariato.
 - [ ] **FM14 — Coda unica GUI→SQLite**: la coda task vive solo in SQLite

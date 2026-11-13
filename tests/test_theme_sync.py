@@ -35,6 +35,7 @@ PANELS = [
     "search_bar.py",
     "settings_panel.py",
     "task_scheduler_panel.py",
+    "test_suite_panel.py",
 ]
 
 _COLOR_INLINE = re.compile(
@@ -114,6 +115,7 @@ _PANEL_CLASSES = {
     "settings_panel.py": ("GUI.settings_panel", "SettingsPanel"),
     "search_bar.py": ("GUI.search_bar", "SearchBar"),
     "task_scheduler_panel.py": ("GUI.task_scheduler_panel", "TaskSchedulerPanel"),
+    "test_suite_panel.py": ("GUI.test_suite_panel", "TestSuitePanel"),
 }
 
 

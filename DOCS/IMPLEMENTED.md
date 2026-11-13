@@ -296,5 +296,14 @@ This file tracks every significant feature, fix, and architectural change implem
 - [x] **Bug risolti in cascata**: `_pid_alive` staticmethod (figli zombie visti morti via `/proc/PID/stat`); `load/save_settings` ora usano davvero `SETTINGS_FILE` (test settings riparati); duplicato `_stop_orchestrator` rimosso.
 - [x] **Test**: 10/10 `tests/test_close_orchestrator.py` + 6/6 `test_settings_store` + smoke e2e offscreen con finestra reale (fake orchestrator morto prima del close, pid file rimosso).
 
+## 🚀 Cycle 23 — Pannello Test Suite nella Plancia (2026-11-13)
+
+- [x] **Pannello "Test Suite"** (richiesta utente: "un menù uguale agli altri"): `GUI/test_suite_panel.py` sul modello di hardware_panel (header con "← Indietro alla Plancia (Backspace)", scroll, QGroupBox, token tema via set_prop/set_banner/token_color — zero colori hardcodati). Card "🧪 Test Suite" nella cella libera (1,2) della griglia Plancia (`GUI/panels.py`), pagina nel detail_stack (`GUI/center_area.py`, key "test").
+- [x] **Runner per-file con timeout**: QProcess sequenziale (`python -m pytest -q` per file, processo dedicato, cwd root, QT_QPA_PLATFORM=offscreen) — un file bloccato non blocca mai la suite; timeout 120 s per file (600 s per e2e opt-in) con kill e registrazione onesta (status ERROR "timeout"). Parser output pytest (`N passed/failed/skipped`) e unittest verbose (`Ran N tests … OK/FAILED`); exit 5 pytest = SKIP.
+- [x] **E2E/LLM esclusi di default**: `discover_test_files()` esclude i file e2e/live/swarm/workflow + test_timestral_full (aspettano Ollama, il runner unico si appende); opt-in con checkbox (timeout elevato).
+- [x] **Risultato consolidato**: riepilogo (file OK/KO, pass/fail/error/skip, durata, badge ✅/❌ con token tema), lista per file cliccabile con coda output, log esecuzione; salvato in `state/test_suite/results.json` (via `CORE.state_repository.save_json`); all'apertura carica l'ultimo run salvato.
+- [x] **Test**: 11/11 `tests/test_test_suite_panel.py` (discovery e2e, parser, pipeline QProcess reale su file piccolo con JSON su path tmp — mai sullo state/ reale) + 24/24 `test_theme_sync.py` (statici + runtime entrambi i temi, pannello aggiunto a PANELS/_PANEL_CLASSES) + smoke integrazione finestra reale (card, pagina, stack, render).
+
+
 ## 🔓 Open follow-ups
 UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protocol parser, USB differential analysis, dedicated user `byteswarmy`, usbmon/tshark automation, unification of GUI→SQLite queue (FM14).
