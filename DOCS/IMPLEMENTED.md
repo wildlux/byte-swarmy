@@ -247,5 +247,54 @@ This file tracks every significant feature, fix, and architectural change implem
 - [x] **Timestamp nei test runner**: started_at/finished_at (ISO 8601) in tutti i risultati.
 - [x] **DOCS aggiornati**: SPECIFICATIONS.md, IMPLEMENTED.md, README.md (IT/EN), AGENT.md.
 
+## 🚀 Cycle 17 — Suite T1–T10 + Fasi 1–5: fondamenta della qualità (2026-11-12)
+
+- [x] **Fase 1 — Suite T1–T10 su `qwen2.5-coder:3b`** (todo storico travasato): 10 task (statistiche, conversioni+errori, dedup semantico, palindromo+frequenza, file I/O, Fibonacci memoizzato, GUI PyQt6, Stack, decoratore, trasposta). Risultato **6/10 PASS**: i task concreti e deterministici passano, i semantici no. **Finding principale — il gate di verifica è cieco**: `py_compile` sempre OK e `ok=true` al 1° tentativo, il 100% dei fallimenti è semantico e invisibile → il correction loop non si attiva mai. Da qui nascono A1/A2 (verify_runtime) e la raccomandazione "estendere la verifica host".
+- [x] **Fase 2 — Leve anti-fallimento**: 3 skill nuove (`py-class-module`, `py-json-store`, `py-decorator`); disinnescato l'ancoraggio tossico (T9 "somma" matchava `py-cli-script` con template sbagliato → placeholder dal task + regole quantità); **SYSTEM_DIRECT** con 7 regole concrete in `CORE/skill_executor.py` (implementa tutto ciò che il task nomina, quantità esatte, string literals quottati, marker esatti…); contesto maggiorato `[models.worker_coder]` `num_ctx` 4096→**8192**, `num_predict` 512→**1024**.
+- [x] **Fase 3 — Verifica RUNTIME nel correction loop**: `verify_runtime()` esegue il programma generato e confronta l'output atteso; marker di estrazione → il correction loop ora si attiva davvero su errori semantici (chiude il cerchio del finding Fase 1).
+- [x] **Fase 4 — Mappa del codice + gate statico**: oltre al code_map DB (Cycle 13), gate statico `check_code_names` — i nomi citati nel task devono esistere nel PROJECT MAP (niente simboli inventati). Registrato `./byte-swarm.sh map`.
+- [x] **Fase 5 — Libreria skill completa**: 9 skill nuove per i pattern dove i 3B falliscono da zero + **tie-break matcher** (match per sottostringa, keyword più lunga vince). Matcher verificato su tutti i titoli della suite.
+
+## 🚀 Cycle 18 — Heavy model & M1–M10 (2026-11-12)
+
+- [x] **Scelta heavy model (onesta)**: `kirito1/qwen3-coder:4b` **scartato** — 4/10 nella suite e ~×19 più lento del 3B (throttling su 4 GB); spot-check su `granite4:7b-a1b-h` poi suite intera → **10/10**. Decisione: 3B resta il default, granite per il routing "alta".
+- [x] **M1 — Suite completa T1–T10 su granite4**: `scripts/suite_compare.py worker_granite` → `state/suite_compare/results.json`. Verdict valido solo con la suite intera (non più spot).
+- [x] **M2 — Routing e2e LIVE**: `scripts/routing_e2e.py` — percorso completo verificato: task multi-file → impatto alta → decisione `complessità alta → worker_granite` → heavy_picked=True → ok in 3 tentativi (att. 1–2 senza marker → gate lo becca → correzione). Gate+correction+routing lavorano insieme.
+- [x] **M3 — Refactoring live su progetto vero**: skill `py-refactor-rename` (renaming multi-file) + demo live multi-file con routing per impatto. Il refactoring vero va al ReAct (M9).
+- [x] **M6 — `code_map` incrementale**: già implementato (rebuild per mtime, niente re-parse dei file invariati); l'assunzione "collo di bottiglia" era errata, nessuna modifica.
+- [x] **M7 — Isteresi persistente**: `_HYST` su `state/routing_hysteresis.json` con timestamp (sticky >1800 s scartato), `reset_hysteresis()` pulisce memoria e disco.
+- [x] **M9 — Routing anche in ReAct**: `Worker._route_model_key(task)` (stessa 3-tuple di `route_model_key`), attivo solo con ModelClient reale. +5 test, demo live.
+- [x] **M10 — model_selector evidence-based**: `CORE/model_selector.py` incorpora i risultati reali di `state/suite_compare/results.json` (10/10 del 3B come dato hard) accanto alle euristiche. +24 test.
+
+## 🚀 Cycle 19 — Suite complesse (2026-11-12)
+
+- [x] **T11–T21 (suite avanzata)**: **11/11 PASS su 3B** con le ottimizzazioni P9–P15 (generatori+TOT, threading+Lock, argparse concreto, unittest con `__main__`, context manager, decision tree architetturale).
+- [x] **Suite dati complessi**: generatore `DATI_COMPLESSI.json` (600 task); esito del campione eseguito **12/17 PASS** (onesto: campione, non i 600 interi).
+
+## 🚀 Cycle 20 — Fase 8 completata (2026-11-12)
+
+- [x] **A3 — Gate di regressione nel Refactor-Loop**: `check_refactor_regression(target, inputs)` in `CORE/behavioral_diff.py` — snapshot se assente, verifica post-revisione → (ok, diff). Fail-open, 5 test.
+- [x] **D2 — Diagnosi errori di logica**: `diagnose_logic_error(inp, expected, actual)` in `CORE/skill_executor.py` — suggerisce la causa probabile (off-by-one, valore doppio, output vuoto, tipo sbagliato); integrata in `verify_runtime` (path oracle_checks). 5 test.
+- [x] **B1 — `py-refactor-rename`**: mergiato in `py-refactor.md` (decision tree con 5 template).
+- [x] **B2–B5 — 4 skill di trasformazione** (commit 274c603) + fix project map per le refactoring skills; B5 = template E (modularize).
+- [x] **E1 — System prompt compatto**: già soddisfatto — SYSTEM_DIRECT 262 parole (<500), 9 regole tutte essenziali, niente merge che riduca chiarezza.
+- [x] **E2 — Skill on-demand**: già implementato — matcher a confine di parola + progressive disclosure (corpo completo solo se matchata), prompt totale ~363 token.
+
+## 🚀 Cycle 21 — Fase 9: domande interattive per decisioni complesse (2026-11-12)
+
+- [x] **Q1 — Rilevamento ambiguità**: `detect_ambiguity()` in `CORE/clarifier.py` — 8 pattern (architettura, DB, docker, auth, API, concorrenza, sicurezza, migrazione) → domande con opzioni numerate. 19 test.
+- [x] **Q2 — Dialog GUI**: `GUI/clarification_dialog.py` — ClarificationDialog PyQt6 (opzioni radio + campo libero, `exec_and_get_answer()` → "1,3,1").
+- [x] **Q3 — Loop di chiarimento**: `clarify_loop(task, ask_fn)` — fino a 5 round, fail-open su EOF/KeyboardInterrupt; integrato in `cli_interactive`.
+- [x] **Q4 — Persistenza preferenze**: `record_preference(key, value)` + `get_preferences()` in `CORE/persistent_memory.py`; le risposte vengono salvate e iniettate nei task successivi.
+- [x] **Q5 — Modalità CLI**: `python -m CORE.clarifier "task" --interactive` — domande numerate nel terminale.
+- [x] **Q6 — Integrazione Refactor-Loop**: `run_direct(clarify=True, ask_fn=...)` — rileva ambiguità, arricchisce il task con le risposte, fail-open senza ask_fn.
+
+## 🚀 Cycle 22 — Chiusura GUI: orchestratore terminato prima della finestra (2026-11-13)
+
+- [x] **closeEvent su ControlCenter**: se l'orchestratore è attivo, dialog [Termina e chiudi (default)] [Lascia attivo in background] [Annulla] + checkbox "Ricorda questa scelta" (settings `close_action`: "stop"/"keep"/"" in `CONFIG/settings.json`).
+- [x] **Terminazione bloccante**: `_terminate_orchestrator_blocking` — SIGTERM → poll 0,2 s (max 5 s) → SIGKILL di riserva → rimozione pid file. Validazione pid come `byte-swarm.sh stop` (cmdline "orchestrator"/"watchdog": pid stantio o riutilizzato non toccato). Fail-open: la finestra si chiude sempre.
+- [x] **Bug risolti in cascata**: `_pid_alive` staticmethod (figli zombie visti morti via `/proc/PID/stat`); `load/save_settings` ora usano davvero `SETTINGS_FILE` (test settings riparati); duplicato `_stop_orchestrator` rimosso.
+- [x] **Test**: 10/10 `tests/test_close_orchestrator.py` + 6/6 `test_settings_store` + smoke e2e offscreen con finestra reale (fake orchestrator morto prima del close, pid file rimosso).
+
 ## 🔓 Open follow-ups
 UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protocol parser, USB differential analysis, dedicated user `byteswarmy`, usbmon/tshark automation, unification of GUI→SQLite queue (FM14).

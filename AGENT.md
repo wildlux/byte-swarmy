@@ -428,7 +428,8 @@ tail -f logs/byte-swarmy.log &                    # durante un run
 # ── Flusso documentale (todo → IMPLEMENTED) ─────────────────────
 .venv/bin/python tools/travasa_todo.py --dry-run  # preview
 .venv/bin/python tools/travasa_todo.py            # travaso (idempotente)
-# I file vivono in DOCS/todo.md e DOCS/IMPLEMENTED.md.
+# todo.md vive in root, IMPLEMENTED.md vive in DOCS/ (risoluzione
+# indipendente; backward-compat con entrambi i file in DOCS/ o in root).
 
 # ── Ponte remoto pulsanti GUI (simulazione click da script) ─────
 .venv/bin/python tools/gui_remote.py list                   # inventario
