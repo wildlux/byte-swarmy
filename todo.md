@@ -22,19 +22,15 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
   in sync.
 - [ ] **UI Redesign** — menu hamburger, Live Activity in alto.
 
-### Responsive (T-R2..T-R5, da DOCS/todo.md)
-- [ ] **T-R2** `GUI/control_center.py` — colonne a larghezza fissa: sidebar
-  coda `setFixedWidth(280)` → `setMinimumWidth(200)` + stretch; colonna
-  editor `setFixedWidth(500)` → `setMinimumWidth(300)` + stretch.
+### Responsive
 - [ ] **T-R3** — `_force_content_size`: `setFixedHeight(300)` triplo →
   `setMinimumHeight(220)` + policy Expanding verticale; verificare che non
-  rompa la grid card della Plancia.
-- [ ] **T-R4** — `PlanciaCard.setFixedHeight(110)`: decidere con l'utente
-  se tenere 110px fisso (compattezza) o `setMinimumHeight(110)`.
-- [ ] **T-R5** — barre fisse (top bar 64px, command bar 52px, header
-  sezione 48px): verificare artefatti al resize.
-- Nota: prima di toccare aree con dimensioni fisse, chiedere all'utente
-  quali sezioni vede realmente tagliate/artefatte al maximize/resize.
+  rompa la grid card della Plancia. (Audit 2026-11-13: oggi i 5 widget
+  strumenti vivono solo nelle pagine di dettaglio dove `wrap_in_panel_page`
+  rilascia già l'altezza max → impatto basso, rimandato.)
+- [ ] **Gap vuoto in alto a schermo pieno**: a 1920×1080 ~200px di vuoto
+  sopra "Plancia di controllo" (header sezione spinto giù). Riscontrato
+  nell'audit offscreen; l'utente non lo ha scelto per ora.
 
 ### Qualità / igiene
 - [ ] **R1 — Igiene rigenerazione**: per modifiche a `orchestrator.py` /

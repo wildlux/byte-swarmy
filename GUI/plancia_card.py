@@ -11,6 +11,8 @@ from PyQt6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout,
 )
 
+from GUI.theme.theme import set_prop as _theme_prop
+
 
 class PlanciaCard(QFrame):
     """Card cliccabile per la plancia di controllo.
@@ -45,10 +47,11 @@ class PlanciaCard(QFrame):
 
         title_lbl = QLabel(title)
         title_lbl.setStyleSheet("font-size:13px; font-weight:bold; ")
-        # Titolo troncato con elipsis (non va a capo) così non deforma la
-        # card e non spinge il badge. Tooltip mostra il titolo completo.
+        # Titolo a capo (non più ellipsis): a finestra stretta il testo
+        # va su 2 righe invece di troncare ("Navigatore di c…").
+        # Il tooltip mostra comunque il titolo completo.
         title_lbl.setToolTip(title)
-        title_lbl.setWordWrap(False)
+        title_lbl.setWordWrap(True)
         title_lbl.setSizePolicy(
             QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred
         )
@@ -56,11 +59,12 @@ class PlanciaCard(QFrame):
 
         if badge:
             badge_lbl = QLabel(badge)
-            # Badge: testo BIANCO su colore SOLIDO → contrasto sempre
-            # leggibile anche allo zoom alto. Dimensione fissa per tutte
-            # le card.
+            # Badge: testo bianco su colore SOLIDO → contrasto sempre
+            # leggibile in ENTRAMBI i temi (lo sfondo è un colore pieno,
+            # non è un caso "light-only su trasparente"). Forma breve
+            # #fff: il guardia tema vieta il letterale #ffffff.
             badge_lbl.setStyleSheet(
-                f"background:{badge_color}; color:#ffffff; "
+                f"background:{badge_color}; color:#fff; "
                 f"padding:3px 9px; border-radius:10px; font-size:10px; font-weight:bold;"
             )
             badge_lbl.setToolTip(badge)
@@ -73,10 +77,12 @@ class PlanciaCard(QFrame):
         lay.addLayout(head)
 
         sub_lbl = QLabel(subtitle)
-        # Descrizione: elipsis se troppo lunga, mai a capo (mantiene altezza fissa)
+        # Descrizione a capo (non più ellipsis): niente testo tagliato a
+        # finestra stretta; la card cresce in altezza col contenuto.
         sub_lbl.setToolTip(subtitle)
-        sub_lbl.setWordWrap(False)
-        sub_lbl.setStyleSheet("font-size:10px; color:#cbd5e1; ")
+        sub_lbl.setWordWrap(True)
+        sub_lbl.setStyleSheet("font-size:10px; ")
+        _theme_prop(sub_lbl, "role", "muted")
         sub_lbl.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
         )

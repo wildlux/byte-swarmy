@@ -97,7 +97,7 @@ class CenterArea(QWidget):
         self.plancia_section.add_header_widget(
             self.search_category, max_width=150, min_width=120, stretch=0)
         self.plancia_section.add_header_widget(
-            self.global_search, max_width=700, min_width=360, stretch=2)
+            self.global_search, max_width=700, min_width=140, stretch=2)
 
         cards_container, self.cards = build_plancia_cards(self.open_panel)
         self.plancia_section.add_widget(cards_container)

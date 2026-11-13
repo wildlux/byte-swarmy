@@ -36,6 +36,7 @@ PANELS = [
     "settings_panel.py",
     "task_scheduler_panel.py",
     "test_suite_panel.py",
+    "plancia_card.py",
 ]
 
 _COLOR_INLINE = re.compile(

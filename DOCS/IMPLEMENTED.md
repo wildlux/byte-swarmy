@@ -305,5 +305,13 @@ This file tracks every significant feature, fix, and architectural change implem
 - [x] **Test**: 11/11 `tests/test_test_suite_panel.py` (discovery e2e, parser, pipeline QProcess reale su file piccolo con JSON su path tmp — mai sullo state/ reale) + 24/24 `test_theme_sync.py` (statici + runtime entrambi i temi, pannello aggiunto a PANELS/_PANEL_CLASSES) + smoke integrazione finestra reale (card, pagina, stack, render).
 
 
+## 🚀 Cycle 24 — Responsive Plancia: card a capo, niente scroll orizzontale (2026-11-13)
+
+- [x] **Audit offscreen T-R2..T-R5** (richiesta utente, scelta: "card troncate + scroll orizzontale"): screenshot reali a 1920/1280/1024/900 px. Verificato che i bersagli storici non esistono più dopo il refactoring GUI (colonne 280/500px, card 110px, barre 64/52/48px — solo nel legacy `TEST_GUI_QT_12.py`); `PlanciaCard` è già adattiva (T-R4 risolto di fatto).
+- [x] **Causa reale del difetto**: la barra di ricerca aveva `min_width=360` nell'header della sezione → larghezza minima del contenuto 735px contro viewport ~630px → scroll orizzontale + label troncati con ellipsis ("Navigatore di c…"). Fix: `min_width` 360→140 (center_area.py) — l'header comprime e la ricerca resta utilizzabile.
+- [x] **Card senza troncamenti**: `PlanciaCard` — titolo e sottotitolo ora `wordWrap=True` (andavano a capo invece dell'ellipsis); sottotitolo da colore hardcodato `#cbd5e1` (quasi invisibile nel tema chiaro) a `role=muted` del tema. Badge bianco-su-solido in forma `#fff` con commento (il guardia tema vieta il letterale `#ffffff`).
+- [x] **Guardie**: `plancia_card.py` aggiunto ai controlli statici di `test_theme_sync.py`. Verifiche: 27/27 tema (statici + runtime), misura min-width a 4 dimensioni (content 735→515px, zero scroll orizzontale ovunque), screenshot 1024/1920 + entrambi i temi (pixel-check card bianca leggibile).
+- [x] **Resta aperto**: gap vuoto in alto a schermo pieno (~200px sopra "Plancia di controllo" a 1920×1080) — riscontrato nell'audit, l'utente non lo ha scelto per ora; registrato in todo.md. T-R3 (`_force_content_size` 300px) rimandato: impatto basso.
+
 ## 🔓 Open follow-ups
 UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protocol parser, USB differential analysis, dedicated user `byteswarmy`, usbmon/tshark automation, unification of GUI→SQLite queue (FM14).
