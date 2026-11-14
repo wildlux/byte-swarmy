@@ -5,6 +5,34 @@ and operational protocols of the agents inside BYTE-SWARMY. It reflects the
 **current** codebase (post Cycle 10, 2026-10-30). For the historical log of
 what changed see `IMPLEMENTED.md`; for the open work see `todo.md`.
 
+## 📏 Regola AGENT.md (size budget)
+
+Questo file è letto come **system prompt** dai modelli locali (1.5 B–4 B)
+che hanno 2.048–3.072 token di contesto. Un file troppo lungo viene
+**troncato silenziosamente**, perdendo le sezioni finali — incluso il
+"Contesto temporale".
+
+Regole:
+1. **AGENT.md deve restare snello** (max ~800 token / ~3.000 caratteri).
+   Solo regole operative vincolanti: cosa fare, cosa non fare, vincoli
+   sandbox, riferimenti.
+2. **L'architettura, il threat model, le metriche, il lifecycle e la
+   documentazione estesa vanno in `DOCS/`** (es. `DOCS/ARCHITECTURE.md`),
+   non qui. Gli umani leggono `DOCS/`, i modelli piccoli no.
+3. **"Contesto temporale" va SEMPRE in cima** al file, non in fondo.
+   L'iniezione `!`date '+%H:%M'`` deve essere la prima sezione visibile,
+   così non viene mai tagliata dalla troncatura.
+4. **Nessun EOF stray o artefatto di heredoc** alla fine del file.
+5. Se il file supera il budget, sposta il contenuto in `DOCS/` e lascia
+   solo un riferimento: "Vedi `DOCS/ARCHITECTURE.md`".
+
+> Il tuo AGENT.md è un ottimo documento di progetto, ma è troppo per il
+> suo scopo ultimo: essere letto da modelli da 1.5B–4B. Sposta
+> l'architettura in DOCS/, lascia in AGENT.md solo le regole operative,
+> e metti la sezione "Contesto temporale" in cima, non in fondo. Il modello
+> ti ringrazierà (metaforicamente), e l'ora comparirà finalmente nelle
+> risposte.
+
 ## 🧠 Cognitive Architecture
 
 BYTE-SWARMY is a hierarchical multi-agent swarm built around small
