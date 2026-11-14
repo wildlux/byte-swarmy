@@ -141,8 +141,22 @@ Ordine consigliato: T10 → T11 → T13 → T15 → T12 → T14 → T16 → T17 
 Ordine consigliato: T18 → T19 → T20 → T21 → T11/T12 (già in lista) →
 T22 → T24 → T23 → T25 → T26 (ultimo, sforzo alto).
 
+> **CHIUSO (2026-11-14)**: programma token reduction terminato con 22/26
+> tecniche implementate (T1–T22). T23–T26 spostate in fuori scope:
+> guadagno marginale o sforzo/rischio non giustificato sull'architettura
+> attuale (vedi sezione Fuori scope).
+
 ---
 
 ## Fuori scope (per scelta/limiti hardware)
 - Skill worker `pyqt6-graphics` / `pyqt6-network`: fuori scope — il 3B non
   le regge; la GUI si fa a mano o con `pyqt6-basics`.
+- Token reduction T23 (KV cache condiviso): Ollama gestisce già il KV
+  cache del prefisso system prompt — guadagno ~zero.
+- Token reduction T24 (batch tool calls): guadagno reale potenziale
+  (50–70% round-trip in meno) ma richiede refactor di formato risposta +
+  loop ReAct + gestione ordering; rischio regression alto.
+- Token reduction T25 (pruning per rilevanza): richiede scoring delle
+  sezioni; complessità alta per guadagno variabile.
+- Token reduction T26 (quantizzazione KV llama.cpp): richiede di
+  bypassare Ollama con llama-cpp-python — cambio architetturale.

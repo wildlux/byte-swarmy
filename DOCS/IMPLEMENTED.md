@@ -602,3 +602,22 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
 - Test: security 27/27 (ripristinato test injection rotto da T13),
   execute_handler + correction 16/16, routing/sandbox/skill 81/81.
   Boot reale: OK, shutdown pulito.
+
+## 🏁 Chiusura programma Token Reduction (2026-11-14)
+
+Bilancio finale: **22 di 26 tecniche implementate** (T1–T22), 4 in fuori scope.
+
+- Implementate: T1–T17 (Cycles 33–39), T18+T19 (Cycle 42), T20+T21 (Cycle 43),
+  T22 (Cycle 44, in forma safe/cached).
+- Risultato complessivo: prompt worker da ~4–5KB a ~1.5–2KB per step
+  (~60% in meno); su 10 step ~45KB → ~8KB (~82% in meno); system prompt
+  dal 3° step ridotto a 2 righe (T20); early stopping sui JSON completi
+  (T21); dedup tool call (T19).
+- Fuori scope (scelta 2026-11-14): T23 (Ollama già cacha il prefisso KV),
+  T24 (batch tool calls: guadagno reale ma refactor+rischio ordering alti),
+  T25 (pruning per rilevanza: complessità alta), T26 (quantizzazione KV:
+  richiede bypass Ollama con llama-cpp-python).
+- Fix collateral importantissimo (Cycle 44): T13 `step_max_tokens` era
+  referenziata ma mai definita → NameError su ogni task ReAct reale
+  (invisibile nei test con client finti). Le regressioni silent-type nel
+  worker vanno sempre verificate con boot reale + client vero.
