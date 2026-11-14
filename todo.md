@@ -61,6 +61,45 @@ Ordine consigliato: T1 → T2 → T4 → T5 → T9 → T3 → T7 → T8 → T6 (
 
 ---
 
+## 🆕 Token reduction (nuove tecniche — avanzate, proposte 2026-11-14)
+
+Priorità per ridurre ulteriormente il prompt del worker (~2KB → ~1KB/step) e il tempo
+di inferenza. Vedi conversazione per dettagli.
+
+- [ ] **T10 — Prompt caching per tipo task**: pre-calcolare il system prompt una volta
+  per tipo task (creation/refactoring/analysis/git/usb) e cacharlo in un dict a livello
+  di classe. Prefisso identico → cache hit al 100% su Ollama → il modello non
+  re-elabora i tool ad ogni step. Guadagno: tempo di inferenza (non token).
+- [ ] **T11 — Tool result summarization intelligente**: invece di troncare a 300 chars
+  ([:300]), usare estrazione intelligente: read_file → prime 10 righe + righe con
+  def/class/import; run_test_suite → solo N passed/M failed + primi 3 errori;
+  run_bash → ultime 5 righe; git_diff → solo nomi file + righe +/- di sintassi.
+  Guadagno: ~0.2–0.5KB/step + migliora la qualità (info rilevanti invece di
+  troncamento cieco).
+- [ ] **T12 — Abbreviazione percorsi**: usare percorsi relativi brevi (main.py invece
+  di project/main.py) nel prompt. Rimuovere il prefisso project/ (il worker sa già
+  di essere in project/). Guadagno: ~0.1KB/step, cumulativo su 10 step.
+- [ ] **T13 — Adaptive max_tokens**: adattare max_tokens per step: tool call semplice
+  (read, search) → 256; write_file (contenuto lungo) → 1024; step finale (done=true)
+  → 128. Guadagno: 30–50% tempo su step semplici.
+- [ ] **T14 — Rimozione esempi dal prompt**: rimuovere o ridurre a 2 gli esempi di
+  comandi buoni ("ls .", "cat main.py", ...). Ridondanti per modelli addestrati su
+  dati di coding. Guadagno: ~0.2KB/step.
+- [ ] **T15 — Context window pruning**: rimuovere ## PROJECT STATE dopo il primo step
+  (il modello lo ha già visto); tenere solo i file modificati in questo task.
+  Guadagno: ~0.3KB/step dal 2° step in poi.
+- [ ] **T16 — Prompt fisso + delta (architettura ReAct)**: mantenere un "prompt base"
+  (task + rules + tools) solo al primo step; negli step successivi solo delta
+  (observation + thought). Guadagno: ~1.7KB/step × 9 step = ~15KB totali.
+  Rischio: task drift. Mitigazione: re-iniettare il titolo del task ad ogni step.
+- [ ] **T17 — Model-specific prompt tuning**: formati diversi per modelli diversi
+  (Qwen: JSON chiavi corte; Llama: markdown strutturato; DeepSeek: chain-of-thought).
+  Guadagno: variabile, +20–30% qualità. Rischio: complessità codebase.
+
+Ordine consigliato: T10 → T11 → T13 → T15 → T12 → T14 → T16 → T17 (ultimo, sforzo alto).
+
+---
+
 ## Fuori scope (per scelta/limiti hardware)
 - Skill worker `pyqt6-graphics` / `pyqt6-network`: fuori scope — il 3B non
   le regge; la GUI si fa a mano o con `pyqt6-basics`.
