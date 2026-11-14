@@ -55,7 +55,7 @@ class CenterArea(QWidget):
 
         main_widget = QWidget()
         main_lay = QVBoxLayout(main_widget)
-        main_lay.setContentsMargins(16, 16, 16, 16)
+        main_lay.setContentsMargins(16, 8, 16, 16)
         main_lay.setSpacing(12)
 
         self.logs_section = CollapsibleSection("Log - Diario di Bordo", icon="📜")

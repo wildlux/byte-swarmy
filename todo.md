@@ -23,9 +23,6 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
   rompa la grid card della Plancia. (Audit 2026-11-13: oggi i 5 widget
   strumenti vivono solo nelle pagine di dettaglio dove `wrap_in_panel_page`
   rilascia già l'altezza max → impatto basso, rimandato.)
-- [ ] **Gap vuoto in alto a schermo pieno**: a 1920×1080 ~200px di vuoto
-  sopra "Plancia di controllo" (header sezione spinto giù). Riscontrato
-  nell'audit offscreen; l'utente non lo ha scelto per ora.
 
 ---
 

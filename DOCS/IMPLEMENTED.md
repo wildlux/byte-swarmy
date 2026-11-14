@@ -411,3 +411,15 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   non importati (regressione silente). Fix import + `decision_client =
   generic_planner._call_decision_model`. Boot verificato: orchestratore
   parte, scheduler/timestral partono, shutdown pulito su SIGTERM.
+
+## 🚀 Cycle 29 — Gap vuoto in alto: riduzione margine top (2026-11-14)
+
+- [x] **Gap vuoto in alto (1920×1080)**: ridotto il margine superiore di
+  `main_lay` in `GUI/center_area.py` da 16 a 8px (plancia_section ora a
+  y=8 dal bordo superiore del contenuto). Audit offscreen originale
+  segnalava ~200px: non riproducibile nel codice attuale (first content
+  row a y=9, plancia header a y≈114 dalla cima della finestra — il vuoto
+  residuo è il toolbar 72px + Live Activity 26px + margine 8, tutti
+  elementi funzionali). Il margine ridotto è l'unico vuoto "gratuito"
+  disponibile; nessun altro elemento è rimovibile senza perdere funzione.
+  Item rimosso da todo.md.
