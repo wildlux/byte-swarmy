@@ -450,3 +450,18 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   modello (il router classifica "che ore sono" con conf 130, sopra
   soglia 75). Risolve il caso "si perde su domande semplici come
   l'ora": ora è un swarm command istantaneo, zero token.
+
+## 🚀 Cycle 33 — Token reduction T2+T4+T5+T9 (2026-11-14)
+
+- [x] **T2 — Regole compatte**: 10 regole worker da ~1KB a ~0.3KB (6 regole
+  compresse). `CORE/worker.py` SYSTEM prompt.
+- [x] **T4 — Skill block cap 1500**: `MAX_SKILL_BODY_CHARS` da 2500 a 1500
+  in `CORE/skills.py`. Inietta solo i passi essenziali.
+- [x] **T5 — Tool result truncation 300**: tool_result da `[:2000]` a `[:300]`
+  in `CORE/worker.py` (error + success path). Memory event `[:200]` invariato.
+- [x] **T9 — Codici tool a prefisso naturale**: mappatura code→full name
+  (`TOOL_CODE_MAP`, 25 codici + fallback per nomi completi) in `CORE/worker.py`.
+  `_call_tool` normalizza il nome prima del check `allowed_tools()`.
+  Prompt esponi solo codici (`read`, `write`, `patch`, `bash`, ecc.).
+- Test: execute_handler 16/16, correction 16/16, skill_proposer passano.
+- Prompt worker: da ~4–5KB a ~2–2.5KB per step (guadagno ~50%).

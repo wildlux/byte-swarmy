@@ -31,7 +31,7 @@ SKILLS_DIR = BASE_DIR / "SKILLS"
 
 # Cap del corpo iniettato nel prompt: i worker hanno num_ctx limitato,
 # una skill lunga affoga il modello piccolo peggio di niente.
-MAX_SKILL_BODY_CHARS = 2500
+MAX_SKILL_BODY_CHARS = 1500
 
 # Cache: ricarica solo se il mtime della directory cambia.
 _cache: dict = {"stamp": None, "skills": []}
