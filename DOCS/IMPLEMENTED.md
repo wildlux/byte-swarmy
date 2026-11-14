@@ -473,3 +473,12 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   costruito per ogni task, esponendo solo i tool rilevanti (creazione → 12
   tool core; refactoring → 24; analisi → 26; git → 18; usb → 14; default → 26).
   Prompt da ~2.5KB a ~1.2KB per step. Test: execute_handler 16/16 passano.
+
+## 🚀 Cycle 34 — Token reduction T3+T7 (2026-11-14)
+
+- [x] **T3 — Project state on-demand**: cap file da 20 a 10 in
+  `_project_state()` (CORE/worker.py). Guadagno ~0.5KB/step.
+- [x] **T7 — Persistent context lazy**: ridotto da 15 file a 8, 5 errori a 3,
+  5 task a 3 in `build_context_for_prompt()` (CORE/persistent_memory.py).
+  Guadagno ~0.3KB/step.
+- Test: execute_handler 16/16, correction 16/16 passano.

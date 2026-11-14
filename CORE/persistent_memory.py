@@ -229,7 +229,7 @@ def build_context_for_prompt() -> str:
     if existing:
         lines.append("## FILE ESISTENTI NEL PROGETTO")
         lines.append("(NON ricreare questi file, usa patch_code per modificarli)")
-        for f in existing[-15:]:  # ultimi 15
+        for f in existing[-8:]:  # ultimi 8 (era 15)
             lines.append(f"  - {f}")
         lines.append("")
 
@@ -240,7 +240,7 @@ def build_context_for_prompt() -> str:
         recurring = [e for e in errors if e.get("count", 0) >= 2]
         if recurring:
             lines.append("## ERRORI COMUNI DA EVITARE")
-            for e in recurring[-5:]:
+            for e in recurring[-3:]:
                 lines.append(f"  - [{e['type']}] {e['message'][:80]}")
             lines.append("")
 
@@ -248,7 +248,7 @@ def build_context_for_prompt() -> str:
     history = mem["task_history"]
     if history:
         lines.append("## ULTIMI TASK COMPLETATI")
-        for t in history[-5:]:
+        for t in history[-3:]:
             lines.append(f"  - {t['title']}")
         lines.append("")
 

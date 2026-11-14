@@ -41,9 +41,8 @@ guadagno 50–60%, senza perdita di funzionalità). Vedi conversazione per detta
 - [ ] **T6 — Deduplicazione tra step**: mantenere un "prompt fisso" (TOOLS+RULES)
   solo al primo step; negli step successivi solo delta (observation + thought).
   Guadagno ~2.5KB/step. Sforzo alto (modifica architettura ReAct).
-- [ ] **T7 — Persistent context lazy**: cachare per la durata del task; ridurre da
-  15 file a 8, 5 errori a 3, 5 task a 3; omettere se task "semplice".
-  Guadagno ~0.3KB/step.
+- [x] **T7 — Persistent context lazy**: ridotto da 15 file a 8, 5 errori a 3,
+  5 task a 3 in `build_context_for_prompt()`. ✅ IMPLEMENTATO in Cycle 34.
 - [x] **T9 — Codici tool a prefisso naturale**: abbreviare i nomi tool con
   prefissi che il modello già conosce come completamento del nome completo
   (read=read_file, write=write_file, patch=patch_code, commit=git_commit,

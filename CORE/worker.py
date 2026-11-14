@@ -696,7 +696,7 @@ class Worker:
                 if ".git" in path.parts or not path.is_file():
                     continue
                 files.append(str(path.relative_to(root)))
-                if len(files) >= 20:
+                if len(files) >= 10:
                     break
             return "\n".join(files) if files else "(empty project)"
         except Exception:
