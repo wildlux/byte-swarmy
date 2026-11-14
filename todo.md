@@ -21,6 +21,36 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
 
 ---
 
+## 🆕 Token reduction (nuove tecniche — proposte 2026-11-14)
+
+Priorità 1–8 per ridurre il prompt del worker di Byte-Swarmy (~4–5KB → ~1.5–2KB/step,
+guadagno 50–60%, senza perdita di funzionalità). Vedi conversazione per dettagli.
+
+- [ ] **T1 — Tool list dinamica per tipo task**: mostra solo i tool rilevanti
+  (creazione → write_file/read_file/lint/run_test; refactoring → patch/rename/extract/find_refs;
+  analisi → analyze_*/search; git → git_*). Guadagno ~1.1KB/step.
+- [ ] **T2 — Regole compatte**: comprimi le 10 regole del worker da ~1KB a ~0.3KB.
+  Guadagno ~0.7KB/step.
+- [ ] **T3 — Project state on-demand**: chiamare `_project_state()` solo al primo step,
+  solo se il worker ha scritto/eliminato file. Cap a 10 file. Guadagno ~0.5KB/step.
+- [ ] **T4 — Skill block condizionale + cap 1500**: iniettare solo i passi (STEPS),
+  non il template completo; cap a 1500 chars invece di 2500. Guadagno fino a 1KB/step.
+- [ ] **T5 — Tool result truncation aggressiva**: troncare a 300 chars (vs 500);
+  read_file solo prime 20 righe + ultime 5; run_test_suite solo summary.
+  Guadagno ~0.5KB/step.
+- [ ] **T6 — Deduplicazione tra step**: mantenere un "prompt fisso" (TOOLS+RULES)
+  solo al primo step; negli step successivi solo delta (observation + thought).
+  Guadagno ~2.5KB/step. Sforzo alto (modifica architettura ReAct).
+- [ ] **T7 — Persistent context lazy**: cachare per la durata del task; ridurre da
+  15 file a 8, 5 errori a 3, 5 task a 3; omettere se task "semplice".
+  Guadagno ~0.3KB/step.
+- [ ] **T8 — Formato JSON compatto**: `TASK: ... | DESC: ... | RULES: ...`
+  invece di markdown multi-riga. Guadagno ~0.2KB/step.
+
+Ordine consigliato: T1 → T2 → T4 → T5 → T3 → T7 → T8 → T6 (ultimo, sforzo alto).
+
+---
+
 ## Fuori scope (per scelta/limiti hardware)
 - Skill worker `pyqt6-graphics` / `pyqt6-network`: fuori scope — il 3B non
   le regge; la GUI si fa a mano o con `pyqt6-basics`.
