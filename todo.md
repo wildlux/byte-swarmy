@@ -126,17 +126,14 @@ Ordine consigliato: T10 → T11 → T13 → T15 → T12 → T14 → T16 → T17 
   originale (comprimere l'intero prompt per task) è stata scartata:
   prefill pagato 2x + rotazione modello = rallentamento netto.
   ✅ IMPLEMENTATO in Cycle 44.
-- [ ] **T23 — KV cache condiviso tra task simili**: estrarre il template
-  del task (tipo + linguaggio) e cachare il prompt base. Margine (Ollama
-  già gestisce il KV cache del prefisso).
-- [ ] **T24 — Batch tool calls**: permettere al modello di produrre più
-  tool call in un turno (array di azioni). Riduce round-trip 50-70%.
-  Rischio: ordering (write prima, test dopo).
-- [ ] **T25 — Prompt pruning per rilevanza**: score ogni sezione del prompt
-  per rilevanza rispetto al step corrente; rimuovere le sezioni con score
-  basso. Complessità alta.
-- [ ] **T26 — Quantizzazione prompt (llama.cpp)**: quantizzazione Q4 del
-  KV cache. Non controllabile via Ollama. Solo con llama-cpp-python.
+- [~] **T23 — KV cache condiviso tra task simili**: NON FATTO — fuori
+  scope (Ollama già gestisce il KV cache del prefisso).
+- [~] **T24 — Batch tool calls**: NON FATTO — fuori scope (guadagno
+  reale ma refactor+rischio ordering alti).
+- [~] **T25 — Prompt pruning per rilevanza**: NON FATTO — fuori scope
+  (complessità alta, guadagno variabile).
+- [~] **T26 — Quantizzazione prompt (llama.cpp)**: NON FATTO — fuori
+  scope (richiede bypass Ollama con llama-cpp-python).
 
 Ordine consigliato: T18 → T19 → T20 → T21 → T11/T12 (già in lista) →
 T22 → T24 → T23 → T25 → T26 (ultimo, sforzo alto).
