@@ -66,10 +66,10 @@ Ordine consigliato: T1 → T2 → T4 → T5 → T9 → T3 → T7 → T8 → T6 (
 Priorità per ridurre ulteriormente il prompt del worker (~2KB → ~1KB/step) e il tempo
 di inferenza. Vedi conversazione per dettagli.
 
-- [ ] **T10 — Prompt caching per tipo task**: pre-calcolare il system prompt una volta
+- [x] **T10 — Prompt caching per tipo task**: pre-calcolare il system prompt una volta
   per tipo task (creation/refactoring/analysis/git/usb) e cacharlo in un dict a livello
   di classe. Prefisso identico → cache hit al 100% su Ollama → il modello non
-  re-elabora i tool ad ogni step. Guadagno: tempo di inferenza (non token).
+  re-elabora i tool ad ogni step. Guadagno: tempo di inferenza (non token). ✅ IMPLEMENTATO in Cycle 35.
 - [ ] **T11 — Tool result summarization intelligente**: invece di troncare a 300 chars
   ([:300]), usare estrazione intelligente: read_file → prime 10 righe + righe con
   def/class/import; run_test_suite → solo N passed/M failed + primi 3 errori;
