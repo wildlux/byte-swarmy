@@ -27,8 +27,16 @@ class TestZoom:
         self.window.show()
 
     def teardown_method(self):
-        """Chiude la finestra dopo ogni test."""
+        """Chiude la finestra dopo ogni test.
+
+        NB: processEvents serve a eseguire il deleteLater schedulato da
+        closeEvent — senza event loop attivo i widget della finestra
+        chiusa resterebbero in QApplication.allWidgets() e ogni _apply_zoom
+        dei test successivi rallenterebbe (unpolish/polish cumulativo).
+        """
         self.window.close()
+        QApplication.processEvents()
+        self.window = None
 
     def _get_font_size(self) -> int:
         """Ritorna la dimensione font corrente dell'applicazione."""

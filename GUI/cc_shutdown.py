@@ -116,6 +116,45 @@ class ShutdownMixin:
         except Exception:
             return True  # /proc non leggibile: conservativo, assume vivo
 
+    def _stop_periodic_timers(self):
+        """Ferma i timer periodici della finestra e rimuove l'event filter
+        globale installato su QApplication.
+
+        Chiamato quando la chiusura viene ACCETTATA: senza questo, una
+        finestra chiusa (ma non distrutta — i test tengono il riferimento)
+        continua a far girare il catch-up zoom (che cammina su
+        app.allWidgets() ogni 1.5s) e il polling Live Activity → slowdown
+        O(N²) nella suite e sprechi nel runtime.
+        """
+        for attr in ("_zoom_catchup_timer", "_live_activity_timer",
+                     "_timer", "_completion_timer"):
+            t = getattr(self, attr, None)
+            if t is not None:
+                try:
+                    t.stop()
+                except Exception:
+                    pass
+        try:
+            flt = getattr(self, "app_event_filter", None)
+            if flt is not None:
+                QApplication.instance().removeEventFilter(flt)
+        except Exception:
+            pass
+
+    def _accept_close(self, event):
+        """Accetta la chiusura fermando prima i timer periodici."""
+        self._stop_periodic_timers()
+        # Distrugge il C++ object (deferred): i widget della finestra
+        # escono da QApplication.allWidgets() al prossimo giro di event
+        # loop. Senza questo, ogni finestra chiusa resta per sempre nelle
+        # walk di _apply_zoom/_rescale_missing_widgets (unpolish/polish su
+        # migliaia di widget) → slowdown cumulativo nella suite.
+        try:
+            self.deleteLater()
+        except Exception:
+            pass
+        event.accept()
+
     def closeEvent(self, event):
         """Chiusura finestra: se l'orchestratore è attivo, lo termina
         PRIMA di chiudere la finestra (o applica la scelta ricordata
@@ -124,12 +163,12 @@ class ShutdownMixin:
         try:
             pid, alive = self._orchestrator_pid()
             if pid is None or not alive:
-                event.accept()
+                self._accept_close(event)
                 return
             remembered = settings_store.get_close_action()
 
             if remembered == "keep":
-                event.accept()
+                self._accept_close(event)
                 return
 
             if remembered != "stop":
@@ -162,13 +201,13 @@ class ShutdownMixin:
                     except Exception:
                         pass
                 if clicked is not btn_stop:
-                    event.accept()
+                    self._accept_close(event)
                     return
 
             ok = self._terminate_orchestrator_blocking()
             if ok:
                 self.statusBar().showMessage("⏹ Orchestratore fermato", 3000)
-                event.accept()
+                self._accept_close(event)
             else:
                 # Non risponde nemmeno a SIGKILL: chiede conferma esplicita
                 reply = QMessageBox.question(
@@ -178,9 +217,9 @@ class ShutdownMixin:
                     "attivo)?",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
                 if reply == QMessageBox.StandardButton.Yes:
-                    event.accept()
+                    self._accept_close(event)
                 else:
                     event.ignore()
         except Exception:
             # Fail-open: mai bloccare la chiusura della finestra
-            event.accept()
+            self._accept_close(event)

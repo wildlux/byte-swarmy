@@ -69,6 +69,9 @@ class _LogicWin(QMainWindow):
     _orchestrator_pid = cc.ControlCenter._orchestrator_pid
     _pid_alive = staticmethod(cc.ControlCenter._pid_alive)
     _terminate_orchestrator_blocking = cc.ControlCenter._terminate_orchestrator_blocking
+    # Helper di chiusura introdotti nel refactoring timer/close (2026-11-14)
+    _stop_periodic_timers = cc.ControlCenter._stop_periodic_timers
+    _accept_close = cc.ControlCenter._accept_close
     closeEvent = cc.ControlCenter.closeEvent
 
 
