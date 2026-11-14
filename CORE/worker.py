@@ -390,7 +390,7 @@ class Worker:
         tdd_verified = True
 
         context = self.memory.build_context(max_tokens=800)
-        prompt = self._build_initial_prompt(task, context)
+        prompt = self._build_initial_prompt(task, context, model_key=routed_key)
 
         wrote_file = False
         last_tool_result = ""
@@ -401,6 +401,13 @@ class Worker:
         for step in range(self.MAX_STEPS):
             self.memory.heartbeat()
             self.log.info(f"[{self.agent_id}] step {step+1}/{self.MAX_STEPS}")
+
+            # T13: max_tokens adattivo — lo step 0 può contenere un
+            # write_file con codice lungo (con 400 il JSON veniva
+            # TRONCATO → parse error → il modello "non riusciva a
+            # salvare"). Gli step successivi sono JSON brevi (nessun
+            # codice): 512 bastano e generano ~2x più veloce.
+            step_max_tokens = 1024 if step == 0 else 512
 
             try:
                 # 🆕 Streaming: raccogli token e scrivi su file per la GUI
@@ -434,7 +441,7 @@ class Worker:
                                 _json.loads(_acc)
                                 self.log.debug(f"[{self.agent_id}] early stop at {token_count} tokens (JSON complete)")
                                 break
-                            except (ValueError, Exception):
+                            except Exception:
                                 pass
                     # Log ogni 50 token
                     if token_count % 50 == 0:
@@ -781,12 +788,96 @@ class Worker:
                     f"(tentativi: {res['attempts']})\n{preview}")
         return f"ERROR: generazione diretta fallita: {res['error']}"
 
+    # T22: cache delle compressioni del contesto persistente — chiave
+    # (hash del testo, model key usato). La compressione costa una
+    # chiamata LLM intera: si fa UNA volta per versione del contesto e
+    # il risultato si riutilizza per tutti i task successivi finché il
+    # contesto non cambia.
+    _CONTEXT_COMPRESSION_CACHE: dict = {}
+
+    def _compress_context(self, ctx: str, model_key: Optional[str] = None) -> str:
+        """T22: comprime il contesto persistente con una chiamata LLM,
+        una sola volta per versione del contesto (cache per hash).
+
+        Perché solo il contesto e non l'intero prompt: TASK/DESC/RULES e
+        l'istruzione JSON sono strutturali — un compressore piccolo può
+        troncarle o riformularle e rompere il loop ReAct. Il contesto
+        (file esistenti, errori ricorrenti, task passati) è ridondante
+        e comprimibile in sicurezza.
+
+        Perché la cache: comprimere costa un prefill dell'intero testo
+        più la generazione; usando il risultato una sola volta il
+        bilancio è negativo. Ammortizzato su N task con lo stesso
+        contesto diventa positivo.
+
+        Fail-open: client finto (test), testo corto, errore qualsiasi →
+        testo originale invariato. Model key = quello del routing
+        (nessuna rotazione extra di modello su 4GB VRAM).
+        """
+        if len(ctx) <= 1500 or not ctx.strip():
+            return ctx
+        # Solo client reale: i mock dei test non devono consumare turni
+        try:
+            from CORE.ollama_client import ModelClient
+            if not isinstance(self.models, ModelClient):
+                return ctx
+        except Exception:
+            return ctx
+        mk = model_key or self.model_key
+        try:
+            import hashlib
+            key = (hashlib.sha1(ctx.encode("utf-8", "ignore")).hexdigest()[:16], mk)
+            cached = Worker._CONTEXT_COMPRESSION_CACHE.get(key)
+            if cached is not None:
+                return cached
+            compressed = self.models.call(
+                model_key=mk,
+                prompt=(
+                    "Compress the following project context keeping ONLY "
+                    "essential info (file names, recurring errors, task "
+                    "titles). Remove duplicates and filler words. "
+                    "Reply with the compressed text ONLY, nothing else.\n\n"
+                    f"CONTEXT:\n{ctx[:3000]}"
+                ),
+                system="You are a text compressor. Output only the compressed text.",
+                max_tokens=300,
+            )
+            compressed = (compressed or "").strip()
+            ok = (
+                compressed
+                and len(compressed) < len(ctx) * 0.85
+                and len(compressed) > len(ctx) * 0.25
+                # Guardia anti-eco: il compressore non deve ribbuttare
+                # l'istruzione, solo il testo compresso
+                and "CONTEXT:" not in compressed
+            )
+            if ok:
+                comp = compressed[:1200]
+                if len(Worker._CONTEXT_COMPRESSION_CACHE) > 32:
+                    Worker._CONTEXT_COMPRESSION_CACHE.clear()
+                Worker._CONTEXT_COMPRESSION_CACHE[key] = comp
+                self.log.info(
+                    f"[{self.agent_id}] T22: contesto compresso "
+                    f"{len(ctx)} → {len(comp)} chars (cached)")
+                return comp
+            # Compressione inutile o sospetta: usa l'originale, no cache
+            return ctx
+        except Exception as e:
+            self.log.warning(f"[{self.agent_id}] T22 compressione fallita: {e}")
+            return ctx
+
     def _build_initial_prompt(self, task: dict, context: str,
-                              correction: str = "") -> str:
+                              correction: str = "",
+                              model_key: Optional[str] = None) -> str:
         # 🆕 Carica contesto persistente
         persistent_context = ""
         try:
             persistent_context = build_context_for_prompt()
+        except Exception:
+            pass
+        # T22: comprime il contesto (con cache) — MAI task/rule/istruzioni
+        try:
+            persistent_context = self._compress_context(persistent_context, model_key)
         except Exception:
             pass
 
@@ -811,7 +902,7 @@ class Worker:
         except Exception:
             skill_block = ""  # fail-open: mai bloccare il worker per le skill
 
-        return (
+        _raw = (
             f"TASK: {task.get('title', '')} | DESC: {task.get('description', '')} | "
             f"STATE: {self._project_state()} | CTX: {persistent_context} | "
             f"RULES: {Planner.WORKER_CONSTRAINTS} | SKILL: {skill_block}\n"
@@ -819,6 +910,7 @@ class Worker:
             f"{correction_block}"
             "First step (JSON only):"
         )
+        return _raw
 
     def _project_state(self) -> str:
         """Snapshot veloce dello stato del progetto (senza shell)."""

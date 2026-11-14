@@ -576,3 +576,29 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   `"done"` e `"action"`). Se sì, ferma la generazione. Guadagno 30-60% tempo
   su step semplici.
 - Test: execute_handler 16/16 passano.
+
+## 🚀 Cycle 44 — Token reduction T22 + fix T13 (2026-11-14)
+
+- [x] **Fix T13 (regressione)**: `step_max_tokens` era referenziato ma mai
+  definito nel loop ReAct (NameError a runtime → "model unavailable" su
+  OGNI task ReAct, ma solo con client reale: nei test non saltava fuori).
+  Definito T13 adattivo: 1024 allo step 0 (il write_file con codice lungo
+  richiede spazio; con 400 il JSON veniva troncato), 512 dagli step
+  successivi (JSON brevi → ~2x più veloci).
+- [x] **T22 — Compressore LLM del prompt**: riscritto in forma sicura.
+  Comprime SOLO il contesto persistente (`_compress_context`), mai
+  TASK/RULES/istruzioni JSON (un compressore piccolo può troncarle e
+  rompere il loop ReAct). Cache a livello classe per hash del testo:
+  una chiamata LLM per versione del contesto, ammortizzata su più task.
+  Guardia `isinstance(ModelClient)`: nei test con client finti resta
+  deterministico. Usa il model key del routing → nessuna rotazione
+  extra di modello. Validazione output (25%-85% dell'originale, no eco
+  dell'istruzione), cap 1200 chars, cache limitata a 32 voci.
+  La versione scartata (comprimere l'intero prompt con worker_general
+  a ogni task) era un rallentamento netto: prefill pagato 2x + unload/
+  reload del modello su 4GB VRAM.
+- [x] Cleanup: `except (ValueError, Exception)` → `except Exception`
+  (early stopping T21).
+- Test: security 27/27 (ripristinato test injection rotto da T13),
+  execute_handler + correction 16/16, routing/sandbox/skill 81/81.
+  Boot reale: OK, shutdown pulito.

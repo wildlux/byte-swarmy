@@ -116,9 +116,16 @@ Ordine consigliato: T10 → T11 → T13 → T15 → T12 → T14 → T16 → T17 
 - [x] **T21 — Early stopping**: fermare la generazione quando il JSON è
   completo (parsing parziale durante lo streaming). Guadagno 30-60% tempo
   su step semplici. ✅ IMPLEMENTATO in Cycle 43.
-- [ ] **T22 — Compressore LLM del prompt**: passare il prompt a un modello
-  piccolo (1.5B) per comprimerlo prima di inviarlo al worker. Riduzione
-  30-50% token, ma aggiunge latenza. Solo per prompt >2KB.
+- [x] **T22 — Compressore LLM del prompt**: implementato come compressore
+  SOLO del contesto persistente (`_compress_context`), con cache per hash
+  (una chiamata LLM per versione del contesto, riusata su più task),
+  guardia client-reale (nei test resta deterministico) e model key routed
+  (nessuna rotazione extra su 4GB VRAM). NOTA ONESTA: il contesto è già
+  capped a ~1KB da T7 (8/3/3) → la compressione resta una valvola di
+  sicurezza che scatta solo se il contesto supera 1500 chars. La versione
+  originale (comprimere l'intero prompt per task) è stata scartata:
+  prefill pagato 2x + rotazione modello = rallentamento netto.
+  ✅ IMPLEMENTATO in Cycle 44.
 - [ ] **T23 — KV cache condiviso tra task simili**: estrarre il template
   del task (tipo + linguaggio) e cachare il prompt base. Margine (Ollama
   già gestisce il KV cache del prefisso).
