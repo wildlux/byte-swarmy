@@ -296,6 +296,31 @@ class ShellMixin:
 
         menu.exec(self.sender().mapToGlobal(self.sender().rect().bottomLeft()))
 
+    def _update_live_activity(self):
+        """Aggiorna la barra Live Activity leggendo state/streaming.txt."""
+        try:
+            from pathlib import Path
+            p = Path("state/streaming.txt")
+            txt = ""
+            if p.exists():
+                try:
+                    txt = p.read_text(encoding="utf-8", errors="replace")
+                except Exception:
+                    txt = ""
+            last = ""
+            for line in reversed(txt.splitlines()):
+                if line.strip():
+                    last = line.strip()
+                    break
+            if last:
+                if len(last) > 120:
+                    last = last[:117] + "…"
+                self.live_activity_label.setText(last)
+            else:
+                self.live_activity_label.setText("In attesa di un task…")
+        except Exception:
+            pass
+
     def _on_current_project_changed(self, path: str):
         """Salva il percorso del progetto attivo (per task per-progetto)
         e ricarica la lista task della sidebar per quel progetto."""
@@ -358,3 +383,4 @@ class ShellMixin:
             width: 14px; height: 14px;
         }
         """
+

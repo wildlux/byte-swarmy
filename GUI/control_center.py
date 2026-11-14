@@ -185,6 +185,29 @@ class ControlCenter(
         self.app_event_filter = _ZoomEventFilter(self)
         QApplication.instance().installEventFilter(self.app_event_filter)
 
+        # ── Live Activity (in alto): stato del task in corso + token stream ──
+        self.live_activity_bar = QFrame()
+        self.live_activity_bar.setObjectName("live_activity_bar")
+        self.live_activity_bar.setMinimumHeight(26)
+        self.live_activity_bar.setMaximumHeight(30)
+        _la_lay = QHBoxLayout(self.live_activity_bar)
+        _la_lay.setContentsMargins(10, 2, 10, 2)
+        _la_lay.setSpacing(8)
+        _la_title = QLabel("🔴 Live Activity")
+        _la_title.setObjectName("live_activity_title")
+        _la_title.setStyleSheet("font-weight:bold; font-size:11px;")
+        _la_lay.addWidget(_la_title)
+        self.live_activity_label = QLabel("In attesa di un task…")
+        self.live_activity_label.setObjectName("live_activity_label")
+        self.live_activity_label.setStyleSheet("font-size:11px;")
+        _la_lay.addWidget(self.live_activity_label, stretch=1)
+        root.addWidget(self.live_activity_bar)
+
+        self._live_activity_timer = QTimer(self)
+        self._live_activity_timer.timeout.connect(self._update_live_activity)
+        self._live_activity_timer.start(500)
+        self._update_live_activity()
+
         root.addWidget(self._build_toolbar())
 
         # Splitter orizzontale tra Archivio progetto e area centrale:
