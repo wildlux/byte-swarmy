@@ -1,266 +1,227 @@
 """
 GUI/task_queue.py — Funzioni di I/O per la coda task e configurazione MCP.
 
-Modulo condiviso tra i moduli GUI (control_center, task_scheduler_panel)
-per le operazioni sulla coda task e la configurazione MCP.
+FM14 — Coda unica GUI→SQLite: la coda task vive SOLO in SQLite
+(`tasks/queue.db`, schema e implementazione condivisi con l'orchestratore
+via `CORE/task_queue.py:TaskQueue`). Nessuna coda in memoria, nessun
+mirror queue.json da tenere in sync: un task = una riga del DB.
+
+I vecchi `queue.json` (globale + per-progetto) vengono importati una-tantum
+nel DB e rinominati `.json.migrated` (dati mai cancellati).
+
+Modulo condiviso tra i moduli GUI (control_center, task_scheduler_panel,
+file_tree_drawer) per le operazioni sulla coda task e la configurazione MCP.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 import time
 from pathlib import Path
 from typing import Optional
 
+from CORE.task_queue import TaskQueue
+
 BASE_DIR = Path(__file__).parent.parent.resolve()
 
-TASKS_FILE = BASE_DIR / "tasks" / "queue.json"
 LOG_FILE = BASE_DIR / "logs" / "byte-swarmy.log"
 CONFIG_FILE = BASE_DIR / "CONFIG" / "config.toml"
 MCP_CONFIG_FILE = BASE_DIR / "mcp_servers.json"
 PID_FILE = BASE_DIR / "state" / "orchestrator.pid"
 
+_QUEUE: Optional[TaskQueue] = None
+
+# Hook per i test: se impostata, la coda vive in questa cartella (DB
+# temporaneo) invece che in tasks/. Nessun uso in produzione.
+_TASKS_DIR: Optional[Path] = None
+
 
 # ====================================================================
-# TASK QUEUE I/O (shared with orchestrator)
+# TASK QUEUE I/O — unica fonte di verità: tasks/queue.db
 # ====================================================================
 
-def _tasks_file(project_path: Optional[str] = None) -> Path:
-    """Ritorna il path del file queue.json per il progetto indicato.
-    Se project_path è None usa la coda globale (backward compat)."""
-    if project_path:
-        p = Path(project_path) / "tasks" / "queue.json"
-    else:
-        p = TASKS_FILE
-    p.parent.mkdir(parents=True, exist_ok=True)
-    return p
+def _queue() -> TaskQueue:
+    """TaskQueue condivisa (stessa istanza/DB dell'orchestratore).
+
+    Al primo accesso esegue la migrazione una-tantum dei vecchi queue.json.
+    """
+    global _QUEUE
+    if _QUEUE is None:
+        tasks_dir = _TASKS_DIR if _TASKS_DIR is not None else (BASE_DIR / "tasks")
+        _QUEUE = TaskQueue(tasks_dir, logging.getLogger("byte-swarmy.gui"))
+        _migrate_json_queues(_QUEUE)
+    return _QUEUE
+
+
+def _migrate_json_queues(q: TaskQueue) -> None:
+    """Importa i vecchi queue.json nel DB (una-tantum, idempotente).
+
+    - coda `<tasks_dir>/queue.json` → righe con project_path NULL
+    - code per-progetto `<tasks_dir>/../project/*/tasks/queue.json` →
+      righe con project_path = cartella del progetto
+    I file originali vengono RINOMINATI `.json.migrated` (backup, mai
+    cancellati); il marker `.fm14_migrated` evita re-import.
+    """
+    tasks_dir = q.dir
+    marker = tasks_dir / ".fm14_migrated"
+    projects_dir = tasks_dir.parent / "project"
+    if marker.exists():
+        return
+    imported = 0
+    try:
+        legacy_file = tasks_dir / "queue.json"
+        if legacy_file.exists():
+            try:
+                legacy = json.loads(legacy_file.read_text(encoding="utf-8"))
+            except Exception:
+                legacy = []
+            if isinstance(legacy, list):
+                for t in legacy:
+                    if not isinstance(t, dict) or not t.get("id"):
+                        continue
+                    row = dict(t)
+                    row.pop("subtasks", None)
+                    row.pop("subtask_ids", None)
+                    row["project_path"] = None
+                    q.upsert_task(row)
+                    imported += 1
+            legacy_file.rename(legacy_file.with_suffix(".json.migrated"))
+
+        if projects_dir.is_dir():
+            for jf in sorted(projects_dir.glob("*/tasks/queue.json")):
+                project_dir = str(jf.parent.parent.resolve())
+                try:
+                    legacy = json.loads(jf.read_text(encoding="utf-8"))
+                except Exception:
+                    legacy = []
+                if isinstance(legacy, list):
+                    for t in legacy:
+                        if not isinstance(t, dict) or not t.get("id"):
+                            continue
+                        row = dict(t)
+                        row.pop("subtasks", None)
+                        row.pop("subtask_ids", None)
+                        row["project_path"] = project_dir
+                        q.upsert_task(row)
+                        imported += 1
+                jf.rename(jf.with_suffix(".json.migrated"))
+
+        marker.write_text(
+            f"fm14 migration ok ({imported} tasks) — {time.strftime('%Y-%m-%d %H:%M:%S')}\n",
+            encoding="utf-8",
+        )
+        if imported:
+            print(f"[fm14] migrati {imported} task da queue.json → queue.db")
+    except Exception as e:
+        # Fail-open: se la migrazione fallisce la coda continua a funzionare
+        # (i JSON restano al loro posto e si riprova al prossimo avvio).
+        print(f"[fm14] migrazione queue.json saltata: {e}")
+
+
+def _display_row(row: dict) -> dict:
+    """Normalizza una riga DB al vecchio formato dict usato dalla GUI
+    (campi 'subtasks'/'subtask_ids' sempre presenti e vuoti: nel modello
+    a coda unica i figli sono righe con parent=<id>)."""
+    row.setdefault("subtasks", [])
+    row.setdefault("subtask_ids", [])
+    return row
 
 
 def load_tasks(project_path: Optional[str] = None) -> list:
-    f = _tasks_file(project_path)
-    if not f.exists():
-        return []
+    """Task nello scope indicato (None = globale), in ordine di creazione."""
     try:
-        return json.loads(f.read_text())
-    except Exception:
+        rows = _queue().list_scoped(project_path)
+    except Exception as e:
+        print(f"WARNING: lettura coda fallita: {e}")
         return []
+    return [_display_row(r) for r in rows]
 
 
 def save_tasks(tasks: list, project_path: Optional[str] = None) -> None:
-    f = _tasks_file(project_path)
-    tmp = f.with_suffix(".tmp")
-    tmp.write_text(json.dumps(tasks, ensure_ascii=False, indent=2))
-    tmp.replace(f)
+    """Scrive la lista task nel DB (upsert per id, usato dal flusso 'modifica')."""
+    q = _queue()
+    for task in tasks:
+        if not isinstance(task, dict) or not task.get("id"):
+            continue
+        row = dict(task)
+        row.pop("subtasks", None)
+        row.pop("subtask_ids", None)
+        if project_path and not row.get("project_path"):
+            row["project_path"] = project_path
+        q.upsert_task(row)
 
 
-def add_task(title: str, description: str, context: str = "",
+def add_task(title: str, description: str = "", context: str = "",
              task_type: str = "code",
              project_path: Optional[str] = None) -> dict:
-    """Aggiunge un task sia al JSON (per la GUI) che al DB SQLite (per l'orchestrator)."""
-    tasks = load_tasks(project_path)
+    """Aggiunge un task alla coda SQLite (condivisa con l'orchestrator)."""
     task = {
-        "id": f"task-{int(time.time()*1000)}-{len(tasks)}",
+        "id": f"task-{int(time.time()*1000)}-{_queue().tasks_count()}",
         "title": title,
         "description": description,
         "context": context,
         "status": "pending",
         "attempts": 0,
-        "subtasks": [],
         "parent": None,
         "created_at": time.time(),
         "source": "gui",
         "type": task_type,
         "project_path": project_path,
     }
-    tasks.append(task)
-    save_tasks(tasks, project_path)
-
-    # Scrivi anche nel DB SQLite che l'orchestrator legge (globale)
     try:
-        db_path = BASE_DIR / "tasks" / "queue.db"
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(str(db_path)) as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS tasks (
-                    id TEXT PRIMARY KEY,
-                    title TEXT,
-                    description TEXT,
-                    context TEXT,
-                    status TEXT,
-                    attempts INTEGER DEFAULT 0,
-                    created_at REAL,
-                    parent TEXT,
-                    type TEXT,
-                    source TEXT,
-                    result TEXT,
-                    last_error TEXT,
-                    failure_reason TEXT,
-                    completed_at REAL,
-                    started_at REAL,
-                    reason TEXT
-                )
-            """)
-            conn.execute(
-                "INSERT OR IGNORE INTO tasks "
-                "(id, title, description, context, status, attempts, "
-                "created_at, parent, type, source, project_path) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                (task["id"], title, description, context, "pending", 0,
-                 task["created_at"], None, task_type, "gui", project_path)
-            )
-            conn.commit()
+        _queue().add(task)
     except Exception as e:
         print(f"WARNING: SQLite insert failed: {e}")
-
     return task
 
 
 def delete_task(task_id: str, project_path: Optional[str] = None) -> None:
-    # Prima prova nel progetto specificato
-    if project_path:
-        tasks = load_tasks(project_path)
-        before = len(tasks)
-        tasks = [t for t in tasks if t["id"] != task_id]
-        if len(tasks) < before:
-            save_tasks(tasks, project_path)
-            return
-    # Fallback: coda globale
-    tasks = load_tasks(None)
-    tasks = [t for t in tasks if t["id"] != task_id]
-    save_tasks(tasks, None)
+    """Elimina il task per id (id univoci globali: lo scope è ignorato)."""
+    try:
+        _queue().delete_by_id(task_id)
+    except Exception as e:
+        print(f"WARNING: SQLite delete failed: {e}")
 
 
 def reset_task(task_id: str, project_path: Optional[str] = None) -> None:
     """Resetta un task a pending, qualunque sia lo stato attuale.
     Pulisce tentativi, errori, risultato. Funziona anche su 'done' e 'planned'."""
-    # Prima prova nel progetto specificato
-    if project_path:
-        tasks = load_tasks(project_path)
-        found = False
-        for t in tasks:
-            if t["id"] == task_id:
-                found = True
-                t["status"] = "pending"
-                t["attempts"] = 0
-                for k in ("last_error", "failure_reason", "result",
-                          "completed_at", "started_at", "reason"):
-                    t.pop(k, None)
-        if found:
-            save_tasks(tasks, project_path)
-            return
-    # Fallback: coda globale
-    tasks = load_tasks(None)
-    for t in tasks:
-        if t["id"] == task_id:
-            t["status"] = "pending"
-            t["attempts"] = 0
-            for k in ("last_error", "failure_reason", "result",
-                      "completed_at", "started_at", "reason"):
-                t.pop(k, None)
-    save_tasks(tasks, None)
+    try:
+        _queue().reset_task(task_id)
+    except Exception as e:
+        print(f"WARNING: SQLite reset failed: {e}")
 
 
 def force_rerun_task(task_id: str, project_path: Optional[str] = None) -> None:
     """Forza re-run: resetta il task E elimina i suoi sottotask (se presenti).
     Utile per ripartire da capo con un task già 'planned' o 'done'."""
-    # Prima prova nel progetto specificato
-    if project_path:
-        tasks = load_tasks(project_path)
-        target = next((t for t in tasks if t["id"] == task_id), None)
-        if target:
-            # Elimina i sottotask associati
-            subtask_ids = target.get("subtask_ids", [])
-            if subtask_ids:
-                tasks = [t for t in tasks if t["id"] not in subtask_ids]
-            # Resetta il task
-            for t in tasks:
-                if t["id"] == task_id:
-                    t["status"] = "pending"
-                    t["attempts"] = 0
-                    t["subtasks"] = []
-                    t.pop("subtask_ids", None)
-                    for k in ("last_error", "failure_reason", "result",
-                              "completed_at", "started_at", "reason"):
-                        t.pop(k, None)
-            save_tasks(tasks, project_path)
-            return
-    # Fallback: coda globale
-    tasks = load_tasks(None)
-    target = next((t for t in tasks if t["id"] == task_id), None)
-    if not target:
-        return
-    subtask_ids = target.get("subtask_ids", [])
-    if subtask_ids:
-        tasks = [t for t in tasks if t["id"] not in subtask_ids]
-    for t in tasks:
-        if t["id"] == task_id:
-            t["status"] = "pending"
-            t["attempts"] = 0
-            t["subtasks"] = []
-            t.pop("subtask_ids", None)
-            for k in ("last_error", "failure_reason", "result",
-                      "completed_at", "started_at", "reason"):
-                t.pop(k, None)
-    save_tasks(tasks, None)
+    q = _queue()
+    try:
+        q.delete_children(task_id)
+        q.reset_task(task_id)
+    except Exception as e:
+        print(f"WARNING: SQLite force rerun failed: {e}")
 
 
 def cleanup_done_tasks(project_path: Optional[str] = None) -> int:
-    """Elimina tutti i task in stato 'done'. Ritorna il numero eliminati."""
-    total_removed = 0
-    # Prima prova nel progetto specificato
-    if project_path:
-        tasks = load_tasks(project_path)
-        before = len(tasks)
-        tasks = [t for t in tasks if t["status"] != "done"]
-        after = len(tasks)
-        save_tasks(tasks, project_path)
-        total_removed += before - after
-    # Fallback: coda globale
-    tasks = load_tasks(None)
-    before = len(tasks)
-    tasks = [t for t in tasks if t["status"] != "done"]
-    after = len(tasks)
-    save_tasks(tasks, None)
-    total_removed += before - after
-    return total_removed
+    """Elimina tutti i task in stato 'done' nello scope indicato.
+    Ritorna il numero eliminato."""
+    try:
+        return _queue().cleanup_done(project_path)
+    except Exception as e:
+        print(f"WARNING: SQLite cleanup failed: {e}")
+        return 0
 
 
 def delete_subtasks(task_id: str, project_path: Optional[str] = None) -> int:
-    """Elimina i sottotask di un task. Ritorna il numero eliminati."""
-    # Prima prova nel progetto specificato
-    if project_path:
-        tasks = load_tasks(project_path)
-        target = next((t for t in tasks if t["id"] == task_id), None)
-        if target:
-            subtask_ids = target.get("subtask_ids", [])
-            if not subtask_ids:
-                # Fallback: cerca task con parent == task_id
-                subtask_ids = [t["id"] for t in tasks if t.get("parent") == task_id]
-            before = len(tasks)
-            tasks = [t for t in tasks if t["id"] not in subtask_ids]
-            for t in tasks:
-                if t["id"] == task_id:
-                    t["subtasks"] = []
-                    t.pop("subtask_ids", None)
-            save_tasks(tasks, project_path)
-            return before - len(tasks)
-    # Fallback: coda globale
-    tasks = load_tasks(None)
-    target = next((t for t in tasks if t["id"] == task_id), None)
-    if not target:
+    """Elimina i sottotask di un task. Ritorna il numero eliminato."""
+    try:
+        return _queue().delete_children(task_id)
+    except Exception as e:
+        print(f"WARNING: SQLite delete subtasks failed: {e}")
         return 0
-    subtask_ids = target.get("subtask_ids", [])
-    if not subtask_ids:
-        subtask_ids = [t["id"] for t in tasks if t.get("parent") == task_id]
-    before = len(tasks)
-    tasks = [t for t in tasks if t["id"] not in subtask_ids]
-    for t in tasks:
-        if t["id"] == task_id:
-            t["subtasks"] = []
-            t.pop("subtask_ids", None)
-    save_tasks(tasks, None)
-    return before - len(tasks)
 
 
 # ====================================================================

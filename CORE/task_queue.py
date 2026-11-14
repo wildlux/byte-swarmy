@@ -350,3 +350,119 @@ class TaskQueue:
         with self._get_conn() as conn:
             conn.row_factory = sqlite3.Row
             return [dict(row) for row in conn.execute("SELECT * FROM tasks ORDER BY created_at ASC").fetchall()]
+
+    # ---------------------------------------------------------------
+    # API scoped condivisa con la GUI (FM14 — coda unica GUI→SQLite)
+    # ---------------------------------------------------------------
+    # Convenzione scope: project_path=None/'' → coda GLOBALE (righe con
+    # project_path NULL o ''); altrimenti coda del singolo progetto.
+    # Gli id sono univoci a livello globale, quindi le operazioni by-id
+    # non hanno bisogno di scope.
+
+    _TASK_COLUMNS = (
+        "id", "title", "description", "context", "status", "attempts",
+        "created_at", "parent", "type", "source", "result", "last_error",
+        "failure_reason", "completed_at", "started_at", "reason",
+        "project_path",
+    )
+
+    def list_scoped(self, project_path: Optional[str] = None,
+                    limit: Optional[int] = None) -> List[dict]:
+        """Task nello scope indicato, in ordine di creazione.
+
+        project_path None/'' → coda globale (project_path NULL o vuoto);
+        altrimenti solo le righe di quel progetto. `limit` opzionale.
+        """
+        with self._get_conn() as conn:
+            conn.row_factory = sqlite3.Row
+            if project_path:
+                sql = ("SELECT * FROM tasks WHERE project_path = ? "
+                       "ORDER BY created_at ASC")
+                args: list = [project_path]
+            else:
+                sql = ("SELECT * FROM tasks WHERE project_path IS NULL "
+                       "OR project_path = '' ORDER BY created_at ASC")
+                args = []
+            if limit:
+                sql += " LIMIT ?"
+                args.append(limit)
+            return [dict(r) for r in conn.execute(sql, args).fetchall()]
+
+    def get_by_id(self, task_id: str) -> Optional[dict]:
+        """Ritorna il task per id (o None). Gli id sono univoci globali."""
+        with self._get_conn() as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT * FROM tasks WHERE id = ?", (task_id,)
+            ).fetchone()
+            return dict(row) if row else None
+
+    def upsert_task(self, task: dict) -> None:
+        """INSERT OR REPLACE di un task (import/mirror/update-by-id).
+
+        Solo le colonne dello schema vengono scritte: i campi extra del
+        vecchio formato JSON (subtasks, subtask_ids, …) vengono ignorati —
+        nel modello a coda unica i figli sono righe con parent=<id>.
+        """
+        row = {k: task.get(k) for k in self._TASK_COLUMNS}
+        if row.get("project_path") is None and task.get("project"):
+            row["project_path"] = task["project"]
+        if not row.get("id"):
+            raise ValueError("upsert_task: task senza 'id'")
+        row["status"] = row.get("status") or "pending"
+        row["attempts"] = int(row.get("attempts") or 0)
+        row["created_at"] = row.get("created_at") or time.time()
+        with self._get_conn() as conn:
+            cols = ", ".join(self._TASK_COLUMNS)
+            qs = ", ".join("?" for _ in self._TASK_COLUMNS)
+            conn.execute(
+                f"INSERT OR REPLACE INTO tasks ({cols}) VALUES ({qs})",  # nosec: colonne validate contro _TASK_COLUMNS
+                tuple(row[k] for k in self._TASK_COLUMNS),
+            )
+            conn.commit()
+
+    def delete_by_id(self, task_id: str) -> int:
+        """Elimina il task per id. Ritorna il numero di righe eliminate."""
+        with self._get_conn() as conn:
+            cur = conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+            conn.commit()
+            return cur.rowcount
+
+    def delete_children(self, parent_id: str) -> int:
+        """Elimina le righe figlie (parent=<id>). Ritorna il numero."""
+        with self._get_conn() as conn:
+            cur = conn.execute(
+                "DELETE FROM tasks WHERE parent = ?", (parent_id,)
+            )
+            conn.commit()
+            return cur.rowcount
+
+    def reset_task(self, task_id: str) -> bool:
+        """Riporta il task a pending (tentativi/errori puliti), qualunque
+        sia lo stato attuale. True se il task esisteva."""
+        with self._get_conn() as conn:
+            cur = conn.execute(
+                "UPDATE tasks SET status = 'pending', attempts = 0, "
+                "last_error = NULL, failure_reason = NULL, result = NULL, "
+                "completed_at = NULL, started_at = NULL, reason = NULL, "
+                "retry_after = NULL WHERE id = ?",
+                (task_id,),
+            )
+            conn.commit()
+            return cur.rowcount > 0
+
+    def cleanup_done(self, project_path: Optional[str] = None) -> int:
+        """Elimina i task 'done' nello scope indicato. Ritorna il numero."""
+        with self._get_conn() as conn:
+            if project_path:
+                cur = conn.execute(
+                    "DELETE FROM tasks WHERE status = 'done' AND project_path = ?",
+                    (project_path,),
+                )
+            else:
+                cur = conn.execute(
+                    "DELETE FROM tasks WHERE status = 'done' AND "
+                    "(project_path IS NULL OR project_path = '')"
+                )
+            conn.commit()
+            return cur.rowcount

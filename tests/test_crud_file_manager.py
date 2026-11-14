@@ -13,7 +13,6 @@ Eseguire con:
 
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import sys
@@ -27,13 +26,29 @@ from PyQt6.QtWidgets import QMessageBox
 # Aggiungi la root del progetto al path
 sys.path.insert(0, os.getcwd())
 
+import GUI.task_queue as tq
 from GUI.task_queue import (
-    _tasks_file,
     add_task,
     delete_task,
     load_tasks,
     save_tasks,
 )
+
+
+# ════════════════════════════════════════════════════════════════
+# Isolamento: la coda dei test vive in un DB temporaneo (FM14:
+# unica source of truth = tasks/queue.db — mai il DB reale)
+# ════════════════════════════════════════════════════════════════
+
+@pytest.fixture(autouse=True)
+def _isolated_queue(tmp_path, monkeypatch):
+    tasks_dir = tmp_path / "tasks"
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(tq, "_TASKS_DIR", tasks_dir)
+    monkeypatch.setattr(tq, "_QUEUE", None)
+    yield
+    monkeypatch.setattr(tq, "_TASKS_DIR", None)
+    monkeypatch.setattr(tq, "_QUEUE", None)
 
 
 # ════════════════════════════════════════════════════════════════
@@ -118,24 +133,29 @@ def test_task_delete_nonexistent_is_safe():
 
 
 # ════════════════════════════════════════════════════════════════
-# TEST: _tasks_file risolve path per-progetto
+# TEST: scope della coda unica (FM14) — progetto vs globale
 # ════════════════════════════════════════════════════════════════
 
 
-def test_tasks_file_path():
-    """_tasks_file deve puntare a progetto/tasks/queue.json."""
-    tmp = tempfile.mkdtemp()
-    try:
-        proj = _make_project(tmp, "progettoY")
-        f = _tasks_file(proj)
-        expected = Path(proj) / "tasks" / "queue.json"
-        assert str(f) == str(expected)
+def test_queue_scope_project_vs_global():
+    """FM14: un task con project_path vive solo nello scope del progetto;
+    load_tasks(None) ritorna solo le righe globali (project_path NULL)."""
+    proj = _make_project(tempfile.mkdtemp(), "progettoY")
 
-        # project_path=None → file globale
-        f_globale = _tasks_file(None)
-        assert f_globale.name == "queue.json"
-    finally:
-        shutil.rmtree(tmp)
+    ta = add_task(title="Task progetto", project_path=proj)
+    tg = add_task(title="Task globale", project_path=None)
+
+    # Il task di progetto NON appare nella coda globale e viceversa
+    ids_globale = {t["id"] for t in load_tasks(None)}
+    ids_progetto = {t["id"] for t in load_tasks(proj)}
+    assert ta["id"] in ids_progetto and ta["id"] not in ids_globale
+    assert tg["id"] in ids_globale and tg["id"] not in ids_progetto
+
+    # Unica fonte di verità: il DB isolato. Nessun queue.json generato.
+    import GUI.task_queue as _tq
+    iso_dir = _tq._TASKS_DIR
+    assert (iso_dir / "queue.db").exists()
+    assert not (iso_dir / "queue.json").exists()
 
 
 # ════════════════════════════════════════════════════════════════

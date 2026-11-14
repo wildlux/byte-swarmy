@@ -1630,10 +1630,10 @@ class FileTreeDrawer(QFrame):
     def _show_task_details(self, task_id):
         """Mostra un dialog con i dettagli completi del task.
 
-        I task della lista "Lavori e Compiti" vivono nel queue.json del
-        progetto (load_tasks); il DB globale tasks/queue.db contiene solo i
-        task dell'orchestratore. Prima si cerca nel JSON, poi si fa fallback
-        sul DB — prima il dialog non si apriva mai per i task JSON.
+        FM14: i task vivono SOLO in tasks/queue.db (coda unica
+        GUI→orchestratore). `load_tasks` legge direttamente il DB; il
+        fallback SQL manuale serve solo per i task fuori scope progetto
+        (es. creati dall'orchestratore senza project_path).
         """
         try:
             from PyQt6.QtWidgets import (

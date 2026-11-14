@@ -375,7 +375,7 @@ class TaskSchedulerPanel(QWidget):
         try:
             from GUI.task_queue import load_tasks
             tasks = load_tasks(project_path)
-            task = next((t for t in tasks if task.get("id") == task_id), None)
+            task = next((t for t in tasks if t.get("id") == task_id), None)
         except Exception:
             task = None
         if not task:

@@ -1,9 +1,12 @@
 """Test per il Task Scheduler: verifica che modifiche/eliminazioni
-usino sempre il project_path corretto (per-progetto, non globale)."""
+usino sempre il project_path corretto (per-progetto, non globale).
+
+FM14: la coda vive SOLO in SQLite (tasks/queue.db condivisa con
+l'orchestratore); gli scope (progetto vs globale) sono righe con
+project_path impostato o NULL. I test girano su un DB temporaneo."""
 
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import tempfile
@@ -13,7 +16,7 @@ import pytest
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Helper: import delle funzioni da testare
+# Helper: import delle funzioni da testare + isolamento DB temporaneo
 # ──────────────────────────────────────────────────────────────────────
 
 
@@ -21,23 +24,36 @@ def _import_task_queue_functions():
     import sys
 
     sys.path.insert(0, os.getcwd())
+    import GUI.task_queue as tq
     from GUI.task_queue import (
         add_task,
         delete_task,
         load_tasks,
         save_tasks,
-        _tasks_file,
     )
-    return add_task, delete_task, load_tasks, save_tasks, _tasks_file
+    return add_task, delete_task, load_tasks, save_tasks, tq
+
+
+@pytest.fixture(autouse=True)
+def _isolated_queue(tmp_path, monkeypatch):
+    import GUI.task_queue as tq
+
+    tasks_dir = tmp_path / "tasks"
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(tq, "_TASKS_DIR", tasks_dir)
+    monkeypatch.setattr(tq, "_QUEUE", None)
+    yield
+    monkeypatch.setattr(tq, "_TASKS_DIR", None)
+    monkeypatch.setattr(tq, "_QUEUE", None)
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Test 1: load_tasks/save_tasks usano file per-progetto, non globale
+# Test 1: load_tasks/save_tasks usano lo scope per-progetto, non globale
 # ──────────────────────────────────────────────────────────────────────
 
 
 def test_save_and_load_per_progetto():
-    add_task, delete_task, load_tasks, save_tasks, _tasks_file = (
+    add_task, delete_task, load_tasks, save_tasks, tq = (
         _import_task_queue_functions()
     )
 
@@ -70,9 +86,9 @@ def test_save_and_load_per_progetto():
         assert tb[0]["id"] == "t2"
         assert tb[0]["title"] == "Task B"
 
-        # Il file globale non deve essere toccato
-        global_file = Path(__file__).resolve().parent.parent / "tasks" / "queue.json"
-        # (non verificiamo l'esistenza, solo che non è stato scritto)
+        # I task di progetto non compaiono nella vista globale (scope)
+        ids_globale = {t["id"] for t in load_tasks(None)}
+        assert "t1" not in ids_globale and "t2" not in ids_globale
     finally:
         shutil.rmtree(tmp)
 
@@ -80,7 +96,7 @@ def test_save_and_load_per_progetto():
 def test_load_tasks_none_usa_globale():
     _, _, load_tasks, _, _ = _import_task_queue_functions()
 
-    # project_path=None deve usare il file globale (backward compat)
+    # project_path=None → scope globale (righe con project_path NULL)
     result = load_tasks(None)
     assert isinstance(result, list)
 
@@ -91,7 +107,7 @@ def test_load_tasks_none_usa_globale():
 
 
 def test_delete_task_per_progetto():
-    add_task, delete_task, load_tasks, save_tasks, _tasks_file = (
+    add_task, delete_task, load_tasks, save_tasks, tq = (
         _import_task_queue_functions()
     )
 
@@ -118,25 +134,26 @@ def test_delete_task_per_progetto():
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Test 3: _tasks_file risolve il percorso per-progetto correttamente
+# Test 3: FM14 — nessun nuovo queue.json: il DB è l'unica fonte
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_tasks_file_per_progetto():
-    _, _, _, _, _tasks_file = _import_task_queue_functions()
+def test_nessun_nuovo_queue_json():
+    add_task, delete_task, load_tasks, save_tasks, tq = (
+        _import_task_queue_functions()
+    )
 
     tmp = tempfile.mkdtemp()
     try:
         proj = os.path.join(tmp, "progettoY")
         os.makedirs(proj)
 
-        f = _tasks_file(proj)
-        expected = Path(proj) / "tasks" / "queue.json"
-        assert str(f) == str(expected)
+        add_task(title="Task", description="desc", project_path=proj)
 
-        # project_path=None → file globale
-        f_globale = _tasks_file(None)
-        assert f_globale.name == "queue.json"
+        # Nei dir di test non esiste alcun queue.json (solo queue.db)
+        assert not os.path.exists(os.path.join(proj, "tasks", "queue.json"))
+        assert not (tq._TASKS_DIR / "queue.json").exists()
+        assert (tq._TASKS_DIR / "queue.db").exists()
     finally:
         shutil.rmtree(tmp)
 
@@ -149,7 +166,7 @@ def test_tasks_file_per_progetto():
 def test_modifica_task_usa_project_path():
     """Simula il flusso di modifica del TaskSchedulerPanel:
     carica task per progetto, modifica, salva nello stesso progetto."""
-    add_task, delete_task, load_tasks, save_tasks, _tasks_file = (
+    add_task, delete_task, load_tasks, save_tasks, tq = (
         _import_task_queue_functions()
     )
 

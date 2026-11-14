@@ -114,34 +114,22 @@ def get_logs(n=50):
     return "(no log)"
 
 def add_task_to_db(title, description="", task_type="code", project_path=None):
-    """Aggiunge un task al database SQLite e al mirror JSON."""
+    """Aggiunge un task alla coda SQLite (FM14: unica source of truth,
+    niente mirror queue.json)."""
     task_id = f"task-{int(time.time()*1000)}"
 
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.execute(
-        "INSERT INTO tasks (id, title, description, context, status, "
-        "attempts, created_at, parent, type, source, project_path) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-        (task_id, title[:120], description, "", "pending", 0,
-         time.time(), None, task_type, "gui", project_path)
-    )
-    conn.commit()
-    conn.close()
-
-    json_file = BASE_DIR / "tasks" / "queue.json"
-    tasks = []
-    if json_file.exists():
-        try:
-            tasks = json.loads(json_file.read_text())
-        except Exception:
-            pass
-    tasks.append({
-        "id": task_id, "title": title[:120], "description": description,
-        "context": "", "status": "pending", "attempts": 0,
-        "subtasks": [], "parent": None, "created_at": time.time(),
-        "source": "gui", "type": task_type,
-    })
-    json_file.write_text(json.dumps(tasks, indent=2))
+    conn = sqlite3.connect(str(DB_PATH), timeout=30.0)
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO tasks (id, title, description, context, "
+            "status, attempts, created_at, parent, type, source, project_path) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            (task_id, title[:120], description, "", "pending", 0,
+             time.time(), None, task_type, "gui", project_path)
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
     return task_id
 
