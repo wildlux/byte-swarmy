@@ -149,6 +149,8 @@ class Worker:
     # Nomi completi accettati come fallback (guardia)
     TOOL_CODE_MAP.update({v: v for v in set(TOOL_CODE_MAP.values())})
 
+    MAX_STEPS = 10  # aumentato per dare più chance al modello di scrivere codice (era 6)
+
     def __init__(self, agent_id: str, model_key: str,
                  tools: ToolSet, memory: AgentMemory,
                  model_client: ModelClient, logger):
