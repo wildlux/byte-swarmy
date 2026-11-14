@@ -342,3 +342,33 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   (`_show_context_menu`).
 - [ ] **UI Redesign completo** (menu hamburger avanzato, riorganizzazione
   pannelli) resta aperto — questo ciclo copre solo la barra Live Activity.
+
+## 🚀 Cycle 27 — Recupero storia persa: M9/M10/M11 + 9.7 MCP E2E (2026-11-14)
+
+> Registrati il 2026-11-03 (commit `4046b5d`) ma andati persi nella
+> consolidazione di IMPLEMENTED.md: le voci restavano in todo.md come
+> "aperti" pur essendo completi (test 29/29 passano). Travaso + recupero.
+
+- [x] **9.7 MCP E2E** — Collaudo pipeline MCP reale (server esempio +
+  client): 4 test in `tests/test_mcp_e2e.py` (discovery tools via SSE,
+  consegna outbox via callback, errori gestiti porta morta, idempotenza
+  `get_pending_tasks`). Pin `mcp>=1.0.0,<2` in `requirements_gui.txt`.
+- [x] **M10 — USB Protocol Parser**: `CORE/usb_protocol.py` puro
+  (`decode_setup` spec USB 2.0 §9.3, `describe_setup`,
+  `parse_lsusb_descriptors`, `describe_event`, `summarize`) + 16 test
+  (`tests/test_usb_protocol.py`, catture fabbricate).
+- [x] **M11 — USB Differential Analysis**: `CORE/usb_differential.py`
+  (`diff_captures` endpoint nuovi/scomparsi, cambio tipo, request
+  vendor/class nuove, salti frequenza/payload + `explain_diff` + scoring
+  rischio HIGH/MEDIUM) + mini-CLI `python -m CORE.usb_differential a.json
+  b.json` + 10 test (`tests/test_usb_differential.py`).
+- [x] **M9 — ambiente usbmon/tshark**: `scripts/setup/usbmon.sh`
+  (modprobe usbmon, tshark, gruppo+udev rule `/dev/usbmon*` 0660 →
+  catture SENZA sudo, helper in /usr/local/bin) + `tools/usbmon-capture.sh`
+  (cattura per bus, chmod 600). Esecuzione sudo lasciata all'utente.
+- [x] **Utente dedicato `byteswarmy`**: `scripts/setup/hardening.sh`
+  (`--apply` crea utente senza privilegi + copia progetto + `.git` scan;
+  `--firewall` blocca uscita tranne Ollama; slice cgroup 4G/200%).
+  **Aggiunto in questo ciclo**: l'utente dedicato viene iscritto al
+  gruppo `usbmon` (se presente) → automazioni usbmon/tshark girano
+  davvero sotto utente non-root dedicato (chiude il combo dell'item todo).

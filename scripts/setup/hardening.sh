@@ -123,6 +123,21 @@ apply_user() {
     chmod 700 "$TARGET_HOME"
     chown "${TARGET_USER}:${TARGET_USER}" "$TARGET_HOME"
 
+    # Automazioni usbmon/tshark sotto utente non-root dedicato (M9):
+    # se il gruppo `usbmon` esiste (creato da scripts/setup/usbmon.sh,
+    # udev rule 0660 su /dev/usbmon*), l'utente dedicato ne entra a far
+    # parte → le catture NON richiedono sudo a ogni run.
+    if getent group usbmon >/dev/null 2>&1; then
+        if ! id -nG "$TARGET_USER" 2>/dev/null | tr ' ' '\n' | grep -qx usbmon; then
+            usermod -aG usbmon "$TARGET_USER"
+            ok "utente ${TARGET_USER} aggiunto al gruppo usbmon (catture senza sudo)"
+        else
+            info "utente ${TARGET_USER} già nel gruppo usbmon"
+        fi
+    else
+        info "gruppo usbmon assente: esegui scripts/setup/usbmon.sh per le catture senza sudo"
+    fi
+
     if ! command -v rsync >/dev/null 2>&1; then
         err "rsync non installato: sudo apt install rsync"
         exit 1

@@ -34,13 +34,6 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
 - [ ] **R1 — Igiene rigenerazione**: per modifiche a `orchestrator.py` /
   `tools.py`: `py_compile` + boot reale sotto watchdog + suite completa.
 
-### Integrazioni / sicurezza
-- [ ] **MCP E2E testing** — test end-to-end del bridge MCP.
-- [ ] **USB protocol parser** — parsing del protocollo USB.
-- [ ] **USB differential analysis** — analisi differenziale tra capture USB.
-- [ ] **Utente dedicato `byteswarmy`** (root-level, `setup-hardening.sh`) +
-  automazioni usbmon/tshark sotto utente non-root dedicato.
-
 ---
 
 ## Fuori scope (per scelta/limiti hardware)
