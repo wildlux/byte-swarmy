@@ -27,6 +27,9 @@ from pathlib import Path
 from typing import Optional
 
 from CORE.constants import DEFAULT_NUM_CTX
+from MONITORING.lifecycle_manager import LifecycleManager
+from MONITORING.system_monitor import SystemMonitor
+from CORE.task_dispatcher import TaskDispatcher
 
 # core/orchestrator.py
 from CORE.tools import ToolSet
@@ -179,7 +182,7 @@ class Orchestrator:
             self.log.warning(f"reset running tasks failed: {e}")
         self.planner = Planner(self.models, self.log)
         self.generic_planner = GenericTaskPlanner(self.config, self.models, self.log)
-        self.auditor = AuditWorker(self.models, self.log, decision_client=self._call_decision_model)
+        self.auditor = AuditWorker(self.models, self.log, decision_client=self.generic_planner._call_decision_model)
 
         # Pre-flight validation + feedback su SQLite (work order T1)
         self.decision_validator = DecisionValidator(
@@ -1191,6 +1194,9 @@ class Orchestrator:
 # ====================================================================
 # ENTRY POINT
 # ====================================================================
+
+_OUT = sys.stdout
+
 
 def main():
     config_path = sys.argv[1] if len(sys.argv) > 1 else "CONFIG/config.toml"
