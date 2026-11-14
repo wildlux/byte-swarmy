@@ -432,3 +432,13 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   Expanding verticale (max height illimitata). Smoke import+show OK;
   grid card della Plancia non toccata (i 5 widget vivono solo nelle
   pagine di dettaglio dove `wrap_in_panel_page` rilascia l'altezza max).
+
+## 🚀 Cycle 31 — UI Redesign: hamburger come menu unico (2026-11-14)
+
+- [x] **UI Redesign (completato)**: il menu hamburger (☰) diventa l'unico
+  punto di ingresso ai pannelli — sottomenu "📋 Pannelli" con tutte le 13
+  pagine (coda, modelli, config, cicd, clean_code, code_explorer,
+  backup_logs, logs, integrity, security, audit_project, hardware, test)
+  + "Indietro alla Plancia". Live Activity bar già presente in alto
+  (Cycle 26). Nessun test rotto (smoke OK).
+  `todo.md` ora è vuoto di item aperti.

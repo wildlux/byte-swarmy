@@ -14,8 +14,7 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
 
 ## Aperti
 
-### GUI / UX
-- [ ] **UI Redesign (parziale)** — Live Activity bar aggiunta in alto; resta menu hamburger avanzato / riorganizzazione pannelli.
+*(nessun item aperto — tutto il piano approvato è completato)*
 
 ### Responsive
 *(nessun item aperto — T-R3 e gap vuoto risolti nel Cycle 29)*

@@ -269,6 +269,34 @@ class ShellMixin:
     def _show_context_menu(self):
         menu = QMenu(self)
 
+        # ── Pannelli (menu hamburger come unico punto di ingresso) ─────
+        panels_menu = menu.addMenu("📋 Pannelli")
+        _panel_labels = {
+            "coda": "📋 Coda task",
+            "modelli": "🤖 Modelli",
+            "config": "⚙️ Configurazione",
+            "cicd": "🔄 CI/CD",
+            "clean_code": "🧹 Clean code",
+            "code_explorer": "🎮 Navigatore codice",
+            "backup_logs": "💾 Backup code",
+            "logs": "📜 Log",
+            "integrity": "🧪 Integrità",
+            "security": "🛡️ Sicurezza",
+            "audit_project": "🔍 Audit progetto",
+            "hardware": "🖥️ Hardware",
+            "test": "🧪 Test suite",
+        }
+        for key, label in _panel_labels.items():
+            act = QAction(label, self)
+            act.triggered.connect(lambda _=False, k=key: self.center.open_panel(k))
+            panels_menu.addAction(act)
+        panels_menu.addSeparator()
+        act_back = QAction("🏠 Indietro alla Plancia (Backspace)", self)
+        act_back.triggered.connect(self.center.back_to_main)
+        panels_menu.addAction(act_back)
+
+        menu.addSeparator()
+
         act_pause = QAction("⏸/▶ Pausa / Riprendi orchestratore", self)
         act_pause.triggered.connect(self._toggle_orchestrator)
         menu.addAction(act_pause)
