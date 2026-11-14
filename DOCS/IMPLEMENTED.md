@@ -499,3 +499,19 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   compatto (`TASK: ... | DESC: ... | STATE: ... | CTX: ... | RULES: ... | SKILL: ...`).
   Guadagno ~0.2KB/step.
 - Test: execute_handler 16/16, correction 16/16 passano.
+
+## 🚀 Cycle 37 — Token reduction T11+T12+T13+T14+T15 (2026-11-14)
+
+- [x] **T11 — Tool result summarization intelligente**: aggiunto `_summarize_result(name, result)`
+  in `CORE/worker.py` (read_file → prime 10 righe + def/class/import; run_test_suite → summary
+  + primi 3 errori; run_bash → ultime 5 righe; git_diff → nomi file + +/- sintassi).
+  Usato in entrambi i path (error + success) del loop ReAct.
+- [x] **T12 — Abbreviazione percorsi**: esempi JSON cambiati da "project/main.py" a
+  "main.py" (3 occorrenze). Project state già relativo (relative_to(root)).
+- [x] **T13 — Adaptive max_tokens**: max_tokens per step: 1024 al primo step (scrittura
+  file), 512 negli step successivi (tool call semplici).
+- [x] **T14 — Rimozione esempi**: già implementato in Cycle 33 (regole compatte, nessun
+  esempio di comandi buoni).
+- [x] **T15 — Context window pruning**: già implementato in Cycle 33 (project state solo
+  in initial prompt, non in step prompts).
+- Test: execute_handler 16/16 passano.

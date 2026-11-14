@@ -71,7 +71,7 @@ class Worker:
     SYSTEM = (
         "You are a coding agent working inside a sandboxed project directory.\n"
         "Reply with ONE JSON object per turn and NOTHING else:\n"
-        '{"thought":"short","action":"write","args":["project/main.py","code..."],"done":false}\n\n'
+        '{"thought":"short","action":"write","args":["main.py","code..."],"done":false}\n\n'
         "TOOLS (code=full name, use CODE in action):\n"
         "  read=read_file(path)               read_slice=read_file_slice(path,start,end)\n"
         "  write=write_file(path,content)     patch=patch_code(path,old,new)\n"
@@ -108,7 +108,7 @@ class Worker:
         return (
             "You are a coding agent working inside a sandboxed project directory.\n"
             "Reply with ONE JSON object per turn and NOTHING else:\n"
-            '{"thought":"short","action":"write","args":["project/main.py","code..."],"done":false}\n\n'
+            '{"thought":"short","action":"write","args":["main.py","code..."],"done":false}\n\n'
             "RULES (compact):\n"
             "1. Paths in project/. 2. One cmd per bash, no pipes/&&/$().\n"
             "3. write=CREATE, patch=MODIFY. 4. Run test after writing.\n"
@@ -249,7 +249,7 @@ class Worker:
         _cached_result = (
             "You are a coding agent working inside a sandboxed project directory.\n"
             "Reply with ONE JSON object per turn and NOTHING else:\n"
-            '{"thought":"short","action":"write","args":["project/main.py","code..."],"done":false}\n\n'
+            '{"thought":"short","action":"write","args":["main.py","code..."],"done":false}\n\n'
             "TOOLS (code=full name, use CODE in action):\n"
             + tools_str + "\n\n"
             + "RULES (compact):\n"
@@ -324,6 +324,10 @@ class Worker:
             self.memory.heartbeat()
             self.log.info(f"[{self.agent_id}] step {step+1}/{self.MAX_STEPS}")
 
+            # T13: adaptive max_tokens — primo step (scrittura file) 1024,
+            # step successivi (tool call semplici) 512.
+            step_max_tokens = 1024 if step == 0 else 512
+
             try:
                 # 🆕 Streaming: raccogli token e scrivi su file per la GUI
                 streaming_file = Path("state/streaming.txt")
@@ -340,7 +344,7 @@ class Worker:
                     # (content lungo → risposta mozzata → parse error → il
                     # modello "non riusciva a salvare"). Meglio uno step
                     # più lento che uno sprecato.
-                    max_tokens=1024,
+                    max_tokens=step_max_tokens,
                 ):
                     raw_parts.append(token)
                     token_count += 1
@@ -399,7 +403,7 @@ class Worker:
                         model_key=routed_key,
                         prompt=prompt,
                         system=self._build_system(task) if step == 0 else self._build_system_compact(),
-                        max_tokens=1024,
+                        max_tokens=step_max_tokens,
                         options_override=override,
                     ):
                         raw_parts2.append(token)
@@ -537,7 +541,7 @@ class Worker:
             if tool_result.startswith("ERROR:"):
                 prompt = (
                     f"Last action: {tool_name}({args})\n"
-                    f"Result: ❌ {tool_result[:300]}\n\n"
+                    f"Result: ❌ {self._summarize_result(tool_name, tool_result)}\n\n"
                     "The previous tool call failed. Analyze the error and try a different approach. "
                     "Do not repeat the same failing command.\n\n"
                     "Next step (JSON only):"
@@ -545,7 +549,7 @@ class Worker:
             else:
                 prompt = (
                     f"Last action: {tool_name}({args})\n"
-                    f"Result:\n{tool_result[:300]}\n\n"
+                    f"Result:\n{self._summarize_result(tool_name, tool_result)}\n\n"
                     "Next step (JSON only):"
                 )
 
@@ -738,6 +742,40 @@ class Worker:
             return "\n".join(files) if files else "(empty project)"
         except Exception:
             return "(cannot read project state)"
+
+    def _summarize_result(self, name: str, result: str) -> str:
+        """T11: estrazione intelligente del risultato tool (vs troncamento cieco)."""
+        if not result:
+            return result
+        # read_file: prime 10 righe + righe con def/class/import
+        if name in ("read_file", "read"):
+            lines = result.splitlines()
+            if len(lines) <= 15:
+                return result[:300]
+            key = [ln for ln in lines if any(k in ln for k in ("def ", "class ", "import ", "from "))]
+            head = lines[:10]
+            out = head + key[:5]
+            return "\n".join(out)[:300]
+        # run_test_suite: summary + primi 3 errori
+        if name in ("run_test_suite", "test"):
+            lines = result.splitlines()
+            summary = [ln for ln in lines if any(k in ln.lower() for k in ("passed", "failed", "error", "ok", "fail"))]
+            errors = [ln for ln in lines if "error" in ln.lower() or "fail" in ln.lower()][:3]
+            out = (summary[:3] + errors)[:8]
+            return "\n".join(out)[:300] if out else result[:300]
+        # run_bash: ultime 5 righe
+        if name in ("run_bash", "bash"):
+            lines = result.splitlines()
+            return "\n".join(lines[-5:])[:300]
+        # git_diff: nomi file + righe +/- di sintassi
+        if name in ("git_diff", "diff"):
+            lines = result.splitlines()
+            files = [ln for ln in lines if ln.startswith("diff --git") or ln.startswith("---") or ln.startswith("+++")]
+            changes = [ln for ln in lines if ln.startswith("+") or ln.startswith("-")][:10]
+            out = (files[:5] + changes)[:15]
+            return "\n".join(out)[:300] if out else result[:300]
+        # Default: troncamento cieco (T5)
+        return result[:300]
 
     def _parse_action(self, raw: str) -> Optional[dict]:
         m = _REGEX.search("json_object", raw)
