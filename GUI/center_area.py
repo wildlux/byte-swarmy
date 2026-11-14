@@ -124,14 +124,22 @@ class CenterArea(QWidget):
         #   3) 📜 Log - Diario di Bordo (CategorizedLogViewer)
         #   4) 🧪 Test di integrità del software (IntegrityTestsPanel)
         #   5) 🛡️ Sicurezza del software & anti-manomissione (SoftwareSecurityPanel)
-        UNIFORM_CONTENT_HEIGHT = 300  # altezza del content interno (300px fisse)
+        UNIFORM_CONTENT_HEIGHT = 220  # altezza minima del content (220px, Expanding verticale)
 
         def _force_content_size(widget):
-            """Forza altezza 300px + larghezza 100% su un widget (content)."""
-            widget.setFixedHeight(UNIFORM_CONTENT_HEIGHT)
+            """Altezza minima 220 + espansione verticale (T-R3).
+
+            Invece del triplo setFixedHeight(300) (che bloccava l'altezza
+            a 300 anche quando il contenitore aveva più spazio), usiamo
+            setMinimumHeight(220) + policy Expanding verticale: il widget
+            può crescere fino all'altezza disponibile, senza mai scendere
+            sotto 220. Impatto basso: i 5 widget vivono solo nelle pagine
+            di dettaglio dove wrap_in_panel_page rilascia l'altezza max.
+            """
             widget.setMinimumHeight(UNIFORM_CONTENT_HEIGHT)
-            widget.setMaximumHeight(UNIFORM_CONTENT_HEIGHT)
-            widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            widget.setMaximumHeight(16777215)  # QWIDGETSIZE_MAX: no cap
+            widget.setSizePolicy(QSizePolicy.Policy.Expanding,
+                                QSizePolicy.Policy.Expanding)
 
         # ── Istanzia i 5 widget (verranno messi nel detail_stack) ──────
         self.code_explorer = CodeExplorer()

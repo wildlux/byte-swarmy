@@ -423,3 +423,12 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   elementi funzionali). Il margine ridotto è l'unico vuoto "gratuito"
   disponibile; nessun altro elemento è rimovibile senza perdere funzione.
   Item rimosso da todo.md.
+
+## 🚀 Cycle 30 — T-R3: _force_content_size Expanding (2026-11-14)
+
+- [x] **T-R3**: in `GUI/center_area.py`, `_force_content_size` passa da
+  `setFixedHeight(300)` triplo (bloccava l'altezza a 300px anche quando
+  il contenitore aveva più spazio) a `setMinimumHeight(220)` + policy
+  Expanding verticale (max height illimitata). Smoke import+show OK;
+  grid card della Plancia non toccata (i 5 widget vivono solo nelle
+  pagine di dettaglio dove `wrap_in_panel_page` rilascia l'altezza max).

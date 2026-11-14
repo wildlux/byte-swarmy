@@ -18,11 +18,7 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
 - [ ] **UI Redesign (parziale)** — Live Activity bar aggiunta in alto; resta menu hamburger avanzato / riorganizzazione pannelli.
 
 ### Responsive
-- [ ] **T-R3** — `_force_content_size`: `setFixedHeight(300)` triplo →
-  `setMinimumHeight(220)` + policy Expanding verticale; verificare che non
-  rompa la grid card della Plancia. (Audit 2026-11-13: oggi i 5 widget
-  strumenti vivono solo nelle pagine di dettaglio dove `wrap_in_panel_page`
-  rilascia già l'altezza max → impatto basso, rimandato.)
+*(nessun item aperto — T-R3 e gap vuoto risolti nel Cycle 29)*
 
 ---
 
