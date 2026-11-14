@@ -522,3 +522,14 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   (`Task: {title[:60]} | Last action: ...`) per prevenire task drift. Il system prompt
   è già compatto dal 2° step (T6). Guadagno: prevenzione del task drift (~0.1KB/step).
 - Test: execute_handler 16/16, correction 16/16 passano.
+
+## 🚀 Cycle 39 — Token reduction T17 (model-specific prompt tuning) (2026-11-14)
+
+- [x] **T17 — Model-specific prompt tuning**: aggiunto `_model_family()` in
+  `CORE/worker.py` (rileva qwen/llama/deepseek/mistral/granite/other dal nome
+  del modello nel config). `_build_system()` seleziona il formato delle regole:
+  - Llama: strutturato con esempi di comandi buoni/vietati
+  - DeepSeek: chain-of-thought ("Think step by step before acting")
+  - Qwen/mistral/granite/other: compact (default)
+  Cache key include la famiglia (prompt diversi per famiglia).
+- Test: execute_handler 16/16 passano.

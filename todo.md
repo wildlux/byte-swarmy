@@ -91,9 +91,11 @@ di inferenza. Vedi conversazione per dettagli.
 - [x] **T16 — Prompt fisso + delta (architettura ReAct)**: prompt fisso completo solo al
   primo step; step successivi usano system prompt compatto (~0.3KB) + task title
   re-iniettato per prevenire task drift. Guadagno ~2.5KB/step. ✅ IMPLEMENTATO in Cycle 38.
-- [ ] **T17 — Model-specific prompt tuning**: formati diversi per modelli diversi
-  (Qwen: JSON chiavi corte; Llama: markdown strutturato; DeepSeek: chain-of-thought).
-  Guadagno: variabile, +20–30% qualità. Rischio: complessità codebase.
+- [x] **T17 — Model-specific prompt tuning**: formati diversi per modelli diversi
+  (Qwen: compatto; Llama: strutturato con esempi; DeepSeek: chain-of-thought).
+  Rilevamento famiglia via `_model_family()` (legge il nome del modello dal
+  config). Cache key include la famiglia (prompt diversi per famiglia).
+  Guadagno: +20–30% qualità. ✅ IMPLEMENTATO in Cycle 39.
 
 Ordine consigliato: T10 → T11 → T13 → T15 → T12 → T14 → T16 → T17 (ultimo, sforzo alto).
 
