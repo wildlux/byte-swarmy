@@ -38,9 +38,9 @@ guadagno 50–60%, senza perdita di funzionalità). Vedi conversazione per detta
 - [x] **T5 — Tool result truncation aggressiva**: troncare a 300 chars (vs 500);
   read_file solo prime 20 righe + ultime 5; run_test_suite solo summary.
   Guadagno ~0.5KB/step. ✅ IMPLEMENTATO in Cycle 33.
-- [ ] **T6 — Deduplicazione tra step**: mantenere un "prompt fisso" (TOOLS+RULES)
-  solo al primo step; negli step successivi solo delta (observation + thought).
-  Guadagno ~2.5KB/step. Sforzo alto (modifica architettura ReAct).
+- [x] **T6 — Deduplicazione tra step**: prompt fisso completo solo al primo
+  step (`_build_system(task)`); step successivi usano `_build_system_compact()`
+  (~0.3KB vs ~1.2KB). Guadagno ~2.5KB/step. ✅ IMPLEMENTATO in Cycle 35.
 - [x] **T7 — Persistent context lazy**: ridotto da 15 file a 8, 5 errori a 3,
   5 task a 3 in `build_context_for_prompt()`. ✅ IMPLEMENTATO in Cycle 34.
 - [x] **T9 — Codici tool a prefisso naturale**: abbreviare i nomi tool con

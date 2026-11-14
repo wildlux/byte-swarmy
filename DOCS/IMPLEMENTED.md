@@ -482,3 +482,12 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   5 task a 3 in `build_context_for_prompt()` (CORE/persistent_memory.py).
   Guadagno ~0.3KB/step.
 - Test: execute_handler 16/16, correction 16/16 passano.
+
+## 🚀 Cycle 35 — Token reduction T6 (deduplication tra step) (2026-11-14)
+
+- [x] **T6 — Deduplicazione tra step**: aggiunto `_build_system_compact()` in
+  `CORE/worker.py` (~0.3KB vs ~1.2KB). Il primo step usa il system prompt
+  completo (`_build_system(task)`); gli step successivi usano quello compatto
+  (solo regole, senza lista tool). Selezione via `step == 0` nel loop ReAct.
+  Guadagno ~2.5KB/step (system prompt non re-inviato).
+- Test: execute_handler 16/16, correction 16/16 passano.
