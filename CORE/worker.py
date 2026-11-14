@@ -177,7 +177,13 @@ class Worker:
         git = {"git_status", "git_diff", "git_commit", "git_log",
                "git_branch", "git_merge"}
         analysis = {"analyze", "refs", "complex", "graph", "extract", "rename"}
-        usb = set()  # DISABILITATO: USB reverse engineering fuori scope per ora
+        usb = set()
+        try:
+            from GUI.settings_store import get_usb_tools_enabled
+            if get_usb_tools_enabled():
+                usb = {"usb", "capture"}
+        except Exception:
+            pass
 
         # Classificazione per keyword
         if any(k in text for k in ("git", "commit", "branch", "merge", "pull", "push")):
@@ -187,12 +193,12 @@ class Worker:
                                     "struttura", "complessità")):
             return core | analysis | git
         if any(k in text for k in ("usb", "device", "hardware", "periferica")):
-            return core  # USB disabilitato: solo core
+            return core | usb if usb else core
         if any(k in text for k in ("crea", "create", "write", "implement", "script",
                                     "programma", "funzione", "classe", "modulo")):
             return core  # creazione: solo core (no git/analysis/usb)
-        # Default: tutti i tool (fallback sicuro, senza usb)
-        return core | git | analysis
+        # Default: tutti i tool (fallback sicuro, usb solo se abilitato)
+        return core | git | analysis | usb
 
     # Cache dei system prompt per tipo task (T10): evita di ricostruire
     # la stringa (e permette a Ollama di riutilizzare il KV cache del prefisso).
@@ -265,6 +271,15 @@ class Worker:
         tools_str = "\n".join(
             tool_lines[c] for c in sorted(selected) if c in tool_lines
         )
+
+        # USB tool lines: solo se abilitati nelle impostazioni
+        try:
+            from GUI.settings_store import get_usb_tools_enabled
+            if get_usb_tools_enabled():
+                usb_lines = ["  usb=inspect_usb_devices()", "  capture=capture_usb_traffic(bus,dur)"]
+                tools_str += "\n" + "\n".join(usb_lines)
+        except Exception:
+            pass
 
         family = self._model_family()
 
@@ -600,9 +615,14 @@ class Worker:
         return data
 
     def _call_tool(self, name: str, args: list) -> str:
-        # USB tools disabilitati (reverse engineering fuori scope per ora)
+        # USB tools: disabilitati di default, abilitabili da GUI (settings_store)
         if name in ("inspect_usb_devices", "capture_usb_traffic", "usb", "capture"):
-            return "ERROR: tool disabilitato. Gli strumenti USB (inspect_usb_devices, capture_usb_traffic) non sono disponibili in questa versione."
+            try:
+                from GUI.settings_store import get_usb_tools_enabled
+                if not get_usb_tools_enabled():
+                    return "ERROR: tool disabilitato. Gli strumenti USB (inspect_usb_devices, capture_usb_traffic) sono disabilitati. Abilitali in Impostazioni > Strumenti USB."
+            except Exception:
+                return "ERROR: tool disabilitato."
         # T9: normalizza codici brevi → nomi tool completi (guardia: nomi
         # completi passano invariati grazie a TOOL_CODE_MAP aggiornato).
         if isinstance(name, str):

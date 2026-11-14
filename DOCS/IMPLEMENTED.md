@@ -544,3 +544,14 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   `CORE/usb_differential.py` e i test restano (codice di analisi, non
   strumenti attivi del worker). Riabilitazione futura: rimuovere il guard
   in `_call_tool` e aggiungere i tool a `allowed_tools()` + `tool_lines`.
+
+## 🚀 Cycle 41 — Strumenti USB abilitabili da GUI (2026-11-14)
+
+- [x] **USB tools toggle GUI**: aggiunto `get_usb_tools_enabled()` /
+  `set_usb_tools_enabled()` in `GUI/settings_store.py` (default: False).
+  `ToolSet.allowed_tools()` e `_classify_task_tools()` in `CORE/worker.py`
+  includono i tool USB solo se il setting è True. `_call_tool` restituisce
+  errore se chiamati con setting disabilitato. Toggle nel menu hamburger (☰)
+  sotto "🔌 Strumenti USB (reverse engineering)" — checkbox persistente in
+  `CONFIG/settings.json`.
+- Test: py_compile OK, smoke OK.

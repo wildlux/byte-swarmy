@@ -315,6 +315,21 @@ class ShellMixin:
 
         menu.addSeparator()
 
+        # ── Strumenti USB (abilitabili/disabilitabili) ────────────────
+        from GUI import settings_store as _ss
+        usb_act = QAction("🔌 Strumenti USB (reverse engineering)", self)
+        usb_act.setCheckable(True)
+        usb_act.setChecked(_ss.get_usb_tools_enabled())
+        def _toggle_usb(checked):
+            _ss.set_usb_tools_enabled(checked)
+            self.statusBar().showMessage(
+                f"Strumenti USB {'abilitati' if checked else 'disabilitati'} "
+                f"(riavvia il task per applicare)", 4000)
+        usb_act.toggled.connect(_toggle_usb)
+        menu.addAction(usb_act)
+
+        menu.addSeparator()
+
         quit_action = QWidgetAction(self)
         quit_label = QLabel("✕ Esci")
         quit_label.setStyleSheet("color:#dc2626; font-weight:bold; padding:6px 20px;")  # nolint: Azione Esci = rosso di pericolo

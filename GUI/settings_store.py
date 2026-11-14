@@ -225,7 +225,25 @@ def set_close_action(action: str) -> bool:
         return False
 
 
-# ── Zoom interfaccia ─────────────────────────────────────────────────
+# ── Strumenti USB (reverse engineering) ──────────────────────────────
+
+def get_usb_tools_enabled() -> bool:
+    """Ritorna se gli strumenti USB (inspect_usb_devices,
+    capture_usb_traffic) sono abilitati. Default: False (disabilitati)."""
+    try:
+        return bool(load_settings().get("usb_tools_enabled", False))
+    except Exception:
+        return False
+
+
+def set_usb_tools_enabled(enabled: bool) -> bool:
+    """Attiva/disattiva gli strumenti USB (reverse engineering)."""
+    try:
+        s = load_settings()
+        s["usb_tools_enabled"] = bool(enabled)
+        return save_settings(s)
+    except Exception:
+        return False
 
 def get_zoom_level() -> int:
     """Ritorna il livello zoom salvato (percentuale, clampato a 50..200)."""

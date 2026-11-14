@@ -117,7 +117,7 @@ class ToolSet:
 
     def allowed_tools(self) -> set[str]:
         """Tool che il worker può realmente chiamare."""
-        return {
+        tools = {
             "read_file", "read_file_slice", "write_file", "patch_code",
             "delete_file", "move_file", "list_files",
             "run_bash", "search",
@@ -128,6 +128,14 @@ class ToolSet:
             "git_branch", "git_merge", "git_pull", "git_push", "git_remote",
             "run_test_suite", "list_tools",
         }
+        try:
+            from GUI.settings_store import get_usb_tools_enabled
+            if get_usb_tools_enabled():
+                tools.add("inspect_usb_devices")
+                tools.add("capture_usb_traffic")
+        except Exception:
+            pass
+        return tools
 
     # ----- 1. read_file -----
     def read_file(self, path: str) -> str:
