@@ -88,10 +88,9 @@ di inferenza. Vedi conversazione per dettagli.
 - [x] **T15 — Context window pruning**: rimuovere ## PROJECT STATE dopo il primo step
   (il modello lo ha già visto); tenere solo i file modificati in questo task.
   Guadagno: ~0.3KB/step dal 2° step in poi. ✅ IMPLEMENTATO in Cycle 33 (project state solo in initial prompt, non in step prompts).
-- [ ] **T16 — Prompt fisso + delta (architettura ReAct)**: mantenere un "prompt base"
-  (task + rules + tools) solo al primo step; negli step successivi solo delta
-  (observation + thought). Guadagno: ~1.7KB/step × 9 step = ~15KB totali.
-  Rischio: task drift. Mitigazione: re-iniettare il titolo del task ad ogni step.
+- [x] **T16 — Prompt fisso + delta (architettura ReAct)**: prompt fisso completo solo al
+  primo step; step successivi usano system prompt compatto (~0.3KB) + task title
+  re-iniettato per prevenire task drift. Guadagno ~2.5KB/step. ✅ IMPLEMENTATO in Cycle 38.
 - [ ] **T17 — Model-specific prompt tuning**: formati diversi per modelli diversi
   (Qwen: JSON chiavi corte; Llama: markdown strutturato; DeepSeek: chain-of-thought).
   Guadagno: variabile, +20–30% qualità. Rischio: complessità codebase.

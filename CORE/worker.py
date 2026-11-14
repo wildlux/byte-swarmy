@@ -540,7 +540,7 @@ class Worker:
             # Aggiungi al prompt per il prossimo step
             if tool_result.startswith("ERROR:"):
                 prompt = (
-                    f"Last action: {tool_name}({args})\n"
+                    f"Task: {task.get('title', '')[:60]} | Last action: {tool_name}({args})\n"
                     f"Result: ❌ {self._summarize_result(tool_name, tool_result)}\n\n"
                     "The previous tool call failed. Analyze the error and try a different approach. "
                     "Do not repeat the same failing command.\n\n"
@@ -548,7 +548,7 @@ class Worker:
                 )
             else:
                 prompt = (
-                    f"Last action: {tool_name}({args})\n"
+                    f"Task: {task.get('title', '')[:60]} | Last action: {tool_name}({args})\n"
                     f"Result:\n{self._summarize_result(tool_name, tool_result)}\n\n"
                     "Next step (JSON only):"
                 )

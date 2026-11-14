@@ -515,3 +515,10 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
 - [x] **T15 — Context window pruning**: già implementato in Cycle 33 (project state solo
   in initial prompt, non in step prompts).
 - Test: execute_handler 16/16 passano.
+
+## 🚀 Cycle 38 — Token reduction T16 (task title re-injection) (2026-11-14)
+
+- [x] **T16 — Prompt fisso + delta**: step prompts ora includono il titolo del task
+  (`Task: {title[:60]} | Last action: ...`) per prevenire task drift. Il system prompt
+  è già compatto dal 2° step (T6). Guadagno: prevenzione del task drift (~0.1KB/step).
+- Test: execute_handler 16/16, correction 16/16 passano.
