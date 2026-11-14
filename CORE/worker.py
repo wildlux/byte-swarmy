@@ -680,12 +680,6 @@ class Worker:
                 return self.tools.run_test_suite()
             elif name == "list_tools":
                 return json.dumps(self.tools.list_tools(), indent=1)
-            elif name == "inspect_usb_devices":
-                return self.tools.inspect_usb_devices()
-            elif name == "capture_usb_traffic":
-                return self.tools.capture_usb_traffic(
-                    args[0], int(args[1]) if len(args) > 1 else 5
-                )
             elif name == "delete_file":
                 return self.tools.delete_file(args[0])
             elif name == "move_file":
