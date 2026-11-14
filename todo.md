@@ -101,6 +101,39 @@ Ordine consigliato: T10 → T11 → T13 → T15 → T12 → T14 → T16 → T17 
 
 ---
 
+## 🆕 Token reduction (nuove tecniche — avanzate 2, proposte 2026-11-14)
+
+- [x] **T18 — JSON chiavi corte**: `_parse_action()` accetta sia chiavi corte
+  (t/a/d/r) che standard (thought/action/done/result). Guadagno ~50 token/task.
+  ✅ IMPLEMENTATO in Cycle 42.
+- [x] **T19 — Deduplicazione tool call identiche**: `_call_tool` cacha l'ultima
+  tool call (nome + args) e restituisce il risultato cachato se ripetuta.
+  Guadagno: evita round-trip ridondanti. ✅ IMPLEMENTATO in Cycle 42.
+- [ ] **T20 — Prompt pruning per step**: rimuovere le regole già assorbite
+  dal modello dopo il 3° step (es. regole 1-4). Guadagno ~0.1KB/step dal 3°.
+- [ ] **T21 — Early stopping**: fermare la generazione quando il JSON è
+  completo (parsing parziale durante lo streaming). Guadagno 30-60% tempo
+  su step semplici.
+- [ ] **T22 — Compressore LLM del prompt**: passare il prompt a un modello
+  piccolo (1.5B) per comprimerlo prima di inviarlo al worker. Riduzione
+  30-50% token, ma aggiunge latenza. Solo per prompt >2KB.
+- [ ] **T23 — KV cache condiviso tra task simili**: estrarre il template
+  del task (tipo + linguaggio) e cachare il prompt base. Margine (Ollama
+  già gestisce il KV cache del prefisso).
+- [ ] **T24 — Batch tool calls**: permettere al modello di produrre più
+  tool call in un turno (array di azioni). Riduce round-trip 50-70%.
+  Rischio: ordering (write prima, test dopo).
+- [ ] **T25 — Prompt pruning per rilevanza**: score ogni sezione del prompt
+  per rilevanza rispetto al step corrente; rimuovere le sezioni con score
+  basso. Complessità alta.
+- [ ] **T26 — Quantizzazione prompt (llama.cpp)**: quantizzazione Q4 del
+  KV cache. Non controllabile via Ollama. Solo con llama-cpp-python.
+
+Ordine consigliato: T18 → T19 → T20 → T21 → T11/T12 (già in lista) →
+T22 → T24 → T23 → T25 → T26 (ultimo, sforzo alto).
+
+---
+
 ## Fuori scope (per scelta/limiti hardware)
 - Skill worker `pyqt6-graphics` / `pyqt6-network`: fuori scope — il 3B non
   le regge; la GUI si fa a mano o con `pyqt6-basics`.

@@ -555,3 +555,12 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   sotto "🔌 Strumenti USB (reverse engineering)" — checkbox persistente in
   `CONFIG/settings.json`.
 - Test: py_compile OK, smoke OK.
+
+## 🚀 Cycle 42 — Token reduction T18+T19 (2026-11-14)
+
+- [x] **T18 — JSON chiavi corte**: `_parse_action()` accetta sia chiavi corte
+  (t/a/d/r) che standard (thought/action/done/result). Normalizzazione automatica.
+- [x] **T19 — Deduplicazione tool call identiche**: `_call_tool` cacha l'ultima
+  tool call (nome + args) e restituisce il risultato cachato se ripetuta,
+  evitando round-trip ridondanti. Cache invalidata ad ogni tool call diverso.
+- Test: execute_handler 16/16 passano.

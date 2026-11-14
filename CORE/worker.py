@@ -589,6 +589,11 @@ class Worker:
                 continue
 
             tool_result = self._call_tool(tool_name, args)
+            # T19: cache the result for deduplication
+            try:
+                self._last_tool_result = tool_result
+            except Exception:
+                pass
 
             if tool_name == "write_file" and tool_result.startswith("OK:"):
                 wrote_file = True
@@ -910,6 +915,11 @@ class Worker:
                 else:
                     data["action"] = func_name
                     data["args"] = args
+        # T18: normalizza chiavi corte (t/a/d/r) → chiavi standard
+        _keymap = {"t": "thought", "a": "action", "d": "done", "r": "result"}
+        for short, long in _keymap.items():
+            if short in data and long not in data:
+                data[long] = data.pop(short)
         return data
 
     def _call_tool(self, name: str, args: list) -> str:
@@ -925,6 +935,21 @@ class Worker:
         # completi passano invariati grazie a TOOL_CODE_MAP aggiornato).
         if isinstance(name, str):
             name = self.TOOL_CODE_MAP.get(name, name)
+        # T19: deduplicazione tool call identiche — se il modello ripete
+        # la stessa chiamata (nome + args), restituisci il risultato cachato
+        # senza re-eseguire il tool.
+        try:
+            import json as _json
+            _cache_key = (name, _json.dumps(args, sort_keys=True, default=str))
+            if getattr(self, "_last_tool_call", None) == _cache_key:
+                _cached = getattr(self, "_last_tool_result", None)
+                if _cached is not None:
+                    self.log.info(f"[{self.agent_id}] tool dedup: {name} (cached)")
+                    return _cached + " (cached — same call as previous step)"
+            self._last_tool_call = _cache_key
+        except Exception:
+            pass
+        # ... (rest of _call_tool) ...
         if not isinstance(name, str) or name not in self.tools.allowed_tools():
             log_security_event(
                 "unknown_tool",
