@@ -109,11 +109,13 @@ Ordine consigliato: T10 → T11 → T13 → T15 → T12 → T14 → T16 → T17 
 - [x] **T19 — Deduplicazione tool call identiche**: `_call_tool` cacha l'ultima
   tool call (nome + args) e restituisce il risultato cachato se ripetuta.
   Guadagno: evita round-trip ridondanti. ✅ IMPLEMENTATO in Cycle 42.
-- [ ] **T20 — Prompt pruning per step**: rimuovere le regole già assorbite
-  dal modello dopo il 3° step (es. regole 1-4). Guadagno ~0.1KB/step dal 3°.
-- [ ] **T21 — Early stopping**: fermare la generazione quando il JSON è
+- [x] **T20 — Prompt pruning per step**: rimuovere le regole già assorbite
+  dal modello dopo il 3° step (solo "Reply with JSON"). Implementato in
+  `_build_system_compact(step)` — dopo step 3 restituisce un prompt minimale
+  (2 righe). Guadagno ~0.1KB/step dal 3°. ✅ IMPLEMENTATO in Cycle 43.
+- [x] **T21 — Early stopping**: fermare la generazione quando il JSON è
   completo (parsing parziale durante lo streaming). Guadagno 30-60% tempo
-  su step semplici.
+  su step semplici. ✅ IMPLEMENTATO in Cycle 43.
 - [ ] **T22 — Compressore LLM del prompt**: passare il prompt a un modello
   piccolo (1.5B) per comprimerlo prima di inviarlo al worker. Riduzione
   30-50% token, ma aggiunge latenza. Solo per prompt >2KB.

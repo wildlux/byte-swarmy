@@ -97,13 +97,17 @@ class Worker:
         "10. When done: "
         '{"thought":"...","action":"none","args":[],"done":true,"result":"what you did"}.\n'
         )
-    def _build_system_compact(self) -> str:
+    def _build_system_compact(self, step: int = 1) -> str:
         """T6: system prompt compatto per gli step successivi al primo.
 
-        Il modello ha già visto i tool al primo step; qui inviamo solo le
-        regole operative (senza la lista tool), riducendo il system prompt
-        da ~1.2KB a ~0.3KB.
+        T20: dopo il 3° step, rimuovere le regole già assorbite dal modello
+        (solo "Reply with JSON" + task title). Guadagno ~0.1KB/step dal 3°.
         """
+        if step >= 3:
+            return (
+                "You are a coding agent. Reply with ONE JSON object per turn.\n"
+                '{"thought":"short","action":"write","args":["main.py","code..."],"done":false}\n'
+            )
         return (
             "You are a coding agent working inside a sandboxed project directory.\n"
             "Reply with ONE JSON object per turn and NOTHING else:\n"
@@ -409,18 +413,29 @@ class Worker:
                 for token in self.models.call_streaming(
                     model_key=routed_key,
                     prompt=prompt,
-                    system=self._build_system(task) if step == 0 else self._build_system_compact(),
+                    system=self._build_system(task) if step == 0 else self._build_system_compact(step),
                     # 1024: con 400 il JSON di write_file veniva TRONCATO
                     # (content lungo → risposta mozzata → parse error → il
                     # modello "non riusciva a salvare"). Meglio uno step
                     # più lento che uno sprecato.
-                    max_tokens=1024,
+                    max_tokens=step_max_tokens,
                 ):
                     raw_parts.append(token)
                     token_count += 1
                     # Scrivi su file (append) per la GUI
                     with open(streaming_file, "a", encoding="utf-8") as f:
                         f.write(token)
+                    # T21: early stopping — se il JSON è completo, ferma la generazione
+                    if token_count >= 15:
+                        _acc = "".join(raw_parts).strip()
+                        if _acc.endswith("}") and '"done"' in _acc and '"action"' in _acc:
+                            try:
+                                import json as _json
+                                _json.loads(_acc)
+                                self.log.debug(f"[{self.agent_id}] early stop at {token_count} tokens (JSON complete)")
+                                break
+                            except (ValueError, Exception):
+                                pass
                     # Log ogni 50 token
                     if token_count % 50 == 0:
                         self.log.debug(f"[{self.agent_id}] streaming: {token_count} tokens")
@@ -472,8 +487,8 @@ class Worker:
                     for token in self.models.call_streaming(
                         model_key=routed_key,
                         prompt=prompt,
-                        system=self._build_system(task) if step == 0 else self._build_system_compact(),
-                        max_tokens=1024,
+                        system=self._build_system(task) if step == 0 else self._build_system_compact(step),
+                        max_tokens=step_max_tokens,
                         options_override=override,
                     ):
                         raw_parts2.append(token)

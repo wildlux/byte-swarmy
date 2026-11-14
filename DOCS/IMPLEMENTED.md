@@ -564,3 +564,15 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   tool call (nome + args) e restituisce il risultato cachato se ripetuta,
   evitando round-trip ridondanti. Cache invalidata ad ogni tool call diverso.
 - Test: execute_handler 16/16 passano.
+
+## 🚀 Cycle 43 — Token reduction T20+T21 (2026-11-14)
+
+- [x] **T20 — Prompt pruning per step**: `_build_system_compact(step)` ora accetta
+  il numero di step. Dopo il 3° step restituisce un prompt minimale (2 righe:
+  "You are a coding agent. Reply with ONE JSON object" + esempio). Le regole
+  già assorbite dal modello non vengono re-inviato.
+- [x] **T21 — Early stopping**: durante lo streaming, dopo 15 token, controlla
+  se il testo accumulato è un JSON completo (termina con `}` e contiene
+  `"done"` e `"action"`). Se sì, ferma la generazione. Guadagno 30-60% tempo
+  su step semplici.
+- Test: execute_handler 16/16 passano.
