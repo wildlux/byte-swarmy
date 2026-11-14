@@ -1,7 +1,7 @@
 {
   "version": "1.0-byte-swarmy",
   "description": "Intent map per byte-swarmy: 28 intent (20 core + 8 swarm-specific), IT/EN/ZH",
-  "total_intents": 28,
+  "total_intents": 29,
   "languages": ["it", "en", "zh"],
   "intents": [
     {
@@ -234,6 +234,17 @@
         "zh": ["集群状态", "代理状态", "swarm状态"]
       },
       "params": {"detailed": "boolean"}
+    },
+    {
+      "id": "swarm_time",
+      "category": "swarm",
+      "task_type": "generic",
+      "triggers": {
+        "it": ["che ore sono", "che ora è", "che ora e", "ora attuale", "che giorno è", "data di oggi", "che data è", "orario"],
+        "en": ["what time is it", "current time", "what's the time", "today's date", "what date is it"],
+        "zh": ["现在几点", "几点了", "今天几号", "当前时间"]
+      },
+      "params": {}
     },
     {
       "id": "list_tasks",

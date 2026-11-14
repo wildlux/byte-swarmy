@@ -994,6 +994,8 @@ class Orchestrator:
         try:
             if intent == "swarm_status":
                 return self._cmd_swarm_status()
+            elif intent == "swarm_time":
+                return self._cmd_swarm_time()
             elif intent == "list_tasks":
                 return self._cmd_list_tasks()
             elif intent == "show_logs":
@@ -1037,7 +1039,15 @@ class Orchestrator:
         ]
         return "\n".join(lines)
 
-    def _cmd_list_tasks(self) -> str:
+    def _cmd_swarm_time(self) -> str:
+        """Risponde a 'che ore sono / data' senza LLM (swarm command diretto)."""
+        from datetime import datetime
+        now = datetime.now()
+        giorni = ["lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"]
+        mesi = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno",
+                "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"]
+        return (f"🕐 {now.strftime('%H:%M:%S')}\n"
+                f"📅 {giorni[now.weekday()]} {now.day} {mesi[now.month-1]} {now.year}")
         """Lista tutti i task nella coda."""
         tasks = self.queue.get_all_tasks()
         if not tasks:
@@ -1170,6 +1180,7 @@ class Orchestrator:
             swarm_intents = {
                 "swarm_status", "list_tasks", "show_logs", "pause_swarm",
                 "resume_swarm", "inspect_memory", "cancel_task", "run_audit",
+                "swarm_time",
             }
             return intent if intent in swarm_intents else None
         except (json.JSONDecodeError, TypeError):
