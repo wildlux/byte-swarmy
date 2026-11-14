@@ -491,3 +491,11 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   (solo regole, senza lista tool). Selezione via `step == 0` nel loop ReAct.
   Guadagno ~2.5KB/step (system prompt non re-inviato).
 - Test: execute_handler 16/16, correction 16/16 passano.
+
+## 🚀 Cycle 36 — Token reduction T8 (formato JSON compatto) (2026-11-14)
+
+- [x] **T8 — Formato JSON compatto**: `_build_initial_prompt()` in `CORE/worker.py`
+  passa da markdown multi-riga (`## TASK\n...\n\n## DESCRIPTION\n...`) a formato
+  compatto (`TASK: ... | DESC: ... | STATE: ... | CTX: ... | RULES: ... | SKILL: ...`).
+  Guadagno ~0.2KB/step.
+- Test: execute_handler 16/16, correction 16/16 passano.

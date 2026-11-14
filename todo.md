@@ -54,10 +54,10 @@ guadagno 50–60%, senza perdita di funzionalità). Vedi conversazione per detta
   list=list_files, usb=inspect_usb_devices, capture=capture_usb_traffic).
   Guardia: se il modello usa il nome completo, funziona comunque (fallback).
   Guadagno ~0.3KB/step prompt + ~0.1KB/step risposta. ✅ IMPLEMENTATO in Cycle 33.
-- [ ] **T8 — Formato JSON compatto**: `TASK: ... | DESC: ... | RULES: ...`
-  invece di markdown multi-riga. Guadagno ~0.2KB/step.
+- [x] **T8 — Formato JSON compatto**: `TASK: ... | DESC: ... | RULES: ...`
+  invece di markdown multi-riga. Guadagno ~0.2KB/step. ✅ IMPLEMENTATO in Cycle 36.
 
-Ordine consigliato: T1 → T2 → T4 → T5 → T9 → T3 → T7 → T8 → T6 (ultimo, sforzo alto).
+Ordine consigliato: T1 → T2 → T4 → T5 → T9 → T3 → T7 → T8 → T6 (ultimo, sforzo alto) — TUTTI IMPLEMENTATI tranne T6.
 
 ---
 

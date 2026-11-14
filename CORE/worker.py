@@ -697,18 +697,12 @@ class Worker:
             skill_block = ""  # fail-open: mai bloccare il worker per le skill
 
         return (
-            f"## TASK\n{task.get('title', '')}\n\n"
-            f"## DESCRIPTION\n{task.get('description', '')}\n\n"
-            f"## PROJECT STATE\n{self._project_state()}\n\n"
-            f"## PERSISTENT CONTEXT\n{persistent_context}\n\n"
-            f"## RULES\n{Planner.WORKER_CONSTRAINTS}\n\n"
-            f"{skill_block}"
-            "PLAN (follow strictly):\n"
-            "1. write_file(path, content) to CREATE the file with the requested code\n"
-            "2. read_file(path) or lint_code(path) ONLY to VERIFY what you wrote\n"
-            "3. done=true with a short result\n\n"
+            f"TASK: {task.get('title', '')} | DESC: {task.get('description', '')} | "
+            f"STATE: {self._project_state()} | CTX: {persistent_context} | "
+            f"RULES: {Planner.WORKER_CONSTRAINTS} | SKILL: {skill_block}\n"
+            "PLAN: 1.write_file 2.read/lint verify 3.done=true\n"
             f"{correction_block}"
-            "First step (JSON only, format: {action: \"write_file\", args: [\"project/main.py\", \"code...\"], done: false}):"
+            "First step (JSON only):"
         )
 
     def _project_state(self) -> str:
