@@ -332,3 +332,13 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   scorciatoie globali (Backspace→Plancia, "/"→campo comando, ESC→credits)
   non funzionavano mai. Aggiunti import (`QEvent` top-level, `QApplication`
   nel try). Test keys: 6/6 passano (prima 3/6).
+
+## 🚀 Cycle 26 — UI Redesign (parziale): Live Activity in alto (2026-11-14)
+
+- [x] **Live Activity in alto**: aggiunta barra sottile sopra la toolbar
+  (`live_activity_bar` + `live_activity_label`) che mostra l'ultimo token
+  prodotto dal worker (polling 500ms su `state/streaming.txt`), con fallback
+  "In attesa di un task…". Il menu hamburger (☰) esisteva già
+  (`_show_context_menu`).
+- [ ] **UI Redesign completo** (menu hamburger avanzato, riorganizzazione
+  pannelli) resta aperto — questo ciclo copre solo la barra Live Activity.

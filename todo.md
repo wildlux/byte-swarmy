@@ -15,10 +15,10 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
 ## Aperti
 
 ### GUI / UX
+- [ ] **UI Redesign (parziale)** — Live Activity bar aggiunta in alto; resta menu hamburger avanzato / riorganizzazione pannelli.
 - [ ] **FM14 — Coda unica GUI→SQLite**: la coda task vive solo in SQLite
   (stato condiviso GUI/orchestratore), niente code in memoria da tenere
   in sync.
-- [ ] **UI Redesign** — menu hamburger, Live Activity in alto.
 
 ### Responsive
 - [ ] **T-R3** — `_force_content_size`: `setFixedHeight(300)` triplo →
