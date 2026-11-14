@@ -442,3 +442,11 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   + "Indietro alla Plancia". Live Activity bar già presente in alto
   (Cycle 26). Nessun test rotto (smoke OK).
   `todo.md` ora è vuoto di item aperti.
+
+## 🚀 Cycle 32 — swarm_time: "che ore sono" senza LLM (2026-11-14)
+
+- [x] Aggiunto intent `swarm_time` (IT/EN/ZH) e comando swarm diretto
+  `_cmd_swarm_time()` che restituisce ora + data senza invocare alcun
+  modello (il router classifica "che ore sono" con conf 130, sopra
+  soglia 75). Risolve il caso "si perde su domande semplici come
+  l'ora": ora è un swarm command istantaneo, zero token.
