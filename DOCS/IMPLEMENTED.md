@@ -465,3 +465,11 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   Prompt esponi solo codici (`read`, `write`, `patch`, `bash`, ecc.).
 - Test: execute_handler 16/16, correction 16/16, skill_proposer passano.
 - Prompt worker: da ~4–5KB a ~2–2.5KB per step (guadagno ~50%).
+
+## 🚀 Cycle 34 — Token reduction T1 (tool list dinamica) (2026-11-14)
+
+- [x] **T1 — Tool list dinamica per tipo task**: aggiunto `_classify_task_tools(task)`
+  e `_build_system(task)` in `CORE/worker.py`. Il prompt SYSTEM viene ora
+  costruito per ogni task, esponendo solo i tool rilevanti (creazione → 12
+  tool core; refactoring → 24; analisi → 26; git → 18; usb → 14; default → 26).
+  Prompt da ~2.5KB a ~1.2KB per step. Test: execute_handler 16/16 passano.

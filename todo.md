@@ -26,9 +26,9 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
 Priorità 1–8 per ridurre il prompt del worker di Byte-Swarmy (~4–5KB → ~1.5–2KB/step,
 guadagno 50–60%, senza perdita di funzionalità). Vedi conversazione per dettagli.
 
-- [ ] **T1 — Tool list dinamica per tipo task**: mostra solo i tool rilevanti
+- [x] **T1 — Tool list dinamica per tipo task**: mostra solo i tool rilevanti
   (creazione → write_file/read_file/lint/run_test; refactoring → patch/rename/extract/find_refs;
-  analisi → analyze_*/search; git → git_*). Guadagno ~1.1KB/step.
+  analisi → analyze_*/search; git → git_*). Guadagno ~1.1KB/step. ✅ IMPLEMENTATO in Cycle 34.
 - [x] **T2 — Regole compatte**: comprimi le 10 regole del worker da ~1KB a ~0.3KB.
   Guadagno ~0.7KB/step. ✅ IMPLEMENTATO in Cycle 33.
 - [ ] **T3 — Project state on-demand**: chiamare `_project_state()` solo al primo step,
