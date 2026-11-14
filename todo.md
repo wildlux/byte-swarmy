@@ -44,10 +44,19 @@ guadagno 50–60%, senza perdita di funzionalità). Vedi conversazione per detta
 - [ ] **T7 — Persistent context lazy**: cachare per la durata del task; ridurre da
   15 file a 8, 5 errori a 3, 5 task a 3; omettere se task "semplice".
   Guadagno ~0.3KB/step.
-- [ ] **T8 — Formato JSON compatto**: `TASK: ... | DESC: ... | RULES: ...`
-  invece di markdown multi-riga. Guadagno ~0.2KB/step.
+- [ ] **T9 — Codici tool a prefisso naturale**: abbreviare i nomi tool con
+  prefissi che il modello già conosce come completamento del nome completo
+  (read=read_file, write=write_file, patch=patch_code, commit=git_commit,
+  bash=run_bash, search=search, status=git_status, diff=git_diff, log=git_log,
+  branch=git_branch, merge=git_merge, lint=lint_code, test=run_test_suite,
+  analyze=analyze_project, refs=find_references, complex=analyze_complexity,
+  graph=get_call_graph, extract=extract_method, rename=rename_symbol,
+  read_slice=read_file_slice, delete=delete_file, move=move_file,
+  list=list_files, usb=inspect_usb_devices, capture=capture_usb_traffic).
+  Guardia: se il modello usa il nome completo, funziona comunque (fallback).
+  Guadagno ~0.3KB/step prompt + ~0.1KB/step risposta.
 
-Ordine consigliato: T1 → T2 → T4 → T5 → T3 → T7 → T8 → T6 (ultimo, sforzo alto).
+Ordine consigliato: T1 → T2 → T4 → T5 → T9 → T3 → T7 → T8 → T6 (ultimo, sforzo alto).
 
 ---
 
