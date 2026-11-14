@@ -379,3 +379,35 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   SIGINT + suite completa) e ora vive come checklist permanente in
   `AGENT.md` ("Checklist pre-commit / pre-release"). Rimossa da todo.md:
   è un processo ricorrente, non un task one-shot.
+
+## 🚀 Cycle 28 — FM14: coda unica GUI→SQLite (2026-11-14)
+
+- [x] **FM14 — Coda unica GUI→SQLite**: la coda task vive SOLO in SQLite
+  (`tasks/queue.db`, schema e implementazione condivisi con l'orchestratore
+  tramite `CORE/task_queue.py:TaskQueue`). Eliminato il mirror `queue.json`
+  (coda in memoria da tenere in sync). Cambiamenti:
+  - `CORE/task_queue.py`: +`list_scoped`, `get_by_id`, `upsert_task`,
+    `delete_by_id`, `delete_children`, `reset_task`, `cleanup_done` (scope
+    progetto/globale, id univoci globali).
+  - `GUI/task_queue.py`: riscritto — tutte le operazioni sulla coda
+    delegano a `TaskQueue`; migrazione una-tantum dei vecchi
+    `queue.json` (globale + per-progetto) → righe con `project_path`
+    corretto, file rinominati `.json.migrated` (backup), marker
+    `.fm14_migrated`. API pubblica invariata (`load_tasks`, `save_tasks`,
+    `add_task`, `delete_task`, `reset_task`, `force_rerun_task`,
+    `cleanup_done_tasks`, `delete_subtasks`).
+  - `GUI/gui_backend.py`: `add_task_to_db` scrive solo il DB (rimosso il
+    mirror JSON).
+  - `GUI/file_tree_drawer.py`: `_show_task_details` semplificato (DB unica
+    fonte; fallback SQL solo per task fuori scope progetto).
+  - `GUI/task_scheduler_panel.py`: fix typo `task.get("id")` → `t.get("id")`
+    nel lookup del context-menu (modifica).
+  - Test: `test_crud_file_manager.py`, `test_task_scheduler_project_path.py`
+    riscritti per il modello DB (isolamento tramite `_TASKS_DIR` hook);
+    8 test passano.
+- [x] **R1 — Boot reale ripristinato**: `CORE/orchestrator.py` non
+  bootava (`__main__`): `_OUT`, `LifecycleManager`, `SystemMonitor`,
+  `TaskDispatcher`, `AuditWorker.decision_client` erano referenziati ma
+  non importati (regressione silente). Fix import + `decision_client =
+  generic_planner._call_decision_model`. Boot verificato: orchestratore
+  parte, scheduler/timestral partono, shutdown pulito su SIGTERM.
