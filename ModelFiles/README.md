@@ -23,8 +23,10 @@ ollama create qwen3.5-4k-gpu -f ./ModelFiles/Modelfile-qwen4k
 
 ## Aggiungere una nuova variante
 
-1. Crea un file `Modelfile-<nome>` in questa cartella.
-2. Usa `FROM <modello-base>` e imposta i parametri con `PARAMETER`.
+1. Manuale: crea un file `Modelfile-<nome>` in questa cartella (vedi esempi).
+2. Automatico: `python tools/sync_modelfiles.py --dry-run` mostra i modelli
+   senza variante; `python tools/sync_modelfiles.py` genera `Modelfile-auto-*`
+   per ognuno; `python tools/sync_modelfiles.py --create` li registra in Ollama.
 3. Registra con `ollama create <nome> -f ./ModelFiles/Modelfile-<nome>`.
 4. Aggiorna la tabella sopra.
 5. Aggiungi il modello al blocco `models` in `~/.config/opencode/opencode.json`.
