@@ -127,7 +127,6 @@ class ToolSet:
             "git_commit", "git_diff", "git_status", "git_log",
             "git_branch", "git_merge", "git_pull", "git_push", "git_remote",
             "run_test_suite", "list_tools",
-            "inspect_usb_devices", "capture_usb_traffic",
         }
 
     # ----- 1. read_file -----
@@ -601,8 +600,6 @@ class ToolSet:
             "git_remote": "git_remote(action='list') -> str (add/remove disabilitati)",
             "run_test_suite": "run_test_suite() -> str: esegue i test del progetto",
             "list_tools": "list_tools() -> str: elenca i tool disponibili con le loro firme",
-            "inspect_usb_devices": "inspect_usb_devices() -> str: elenca i dispositivi USB visibili",
-            "capture_usb_traffic": "capture_usb_traffic(bus, duration=5) -> str: cattura traffico USB per N secondi",
         }
 
     # ------------------------------------------------------------------

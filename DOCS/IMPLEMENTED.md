@@ -533,3 +533,14 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   - Qwen/mistral/granite/other: compact (default)
   Cache key include la famiglia (prompt diversi per famiglia).
 - Test: execute_handler 16/16 passano.
+
+## 🚀 Cycle 40 — Disabilitazione strumenti USB (2026-11-14)
+
+- [x] **USB tools disabilitati**: `inspect_usb_devices` e `capture_usb_traffic`
+  rimossi da `allowed_tools()` in `CORE/tools.py` e dalla lista tool esposta
+  al worker in `CORE/worker.py` (T1: tool list dinamica). `_call_tool`
+  restituisce "ERROR: tool disabilitato" se chiamati. Nessuna skill USB
+  presente in `SKILLS/`. I moduli `CORE/usb_protocol.py`,
+  `CORE/usb_differential.py` e i test restano (codice di analisi, non
+  strumenti attivi del worker). Riabilitazione futura: rimuovere il guard
+  in `_call_tool` e aggiungere i tool a `allowed_tools()` + `tool_lines`.

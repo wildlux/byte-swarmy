@@ -145,8 +145,6 @@ class Worker:
         "git_log": "git_log",
         "git_branch": "git_branch",
         "git_merge": "git_merge",
-        "usb": "inspect_usb_devices",
-        "capture": "capture_usb_traffic",
         "list_tools": "list_tools",
     }
     # Nomi completi accettati come fallback (guardia)
@@ -180,7 +178,7 @@ class Worker:
         git = {"git_status", "git_diff", "git_commit", "git_log",
                "git_branch", "git_merge"}
         analysis = {"analyze", "refs", "complex", "graph", "extract", "rename"}
-        usb = {"usb", "capture"}
+        usb = set()  # DISABILITATO: USB reverse engineering fuori scope per ora
 
         # Classificazione per keyword
         if any(k in text for k in ("git", "commit", "branch", "merge", "pull", "push")):
@@ -190,12 +188,12 @@ class Worker:
                                     "struttura", "complessità")):
             return core | analysis | git
         if any(k in text for k in ("usb", "device", "hardware", "periferica")):
-            return core | usb
+            return core  # USB disabilitato: solo core
         if any(k in text for k in ("crea", "create", "write", "implement", "script",
                                     "programma", "funzione", "classe", "modulo")):
             return core  # creazione: solo core (no git/analysis/usb)
-        # Default: tutti i tool (fallback sicuro)
-        return core | git | analysis | usb
+        # Default: tutti i tool (fallback sicuro, senza usb)
+        return core | git | analysis
 
     # Cache dei system prompt per tipo task (T10): evita di ricostruire
     # la stringa (e permette a Ollama di riutilizzare il KV cache del prefisso).
@@ -263,8 +261,6 @@ class Worker:
             "git_log": "  git_log(n)",
             "git_branch": "  git_branch(action,name)",
             "git_merge": "  git_merge(branch)",
-            "usb": "  usb=inspect_usb_devices()",
-            "capture": "  capture=capture_usb_traffic(bus,dur)",
             "list_tools": "  list_tools()  # se dubbi",
         }
         tools_str = "\n".join(
@@ -605,6 +601,9 @@ class Worker:
         return data
 
     def _call_tool(self, name: str, args: list) -> str:
+        # USB tools disabilitati (reverse engineering fuori scope per ora)
+        if name in ("inspect_usb_devices", "capture_usb_traffic", "usb", "capture"):
+            return "ERROR: tool disabilitato. Gli strumenti USB (inspect_usb_devices, capture_usb_traffic) non sono disponibili in questa versione."
         # T9: normalizza codici brevi → nomi tool completi (guardia: nomi
         # completi passano invariati grazie a TOOL_CODE_MAP aggiornato).
         if isinstance(name, str):
