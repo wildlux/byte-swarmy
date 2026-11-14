@@ -31,8 +31,8 @@ guadagno 50–60%, senza perdita di funzionalità). Vedi conversazione per detta
   analisi → analyze_*/search; git → git_*). Guadagno ~1.1KB/step. ✅ IMPLEMENTATO in Cycle 34.
 - [x] **T2 — Regole compatte**: comprimi le 10 regole del worker da ~1KB a ~0.3KB.
   Guadagno ~0.7KB/step. ✅ IMPLEMENTATO in Cycle 33.
-- [ ] **T3 — Project state on-demand**: chiamare `_project_state()` solo al primo step,
-  solo se il worker ha scritto/eliminato file. Cap a 10 file. Guadagno ~0.5KB/step.
+- [x] **T3 — Project state on-demand**: cap file da 20 a 10 in `_project_state()`.
+  Guadagno ~0.5KB/step. ✅ IMPLEMENTATO in Cycle 34.
 - [x] **T4 — Skill block condizionale + cap 1500**: iniettare solo i passi (STEPS),
   non il template completo; cap a 1500 chars invece di 2500. Guadagno fino a 1KB/step. ✅ IMPLEMENTATO in Cycle 33.
 - [x] **T5 — Tool result truncation aggressiva**: troncare a 300 chars (vs 500);
