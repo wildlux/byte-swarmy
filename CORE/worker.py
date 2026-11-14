@@ -338,6 +338,302 @@ class Worker:
         self._system_prompt_cache[cache_key] = _cached_result
         return _cached_result
 
+    def execute(self, task: dict) -> str:
+        """Esegue un task. Ritorna il risultato testuale."""
+        self.tools.set_worker(self.agent_id)
+        # 🆕 Fix: reset completo memoria per evitare eredità da task precedenti
+        try:
+            if hasattr(self.memory, 'events'):
+                self.memory.events = []
+            if hasattr(self.memory, 'long_term'):
+                self.memory.long_term = []
+            if hasattr(self.memory, 'reset_short_term'):
+                self.memory.reset_short_term()
+        except Exception:
+            pass
+        self.memory.add_event({
+            "type": "task_start",
+            "content": f"{task.get('title', '')}: {task.get('description', '')[:200]}",
+        })
+
+        # 🆕 Modalità diretta (senza tool): la skill sostituisce il loop
+        # ReAct. Attiva se l'attore LLM (CONFIG/actors.json) o il modello
+        # (CONFIG/config.toml [models.*]) hanno no_tools=true.
+        if self._direct_mode_enabled():
+            return self._execute_direct(task)
+
+        # 🆕 M9 — Routing anche in ReAct: stesso meccanismo di run_direct
+        # (complessità MAX(keyword, impatto dal grafo) + isteresi M7 +
+        # guardia termica M4). Decide QUALE modello esegue il loop ReAct:
+        # task ALTA + heavy installato + non in zona pausa termica →
+        # worker_granite, altrimenti resta sul base. Fail-open totale:
+        # se qualcosa manca resta self.model_key. Il routing è attivo
+        # SOLO con ModelClient reale (CLI/GUI); client finti (test) lo
+        # disattivano per mantenere i test deterministici.
+        routed_key, _route_level, route_reason = self._route_model_key(task)
+        if route_reason:
+            self.log.info(f"[{self.agent_id}] [routing] {route_reason}")
+            self.memory.add_event({
+                "type": "routing_decision",
+                "content": route_reason,
+                "model": routed_key,
+                "base_model": self.model_key,
+            })
+
+        is_tdd_required = False  # TDD disabilitato
+        tdd_verified = True
+
+        context = self.memory.build_context(max_tokens=800)
+        prompt = self._build_initial_prompt(task, context)
+
+        wrote_file = False
+        last_tool_result = ""
+        self.last_code = ""      # ultimo codice scritto (feedback loop T2)
+        # --- CIRCUIT BREAKER STATE ---
+        repeated_actions = {}
+
+        for step in range(self.MAX_STEPS):
+            self.memory.heartbeat()
+            self.log.info(f"[{self.agent_id}] step {step+1}/{self.MAX_STEPS}")
+
+            try:
+                # 🆕 Streaming: raccogli token e scrivi su file per la GUI
+                streaming_file = Path("state/streaming.txt")
+                streaming_file.parent.mkdir(parents=True, exist_ok=True)
+                streaming_file.write_text("")  # reset all'inizio di ogni call
+
+                raw_parts = []
+                token_count = 0
+                for token in self.models.call_streaming(
+                    model_key=routed_key,
+                    prompt=prompt,
+                    system=self._build_system(task) if step == 0 else self._build_system_compact(),
+                    # 1024: con 400 il JSON di write_file veniva TRONCATO
+                    # (content lungo → risposta mozzata → parse error → il
+                    # modello "non riusciva a salvare"). Meglio uno step
+                    # più lento che uno sprecato.
+                    max_tokens=1024,
+                ):
+                    raw_parts.append(token)
+                    token_count += 1
+                    # Scrivi su file (append) per la GUI
+                    with open(streaming_file, "a", encoding="utf-8") as f:
+                        f.write(token)
+                    # Log ogni 50 token
+                    if token_count % 50 == 0:
+                        self.log.debug(f"[{self.agent_id}] streaming: {token_count} tokens")
+
+                raw = "".join(raw_parts)
+                self.log.debug(f"[{self.agent_id}] streaming done: {token_count} tokens total")
+
+                # 🆕 Rilevamento loop nell'output del modello (n-grammi
+                # ripetuti o alto rapporto di compressione). Se rilevato,
+                # il tentativo conta come fallito e si applica il fallback:
+                # nuovo seed, temperatura +0.1, penalità +0.05.
+                loop_reason = detect_loop(raw)
+                if loop_reason:
+                    self.log.warning(
+                        f"[{self.agent_id}] loop rilevato nello step {step+1}: {loop_reason}"
+                    )
+                    base_opts = self.models._get_tuned_options(
+                        self.model_key,
+                        self.models.models_cfg[self.model_key],
+                        1024,
+                    )
+                    override = dict(base_opts)
+                    try:
+                        override["seed"] = (
+                            int(override.get("seed", 42)) + 1
+                        ) % (2 ** 31)
+                    except (TypeError, ValueError):
+                        override["seed"] = 43
+                    try:
+                        override["temperature"] = min(
+                            0.9, float(override.get("temperature", 0.1)) + 0.1
+                        )
+                    except (TypeError, ValueError):
+                        override["temperature"] = 0.2
+                    try:
+                        override["repeat_penalty"] = min(
+                            1.5,
+                            float(override.get("repeat_penalty", 1.15)) + 0.05,
+                        )
+                    except (TypeError, ValueError):
+                        override["repeat_penalty"] = 1.2
+
+                    self.log.info(
+                        f"[{self.agent_id}] fallback loop: seed={override['seed']} "
+                        f"temp={override['temperature']:.2f} "
+                        f"penalty={override['repeat_penalty']:.2f}"
+                    )
+                    raw_parts2 = []
+                    for token in self.models.call_streaming(
+                        model_key=routed_key,
+                        prompt=prompt,
+                        system=self._build_system(task) if step == 0 else self._build_system_compact(),
+                        max_tokens=1024,
+                        options_override=override,
+                    ):
+                        raw_parts2.append(token)
+                    raw = "".join(raw_parts2)
+                    # Se il loop persiste dopo il fallback, interrompi
+                    if detect_loop(raw):
+                        self.log.error(
+                            f"[{self.agent_id}] loop persistente dopo fallback"
+                        )
+                        return f"ERROR: loop persistente ({loop_reason})"
+
+            except Exception as e:
+                self.log.error(f"[{self.agent_id}] model call failed: {e}")
+                return f"ERROR: model unavailable: {e}"
+
+            action = self._parse_action(raw)
+            if not action:
+                self.memory.add_event({"type": "parse_error", "content": raw[:300]})
+                prompt = (
+                    "ERROR: the reply was not valid JSON. "
+                    "Reply with ONE JSON object, no text before or after it.\n"
+                    'Format: {"thought": "...", "action": "tool_name", '
+                    '"args": [...], "done": false}\n\n'
+                    "Try again now:"
+                )
+                continue
+
+            self.memory.add_event({"type": "thought", "content": action.get("thought", "")[:200]})
+            self.log.info(f"[{self.agent_id}] thought: {action.get('thought', '')[:200]}")
+
+            if action.get("done"):
+                # --- TDD VERIFICATION (disabilitato per modelli piccoli) ---
+                # TDD check disabilitato (opzionale): era troppo restrittivo per phi3:mini.
+                # Il worker può dichiarare done=true senza dover prima scrivere test falliti.
+                # L'auditor comunque verificherà la qualità.
+                if False:  # was: is_tdd_required and not tdd_verified
+                    pass  # no-op
+
+                # --- QUALITY CONTROL ---
+                # None = la suite non e mai stata eseguita in questo task.
+                # Si rifiuta il done solo se la suite e stata eseguita e non e passata.
+                history = self.memory.get_history()
+                test_passed = None
+                for event in reversed(history):
+                    if event.get("type") == "tool_result" and "run_test_suite" in event.get("content", ""):
+                        c = event["content"]
+                        test_passed = (
+                            "TUTTO OK" in c
+                            or "all tests passed" in c.lower()
+                            or ("FAIL: 0" in c and "ERR: 0" in c)
+                        )
+                        break
+
+                if test_passed is False:
+                    # Quality check rilassato: solo warning, non blocca done=true.
+                    # L'auditor comunque verificherà la qualità del codice.
+                    self.log.info(f"[{self.agent_id}] task marked done without passing tests (warning only).")
+
+                result = action.get("result", "(no result)")
+                self.memory.add_event({"type": "task_done", "content": result[:200]})
+                # 🆕 Registra task completato nella memoria persistente
+                try:
+                    record_task_completed(
+                        task_id=task.get("id", "?"),
+                        title=task.get("title", ""),
+                        result=result,
+                    )
+                    # Aggiorna lista file esistenti
+                    update_project_context()
+                except Exception:
+                    pass
+                return result
+
+            # Esegui il tool
+            tool_name = action.get("action")
+            args = action.get("args", [])
+
+            # Envelope "tool(...)": alcuni modelli copiano il vecchio template
+            # del prompt e mettono il nome del tool reale in args[0].
+            # Es: {"action":"tool","args":["analyze_project"]} -> analyze_project()
+            if (isinstance(tool_name, str)
+                    and tool_name in ("tool", "run_tool")
+                    and args and isinstance(args[0], str)
+                    and args[0] in self.tools.allowed_tools()):
+                tool_name = args[0]
+                args = list(args[1:])
+                self.log.info(
+                    f"[{self.agent_id}] unwrap tool envelope -> {tool_name}")
+
+            # Piccoli modelli che "non salvano": emettono tool(path, codice)
+            # invece di write_file(path, codice). Se il primo argomento è un
+            # path e c'è il contenuto → write_file (il gate AST resta attivo).
+            if (isinstance(tool_name, str)
+                    and tool_name not in self.tools.allowed_tools()
+                    and len(args) == 2
+                    and all(isinstance(a, str) for a in args)
+                    and _looks_like_file_path(args[0])):
+                self.log.info(
+                    f"[{self.agent_id}] envelope (path, content) -> write_file")
+                tool_name, args = "write_file", list(args)
+
+            # --- CIRCUIT BREAKER CHECK ---
+            action_key = f"{tool_name}:{json.dumps(args)}"
+            repeated_actions[action_key] = repeated_actions.get(action_key, 0) + 1
+            if repeated_actions[action_key] >= 3:
+                self.log.warning(f"[{self.agent_id}] CIRCUIT BREAKER: Action {tool_name} repeated 3x with same args. Forcing pivot.")
+                prompt = (
+                    f"ERROR: you tried {tool_name}({args}) 3 times with the same result. "
+                    "The system blocked this action. ANALYZE why it fails and change approach completely. "
+                    "Do not repeat the action.\n\n"
+                    "Next step (JSON only):"
+                )
+                continue
+
+            tool_result = self._call_tool(tool_name, args)
+
+            if tool_name == "write_file" and tool_result.startswith("OK:"):
+                wrote_file = True
+                # memoria per il feedback loop T2 (prompt di correzione)
+                if args and len(args) > 1:
+                    self.last_code = str(args[1])[:2000]
+            last_tool_result = tool_result
+
+            self.memory.add_event({
+                "type": "tool_result",
+                "content": f"{tool_name}({args}) -> {tool_result[:200]}",
+            })
+            self.log.info(f"[{self.agent_id}] tool {tool_name}({args[:1] if args else ''}) -> {tool_result[:120]}")
+
+            # Track TDD progress
+            if tool_name == "run_test_suite" and "FAILED" in tool_result.upper():
+                tdd_verified = True
+
+            # Aggiungi al prompt per il prossimo step
+            if tool_result.startswith("ERROR:"):
+                prompt = (
+                    f"Last action: {tool_name}({args})\n"
+                    f"Result: ❌ {tool_result[:300]}\n\n"
+                    "The previous tool call failed. Analyze the error and try a different approach. "
+                    "Do not repeat the same failing command.\n\n"
+                    "Next step (JSON only):"
+                )
+            else:
+                prompt = (
+                    f"Last action: {tool_name}({args})\n"
+                    f"Result:\n{tool_result[:300]}\n\n"
+                    "Next step (JSON only):"
+                )
+
+        # FALLBACK: se abbiamo scritto almeno un file con successo, consideriamo done
+        if wrote_file:
+            self.log.info(f"[{self.agent_id}] max steps reached but file was written, declaring done")
+            self.memory.add_event({"type": "fallback_done", "content": "file written but no explicit done"})
+            return f"COMPLETED (fallback): file scritto. Ultimo risultato tool: {last_tool_result[:200]}"
+
+        self.memory.add_event({"type": "max_steps_reached"})
+        return "ERROR: max steps reached without completion"
+
+
+
+
+
     def _direct_mode_enabled(self) -> bool:
         """True se questo worker deve girare in modalità DIRETTA (senza tool).
 
