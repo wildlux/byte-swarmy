@@ -372,3 +372,10 @@ UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protoc
   **Aggiunto in questo ciclo**: l'utente dedicato viene iscritto al
   gruppo `usbmon` (se presente) → automazioni usbmon/tshark girano
   davvero sotto utente non-root dedicato (chiude il combo dell'item todo).
+
+- [x] **R1 — Igiene rigenerazione** (recupero): la pratica è già registrata
+  come completata nel vecchio IMPLEMENTED.md (py_compile su tutto l'albero
+  live + boot reale `python -m CORE.orchestrator CONFIG/config.toml` con
+  SIGINT + suite completa) e ora vive come checklist permanente in
+  `AGENT.md` ("Checklist pre-commit / pre-release"). Rimossa da todo.md:
+  è un processo ricorrente, non un task one-shot.

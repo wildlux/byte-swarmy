@@ -30,10 +30,6 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
   sopra "Plancia di controllo" (header sezione spinto giù). Riscontrato
   nell'audit offscreen; l'utente non lo ha scelto per ora.
 
-### Qualità / igiene
-- [ ] **R1 — Igiene rigenerazione**: per modifiche a `orchestrator.py` /
-  `tools.py`: `py_compile` + boot reale sotto watchdog + suite completa.
-
 ---
 
 ## Fuori scope (per scelta/limiti hardware)
