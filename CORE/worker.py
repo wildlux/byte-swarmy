@@ -85,7 +85,6 @@ class Worker:
         "  lint=lint_code(path)\n"
         "  git_status  git_diff(rev)  git_commit(msg)  git_log(n)\n"
         "  git_branch(action,name)  git_merge(branch)\n"
-        "  usb=inspect_usb_devices()  capture=capture_usb_traffic(bus,dur)\n"
         "  list_tools()  # se dubbi\n\n"
         "RULES (compact):\n"
         "1. Paths in project/. 2. One cmd per bash, no pipes/&&/$().\n"
