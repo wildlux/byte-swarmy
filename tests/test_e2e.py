@@ -58,7 +58,21 @@ class TestE2ETaskExecution(unittest.TestCase):
                 raise unittest.SkipTest(
                     "orchestratore non in esecuzione (pid file stantio): "
                     "avia con ./byte-swarm.sh start per eseguire i test E2E")
-        except ValueError:
+            # Guardia anti pid-reuse (stessa semantica di byte-swarm.sh):
+            # il pid file contiene il pid del WATCHDOG (lanciatore), quindi
+            # accettiamo solo processi il cui cmdline è davvero
+            # orchestratore/watchdog. Senza questa guardia un pid riutilizzato
+            # da un processo qualsiasi (es. SAFETY.watchdog orfano o un editor)
+            # fa scattare l'E2E contro il sistema vivo dell'utente.
+            try:
+                cmdline = Path(f"/proc/{pid}/cmdline").read_bytes().replace(
+                    b"\0", b" ").decode("utf-8", "ignore")
+            except Exception:
+                cmdline = ""
+            if "orchestrator" not in cmdline and "watchdog" not in cmdline:
+                raise unittest.SkipTest(
+                    f"pid {pid} non è un orchestratore/watchdog (pid riusato): E2E skip")
+        except (ValueError, OSError):
             raise unittest.SkipTest("orchestratore non in esecuzione (pid file assente)")
 
         # NON distruttivo: salva i task dell'utente prima di pulire la coda

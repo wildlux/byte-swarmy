@@ -4,6 +4,7 @@ Monitora l'orchestratore e lo riavvia istantaneamente in caso di crash.
 """
 
 from __future__ import annotations
+import signal
 import subprocess
 import time
 import sys
@@ -14,6 +15,34 @@ from pathlib import Path
 ORCHESTRATOR_CMD = [sys.executable, "-m", "CORE.orchestrator"]
 LOG_FILE = Path("logs/watchdog.log")
 LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+# Orchestratore figlio corrente: serve al gestore SIGTERM per non
+# lasciarlo ORFANO quando il lanciatore ferma il watchdog (byte-swarm.sh
+# stop manda SIGTERM al pid del watchdog, non al figlio).
+_current_process: subprocess.Popen | None = None
+
+
+def _handle_term(signum, frame) -> None:
+    """SIGTERM: ferma anche l'orchestratore figlio, poi esci.
+
+    Senza questo, fermare il watchdog (byte-swarm.sh stop) lascia
+    l'orchestratore vivo orfano → al prossimo start due orchestratori
+    concurrenti sulla stessa coda.
+    """
+    p = _current_process
+    if p is not None and p.poll() is None:
+        try:
+            p.terminate()
+            try:
+                p.wait(timeout=10)
+            except Exception:
+                p.kill()
+        except Exception:
+            pass
+    raise SystemExit(0)
+
+
+signal.signal(signal.SIGTERM, _handle_term)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,6 +67,9 @@ def run_orchestrator():
                 text=True,
                 bufsize=1
             )
+            # Registrato per _handle_term: il SIGTERM al watchdog deve
+            # fermare ANCHE questo figlio.
+            globals()["_current_process"] = process
 
             # Monitora l'output in tempo reale per loggare eventuali crash
             while True:

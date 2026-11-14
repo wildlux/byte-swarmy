@@ -145,6 +145,27 @@ T22 → T24 → T23 → T25 → T26 (ultimo, sforzo alto).
 
 ---
 
+## 🔧 Manutenzione & strumenti
+
+- [x] **verify_all.py** (`tools/verify_all.py`): verifica autonoma in un
+  comando — py_compile di tutti i sorgenti + suite pytest per-file con
+  timeout individuale (esclusi i test live che toccano la coda reale) +
+  boot reale orchestratore (pause.flag, exit 124 atteso) + benchmark
+  worker ReAct con Ollama (auto-skip se offline). ✅ Cycle 45.
+- [x] **bench_worker.py** (`tools/bench_worker.py`): benchmark del loop
+  ReAct con modello reale in sandbox (`state/bench_sandbox/`), timing
+  per ogni chiamata LLM, JSON in `state/benchmarks/`, confronto con
+  baseline (`--save-baseline` dopo un'ottimizzazione per misurare il
+  prima/dopo). ✅ Cycle 45.
+- [x] **Watchdog orfano**: `SAFETY/watchdog.py` inoltra SIGTERM al
+  figlio orchestratore (prima: stop lanciatore lasciava l'orchestratore
+  vivo orfano → doppio orchestratori); sweep di difesa in
+  `byte-swarm.sh stop`. ✅ Cycle 45.
+- [x] **test_e2e pid guard**: guardia anti pid-reuse (cmdline
+  orchestrator|watchdog, stessa semantica launcher) + catch OSError. ✅ Cycle 45.
+
+---
+
 ## Fuori scope (per scelta/limiti hardware)
 - Skill worker `pyqt6-graphics` / `pyqt6-network`: fuori scope — il 3B non
   le regge; la GUI si fa a mano o con `pyqt6-basics`.

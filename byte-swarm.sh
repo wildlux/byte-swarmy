@@ -259,6 +259,22 @@ stop_orchestrator() {
         echo "○ Processo $PID non trovato (già fermato)"
     fi
 
+    # Il pid file contiene il WATCHDOG: fermarlo da solo lascerebbe
+    # l'orchestratore figlio ORFANO vivo (il watchdog vecchio non inoltra
+    # SIGTERM). Sweep di difesa: termina qualsiasi orchestratore
+    # sopravvissuto, così il prossimo start non ne crea un secondo.
+    local orch_pids
+    orch_pids=$(pgrep -f "python -m CORE.orchestrator" 2>/dev/null || true)
+    if [ -n "$orch_pids" ]; then
+        echo "🐝 Ferma orchestratori figli sopravvissuti: $orch_pids"
+        kill -TERM $orch_pids 2>/dev/null || true
+        sleep 3
+        orch_pids=$(pgrep -f "python -m CORE.orchestrator" 2>/dev/null || true)
+        if [ -n "$orch_pids" ]; then
+            kill -9 $orch_pids 2>/dev/null || true
+        fi
+    fi
+
     rm -f "$PID_FILE"
 }
 

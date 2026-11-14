@@ -621,3 +621,70 @@ Bilancio finale: **22 di 26 tecniche implementate** (T1–T22), 4 in fuori scope
   referenziata ma mai definita → NameError su ogni task ReAct reale
   (invisibile nei test con client finti). Le regressioni silent-type nel
   worker vanno sempre verificate con boot reale + client vero.
+
+## 🚀 Cycle 45 — Verifica autonoma: verify_all + bench_worker (2026-11-14)
+
+Due strumenti CLI in `tools/` per ripetere le verifiche in autonomia,
+senza supervisione manuale:
+
+- **`tools/verify_all.py`** — un solo comando per i 4 controlli che
+  beccano le regressioni silent (variabili mai definite, metodi
+  cancellati) invisibili a py_compile e ai test con mock:
+  1. *compile*: py_compile di tutti i .py (CORE, GUI, tools, tests);
+  2. *tests*: suite pytest completa con timeout;
+  3. *boot*: avvio reale orchestratore con `state/pause.flag`
+     (SIGTERM via `timeout` → exit 124 atteso, "swarm stopped" nel
+     log, zero traceback);
+  4. *bench*: benchmark worker ReAct con Ollama reale (auto-SKIP se
+     offline, disabilitabile con `--no-bench`).
+  Riepilogo finale ✅/❌ + exit code 0/1.
+
+- **`tools/bench_worker.py`** — misura l'effetto REALE delle
+  ottimizzazioni token T1–T22 sul tempo per step:
+  - esegue 2 task rappresentativi (create file + patch) direttamente
+    con `CORE.worker.Worker` e `ModelClient` reale;
+  - gira in sandbox `state/bench_sandbox/` (config clonata con path
+    ridirezionati) — il progetto reale non viene toccato;
+  - wrappa `call_streaming`/`call` del client e registra per OGNI
+    chiamata: modello, char prompt/system, chunk/token out, durata
+    (il `finally` cattura anche le chiusure anticipate da early-stop
+    T21);
+  - salva JSON in `state/benchmarks/bench-<ts>.json` e confronta con
+    `bench-baseline.json` (wall totale, token prompt stima ~4char/tok,
+    token generati, chiamate LLM; delta % — negativo = meglio);
+  - `--save-baseline` per fissare una nuova baseline (da usare DOPO
+    un'ottimizzazione per misurare il prima/dopo).
+
+Motivazione: dopo i fix Cycle 42–44 (execute()/MAX_STEPS/step_max_tokens)
+i test con mock non esercitano il percorso reale; questi tool rendono
+ripetibile la verifica boot+ReAct che finora si faceva a mano.
+
+### Scoperta critica durante l'implementazione (sistema live)
+
+- **`state/orchestrator.pid` contiene il pid del WATCHDOG** (by design:
+  `byte-swarm.sh start` fa `nohup SAFETY.watchdog & echo $! > PID_FILE`).
+- `tests/test_e2e.py` e `tests/test_functional_swarm.py` sono test LIVE:
+  iniettano task nella coda REALE e aspettano processing (120–180s per
+  task). Con il watchdog vivo, test_e2e non saltava e iniettava task
+  nell'orchestratore live dell'utente.
+- **L'orchestratore live (spawnato 19:10 dal watchdog) aveva in memoria
+  il codice PRE-fix** ('Worker' object has no attribute 'execute'):
+  falliva OGNI task ReAct e il watchdog non lo riavvia (non crasha,
+  logga solo l'eccezione). Levità: serve riavvio manuale per caricare
+  il codice fissato.
+- **Fix 1 — watchdog SIGTERM**: `SAFETY/watchdog.py` ora inoltra SIGTERM
+  al figlio orchestratore prima di uscire (prima: stop del lanciatore
+  lasciava l'orchestratore orfano vivo → doppio orchestratori alla
+  prossima start).
+- **Fix 2 — byte-swarm.sh stop**: sweep di difesa con pgrep che termina
+  qualsiasi orchestratore figlio sopravvissuto.
+- **Fix 3 — test_e2e pid guard**: guardia anti pid-reuse allineata al
+  launcher (cmdline deve contenere orchestrator|watchdog) + catch di
+  OSError sul pid file assente.
+- **Pulizia coda reale**: eliminati i task-test iniettati
+  (e2e-test-*, failed_definitively).
+- **verify_all esclude SEMPRE i test live** (test_e2e,
+  test_functional_swarm): vanno eseguiti solo deliberatamente col
+  sistema attivo. Modalità test per-file con timeout individuale
+  (default 240s) — un file hanging non blocca gli altri e la mappa
+  finale indica esattamente il colpevole.
