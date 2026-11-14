@@ -15,8 +15,6 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
 ## Aperti
 
 ### GUI / UX
-- [ ] **R3 — Split `GUI/control_center.py`** (~5000 righe) in moduli per
-  area (sidebar, centro, editor, debug bar), comportamento invariato.
 - [ ] **FM14 — Coda unica GUI→SQLite**: la coda task vive solo in SQLite
   (stato condiviso GUI/orchestratore), niente code in memoria da tenere
   in sync.

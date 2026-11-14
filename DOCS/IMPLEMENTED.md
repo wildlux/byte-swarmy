@@ -315,3 +315,20 @@ This file tracks every significant feature, fix, and architectural change implem
 
 ## 🔓 Open follow-ups
 UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protocol parser, USB differential analysis, dedicated user `byteswarmy`, usbmon/tshark automation, unification of GUI→SQLite queue (FM14).
+
+## 🚀 Cycle 25 — R3: split GUI/control_center.py in mixin (2026-11-14)
+
+- [x] **R3 — Split `GUI/control_center.py`** (~5000 righe) in moduli per area
+  via mixin: `GUI/cc_shell.py` (ShellMixin), `GUI/cc_orchestrator.py`
+  (OrchestratorMixin), `GUI/cc_zoom.py` (ZoomMixin + `_ZoomEventFilter`,
+  `_zoom_scale_css`), `GUI/cc_editor_overlay.py` (EditorOverlayMixin),
+  `GUI/cc_debug_bar.py` (DebugBarMixin), `GUI/cc_shutdown.py`
+  (ShutdownMixin). `GUI/control_center.py` ridotto a ~358 righe (coordinatore
+  + __init__ + main). Comportamento invariato: metodi restano sullo stesso
+  oggetto `ControlCenter`. Test: zoom 6/6, close_orchestrator 10/10, smoke
+  import+show OK.
+- [x] **Fix latente `GUI/center_area.py`**: `eventFilter` referenziava
+  `QEvent` e `QApplication` non importati (swallowed dal try/except) → le
+  scorciatoie globali (Backspace→Plancia, "/"→campo comando, ESC→credits)
+  non funzionavano mai. Aggiunti import (`QEvent` top-level, `QApplication`
+  nel try). Test keys: 6/6 passano (prima 3/6).

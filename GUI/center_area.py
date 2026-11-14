@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
     QGridLayout, QScrollArea as _QScrollArea,
 )
 from PyQt6.QtGui import QColor, QFont, QIcon, QPixmap, QPalette, QBrush
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QSize, QUrl
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QSize, QUrl, QEvent
 
 from GUI.collapsible_section import CollapsibleSection
 from GUI.categorized_log_viewer import CategorizedLogViewer
@@ -321,12 +321,13 @@ class CenterArea(QWidget):
         # "/" con campo vuoto = scrivi nel campo comando in basso).
         try:
             import sys as _d
+            from PyQt6.QtWidgets import QApplication
             if event.type() != QEvent.Type.KeyPress:
                 return False
             if QApplication.activeModalWidget() is not None:
                 return False
             from PyQt6.QtWidgets import (
-                QLineEdit, QTextEdit, QPlainTextEdit, QComboBox,
+                QApplication, QLineEdit, QTextEdit, QPlainTextEdit, QComboBox,
                 QSpinBox, QDoubleSpinBox, QDateTimeEdit,
             )
             focus = QApplication.focusWidget()

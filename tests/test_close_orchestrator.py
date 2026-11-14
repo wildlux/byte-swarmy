@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import GUI.control_center as cc  # noqa: E402
+import GUI.cc_shutdown as cc_shutdown  # noqa: E402
 from GUI import settings_store  # noqa: E402
 from PyQt6.QtWidgets import QMainWindow  # noqa: E402
 
@@ -94,10 +95,11 @@ class TestCloseOrchestrator(unittest.TestCase):
             self.tmp, ignore_errors=True))
         # state/ fittizia + settings file fittizio (mai quelli reali)
         (self.tmp / "state").mkdir(parents=True, exist_ok=True)
-        # base dir = tmp (monkeypatch di module.__file__)
-        self._orig_file = cc.__file__
-        cc.__file__ = str(self.tmp / "GUI" / "control_center.py")
-        self.addCleanup(setattr, cc, "__file__", self._orig_file)
+        # base dir = tmp (monkeypatch del modulo che contiene i metodi di
+        # chiusura: dopo il refactoring R3 vivono in GUI/cc_shutdown.py)
+        self._orig_file = cc_shutdown.__file__
+        cc_shutdown.__file__ = str(self.tmp / "GUI" / "cc_shutdown.py")
+        self.addCleanup(setattr, cc_shutdown, "__file__", self._orig_file)
         # settings file fittizio (mai il CONFIG/settings.json reale)
         self._orig_settings = settings_store.SETTINGS_FILE
         settings_store.SETTINGS_FILE = str(self.tmp / "settings.json")
