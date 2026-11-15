@@ -35,6 +35,13 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
   di scendere al più piccolo (worker_general 1.5B). Salto di capacità al
   tier "middle".
 
+### Tool LLM — diario di bordo (Cycle 52+)
+
+- [ ] **Tool `diary_llm`**: nuovo tool che lascia un diario di bordo
+  (problem, context, attempts, failures, learnings, optimization) al
+  termine di un task; persistenza in `state/diary/`; riuso come contesto per
+  task futuri.
+
 ### Responsive
 *(nessun item aperto — T-R3 e gap vuoto risolti nel Cycle 29)*
 
