@@ -126,7 +126,7 @@ class ToolSet:
             "extract_method",
             "git_commit", "git_diff", "git_status", "git_log",
             "git_branch", "git_merge", "git_pull", "git_push", "git_remote",
-            "run_test_suite", "list_tools",
+            "run_test_suite", "list_tools", "diary_llm",
         }
         try:
             from GUI.settings_store import get_usb_tools_enabled
@@ -912,6 +912,32 @@ class ToolSet:
         except Exception as e:
             return f"ERROR linting {path}: {e}"
 
+    # ----- 13.5. diary_llm (diario di bordo LLM) -----
+    def diary_llm(self, task_id: str, content: str) -> str:
+        """Diario di bordo LLM (Cycle 53): scrive l'apprendimento di un task.
+
+        L'LLM usa questo tool al termine di un task per lasciare tutto il
+        necessario per risolvere/ottimizzare (problem, context, attempts,
+        failures, learnings, optimization). Persistenza: state/diary/<task>.md.
+        """
+        try:
+            if not isinstance(content, str) or len(content) > self.max_output:
+                return (f"ERROR: diario troppo lungo ({len(content) if isinstance(content, str) else 0} chars)."
+                        f" Max {self.max_output}.")
+            task_id_safe = "".join(
+                c for c in str(task_id) if c.isalnum() or c in "-_"
+            )[:64] or "task"
+            diary_dir = Path(self.cfg["paths"]["state_dir"]).resolve() / "diary"
+            diary_dir.mkdir(parents=True, exist_ok=True)
+            p = diary_dir / f"{task_id_safe}.md"
+            p.write_text(
+                f"# Diario LLM — task {task_id_safe}\n\n{content}\n",
+                encoding="utf-8",
+            )
+            self.log.info(f"diary_llm: task {task_id_safe} salvato in {p}")
+            return f"OK: diario salvato in {p}"
+        except Exception as e:
+            return f"ERROR: diario_llm failed: {e}"
 
     # ----- 14. patch_code -----
     def patch_code(self, path: str, old_text: str, new_text: str) -> str:

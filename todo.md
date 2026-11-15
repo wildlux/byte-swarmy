@@ -37,10 +37,10 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
 
 ### Tool LLM — diario di bordo (Cycle 52+)
 
-- [ ] **Tool `diary_llm`**: nuovo tool che lascia un diario di bordo
-  (problem, context, attempts, failures, learnings, optimization) al
-  termine di un task; persistenza in `state/diary/`; riuso come contesto per
-  task futuri.
+- [x] **Tool `diary_llm`** ✅ Cycle 53: nuovo tool che lascia un diario di
+  bordo (problem, context, attempts, failures, learnings, optimization) al
+  termine di un task; persistenza in `state/diary/`. Implementato con scrittura
+  sicura + sanitizzazione task_id. ✅ Cycle 53.
 - [ ] **Diary: DB vs file**: decidere DB (SQLite + query via API/socket) vs
   file markdown per il diario LLM; oggi il file basta per il contesto
   self-optimization, il DB solo per analytics/query strutturate.

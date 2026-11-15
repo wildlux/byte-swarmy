@@ -142,6 +142,7 @@ class Worker:
         "bash": "run_bash",
         "test": "run_test_suite",
         "lint": "lint_code",
+        "diary": "diary_llm",
         "git_status": "git_status",
         "git_diff": "git_diff",
         "git_commit": "git_commit",
@@ -266,6 +267,7 @@ class Worker:
             "bash": "  bash=run_bash(cmd)",
             "test": "  test=run_test_suite()",
             "lint": "  lint=lint_code(path)",
+            "diary": "  diary=diary_llm(task_id,content)  # diario di bordo",
             "git_status": "  git_status",
             "git_diff": "  git_diff(rev)",
             "git_commit": "  git_commit(msg)",
@@ -1130,6 +1132,8 @@ class Worker:
                 return self.tools.run_test_suite()
             elif name == "list_tools":
                 return json.dumps(self.tools.list_tools(), indent=1)
+            elif name == "diary_llm":
+                return self.tools.diary_llm(args[0], args[1])
             elif name == "delete_file":
                 return self.tools.delete_file(args[0])
             elif name == "move_file":

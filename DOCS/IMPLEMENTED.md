@@ -1089,3 +1089,19 @@ Cambio: nel fallback post-fallimento del worker_coder (junior 3B) — in
 Rationale onesta: il fallback precedente era una **discesa** (3B → 1.5B); ora è
 un **salto** (3B → 4B). Nessun test esistente copriva il fallback: la suite
 pertanto resta verde per la nuova catena di escalation.
+
+## 🚀 Cycle 53 — Tool `diary_llm` (diario di bordo LLM) (2026-11-15)
+
+Implementazione del tool diario di bordo richiesto come capability di
+self-improvement.
+
+- **Tool**: `ToolSet.diary_llm(task_id, content)` — scrive il diario in
+  `<state_dir>/diary/<task_id>.md` (task_id sanitizzato: alnum + `-`/`_`, max
+  64; content limitato da `security.max_output_chars`).
+- **Worker**: tool aggiunto a `allowed_tools`, `TOOL_CODE_MAP` (`diary`),
+  `tool_lines` (`diary=diary_llm(task_id,content)  # diario di bordo`) e
+  dispatch `_call_tool`.
+- **Test**: `tests/test_diary_llm_tool.py` (scrittura OK, sanitizzazione,
+  limite contenuto).
+- **Stato**: tool implementato e testato; la fase di automazione
+  (LLM → diary → contesto/fedback futuro) resta come capability aperta.
