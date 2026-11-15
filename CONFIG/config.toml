@@ -35,6 +35,9 @@ repeat_last_n = 256
 num_ctx = 8192
 num_predict = 1024
 seed = 42
+# no_tools: limita i tool del worker (default False = tutti abilitati;
+# flag esposto nel pannello Attori per esperimenti).
+no_tools = false
 
 [models.worker_coder_big]
 # Heavy per il routing semplice (CORE/routing.py): consigliato entro
@@ -93,6 +96,7 @@ repeat_penalty = 1.15
 repeat_last_n = 512
 num_ctx = 3072
 num_predict = 512
+no_tools = false
 
 [models.embedding]
 name = "moondream:latest"
