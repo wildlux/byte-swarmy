@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.3.2-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.3.3-blue">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-yellow">
   <img alt="Ollama" src="https://img.shields.io/badge/Ollama-required-orange">
@@ -31,7 +31,7 @@
 > con streaming token in tempo reale, selezione intelligente dei modelli e
 > ottimizzazione termica adattiva (Timestral LLM Tuner).
 
-**Versione:** 0.3.2 · **Licenza:** MIT · **Piattaforma:** Linux
+**Versione:** 0.3.3 · **Licenza:** MIT · **Piattaforma:** Linux
 
 ---
 
@@ -448,7 +448,7 @@ The first real benchmark (pre-token-reduction vs. post-baseline, see
 `DOCS/BENCH.md`) confirmed: **-72% input tokens**, but the measurable win was
 correctness (0/2 → 2/2 artifacts), not wall time.
 
-### Latest — Cycles 52–53
+### Latest — Cycles 52–56
 
 - **Middle capability** (Cycle 52): after a definitive failure of the
   `worker_coder` (junior 3B), the fallback now escalates to
@@ -457,6 +457,13 @@ correctness (0/2 → 2/2 artifacts), not wall time.
 - **Diario LLM tool** (Cycle 53): new `diary_llm` tool writes the LLM ship-log
   (problem, attempts, failures, learnings, optimization) to
   `state/diary/<task>.md` — base for the future automatic improvement loop.
+- **Deterministic risk gate** (Cycle 56): new `SAFETY/risk_classifier.py` with
+  static rules (critical paths, architectural tasks, diff size) → `high`/`critical`
+  tasks are parked in `awaiting_human_approval` (human approval via swarm
+  command `approve_task`) instead of auto-running.
+- **Runtime verification harness** (Cycle 56): new `CORE/runtime_verifier.py`
+  runs smoke tests on files written via `write_file` (py_compile / pytest) before
+  the audit; failure → rollback + specific feedback into the correction loop.
 
 ### Exception Hardening
 
@@ -1021,7 +1028,7 @@ Rilasciato sotto licenza MIT. Vedi [LICENSE](LICENSE).
 
 ---
 
-**BYTE-SWARMY v0.3.2**
+**BYTE-SWARMY v0.3.3**
 
 ```
 /ˈbaɪt ˈswɔːrmi/  ·  "BYTE SWOR-mee"

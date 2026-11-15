@@ -239,6 +239,19 @@ class TaskQueue:
             conn.execute("UPDATE tasks SET status = 'needs_human', reason = ? WHERE id = ?", (reason, task_id))
             conn.commit()
 
+    def mark_awaiting_human(self, task_id: str, reason: str) -> None:
+        """🆕 Cycle 56: marca il task come awaiting_human_approval (risk gate).
+
+        Il task non viene claimato (il claim filtra solo pending/retry), resta
+        fermo in coda finché un umano approva o rifiuta con feedback.
+        """
+        with self._get_conn() as conn:
+            conn.execute(
+                "UPDATE tasks SET status = 'awaiting_human_approval', reason = ? WHERE id = ?",
+                (str(reason)[:500], task_id),
+            )
+            conn.commit()
+
     # ---------------------------------------------------------------
     # Feedback loop (work order T2): retry con prompt sovrascritto
     # ---------------------------------------------------------------

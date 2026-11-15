@@ -47,6 +47,7 @@ from SAFETY.security import (
 )
 from CORE.ast_scanner import scanner as ast_scanner, detect_artifacts
 from CORE.regex_controller import RegexController, DEFAULT_PATTERNS, validate_chars
+from CORE.runtime_verifier import RuntimeVerifier
 from CORE.tool_registry import TOOL_REGISTRY, register_tool, get_tool, list_tools
 
 # Controllore regex riusabile: py_class / py_def sono già nei default
@@ -94,6 +95,14 @@ class ToolSet:
         # M7: limita il disco consumato da project/ (saturazione in pochi
         # secondi con dd/yes non e visibile dal check periodico ogni 30s).
         self.max_project_mb = int(sec.get("project_disk_limit_mb", 2048))
+
+        # 🆕 Cycle 56: runtime verification harness (smoke test sui file scritti).
+        self.runtime = RuntimeVerifier(
+            self.project_root, self.log,
+            timeout_py=int(sec.get("timeout_py", 60)),
+            timeout_test=int(sec.get("timeout_test", 180)),
+            timeout_boot=int(sec.get("timeout_boot", 15)),
+        )
 
         # REGOLA 0 — la difesa è sempre attiva.
         # `security.enabled` esiste solo per retrocompatibilità: qualunque
@@ -208,6 +217,26 @@ class ToolSet:
             tmp = full.parent / _tmp_name(full.name)
             tmp.write_text(content, encoding="utf-8")
             os.replace(tmp, full)
+            # 🆕 Cycle 56: runtime verification smoke test sul file scritto.
+            # Su fallimento: rollback (rimozione) + feedback specifico al worker
+            # (che entra nel correction loop con questo errore, non un generico
+            # "syntax error").
+            verify_msg = self.runtime.verify_task_files([str(full)])
+            if verify_msg.startswith("ERROR"):
+                try:
+                    full.unlink(missing_ok=True)
+                except Exception:
+                    pass
+                self._audit("runtime_verify_failed",
+                            f'path="{self._q(path)}" err="{self._q(verify_msg)}"',
+                            "HIGH")
+                log_security_event(
+                    "runtime_verify_failed",
+                    f'path="{self._q(path)}" err="{self._q(verify_msg)}"',
+                    "HIGH", worker=self.worker,
+                )
+                self.log.warning(f"write_file runtime verify FAILED: {verify_msg}")
+                return verify_msg
             self.log.debug(f"wrote {len(content)} bytes -> {path}")
             return f"OK: wrote {len(content)} bytes to {path}"
         except Exception as e:

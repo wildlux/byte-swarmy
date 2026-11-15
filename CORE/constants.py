@@ -12,6 +12,8 @@ class TaskStatus(Enum):
     STUCK = "stuck"
     NEEDS_HUMAN = "needs_human"
     PLANNED = "planned"
+    # 🆕 Cycle 56: task bloccato dal risk gate per attesa approvazione umana.
+    AWAITING_HUMAN_APPROVAL = "awaiting_human_approval"
 
 class TaskType(Enum):
     IMPLEMENT = "implement"

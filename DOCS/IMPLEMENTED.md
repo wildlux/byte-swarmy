@@ -1105,3 +1105,26 @@ self-improvement.
   limite contenuto).
 - **Stato**: tool implementato e testato; la fase di automazione
   (LLM → diary → contesto/fedback futuro) resta come capability aperta.
+
+## 🚀 Cycle 56 — Risk classifier deterministico + Runtime verification harness (2026-11-15)
+
+Chiusura dei primi due interventi strutturali della lista senior (dalla code
+review), come da piano d'attacco Fase 0–2 parziale (i primi due gap dichiarati):
+"test verdi ma codice mai eseguito" e "task troppo rischioso per auto-approvazione".
+
+- **Risk gate (Cycle 56, #1)**: nuovo modulo `SAFETY/risk_classifier.py` con
+  classificazione deterministica (nessun LLM): path critici (`SAFETY/`,
+  `CORE/sandbox.py`, `CORE/tools.py`, `CONFIG/`) → alto (critical se refactoring);
+  refactoring / cambio API pubblica → alto; diff > 50 righe o > 3 file → alto.
+  Task `high`/`critical` → coda `awaiting_human_approval` (nuovo valore in
+  `TaskStatus`), orchestrator blocca l'esecuzione, log in security log.
+  Comando swarm `approve_task` per riportare il task in `pending`.
+- **Runtime verification (Cycle 56, #2)**: nuovo `CORE/runtime_verifier.py` con
+  smoke test sui file scritti via `write_file` (py_compile; test via pytest) e
+  boot smoke headless (`python -m CORE.orchestrator`) per task che toccano
+  orchestrator/GUI/worker/sandbox/audit. Su fallimento: rollback del file +
+  feedback specifico → correction loop.
+- **Test**: `tests/test_cycle56_risk_runtime.py` (11 test: classificazione,
+  verifier, task queue).
+- **Stato**: risk gate + runtime verifier implementati e testati; blocco umano
+  end-to-end GUI (prompt approvazione) resta da completare nella GUI flow.

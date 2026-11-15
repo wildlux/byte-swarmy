@@ -58,6 +58,8 @@ from CORE.regex_controller import RegexController, DEFAULT_PATTERNS, json_block
 _REGEX = RegexController(DEFAULT_PATTERNS)
 from SAFETY.security import log_security_event
 from SAFETY.security_checks import check_isolation, apply_safe_mode
+from SAFETY.risk_classifier import classify as classify_risk
+from SAFETY.risk_classifier import requires_human as risk_requires_human
 from CORE.execute_handler import handle_execute_task
 from CORE.decision_feedback import DecisionValidator
 from CORE.correction import build_correction_prompt
@@ -629,6 +631,48 @@ class Orchestrator:
                 return
             # Se il planner fallisce, esegui il task direttamente
 
+        # ── 🆕 Cycle 56: RISK GATE deterministico + BOOT SMOKE ─────────
+        # 1) Risk gate: task ad alto rischio (path critici / refactoring /
+        #    diff grande) → stato awaiting_human_approval, orchestrator NON
+        #    esegue finché un umano approva. L'Audit Worker LLM non e' affidabile
+        #    per decisioni di rischio (modello piccolo, inganneabile).
+        try:
+            risk = classify_risk(task)
+            if risk_requires_human(risk.get("level", "")):
+                reason = (f"RISK_BLOCK: level={risk.get('level')} "
+                          f"reasons={'; '.join(risk.get('reasons') or ['unknown'])}")
+                self.queue.mark_awaiting_human(task["id"], reason)
+                log_security_event("risk_gate_block",
+                                   f"task={task['id']} level={risk.get('level')} "
+                                   f"reasons={'; '.join(risk.get('reasons') or [])}",
+                                   "HIGH", worker="orchestrator")
+                self.log.warning(
+                    f"task {task['id']} BLOCKED by risk gate "
+                    f"({risk.get('level')}): {reason}"
+                )
+                return
+        except Exception as e:
+            # Fail-open: se il classificatore non riesce, non bloccare.
+            self.log.warning(f"risk gate check fallito (fail-open): {e}")
+
+        # 2) Boot smoke per task che toccano orchestrator/GUI/worker/sandbox:
+        #    avvio headless controllato + timeout, verifica che non crashi.
+        task_text = f"{task.get('title') or ''} {task.get('description') or ''}".upper()
+        core_keywords = ("GUI", "ORCHESTRATOR", "WORKER", "SANDBOX", "AUDIT",
+                         "TOOL", "SAFETY", "CORE")
+        if any(k in task_text for k in core_keywords):
+            try:
+                boot = self.tools.runtime.verify_boot(
+                    module="CORE.orchestrator",
+                    args=["CONFIG/config.toml"],
+                    timeout=int(getattr(self, "boot_timeout", 15)),
+                )
+                if boot.startswith("ERROR"):
+                    self.log.warning(f"task {task['id']} boot smoke FAIL: {boot}")
+                    self.queue.mark_failed(task["id"], f"BOOT_FAIL: {boot}")
+            except Exception as e:
+                self.log.warning(f"boot smoke check fallito (fail-open): {e}")
+
         # 6c. Esegui con worker
         model_key = self._select_worker(task)
         worker = self._build_worker(task["id"], model_key)
@@ -1077,6 +1121,10 @@ class Orchestrator:
                 return self._cmd_inspect_memory()
             elif intent == "cancel_task":
                 return self._cmd_cancel_task(task)
+            elif intent == "approve_task":
+                # 🆕 Cycle 56: approva un task in awaiting_human_approval
+                # (risk gate) → riporta in pending per la ri-esecuzione.
+                return self._cmd_approve_task(task)
             elif intent == "run_audit":
                 return self._cmd_run_audit()
             else:
@@ -1127,7 +1175,7 @@ class Orchestrator:
             status_icon = {
                 "pending": "⏳", "running": "▶", "done": "✓",
                 "retry": "🔄", "stuck": "⛔", "planned": "📝",
-                "needs_human": "👤"
+                "needs_human": "👤", "awaiting_human_approval": "🙋",
             }.get(t.get("status", ""), "?")
             lines.append(f"{status_icon} [{t['status']:10}] {t['id']} | {t.get('title', '')[:50]}")
         return "\n".join(lines)
@@ -1206,6 +1254,32 @@ class Orchestrator:
             except Exception as e:
                 return f"ERROR: {e}"
 
+    def _cmd_approve_task(self, task: dict) -> str:
+        """🆕 Cycle 56: approva un task in awaiting_human_approval (risk gate).
+
+        Riporta il task in `pending` così il loop di esecuzione lo ri-prende.
+        L'umano puo' anche rifiutare con feedback (in tal caso il task va in
+        failed_definitively via correction loop, come un errore normale).
+        """
+        import json
+        target_id = None
+        try:
+            ctx = json.loads(task.get("context") or "{}")
+            target_id = ctx.get("params", {}).get("task_id")
+        except Exception:
+            pass
+
+        if not target_id:
+            return ("⚠ Approvazione richiesta: specificare params.task_id nel "
+                    "context del task swarm command.")
+
+        try:
+            self.queue.set_status(target_id, "pending")
+            self.log.info(f"task {target_id} APPROVED by human (risk gate release)")
+            return f"✅ Task {target_id} approved by human — riportato in pending."
+        except Exception as e:
+            return f"ERROR: approve_task failed: {e}"
+
     def _cmd_run_audit(self) -> str:
         """Esegue un audit veloce del progetto."""
         try:
@@ -1249,7 +1323,7 @@ class Orchestrator:
             swarm_intents = {
                 "swarm_status", "list_tasks", "show_logs", "pause_swarm",
                 "resume_swarm", "inspect_memory", "cancel_task", "run_audit",
-                "swarm_time",
+                "swarm_time", "approve_task",
             }
             return intent if intent in swarm_intents else None
         except (json.JSONDecodeError, TypeError):

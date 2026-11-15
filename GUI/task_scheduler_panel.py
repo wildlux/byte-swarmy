@@ -485,7 +485,8 @@ class TaskSchedulerPanel(QWidget):
         status_icon = {
             "pending": "⏳", "running": "▶️", "done": "✅",
             "failed": "❌", "retry": "🔄", "stuck": "⚠️",
-            "needs_human": "🙋", "thermal_paused": "🌡️",
+            "needs_human": "🙋", "awaiting_human_approval": "🙋",
+            "thermal_paused": "🌡️",
         }
         for i, t in enumerate(tasks):
             icon = status_icon.get(t.get("status", ""), "•")
