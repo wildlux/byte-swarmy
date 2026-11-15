@@ -182,7 +182,9 @@ class Orchestrator:
             self.log.warning(f"reset running tasks failed: {e}")
         self.planner = Planner(self.models, self.log)
         self.generic_planner = GenericTaskPlanner(self.config, self.models, self.log)
-        self.auditor = AuditWorker(self.models, self.log, decision_client=self.generic_planner._call_decision_model)
+        self.auditor = AuditWorker(self.models, self.log,
+                                   decision_client=self.generic_planner._call_decision_model,
+                                   config=self.config)
 
         # Pre-flight validation + feedback su SQLite (work order T1)
         self.decision_validator = DecisionValidator(
@@ -294,6 +296,25 @@ class Orchestrator:
         self.last_backup = now
         signal.signal(signal.SIGINT, self._handle_signal)
         signal.signal(signal.SIGTERM, self._handle_signal)
+
+        # 🆕 A: warmup opzionale all'avvio — pre-carica in Ollama il modello
+        # più usato (config [hardware].warmup_model) così il primo task non
+        # paga il load freddo (8-15s). Thread daemon: non blocca il loop
+        # (se il primo task arriva per un altro modello, la rotation
+        # normale gestisce il resto). Chiave assente/vuota = niente warmup.
+        warmup_key = str(self.config.get("hardware", {}).get("warmup_model", "") or "")
+        if warmup_key:
+            import threading
+
+            def _warm():
+                try:
+                    self.models.warmup(warmup_key)
+                except Exception as e:
+                    self.log.warning(f"[warmup] fallito (non bloccante): {e}")
+
+            threading.Thread(target=_warm, daemon=True,
+                             name="orchestrator-warmup").start()
+            self.log.info(f"[warmup] pre-carico '{warmup_key}' in background")
 
     # ------------------------------------------------------------------
     # Main loop
@@ -524,8 +545,9 @@ class Orchestrator:
             self._backup()
             self.last_backup = time.time()
 
-        # 6. Dispatch task
-        task = self.queue.next_pending()
+        # 6. Dispatch task — 🆕 B: pick sticky (affinity al modello già
+        # caricato) con fallback FIFO classico
+        task = self._pick_task()
         if not task:
             return  # coda vuota, aspetta
 
@@ -696,7 +718,14 @@ class Orchestrator:
             # --- ENTERPRISE AUDIT STEP ---
             self.log.info(f"task {task['id']} submitted for audit")
             worker_history = worker.memory.get_history()
-            audit_res = self.auditor.audit(task, result, worker_history)
+            # 🆕 C: passo project_root + started_at per il gate
+            # deterministico (i file scritti durante il task vengono
+            # verificati con AST PRIMA di pagare l'audit LLM).
+            audit_res = self.auditor.audit(
+                task, result, worker_history,
+                project_path=self.config.get("paths", {}).get("project_root"),
+                started_at=task.get("started_at"),
+            )
 
             if audit_res.get("decision") == "APPROVE":
                 self.log.info(f"task {task['id']} APPROVED by auditor")
@@ -873,6 +902,45 @@ class Orchestrator:
 
         # Default: pianifica
         return True
+
+    def _pick_task(self) -> Optional[dict]:
+        """🆕 B: pick del prossimo task con scheduling "sticky" per modello.
+
+        FIFO puro può alternare task per worker_coder (3B) e per
+        worker_general (1.5B): ogni swap = unload+load = decine di secondi
+        su 4GB. Sticky: guarda i primi 8 pendenti e, se il primo di essi
+        che userebbe il modello GIÀ CARICATO c'è, lo prende (la coda salta
+        avanti SOLO tra task stesso-modello; gli altri restano FIFO).
+
+        Gli intent swarm e i task execute (gestione diretta, no LLM) NON
+        guidano lo sticky: non causano rotation.
+
+        Config: [orchestrator].sticky_models (default True, false = FIFO).
+        """
+        sticky = self.config.get("orchestrator", {}).get("sticky_models", True)
+        current = self.models.current_model
+        if not (sticky and current):
+            return self.queue.next_pending()
+        try:
+            for cand in self.queue.peek_pending(limit=8):
+                # task gestiti direttamente (no LLM) non guidano lo sticky
+                if cand.get("type") == "execute":
+                    continue
+                if self._extract_swarm_intent(cand):
+                    continue
+                model_key = self._select_worker(cand)
+                cand_model = self.models.models_cfg.get(model_key, {}).get("name")
+                if cand_model == current:
+                    task = self.queue.claim_by_id(cand["id"])
+                    if task:
+                        self.log.debug(
+                            f"sticky pick {cand['id']} "
+                            f"(modello {current} già caricato)")
+                    # contesa persa → None: il prossimo tick ritenta FIFO
+                    return task
+        except Exception as e:
+            self.log.warning(f"sticky pick fallito (fallback FIFO): {e}")
+        return self.queue.next_pending()
 
     def _select_worker(self, task: dict) -> str:
         """Seleziona il modello worker in base alle keyword."""

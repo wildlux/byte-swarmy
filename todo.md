@@ -199,25 +199,22 @@ T22 → T24 → T23 → T25 → T26 (ultimo, sforzo alto).
 ## Furbate candidate (verificate contro il codice, Cycle 47?)
 Ottimizzazioni proposte dopo la prima misura bench — ognuna con il punto
 del codice reale su cui agire. Da scegliere con l'utente:
-- [ ] **A. Warmup all'avvio + keep_alive da config**: il primo step
-  include il load del modello in Ollama (8–15s); il pre-carico all'avvio
-  lo nasconde. `[hardware].keep_alive_sec` esiste già
-  (`CORE/hardware_detector.py: get_keep_alive_override`); `_unload`
-  scatta SOLO su rotation (`CORE/ollama_client.py`), quindi keep_alive
-  >0 tra task stesso-modello è gratis.
-- [ ] **B. Scheduling sticky per modello**: la coda è FIFO puro
-  (`ORDER BY created_at ASC`, `CORE/task_queue.py`) → pick con
-  affinity al modello caricato evita le rotation (scarica+carica
-  = decine di secondi su 4GB).
-- [ ] **C. Audit gate deterministico**: `self.auditor.audit(...)` LLM
-  gira su OGNI task (`CORE/orchestrator.py` ~690–710) → se AST+lint
-  (deterministici) sono verdi, salta/comprimi l'audit LLM
-  (config-gated, es. `[audit].deterministic_gate = true`).
+- [x] **A. Warmup all'avvio + keep_alive da config** ✅ Cycle 47:
+  orchestrator pre-carica `warmup_model` (thread background) +
+  `keep_alive_sec` esplicito rispettato nelle richieste
+  (`CORE/ollama_client.py`: `_explicit_keep_alive`, `warmup`).
+- [x] **B. Scheduling sticky per modello** ✅ Cycle 47:
+  FIFO con affinity al modello caricato — `_pick_task` consulta
+  `peek_pending(8)` e `claim_by_id` (stesso claim atomico di next_pending).
+- [x] **C. Audit gate deterministico** ✅ Cycle 47:
+  config `[audit].deterministic_gate = true` → AST check sui file scritti
+  prima dell'audit LLM (APPROVE se compilano, REJECT con SyntaxError esatto).
 - [ ] **E. num_ctx A/B bench**: 8192 → 4096/6144 ora che i prompt sono
   compatti (meno KV cache = più velocità su 4GB); misurato con
   `tools/bench_worker.py`, report in `DOCS/BENCH.md`.
-- [ ] **F. Watchdog primo token**: abort dopo N s senza primo token →
-  fallback modello più leggero invece di hang fino al timeout (600s).
+- [x] **F. Watchdog primo token** ✅ Cycle 47:
+  streaming abort con `FirstTokenTimeout` dopo `[ollama].first_token_timeout`
+  (60s) senza token → task in fallback su worker_general.
 
 ---
 

@@ -142,6 +142,51 @@ class TaskQueue:
                 time.sleep(0.01)
             return None
 
+    def peek_pending(self, limit: int = 8) -> list:
+        """🆕 B: primi N task pendenti SENZA claim (per lo scheduling sticky).
+
+        Stesso filtro di next_pending (status pending/retry, retry_after
+        scaduto), ma di sola LETTURA: chi chiama decide poi quale claimare
+        con claim_by_id(). Ordine FIFO su created_at.
+        """
+        now = time.time()
+        with self._get_conn() as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT * FROM tasks WHERE status IN ('pending', 'retry') "
+                "AND (retry_after IS NULL OR retry_after <= ?) "
+                "ORDER BY created_at ASC LIMIT ?",
+                (now, limit),
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def claim_by_id(self, task_id: str) -> Optional[dict]:
+        """🆕 B: claim atomico di un task SPECIFICO (scheduling sticky).
+
+        Stessa gara di next_pending: la re-check WHERE dentro l'UPDATE
+        (status ancora pending/retry) + RETURNING garantisce che due
+        claimatori non prendano mai lo stesso task. Se un altro processo
+        l'ha già preso ritorna None (nessun side-effect).
+        """
+        now = time.time()
+        with self._get_conn() as conn:
+            conn.row_factory = sqlite3.Row
+            cur = conn.execute(
+                "UPDATE tasks SET status = 'running', started_at = ? "
+                "WHERE id = ? AND status IN ('pending', 'retry') "
+                "AND (retry_after IS NULL OR retry_after <= ?) "
+                "RETURNING id",
+                (now, task_id, now),
+            )
+            row = cur.fetchone()
+            if row is None:
+                return None  # contesa persa: qualcun altro l'ha claimato
+            res = conn.execute(
+                "SELECT * FROM tasks WHERE id = ?", (task_id,)
+            ).fetchone()
+            conn.commit()
+            return dict(res) if res else None
+
     def mark_done(self, task_id: str, result: str) -> None:
         with self._get_conn() as conn:
             # Non sovrascrivere un task fermato dall'utente (status='failed')

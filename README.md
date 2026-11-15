@@ -419,6 +419,32 @@ thermal). Returns top 1 + 3 alternatives per role.
 classification) on each model. Results saved to `state/model_benchmarks.json`.
 qwen2.5-coder:1.5b scored 100/100, avg 31.8 tok/s.
 
+### Recent Optimizations (Cycle 47 — "furbate")
+
+Four post-benchmark optimizations were implemented and verified:
+
+- **Warmup + keep-alive** (`[hardware].warmup_model` + explicit
+  `[hardware].keep_alive_sec`): the orchestrator pre-loads the primary worker
+  model at boot (background thread, non-blocking) and the Ollama client honors
+  an explicitly configured `keep_alive` instead of Ollama's implicit default —
+  same-model tasks no longer pay the cold-load overhead unnecessarily.
+- **Sticky scheduling** (`[orchestrator].sticky_models`, default true): the task
+  queue is FIFO, but the orchestrator prefers pending tasks that match the
+  currently loaded model (skips ahead only among same-model tasks) to avoid
+  costly unload+load swaps.
+- **Deterministic audit gate** (`[audit].deterministic_gate`): before running
+  the LLM reviewer, AST-parses the files written during the task — approves
+  without LLM when they compile, rejects with the exact syntax error when they
+  don't.
+- **First-token watchdog** (`[ollama].first_token_timeout`, default 60s): the
+  streaming client aborts with a typed `FirstTokenTimeout` when no token
+  arrives within the watchdog, instead of hanging until the full model timeout
+  (300-600s); the task then falls back to the lighter worker.
+
+The first real benchmark (pre-token-reduction vs. post-baseline, see
+`DOCS/BENCH.md`) confirmed: **-72% input tokens**, but the measurable win was
+correctness (0/2 → 2/2 artifacts), not wall time.
+
 ### Exception Hardening
 
 `CORE/exception_handler.py` classifies errors (model_unavailable, model_timeout,

@@ -16,6 +16,13 @@ from typing import Optional
 from CORE.constants import DEFAULT_NUM_CTX
 
 
+class FirstTokenTimeout(RuntimeError):
+    """🆕 F: il modello non ha emesso il primo token entro il watchdog
+    ([ollama].first_token_timeout). Errore tipizzato: il chiamante può
+    fare fallback su un modello più leggero invece di restare appeso
+    fino al timeout pieno del modello (300-600s buttati)."""
+
+
 class ModelClient:
     """
     Client Ollama con rotation esplicita.
@@ -31,6 +38,17 @@ class ModelClient:
         self.log = logger
         self.host = config["ollama"]["host"].rstrip("/")
         self.timeout = config["ollama"]["request_timeout"]
+        # 🆕 F: watchdog del primo token (default 60s — deve essere maggiore
+        # del load freddo, 8-15s su questa macchina). Copre i casi in cui
+        # Ollama non risponde NULLA (model load appeso, prefill bloccato):
+        # senza watchdog l'unica via d'uscita è il timeout pieno (300-600s).
+        try:
+            self.first_token_timeout = float(
+                config["ollama"].get("first_token_timeout", 60))
+        except (TypeError, ValueError):
+            self.first_token_timeout = 60.0
+        if self.first_token_timeout <= 0:
+            self.first_token_timeout = 0.0  # watchdog disattivato
         self.models_cfg = config["models"]
 
         self.current_model: Optional[str] = None
@@ -84,6 +102,11 @@ class ModelClient:
             "options": options,
             "stream": False,
         }
+        # 🆕 A: rispetta [hardware].keep_alive_sec se impostato esplicito
+        # (retention del modello in RAM/VRAM tra task stesso-modello).
+        ka = self._explicit_keep_alive()
+        if ka is not None:
+            payload["keep_alive"] = ka
 
         self.log.debug(f"calling model {model_name} (key={model_key}), "
                        f"prompt_len={len(prompt)}")
@@ -92,6 +115,37 @@ class ModelClient:
         content = response.get("message", {}).get("content", "").strip()
         self._save_call_metrics(model_key, model_name, response)
         return content
+
+    def warmup(self, model_key: str) -> float:
+        """🆕 A: pre-carica un modello in Ollama SENZA generare.
+
+        Comportamento documentato dell'API: una richiesta a /api/generate
+        senza prompt fa SOLO il load del modello. Usato all'avvio dell'
+        orchestrator (config [hardware].warmup_model) per nascondere il
+        load freddo (8-15s) al primo task. Rispetta
+        [hardware].keep_alive_sec se impostato.
+
+        Returns:
+            secondi impiegati per il load.
+        Raises:
+            KeyError: chiave modello sconosciuta.
+            RuntimeError: Ollama non raggiungibile.
+        """
+        if model_key not in self.models_cfg:
+            raise KeyError(f"unknown model key: {model_key}")
+        model_name = self.models_cfg[model_key]["name"]
+        payload = {"model": model_name}
+        ka = self._explicit_keep_alive()
+        if ka is not None:
+            payload["keep_alive"] = ka
+        t0 = time.time()
+        # Timeout di load: almeno 60s anche se request_timeout è basso
+        self._post("/api/generate", payload, timeout=max(self.timeout, 60))
+        self.current_model = model_name
+        self.last_call_ts = time.time()
+        elapsed = time.time() - t0
+        self.log.info(f"warmup: {model_name} caricato in {elapsed:.1f}s")
+        return elapsed
 
     def _save_call_metrics(self, model_key: str, model_name: str,
                            response: dict) -> None:
@@ -182,6 +236,10 @@ class ModelClient:
             "options": options,
             "stream": True,  # STREAMING ATTIVO
         }
+        # 🆕 A: rispetta [hardware].keep_alive_sec se impostato esplicito
+        ka = self._explicit_keep_alive()
+        if ka is not None:
+            payload["keep_alive"] = ka
 
         self.log.debug(f"streaming model {model_name} (key={model_key}), "
                        f"prompt_len={len(prompt)}")
@@ -204,12 +262,30 @@ class ModelClient:
         }
         start_time = time.time()
         first_token_time = None
+        # 🆕 F: deadline del watchdog primo token (se disattivato, 0 → mai)
+        first_token_deadline = (start_time + self.first_token_timeout
+                                if self.first_token_timeout > 0 else 0.0)
 
         try:
-            with urllib.request.urlopen(req, timeout=model_timeout) as resp:
+            # 🆕 F: urlopen col timeout del WATCHDOG, non quello pieno del
+            # modello — se Ollama non emette nulla entro N secondi (model
+            # load appeso, prefill bloccato, GPU thrashing) abortiamo con
+            # errore tipizzato invece di restare appesi per 300-600s.
+            # Dopo il primo token il timeout pieno viene ripristinato sul
+            # socket (_restore_sock_timeout).
+            resp_ctx = urllib.request.urlopen(
+                req, timeout=self.first_token_timeout or model_timeout)
+            with resp_ctx as resp:
                 for line in resp:
                     if not line.strip():
                         continue
+                    # 🆕 F: watchdog anche a stream aperto (headers arrivati
+                    # ma body muta oltre la deadline)
+                    if first_token_deadline and first_token_time is None \
+                            and time.time() > first_token_deadline:
+                        raise FirstTokenTimeout(
+                            f"{model_name}: nessun token entro "
+                            f"{self.first_token_timeout:.0f}s")
                     try:
                         chunk = json.loads(line.decode("utf-8"))
                     except json.JSONDecodeError:
@@ -221,6 +297,11 @@ class ModelClient:
                         if token:
                             if first_token_time is None:
                                 first_token_time = time.time()
+                                # 🆕 F: primo token arrivato → ripristina
+                                # il timeout pieno del modello per il resto
+                                # dello stream (la generazione legittima
+                                # NON deve essere limitata dal watchdog).
+                                self._restore_sock_timeout(resp, model_timeout)
                             full_response.append(token)
                             metrics_data["tokens_out"] += 1
                             yield token
@@ -236,6 +317,22 @@ class ModelClient:
                         if eval_dur > 0 and eval_count > 0:
                             metrics_data["tokens_per_sec"] = round(eval_count / eval_dur, 1)
                         break
+        except (TimeoutError, urllib.error.URLError) as e:
+            # 🆕 F: timeout PRIMA del primo token = watchdog scattato
+            # (socket.timeout è TimeoutError da Python 3.10); URLError con
+            # reason di timeout copre il caso connect/read wrappato.
+            # A stream già iniziato è il timeout classico → riusa il path
+            # generico qui sotto.
+            reason = getattr(e, "reason", e)
+            if first_token_time is None and isinstance(reason, TimeoutError):
+                self.log.error(
+                    f"watchdog primo token: {model_name} muta da "
+                    f"{self.first_token_timeout:.0f}s — abort (fallback possibile)")
+                raise FirstTokenTimeout(
+                    f"{model_name}: nessun token entro "
+                    f"{self.first_token_timeout:.0f}s") from e
+            self.log.error(f"streaming failed: {e}")
+            raise
         except Exception as e:
             self.log.error(f"streaming failed: {e}")
             raise
@@ -243,6 +340,20 @@ class ModelClient:
         # Salva metriche (come call normale)
         self._save_streaming_metrics(model_key, model_name, metrics_data,
                                      start_time, first_token_time)
+
+    @staticmethod
+    def _restore_sock_timeout(resp, timeout: float) -> None:
+        """🆕 F: ripristina il timeout pieno sul socket HTTP dopo il watchdog
+        del primo token (l'urlopen era limitato al solo primo byte).
+
+        Se il socket non è raggiungibile (client HTTP diverso), resta il
+        timeout del watchdog: fail-safe — un'assenza di chunk oltre la
+        deadline abortisce, mai un hang silenzioso.
+        """
+        try:
+            resp.fp.raw._sock.settimeout(timeout)
+        except Exception:
+            pass
 
     def _save_streaming_metrics(self, model_key, model_name, metrics,
                                 start_time, first_token_time):
@@ -403,6 +514,24 @@ class ModelClient:
     # ------------------------------------------------------------------
     # Utility interne
     # ------------------------------------------------------------------
+
+    def _explicit_keep_alive(self) -> Optional[int]:
+        """keep_alive da [hardware].keep_alive_sec SOLO se impostato esplicito.
+
+        Con "auto" (default) NON mandiamo il campo: Ollama applica il suo
+        default (~300s di retention tra richieste stesso-modello). Mandare
+        keep_alive=0 (profilo cpu_only) a ogni richiesta scaricherebbe il
+        modello DOPO ogni call: il task successivo stesso-modello pagherebbe
+        di nuovo il load (8-15s) — regressione, non ottimizzazione.
+        L'override esplicito in config vince e viene rispettato.
+        """
+        try:
+            ka = self.cfg.get("hardware", {}).get("keep_alive_sec", "auto")
+            if ka != "auto":
+                return max(0, int(ka))
+        except (TypeError, ValueError):
+            pass
+        return None
 
     def _unload(self, model_name: str) -> None:
         """Scarica o mantiene un modello in RAM in base al profilo hardware.

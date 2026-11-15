@@ -8,8 +8,10 @@ Revisione del codice prodotto dal worker: sicurezza, clean code, verifica.
 
 from __future__ import annotations
 
+import ast
 import json
 import logging
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from CORE.constants import DEFAULT_NUM_CTX
@@ -51,10 +53,16 @@ class AuditWorker:
         model_client: ModelClient,
         logger,
         decision_client: Optional[Callable[[str, str, str, float, int, int], str]] = None,
+        config: Optional[dict] = None,
     ):
         self.models = model_client
         self.log = logger
         self.decision_client = decision_client
+        # 🆕 C: gate deterministico (config-gated, default OFF per non
+        # cambiare comportamento a config esistenti senza la chiave).
+        cfg = config or {}
+        self.deterministic_gate = bool(
+            cfg.get("audit", {}).get("deterministic_gate", False))
 
     def audit(
         self,
@@ -65,8 +73,10 @@ class AuditWorker:
         temperature: float = 0.1,
         num_ctx: int = DEFAULT_NUM_CTX,
         max_tokens: int = 500,
+        project_path: Optional[str] = None,
+        started_at: Optional[float] = None,
     ) -> dict:
-        """Review worker output using the LLM decision model.
+        """Review worker output for the task.
 
         Returns {"decision": "APPROVE" | "REJECT", "feedback": str, "severity": "LOW"|"MEDIUM"|"HIGH"}.
         """
@@ -85,6 +95,22 @@ class AuditWorker:
             return {"decision": "APPROVE",
                    "feedback": f"auto-approved ({useful_count} useful tool calls)",
                    "severity": "LOW"}
+
+        # 🆕 C: gate deterministico PRIMA dell'audit LLM. Il LLM gira solo
+        # quando NESSUN tool utile è stato chiamato (il caso comune con
+        # write_file/patch_code è già auto-APPROVE senza LLM). Se i file
+        # scritti durante il task:
+        #   - compilano (AST)   → APPROVE senza spendere la chiamata LLM;
+        #   - hanno SyntaxError → REJECT con l'errore VERO nel feedback
+        #     (il loop di correzione riceve riga+messaggio esatti invece
+        #     della parafrasi vaga di un LLM).
+        # Se nessun file è stato scritto (task di risposta/analisi) →
+        # prosegui con l'audit LLM come prima (None = gate non applicable).
+        if self.deterministic_gate and project_path and started_at:
+            det = self._deterministic_check(project_path, started_at)
+            if det is not None:
+                self.log.info(f"deterministic audit gate: {det['decision']}")
+                return det
 
         # Fallback: usa il decision model LLM per review codice
         system_prompt = ("You are a senior code reviewer. Review the following "
@@ -120,3 +146,73 @@ class AuditWorker:
         return {"decision": "REJECT",
                "feedback": "No useful tools called and LLM review unavailable.",
                "severity": "HIGH"}
+
+    # ------------------------------------------------------------------
+    # 🆕 C: gate deterministico (AST, zero LLM)
+    # ------------------------------------------------------------------
+
+    # Directory che non contano come "artifact del task"
+    _SKIP_DIRS = {".git", "__pycache__", ".venv", "venv", "env", "ENV",
+                  "node_modules", "state", "tasks", "logs", "backups",
+                  ".pytest_cache", ".mypy_cache", ".ruff_cache"}
+
+    def _deterministic_check(self, project_path: str,
+                             started_at: float) -> Optional[dict]:
+        """Verifica deterministica dei file scritti DURANTE il task.
+
+        Scansiona project_path cercando file con mtime >= started_at
+        (l'istante del claim del task), poi AST-parsa i .py tra questi.
+
+        Returns:
+            None   → nessun file recente: gate non applicable, prosegui
+                     con l'audit LLM (es. task di risposta senza artifact).
+            dict   → decisione APPROVE/REJECT deterministica.
+        """
+        if not started_at:
+            return None
+        root = Path(project_path)
+        if not root.is_dir():
+            return None
+        recent_py: list[Path] = []
+        recent_any = 0
+        try:
+            for p in root.rglob("*"):
+                if not p.is_file():
+                    continue
+                rel = p.relative_to(root)
+                if any(part in self._SKIP_DIRS for part in rel.parts):
+                    continue
+                try:
+                    mtime = p.stat().st_mtime
+                except OSError:
+                    continue
+                if mtime < started_at:
+                    continue
+                recent_any += 1
+                if p.suffix == ".py":
+                    recent_py.append(p)
+        except Exception as e:
+            self.log.debug(f"deterministic gate scan fallita: {e}")
+            return None  # fail-open: LLM come prima
+
+        if recent_any == 0:
+            return None  # nessun artifact scritto → audit LLM come prima
+
+        errors: list[str] = []
+        for p in recent_py:
+            try:
+                ast.parse(p.read_text(encoding="utf-8", errors="replace"),
+                          filename=str(p))
+            except SyntaxError as e:
+                errors.append(f"{p.name}: {e.msg} (riga {e.lineno})")
+            except (OSError, ValueError) as e:
+                errors.append(f"{p.name}: {e}")
+        if errors:
+            return {"decision": "REJECT",
+                    "feedback": "deterministic gate — SyntaxError nei file "
+                                "scritti: " + "; ".join(errors[:3]),
+                    "severity": "HIGH"}
+        return {"decision": "APPROVE",
+                "feedback": f"deterministic gate: {recent_any} file scritti, "
+                            f"{len(recent_py)} .py AST OK",
+                "severity": "LOW"}

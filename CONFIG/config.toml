@@ -1,6 +1,7 @@
 [ollama]
 host = "http://localhost:11434"
 request_timeout = 300
+first_token_timeout = 60
 
 [models.orchestrator]
 name = "qwen2.5:1.5b"
@@ -30,21 +31,12 @@ top_p = 0.8
 top_k = 20
 repeat_penalty = 1.1
 repeat_last_n = 256
-# Contesto maggiorato: 8192 fa comodo con skill + task + correzioni;
-# num_predict 1024 evita file completi troncati a metà.
 num_ctx = 8192
 num_predict = 1024
 seed = 42
-# no_tools: limita i tool del worker (default False = tutti abilitati;
-# flag esposto nel pannello Attori per esperimenti).
 no_tools = false
 
 [models.worker_coder_big]
-# Heavy per il routing semplice (CORE/routing.py): consigliato entro
-# 4GB dal JSON di conoscenza. Finché NON è installato (⬇ nel pannello
-# Attori) il routing resta automaticamente sul modello base.
-# timeout per modello: la suite comparativa ha mostrato generazioni
-# >300 s (T8/T9/T10 in timeout) su questa macchina in throttling.
 name = "kirito1/qwen3-coder:4b"
 temperature = 0.2
 top_p = 0.8
@@ -56,26 +48,7 @@ num_predict = 1024
 seed = 42
 timeout = 600
 
-[complexity_routing]
-# Routing per complessità (CORE/routing.py): task 'alta' → heavy_model
-# SOLO se installato; altrimenti fallback automatico sul modello base.
-# NON confondere con [routing] (più sotto), che governa la scelta
-# direct/ReAct dell'orchestrator.
-#
-# Verdict heavy (spotcheck_heavy.py, state/suite_compare/spotcheck.json):
-#   kirito1/qwen3-coder:4b  → SCARTATO: suite 4/10, ×19 più lento,
-#     generazione >300 s (T8/T9/T10 in timeout) su questa macchina.
-#   granite4:7b-a1b-h (MoE ~1B attivi) → SCELTO: T9 ok 1 att 31 s,
-#     T1 ok 1 att 10 s (il 3B aveva fatto T1 in 2 tentativi); veloce
-#     come il base, passa dove il 4B non finisce nemmeno a generare.
-enabled = true
-heavy_model = "worker_granite"
-
 [models.worker_granite]
-# Heavy per complessità alta (verdict spot-check 2/2: T9 31 s, T1 10 s,
-# primo tentativo — vedi todo.md). MoE ~1B parametri attivi.
-# timeout esplicito: ereditava i 300 s globali — un task lungo non deve
-# morire di timeout come il 4B.
 name = "granite4:7b-a1b-h"
 temperature = 0.2
 top_p = 0.8
@@ -100,6 +73,10 @@ no_tools = false
 
 [models.embedding]
 name = "moondream:latest"
+
+[complexity_routing]
+enabled = true
+heavy_model = "worker_granite"
 
 [thermal]
 enabled = true
@@ -126,7 +103,6 @@ backup_complete = 86400
 model_unload_idle = 120
 
 [safety]
-# 3. Sandbox bubblewrap: true (default, sicuro) o false (locale, veloce)
 sandbox_enabled = true
 max_attempts = 10
 max_consecutive_failures = 3
@@ -223,122 +199,34 @@ max_subtasks = 8
 max_tokens = 1500
 system_prompt = "Sei un pianificatore software esperto. Decomponi il task generico in 2-8 code task atomici.\n\nREGOLE:\n1. Ogni sottotask deve essere implementabile in massimo 200 righe di codice\n2. I sottotask devono essere sequenziali e indipendenti\n3. Includi sempre: creazione file principale, implementazione logica, test, documentazione\n4. Specifica il tipo di ogni sottotask: implement | test | fix | document\n\nRISPONDI SOLO con formato JSON:\n{\"subtasks\": [{\"title\": \"...\", \"description\": \"...\", \"type\": \"implement|test|fix|document\"}]}\n\nNiente testo fuori dal JSON."
 
-# ====================================================================
-# LLM Tuner — Timestral ottimizza i parametri LLM in base allo stato termico
-# ====================================================================
-[llm_tuner]
-# Il tuner è attivo se [thermal].enabled = true
-# Override dei profili (opzionale, lasciare commentato per usare i default)
-
 [llm_tuner.fast]
-# Sistema freddo (< 50°C): creativo, output lungo
-# temperature = 0.25
-# top_p = 0.92
-# num_predict = 600
-# num_ctx = 3072
-# max_steps = 8
 
 [llm_tuner.normal]
-# Sistema normale (50-65°C): bilanciato
-# temperature = 0.15
-# top_p = 0.85
-# num_predict = 450
-# num_ctx = 3072
-# max_steps = 6
 
 [llm_tuner.slow]
-# Sistema caldo (65-85°C): deterministico, output corto
-# temperature = 0.08
-# top_p = 0.78
-# num_predict = 300
-# num_ctx = 2048
-# max_steps = 5
 
 [llm_tuner.pause]
-# Sistema critico (> 85°C): lavoro minimo
-# temperature = 0.05
-# top_p = 0.70
-# num_predict = 200
-# num_ctx = 1536
-# max_steps = 4
 
-# ═══════════════════════════════════════════════════════════════
-# AUDIT GATES — Quality gate per progetti target
-# ═══════════════════════════════════════════════════════════════
-# L'orchestratore, prima di eseguire un task su un progetto, può lanciare
-# l'audit gate per verificare che il progetto sia "sano" (nessuna porta
-# esposta, nessun tunnel sospetto, nessun import bandito, ecc.).
-#
-# Modalità:
-#   off       → gate disattivato, sempre PASS
-#   advisory  → log warning se FAIL, ma non blocca il task
-#   strict    → blocca il task se FAIL (richiede risoluzione critical)
-#
-# Target:
-#   auto      → usa il progetto corrente ( quello del tab attivo)
-#   <path>    → path esplicito (es. "/home/user/myproject")
-#
-# Categories: lista opzionale di categorie bloccanti da considerare.
-# Default (se vuoto): tutte le categorie bloccanti sono attive.
-# Valori possibili: exposed_ports, potential_tunnel, banned_import,
-#                   critical_files, config_validity
+[audit]
+deterministic_gate = true
+
 [audit.gates]
 enabled = false
 mode = "advisory"
 target = "auto"
 categories = []
 
-# ═══════════════════════════════════════════════════════════════
-# HARDWARE DETECTION — Auto-rilevamento Apple/NVIDIA/AMD/CPU
-# ═══════════════════════════════════════════════════════════════
-# Al boot byte-swarmy rileva automaticamente il tipo di GPU (Apple
-# Metal / NVIDIA CUDA / AMD ROCm / nessuna) e la memoria disponibile
-# (unificata vs dedicata), poi suggerisce:
-#   - worker_count: numero di Worker paralleli ottimali
-#   - keep_alive_sec: secondi di permanenza modelli in RAM
-#   - models_in_ram: modelli caricati simultaneamente
-#
-# Modalità:
-#   mode = "auto"     → rileva hardware e applica strategia ottimale
-#   mode = "manual"   → usa i valori espliciti sotto (override)
-#
-# Strategie auto (da hardware rilevato):
-#   unified_parallel  → Apple Silicon ≥32GB, 4 Worker, 4 modelli
-#   unified_light     → Apple Silicon 16GB, 2 Worker, 2 modelli
-#   nvidia_dual       → NVIDIA ≥20GB VRAM, 2 Worker su GPU
-#   nvidia_cpu_split  → NVIDIA 8-20GB VRAM, 1 GPU + 1 CPU
-#   amd_dual          → AMD ≥16GB VRAM, 2 Worker su GPU
-#   cpu_only          → Solo CPU, 1 Worker, 1 modello
 [hardware]
 mode = "auto"
-# Override manuali (solo se mode = "manual"):
-# worker_count = 1
-# keep_alive_sec = 0
-# strategy = "cpu_only"
+warmup_model = "worker_coder"
 
 [orchestrator]
-# Quante volte un task fallito viene ritentato (con prompt di correzione)
-# prima di essere bloccato in modo definitivo. Diminuisci per bloccare
-# prima, aumenta per insistere di più con modelli piccoli.
 max_task_retries = 3
-# Secondi di attesa tra un tentativo e il successivo: il task in errore
-# "aspetta" questo intervallo prima di tornare in coda (0 = subito).
 retry_cooldown_sec = 30
+sticky_models = true
 
 [gui]
-# Posizione del testo rispetto all'icona nei pulsanti della GUI:
-#   below     = testo sotto l'icona (default)
-#   above     = testo sopra l'icona
-#   right     = testo a destra dell'icona
-#   left      = testo a sinistra dell'icona
-#   icons_only = solo icona, niente testo
 icon_text_position = "below"
-
-# Tema interfaccia: dark | light
 theme = "dark"
-
-# Livello zoom in percentuale (50 = piccolo, 100 = normale, 200 = grande)
 zoom_level = 100
-
-# Dimensione font base in pixel
 font_size = 11

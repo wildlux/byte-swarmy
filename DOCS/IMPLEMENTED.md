@@ -814,3 +814,30 @@ buio. Il guadagno misurabile del token reduction sul prefill: ~4.600
 char/step in meno di input costante ripetuto.
 NB: il primo step della baseline (15,7s) include il load del modello
 in Ollama; i passi successivi (1,9–5,5s) sono il costo reale per step.
+
+## 🚀 Cycle 47 — Furbate: warmup, sticky scheduling, audit gate deterministico, watchdog (2026-11-15)
+
+Implementate le furbate scelte dall'utente come Cycle 47 (A+B+C+F):
+
+1. **A — Warmup + keep_alive**: orchestrator avvia un thread daemon che
+   pre-carica `worker_coder` via `/api/generate` senza prompt (load only);
+   il client Ollama (`CORE/ollama_client.py`) rispetta `[hardware]
+   .keep_alive_sec` SOLO se impostato esplicitamente (con "auto" il campo
+   non viene mandato → nessun reload per task stesso-modello).
+2. **B — Sticky scheduling**: `_pick_task` nel tick preferisce, tra i
+   candidati pendenti (peek dei primi 8), il task che userà il modello già
+   caricato; il claim usa `claim_by_id` (UPDATE...RETURNING atomico, stessa
+   gara di next_pending). Config: `[orchestrator].sticky_models = true`.
+3. **C — Audit gate deterministico**: `[audit].deterministic_gate = true`:
+   se il worker non ha chiamato tool utile e ci sono file scritti nel
+   `project_root` dopo `started_at`, l'auditor AST-verifica i .py: APPROVE
+   se compilano, REJECT con SyntaxError concreto (riga+messaggio) se no.
+4. **F — Watchdog primo token**: `CORE/ollama_client.call_streaming`
+   usa `urlopen(timeout=first_token_timeout)` (default 60s da
+   `[ollama].first_token_timeout`) + restore del timeout dopo il primo
+   token + `FirstTokenTimeout` tipizzato su timeout pre-token → task in
+   fallback (worker_coder → worker_general) invece di hang fino al timeout.
+
+Nuovi test: `tests/test_cycle47_furbate.py` (25 passed). Boot smoke e bench
+post-furbate da fare al termine della cycle.
+
