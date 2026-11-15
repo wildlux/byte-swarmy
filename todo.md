@@ -45,6 +45,39 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
   file markdown per il diario LLM; oggi il file basta per il contesto
   self-optimization, il DB solo per analytics/query strutturate.
 
+### Miglioramenti senior da applicare (dalla code review) — priorità decrescente
+
+Interventi strutturali che chiudono i gap identificati; non sono "feature
+nuove", ma migliori al sistema:
+
+1. [ ] **Classificatore di rischio deterministico + blocco umano per task ad
+      alto impatto**: modulo `SAFETY/risk_classifier.py` con regole
+      deterministiche (path toccati → alto; diff > 50 righe / > 3 file → alto;
+      refactoring architetturale / cambio API pubblica → alto); task
+      `high`/`critical` → `awaiting_human_approval` + GUI prompt di
+      conferma; log in `logs/security.log`.
+2. [ ] **Runtime verification harness per i diff generati**: dopo ogni
+      `write_file` e prima dell'audit, smoke test sul file (import isolato,
+      test, schema config); per GUI/orchestrator: avvio headless controllato +
+      timeout; su fail → `failed_runtime` + feedback specifico nel correction
+      loop. Modulo `CORE/runtime_verifier.py`.
+3. [ ] **Test generation per i nuovi percorsi di esecuzione**: al worker,
+      per ogni nuovo percorso, generare + eseguire test di regressione;
+      se non generabile → `needs_manual_test` + blocco per review umana.
+4. [ ] **Semplificazione architetturale**: inventario CORE/MONITORING,
+      fusione candidate (`exception_handler`+`state_recovery` → resilience;
+      `predictive`+`thermal` → modulo termico; `benchmark`+`model_selector` →
+      model_management).
+5. [ ] **Benchmark esterni e validazione indipendente**: dataset pubblico
+      (RefactoringBench/HumanEval), tasso di successo al primo colpo,
+      dopo correction loop, falsi negativi; baseline = modello nudo.
+6. [ ] **Fuzzing mirato sulla sicurezza**: input casuali per `run_bash`,
+      `write_file`, parser MCP; regression tests per ogni bypass trovato.
+7. [ ] **Migliorare l'esperienza utente della GUI per il flusso di approvazione
+      umana**: coda approvazioni (`awaiting_human_approval`) con diff
+      sintetico, bottoni Approva/Rifiuta/Sospendi; notifica badge; approvazione
+      in blocco solo per `low`/`medium`.
+
 ### Responsive
 *(nessun item aperto — T-R3 e gap vuoto risolti nel Cycle 29)*
 
