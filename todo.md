@@ -14,7 +14,11 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
 
 ## Aperti
 
-*(nessun item aperto — tutto il piano approvato è completato)*
+### Test agentico — programmino Qt/PyQt6 via swarm (Cycle 50)
+
+- [ ] **Test agentico Qt/PyQt6**: far creare al swarm un programmino PyQt6
+  semplice (es. Finestra + QPushButton + label) come prova pratica della
+  capability di scrittura codice; misura se il risultato è "funzionante".
 
 ### Responsive
 *(nessun item aperto — T-R3 e gap vuoto risolti nel Cycle 29)*
