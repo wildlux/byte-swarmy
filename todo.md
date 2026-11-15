@@ -30,6 +30,11 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
   lettura documenti (es. PDF via bash/pdftotext) + riassunto come contesto,
   invece del documento intero.
 
+- [x] **Middle capability: escalation 3B→4B** ✅ Cycle 52: fallback del
+  worker_coder (junior) → `worker_coder_big` (middle, qwen3-coder:4b) invece
+  di scendere al più piccolo (worker_general 1.5B). Salto di capacità al
+  tier "middle".
+
 ### Responsive
 *(nessun item aperto — T-R3 e gap vuoto risolti nel Cycle 29)*
 

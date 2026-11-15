@@ -1075,3 +1075,17 @@ via drop-in; delta attribuibile a `OLLAMA_KV_CACHE_TYPE=q8_0`.
 **Chiusura furbate**: A, B, C, E, F e D — **tutte completate e misurate**.
 
 
+
+## 🚀 Cycle 52 — Middle capability: escalation worker_coder → worker_coder_big (2026-11-15)
+
+Obiettivo: far scendere lo swarm al tier capability "middle" (worker_coder_big
+= qwen3-coder:4b) dopo il periodo "junior".
+
+Cambio: nel fallback post-fallimento del worker_coder (junior 3B) — in
+`CORE/orchestrator.py` (`_process_task`) — l'escalation ora sale a
+`worker_coder_big` (middle) invece di scendere al più piccolo (`worker_general`,
+1.5B).
+
+Rationale onesta: il fallback precedente era una **discesa** (3B → 1.5B); ora è
+un **salto** (3B → 4B). Nessun test esistente copriva il fallback: la suite
+pertanto resta verde per la nuova catena di escalation.

@@ -687,16 +687,17 @@ class Orchestrator:
 
         try:
             if not self._execute_task_with_worker(task, worker):
-                # 🆕 Fallback modello: se worker_coder (3B) fallisce
-                # definitivamente, prova con worker_general (1.5B)
-                # come secondo tentativo.
+                # 🆕 Fallback modello: se worker_coder (3B, junior) fallisce
+                # definitivamente, prova con worker_coder_big (4B, MIDDLE) come
+                # secondo tentativo — salto di capacità al tier "middle"
+                # invece di scendere al più piccolo (1.5B).
                 if worker.model_key == "worker_coder":
                     self.log.info(
-                        f"task {task['id']} fallback modello: provo con worker_general"
+                        f"task {task['id']} fallback modello: provo con worker_coder_big (middle)"
                     )
                     # Rimette il task in pending per rieseguirlo con il fallback
                     self.queue.mark_pending(task["id"])
-                    fallback_worker = self._build_worker(task["id"], "worker_general")
+                    fallback_worker = self._build_worker(task["id"], "worker_coder_big")
                     self._execute_task_with_worker(task, fallback_worker)
         except Exception as e:
             self.log.error(f"task {task['id']} exception: {e}", exc_info=True)
