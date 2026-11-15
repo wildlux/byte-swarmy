@@ -1153,3 +1153,28 @@ d'attacco Fase 3): chiude il gap "test verdi ma codice mai eseguito".
 - **Stato**: test generation implementata e testata; interventi senior chiusi
   finora: #1 (risk classifier, Cycle 56), #2 (runtime verifier, Cycle 56),
   #3 (test generation, Cycle 57).
+
+## 🚀 Cycle 58 — Semplificazione architetturale (2026-11-15)
+
+Quarto intervento strutturale della lista senior (dalla code review, piano
+d'attacco Fase 5): ridurre il numero di moduli senza peggiorare le metriche.
+
+- **Fusione resilience** (Cycle 58, #4): nuovo `CORE/resilience.py` che unisce
+  `CORE/exception_handler.py` (should_retry, get_retry_delay, log_error) e
+  `CORE/state_recovery.py` (recover_worker_state, get_last_task_for_worker) in
+  un unico modulo di resilienza.
+- **Rimozione moduli orfani**: rimossi 4 moduli non importati da nessun codice
+  di produzione (nessuna metrica di valore associata):
+  - `CORE/exception_handler.py`
+  - `CORE/state_recovery.py`
+  - `CORE/benchmark.py`
+  - `MONITORING/predictive.py`
+- **Import aggiornati**: `tests/test_usability_hardcore.py` importa ora da
+  `CORE.resilience` invece di `CORE.state_recovery`.
+- **Regola rispettata**: il Timestral LLM Tuner (`CORE/llm_tuner.py`) non è
+  stato toccato (feature differenziante, valore già dimostrato).
+- **Test**: tutte le suite affini verdi (199 passed, 1000 subtests).
+- **Stato**: interventi senior chiusi finora: #1 (risk classifier, Cycle 56),
+  #2 (runtime verifier, Cycle 56), #3 (test generation, Cycle 57),
+  #4 (semplificazione, Cycle 58). Restano #5 (benchmark esterni), #6 (fuzzing),
+  #7 (GUI approvazioni).

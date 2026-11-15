@@ -66,10 +66,12 @@ nuove", ma migliori al sistema:
       generare + eseguire test di regressione via pytest; se non generabile o
       se fallisce → feedback specifico nel correction loop. Modulo
       `CORE/test_generator.py`, iniettato in `CORE/worker.py` (`execute`).
-4. [ ] **Semplificazione architetturale**: inventario CORE/MONITORING,
-      fusione candidate (`exception_handler`+`state_recovery` → resilience;
-      `predictive`+`thermal` → modulo termico; `benchmark`+`model_selector` →
-      model_management).
+4. [x] **Semplificazione architetturale**: ✅ **Cycle 58**: inventario CORE/MONITORing,
+      fusione `exception_handler.py` + `state_recovery.py` → `CORE/resilience.py`;
+      rimossi i 4 moduli orfani (non importati da nessun codice di produzione)
+      `exception_handler`, `state_recovery`, `benchmark`, `MONITORING/predictive`.
+      Import nei test aggiornati (`test_usability_hardcore` ora importa da
+      `CORE.resilience`). Nessuna metrica peggiorata (tutte le suite verdi).
 5. [ ] **Benchmark esterni e validazione indipendente**: dataset pubblico
       (RefactoringBench/HumanEval), tasso di successo al primo colpo,
       dopo correction loop, falsi negativi; baseline = modello nudo.

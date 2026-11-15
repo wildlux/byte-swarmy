@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.3.4-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.3.5-blue">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-yellow">
   <img alt="Ollama" src="https://img.shields.io/badge/Ollama-required-orange">
@@ -31,7 +31,7 @@
 > con streaming token in tempo reale, selezione intelligente dei modelli e
 > ottimizzazione termica adattiva (Timestral LLM Tuner).
 
-**Versione:** 0.3.4 · **Licenza:** MIT · **Piattaforma:** Linux
+**Versione:** 0.3.5 · **Licenza:** MIT · **Piattaforma:** Linux
 
 ---
 
@@ -448,7 +448,7 @@ The first real benchmark (pre-token-reduction vs. post-baseline, see
 `DOCS/BENCH.md`) confirmed: **-72% input tokens**, but the measurable win was
 correctness (0/2 → 2/2 artifacts), not wall time.
 
-### Latest — Cycles 52–57
+### Latest — Cycles 52–58
 
 - **Middle capability** (Cycle 52): after a definitive failure of the
   `worker_coder` (junior 3B), the fallback now escalates to
@@ -469,6 +469,10 @@ correctness (0/2 → 2/2 artifacts), not wall time.
   module, the worker generates a pytest regression test for its public
   functions and runs it; failure → specific feedback into the correction loop
   instead of a generic "syntax error".
+- **Architectural simplification** (Cycle 58): fused
+  `CORE/exception_handler.py` + `CORE/state_recovery.py` → `CORE/resilience.py`;
+  removed 4 orphan modules (not imported by any production code):
+  `exception_handler`, `state_recovery`, `benchmark`, `MONITORING/predictive`.
 
 ### Exception Hardening
 
@@ -1033,7 +1037,7 @@ Rilasciato sotto licenza MIT. Vedi [LICENSE](LICENSE).
 
 ---
 
-**BYTE-SWARMY v0.3.4**
+**BYTE-SWARMY v0.3.5**
 
 ```
 /ˈbaɪt ˈswɔːrmi/  ·  "BYTE SWOR-mee"

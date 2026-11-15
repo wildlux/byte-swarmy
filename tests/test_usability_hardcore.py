@@ -33,7 +33,7 @@ from CORE.orchestrator import TaskQueue, Worker   # noqa: E402
 from CORE.constants import TaskStatus  # noqa: E402
 from CORE.scheduler_worker import SchedulerLogic  # noqa: E402
 from INTENT.router import IntentRouter, detect_lang  # noqa: E402
-from CORE.state_recovery import (                 # noqa: E402
+from CORE.resilience import (                 # noqa: E402
     recover_worker_state,
     get_last_task_for_worker,
 )
