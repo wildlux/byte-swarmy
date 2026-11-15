@@ -41,6 +41,9 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
   (problem, context, attempts, failures, learnings, optimization) al
   termine di un task; persistenza in `state/diary/`; riuso come contesto per
   task futuri.
+- [ ] **Diary: DB vs file**: decidere DB (SQLite + query via API/socket) vs
+  file markdown per il diario LLM; oggi il file basta per il contesto
+  self-optimization, il DB solo per analytics/query strutturate.
 
 ### Responsive
 *(nessun item aperto — T-R3 e gap vuoto risolti nel Cycle 29)*
