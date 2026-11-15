@@ -860,4 +860,18 @@ esclusivamente il **warmup** (il primo step non paga più il load cold). Nessuna
 regressione di uso. Il compile-error pre-esistente (archived GUI test) è
 fuori dallo scope.
 
+## 🚀 Cycle 48 — Furbata E: bench num_ctx A/B (8192 → 4096) (2026-11-15)
+
+Bench con `num_ctx = 4096` (worker_coder) vs baseline 8192.
+
+| metrica | 8192 | 4096 | delta |
+|---|---|---|---|
+| wall totale | 74,59s | 71,06s | −4,7% |
+| bench-create | 40,39s | 36,76s | −9,0% |
+| bench-patch | 34,2s | 34,3s | +0,3% |
+
+Token invariati → riduzione KV cache non ha ridotto i token consumati. Conclusione
+onesta: con prompt compatti (post-T1–T22) la riduzione num_ctx non dà un win
+misurabile oggi (−4,7% dentro rumore). Config ripristinata a 8192.
+
 

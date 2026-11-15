@@ -31,6 +31,8 @@ top_p = 0.8
 top_k = 20
 repeat_penalty = 1.1
 repeat_last_n = 256
+# 🆕 Cycle 48 (furbata E): num_ctx A/B. 8192 baseline; 4096 testato via bench
+# (meno KV cache → potenziale più velocità). Restore a 8192 dopo il confronto.
 num_ctx = 8192
 num_predict = 1024
 seed = 42

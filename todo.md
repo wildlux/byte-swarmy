@@ -221,6 +221,12 @@ del codice reale su cui agire. Da scegliere con l'utente:
   bench-create −9,6% (load cold nascosto dal warmup), token invariati.
   Report in `DOCS/BENCH.md` Cycle 47b. ✅ Cycle 47b.
 
+### Furbate completate (menu chiuso)
+- [x] **E. Bench num_ctx A/B** ✅ Cycle 48: num_ctx 8192 → 4096 vs baseline;
+  wall −4,7%, token invariati → **nessun win misurabile** oggi (prompt già
+  compatti); config ripristinata a 8192. Report in `DOCS/BENCH.md` Cycle 48.
+  ✅ Cycle 48. Menu furbate (A–F) **chiuso** salvo D (env Ollama, da approvare).
+
 ---
 
 ## Fuori scope (per scelta/limiti hardware)

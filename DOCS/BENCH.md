@@ -62,3 +62,27 @@ regressione di prompt e nessun costo aggiuntivo. Wall −5,4% totale su 2 task.
 Nota: i test di compile segnalano 1 errore pre-esistente in
 `tests/archiviati/TEST_GUI_SEPARATA/TEST_GUI_QT_7.py` (da commit
 `3312ad4`, non toccato in questa cycle).
+
+---
+
+## 2026-11-15 — Post-furbate E: num_ctx A/B (8192 → 4096) — **nessun win netto (probabile noise)
+
+Bench con `[models.worker_coder].num_ctx = 4096` vs baseline 8192 (stesso task,
+stesso modello, stesso prompt version, 1 campione/task come sempre):
+
+| metrica | 8192 (baseline) | 4096 | delta |
+|---|---|---|---|
+| wall totale | 74,59s | 71,06s | −4,7% |
+| bench-create | 40,39s | 36,76s | −9,0% |
+| bench-patch | 34,2s | 34,3s | +0,3% |
+
+Token invariati (4240 in / 1349 out / 20 chiamate) → la KV cache ridotta NON ha
+ridotto i token usati (context effettivi ~140ch ripetuti, già piccoli).
+
+**Lettura onesta**: lieve miglioramento di wall (−4,7%) dentro il rumore del
+campione singolo; stesse dimensioni di guadagno del bench post-warmup
+(−5,4%). Probabile che parte di questo delta sia noise, non il num_ctx in sé.
+**Conclusione**: con prompt già compatti (post T1–T22), la riduzione num_ctx
+non dà un win misurabile sul 3B oggi. Valutare solo per worker_coder_big
+(modello 4B, context più grande) in futuro bench separato.
+Config ripristinata a `num_ctx = 8192` (non committata come cambiamento).
