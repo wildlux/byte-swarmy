@@ -874,4 +874,23 @@ Token invariati → riduzione KV cache non ha ridotto i token consumati. Conclus
 onesta: con prompt compatti (post-T1–T22) la riduzione num_ctx non dà un win
 misurabile oggi (−4,7% dentro rumore). Config ripristinata a 8192.
 
+## 🚀 Cycle 49 — Furbata D: env Ollama KV cache q8_0 + flash attention (2026-11-15)
+
+Applicazione: `systemctl set-environment OLLAMA_KV_CACHE_TYPE=q8_0
+OLLAMA_FLASH_ATTENTION=1` + `systemctl restart ollama.service`.
+
+| metrica | baseline (01:12:58) | ora (q8_0 + FA, 01:50:32) | delta |
+|---|---|---|---|
+| wall totale | 74,59s | 72,72s | **−2,5%** |
+| bench-create wall | 40,39s | 34,91s | **−13,6%** |
+| bench-patch wall | 34,2s | 37,81s | +10,6% (rumore) |
+| token prompt in | 4240 | 4166 | −1,7% |
+| token generati | 1349 | 1362 | +1,0% |
+| chiamate LLM | 20 | 20 | 0,0% |
+
+Guadagno wall misurato **−2,5%** (task create −13,6%). Flash attn era già attivo
+via drop-in; delta attribuibile a `OLLAMA_KV_CACHE_TYPE=q8_0`.
+
+**Chiusura furbate**: A, B, C, E, F e D — **tutte completate e misurate**.
+
 

@@ -86,3 +86,26 @@ campione singolo; stesse dimensioni di guadagno del bench post-warmup
 non dà un win misurabile sul 3B oggi. Valutare solo per worker_coder_big
 (modello 4B, context più grande) in futuro bench separato.
 Config ripristinata a `num_ctx = 8192` (non committata come cambiamento).
+
+---
+
+## 2026-11-15 — Furbata D: env Ollama KV cache q8_0 + flash attention
+
+Applicazione env al servizio ollama (`systemctl set-environment
+OLLAMA_KV_CACHE_TYPE=q8_0 OLLAMA_FLASH_ATTENTION=1` + `systemctl restart
+ollama.service`), poi bench post-applicazione.
+
+| metrica | baseline (01:12:58) | ora (q8_0 + FA, 01:50:32) | delta |
+|---|---|---|---|
+| wall totale | 74,59s | 72,72s | **−2,5%** |
+| bench-create wall | 40,39s | 34,91s | **−13,6%** |
+| bench-patch wall | 34,2s | 37,81s | +10,6% (rumore) |
+| token prompt in | 4240 | 4166 | −1,7% |
+| token generati | 1349 | 1362 | +1,0% |
+| chiamate LLM | 20 | 20 | 0,0% |
+
+Lettura: guadagno wall misurato **−2,5%** (task create −13,6%); token invariati
+nell'ordine. Flash attention era già attivo via drop-in; il delta attivabile è
+il KV cache `q8_0`. Applicazione persistita via manager env (runtime).
+
+**Chiusura furbate**: A, B, C, E, F e D — **tutte completate e misurate**.

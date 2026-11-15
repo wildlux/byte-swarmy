@@ -225,7 +225,16 @@ del codice reale su cui agire. Da scegliere con l'utente:
 - [x] **E. Bench num_ctx A/B** ✅ Cycle 48: num_ctx 8192 → 4096 vs baseline;
   wall −4,7%, token invariati → **nessun win misurabile** oggi (prompt già
   compatti); config ripristinata a 8192. Report in `DOCS/BENCH.md` Cycle 48.
-  ✅ Cycle 48. Menu furbate (A–F) **chiuso** salvo D (env Ollama, da approvare).
+  ✅ Cycle 48.
+- [x] **Bench post-furbate** (auto dentro verify_all): wall −5,4% (74,59→70,53s),
+  bench-create −9,6% (load cold nascosto dal warmup), token invariati.
+  Report in `DOCS/BENCH.md` Cycle 47b. ✅ Cycle 47b.
+- [x] **D. Env Ollama KV cache q8_0 + flash attention** ✅ Cycle 49:
+  `systemctl set-environment OLLAMA_KV_CACHE_TYPE=q8_0 OLLAMA_FLASH_ATTENTION=1`
+  + restart; bench post: wall **−2,5%** (74,59 → 72,72s), bench-create **−13,6%**.
+  Report in `DOCS/BENCH.md` Cycle 49. ✅ Cycle 49.
+
+**Menu furbate (A–F): COMPLETO — tutte le furbate implementate e misurate.**
 
 ---
 
