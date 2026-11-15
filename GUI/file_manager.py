@@ -13,8 +13,47 @@ from __future__ import annotations
 import os
 
 from PyQt6.QtCore import QFileInfo, QEvent, Qt
-from PyQt6.QtGui import QStandardItem, QStandardItemModel
+from PyQt6.QtGui import (QStandardItem, QStandardItemModel, QColor, QIcon,
+                         QImage, QPixmap)
 from PyQt6.QtWidgets import QTreeView, QFileIconProvider
+
+
+def tint_icon_for_dark(icon: QIcon) -> QIcon:
+    """Ri-tinta un'icona nativa (QFileIconProvider) per i temi scuri.
+
+    L'icona "pagina bianca" generica ha un riempimento quasi bianco
+    (224,224,224): nei temi scuri è un bagliore (regressione white
+    panels — lo spot (60,300) del test cade proprio sull'icona).
+    Remap dei soli pixel estremi, preservando l'alpha:
+    - quasi bianchi (>0.78) → grigio-ardesia #aab2c0 (lum ≈0.70)
+    - quasi neri (<0.18)    → grigio medio #6b7280 (i contorni neri
+      della pagina scompaiono su fondo scuro)
+    I toni medi (es. cartelle blu) restano invariati.
+    """
+    if icon is None or icon.isNull():
+        return icon
+    img = icon.pixmap(16, 16).toImage()
+    if img.isNull():
+        return icon
+    img = img.convertToFormat(QImage.Format.Format_ARGB32)
+    light = QColor("#aab2c0")
+    dark = QColor("#6b7280")
+    for y in range(img.height()):
+        for x in range(img.width()):
+            c = img.pixelColor(x, y)
+            if c.alpha() < 12:
+                continue
+            lum = (0.2126 * c.red() + 0.7152 * c.green()
+                   + 0.0722 * c.blue()) / 255.0
+            if lum > 0.78:
+                n = QColor(light)
+                n.setAlpha(c.alpha())
+                img.setPixelColor(x, y, n)
+            elif lum < 0.18:
+                n = QColor(dark)
+                n.setAlpha(c.alpha())
+                img.setPixelColor(x, y, n)
+    return QIcon(QPixmap.fromImage(img))
 
 
 class FileSystemModel(QStandardItemModel):
@@ -34,8 +73,43 @@ class FileSystemModel(QStandardItemModel):
         self._checked_paths = set()
         self._root_path = ""
         self._icon_provider = QFileIconProvider()
+        self._dark_icons = False  # icone ri-tintate per tema scuro
         # Ordinamento: True = cartelle prima poi file; False = file prima poi cartelle
         self._folders_first = True
+
+    def set_dark_icons(self, dark: bool) -> None:
+        """Attiva/disattiva le icone ri-tintate per tema scuro.
+
+        Se lo stato cambia, rigenera le icone degli item GIÀ caricati
+        (cambio tema live); i populate futuri usano lo stato corrente.
+        """
+        dark = bool(dark)
+        changed = dark != self._dark_icons
+        self._dark_icons = dark
+        if changed:
+            self._refresh_loaded_icons()
+
+    def _current_icon(self, full_path: str) -> QIcon:
+        """Icona provider (e ri-tintata se il tema è scuro) per un path."""
+        icon = self._icon_provider.icon(QFileInfo(full_path))
+        if self._dark_icons:
+            icon = tint_icon_for_dark(icon)
+        return icon
+
+    def _refresh_loaded_icons(self) -> None:
+        """Rigenera le icone di colonna 2 per tutti gli item caricati."""
+        self._refresh_icons_rec(self.invisibleRootItem())
+
+    def _refresh_icons_rec(self, parent_item) -> None:
+        for r in range(parent_item.rowCount()):
+            icon_item = parent_item.child(r, 2)
+            if icon_item is not None:
+                path = icon_item.data(Qt.ItemDataRole.UserRole)
+                if path and not icon_item.icon().isNull():
+                    icon_item.setIcon(self._current_icon(path))
+            child = parent_item.child(r, 0)
+            if child is not None and child.rowCount():
+                self._refresh_icons_rec(child)
 
     def set_root_path(self, path):
         self._root_path = os.path.abspath(path)
@@ -68,7 +142,7 @@ class FileSystemModel(QStandardItemModel):
         icon_item.setEditable(False)
         icon_item.setData(full_path, Qt.ItemDataRole.UserRole)
         icon_item.setData(is_dir, Qt.ItemDataRole.UserRole + 1)
-        icon = self._icon_provider.icon(QFileInfo(full_path))
+        icon = self._current_icon(full_path)
         icon_item.setIcon(icon)
 
         # Colonna 3: nome (senza icona)

@@ -22,7 +22,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from CORE.skill_executor import run_direct  # noqa: E402
 
-DATA_FILE = "DATI_COMPLESSI.json"
+# Dati della suite in CONFIG/ (igiene repo: nessun .json sciolto alla root)
+DATA_FILE = (Path(__file__).resolve().parent.parent / "CONFIG"
+             / "DATI_COMPLESSI.json")
 PROJECT = "project/PR_TEST_progetto"
 
 

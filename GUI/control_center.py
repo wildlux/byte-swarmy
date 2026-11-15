@@ -155,6 +155,11 @@ class ControlCenter(
         from GUI.theme import theme as _theme_mod
         self.setStyleSheet(_theme_mod.load_stylesheet(settings_store.get_theme())
                            + "\n" + self._window_chrome())
+        # Palette a tema: i primitive nativi non coperti dal QSS (es.
+        # indicatore checkbox degli item view) usano i colori palette —
+        # senza questo, nei temi scuri restano bianchi (white panels).
+        _theme_mod.apply_palette(QApplication.instance(),
+                                 settings_store.get_theme())
 
         central = QWidget()
         self.setCentralWidget(central)

@@ -6,6 +6,7 @@ Estratto da GUI/control_center.py per ridurre il monolite.
 from __future__ import annotations
 
 import json
+import os
 import urllib.request
 
 from PyQt6.QtWidgets import (
@@ -326,9 +327,12 @@ class ConfigPanel(QFrame):
         except ImportError:
             import tomli as tomllib
         path = "CONFIG/config.toml"
-        backup = path + ".bak"
+        # Backup in backups/ (sede designata, gitignored): un .bak accanto
+        # al config finisce nel repo (igiene).
+        backup = os.path.join("backups", "config.toml.bak")
         try:
             import shutil
+            os.makedirs("backups", exist_ok=True)
             shutil.copy2(path, backup)
         except Exception:
             pass

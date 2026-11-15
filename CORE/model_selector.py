@@ -523,8 +523,11 @@ def apply_recommendations(recs: dict, config_path: str = "CONFIG/config.toml") -
         import tomllib
         import shutil
 
-        # Backup
-        backup = Path(config_path).with_suffix(".toml.bak.autoselect")
+        # Backup in backups/ (sede designata, gitignored): un .bak accanto
+        # al config finisce nel repo (igiene).
+        _bk_dir = Path(config_path).parent.parent / "backups"
+        _bk_dir.mkdir(parents=True, exist_ok=True)
+        backup = _bk_dir / "config.toml.bak.autoselect"
         shutil.copy2(config_path, backup)
 
         # Leggi config attuale

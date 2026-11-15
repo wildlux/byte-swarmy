@@ -810,6 +810,13 @@ class SettingsPanel(QWidget):
     # ──────────────────────────────────────────────────────────────────
     # Carica / ricarica dal settings store
     # ──────────────────────────────────────────────────────────────────
+    @property
+    def theme_combo(self):
+        """Alias retrocompatibilità: dopo il redesign (Cycle 31) il combo
+        tema vive in theme_section; test e vecchi chiamanti usano
+        panel.theme_combo."""
+        return self.theme_section.theme_combo
+
     def _reload_from_store(self):
         s = settings_store.load_settings()
         # Tema

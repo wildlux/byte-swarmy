@@ -11,8 +11,9 @@ import time
 
 from PyQt6.QtWidgets import (
     QFrame, QHBoxLayout, QVBoxLayout, QPushButton, QLabel,
-    QSizePolicy, QMessageBox,
+    QSizePolicy,
 )
+from PyQt6 import QtWidgets
 from PyQt6.QtCore import Qt
 
 from GUI import settings_store
@@ -90,6 +91,88 @@ class DevicePanel(QFrame):
 
         self.git_remotes = self._detect_git_remotes()
         self._update_git_tooltip()
+
+    @property
+    def toggle_btn(self):
+        """Alias retrocompatibilità: il pulsante ▶/⏸ si chiamava
+        toggle_btn prima del redesign; test e vecchi chiamanti lo usano."""
+        return self.pause_btn
+
+    def _orchestrator_running(self) -> bool:
+        """True se il pid file punta a un orchestratore/watchdog vivo.
+
+        Stessa semantica di byte-swarm.sh: il pid file contiene il pid
+        del watchdog (lanciatore), quindi il cmdline deve contenere
+        orchestrator|watchdog (guardia anti pid-reuse).
+        """
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        pid_file = os.path.join(base, "state", "orchestrator.pid")
+        try:
+            with open(pid_file) as _f:
+                pid = int(_f.read().strip())
+            with open(f"/proc/{pid}/cmdline", "rb") as _f:
+                cmd = _f.read().replace(b"\x00", b" ").decode("utf-8", "replace")
+            return ("orchestrator" in cmd or "watchdog" in cmd)
+        except Exception:
+            return False
+
+    def _toggle_orchestrator(self):
+        """Fallback STANDALONE (DevicePanel senza ControlCenter).
+
+        I pulsanti ▶/⏸ puntano a control_center._toggle_orchestrator se
+        disponibile, altrimenti a questi metodi: senza fallback la sola
+        costruzione del panel crashava (AttributeError valutato in
+        __init__). Comportamento minimale onesto: pausa/riprendi via
+        state/pause.flag; l'avvio responsabile resta al launcher
+        (byte-swarm.sh start) o al ControlCenter.
+        """
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        pause_file = os.path.join(base, "state", "pause.flag")
+        if os.path.exists(pause_file):
+            try:
+                os.remove(pause_file)
+            except OSError:
+                pass
+            self.pause_btn.setText("⏸")
+            self.pause_btn.setToolTip("Pausa Orchestratore")
+        else:
+            os.makedirs(os.path.dirname(pause_file), exist_ok=True)
+            open(pause_file, "w").close()
+            self.pause_btn.setText("▶")
+            self.pause_btn.setToolTip("Riprendi Orchestratore")
+
+    def _stop_orchestrator(self):
+        """Fallback STANDALONE: ferma orchestratore/watchdog come
+        byte-swarm.sh stop — pid file validato via cmdline, SIGTERM poi
+        sweep degli orchestratori sopravvissuti."""
+        import signal as _signal
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        pid_file = os.path.join(base, "state", "orchestrator.pid")
+        try:
+            with open(pid_file) as _f:
+                pid = int(_f.read().strip())
+            with open(f"/proc/{pid}/cmdline", "rb") as _f:
+                cmd = _f.read().replace(b"\x00", b" ").decode("utf-8", "replace")
+            if "orchestrator" in cmd or "watchdog" in cmd:
+                os.kill(pid, _signal.SIGTERM)
+        except Exception:
+            pass
+        # Sweep: il watchdog vecchio non inoltra SIGTERM al figlio
+        try:
+            out = subprocess.run(
+                ["pgrep", "-f", "python -m CORE.orchestrator"],
+                capture_output=True, text=True, timeout=5)
+            for line in (out.stdout or "").split():
+                try:
+                    os.kill(int(line), _signal.SIGTERM)
+                except (ValueError, ProcessLookupError, PermissionError):
+                    pass
+        except Exception:
+            pass
+        try:
+            os.remove(pid_file)
+        except OSError:
+            pass
 
     def _open_actors_panel(self):
         """Le righe CPU/GPU sono cliccabili: portano a Modelli → Attori."""
@@ -267,13 +350,13 @@ class DevicePanel(QFrame):
             lines.append(line)
         lines.append("")
         lines.append("Vuoi continuare?")
-        msg = QMessageBox(self)
+        msg = QtWidgets.QMessageBox(self)
         msg.setWindowTitle("Conferma push Git")
-        msg.setIcon(QMessageBox.Icon.Question)
+        msg.setIcon(QtWidgets.QMessageBox.Icon.Question)
         msg.setText("\n".join(lines))
-        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        msg.setDefaultButton(QMessageBox.StandardButton.No)
-        return msg.exec() == QMessageBox.StandardButton.Yes
+        msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No)
+        msg.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
+        return msg.exec() == QtWidgets.QMessageBox.StandardButton.Yes
 
     def _show_push_summary(self, total: int, errors, remote_list):
         """C2: dialog di riepilogo dopo il push.
@@ -284,7 +367,7 @@ class DevicePanel(QFrame):
         """
         success = total - len(errors)
         if not errors:
-            QMessageBox.information(
+            QtWidgets.QMessageBox.information(
                 self,
                 "Push completato",
                 f"✅ Push completato con successo su tutti i {total} remote.\n\n"
@@ -292,15 +375,15 @@ class DevicePanel(QFrame):
             )
             return
         if success == 0:
-            icon = QMessageBox.Icon.Critical
+            icon = QtWidgets.QMessageBox.Icon.Critical
             title = "Push fallito su tutti i remote"
             head = f"❌ Tutti i {total} push sono falliti:\n\n"
         else:
-            icon = QMessageBox.Icon.Warning
+            icon = QtWidgets.QMessageBox.Icon.Warning
             title = f"Push parziale: {success}/{total} OK"
             head = (f"⚠️ {success}/{total} remote OK, {len(errors)} falliti:\n\n")
         body = head + "\n".join(f"  ✗ {n}: {e[:200]}" for n, e in errors)
-        msg = QMessageBox(self)
+        msg = QtWidgets.QMessageBox(self)
         msg.setWindowTitle(title)
         msg.setIcon(icon)
         msg.setText(body)

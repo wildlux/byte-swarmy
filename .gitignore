@@ -149,3 +149,6 @@ project/
 /tasks
 /backups
 .byteswarm/
+
+# Runtime DB dell'SML agent (dato locale, mai in git)
+OLLAMA_SML_AGENT/*.db

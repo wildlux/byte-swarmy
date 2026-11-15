@@ -113,6 +113,63 @@ def load_stylesheet(name: str) -> str:
     return _load(name)
 
 
+def palette_for(kind: str):
+    """Palette applicativa coerente col kind del tema (light/dark).
+
+    Il QSS non copre i primitive disegnati dallo stile NATIVO quando
+    nessuna regola matcha: l'esempio principale è l'indicatore checkbox
+    degli item view (QTreeView/QListWidget con flag checkable), che in
+    offscreen/alcune piattaforme viene disegnato nativamente con i
+    colori della PALETTE → nei temi scuri restava un quadratino bianco
+    (regressione 'white panels'). Le regole QSS ::indicator per gli
+    item view vengono infatti ignorate dallo stile foglio di stile.
+    Settare la palette a tema risolve la classe di bug alla radice.
+    """
+    from PyQt6.QtGui import QPalette, QColor
+    p = QPalette()
+    if kind != "dark":
+        return p  # palette default = light: coerente coi temi chiari
+    dark = {
+        QPalette.ColorRole.Window: "#1b1f27",
+        QPalette.ColorRole.WindowText: "#e6e9ef",
+        QPalette.ColorRole.Base: "#161a22",
+        QPalette.ColorRole.AlternateBase: "#1b1f27",
+        QPalette.ColorRole.Text: "#e6e9ef",
+        QPalette.ColorRole.Button: "#232935",
+        QPalette.ColorRole.ButtonText: "#e6e9ef",
+        QPalette.ColorRole.Highlight: "#2a5db0",
+        QPalette.ColorRole.HighlightedText: "#ffffff",
+        QPalette.ColorRole.ToolTipBase: "#161a22",
+        QPalette.ColorRole.ToolTipText: "#e6e9ef",
+        QPalette.ColorRole.PlaceholderText: "#8892a4",
+        QPalette.ColorRole.Light: "#3a4252",
+        QPalette.ColorRole.Midlight: "#2a303b",
+        QPalette.ColorRole.Mid: "#232935",
+        QPalette.ColorRole.Dark: "#12151b",
+        QPalette.ColorRole.Shadow: "#0b0d11",
+        QPalette.ColorRole.BrightText: "#ffffff",
+        QPalette.ColorRole.Link: "#5b92ff",
+        QPalette.ColorRole.LinkVisited: "#bd93f9",
+    }
+    for role, hexcol in dark.items():
+        p.setColor(role, QColor(hexcol))
+    # Gruppo Disabled: testo attenuato su superfici leggermente più scure.
+    for role, hexcol in (
+            (QPalette.ColorRole.WindowText, "#6b7280"),
+            (QPalette.ColorRole.Text, "#6b7280"),
+            (QPalette.ColorRole.ButtonText, "#6b7280"),
+            (QPalette.ColorRole.Base, "#14171e"),
+            (QPalette.ColorRole.Button, "#1d222b")):
+        p.setColor(QPalette.ColorGroup.Disabled, role, QColor(hexcol))
+    return p
+
+
+def apply_palette(app, name: str) -> None:
+    """Setta la palette dell'applicazione secondo il kind del tema."""
+    if app is not None:
+        app.setPalette(palette_for(theme_kind(name)))
+
+
 def current_theme():
     t = QSettings(*SETTINGS).value("theme", "dark")
     if t not in available_themes():

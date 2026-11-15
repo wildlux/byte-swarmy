@@ -224,6 +224,10 @@ class FileTreeDrawer(QFrame):
         self.model = FileSystemModel()
         self.tree.setModel(self.model)
         self.tree.set_drawer(self)
+        # Stato iniziale icone dal tema corrente (boot): se il tema è
+        # scuro, le icone file nascono già ri-tintate.
+        from GUI.theme import theme as _theme_mod
+        self.on_theme_changed(_theme_mod.theme_kind(settings_store.get_theme()))
         self.tree.setAnimated(True)
         self.tree.setIndentation(14)
         self.tree.setIconSize(QSize(16, 16))
@@ -323,6 +327,18 @@ class FileTreeDrawer(QFrame):
     # ==================================================================
     # Persistenza splitter verticale
     # ==================================================================
+
+    def on_theme_changed(self, kind: str) -> None:
+        """Aggiorna il drawer al cambio tema live.
+
+        ``kind`` è 'dark'|'light' (GUI.theme.theme_kind): le icone file
+        native (pagina bianca di QFileIconProvider) vengono ri-tintate
+        nei temi scuri, altrimenti restano un bagliore bianco.
+        """
+        try:
+            self.model.set_dark_icons(kind == "dark")
+        except Exception:
+            pass
 
     def _save_splitter_vertical_state(self):
         """Salva le larghezze dello splitter verticale (file tree <-> task list)

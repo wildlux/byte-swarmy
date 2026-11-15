@@ -16,6 +16,12 @@ _ZOOM_FS_RE = re.compile(r"(font-size\s*:\s*)(\d+(?:\.\d+)?)\s*(px|pt)")
 
 def _zoom_scale_css(css: str, factor: float) -> str:
     """Riscala i font-size (px e pt) di un CSS con il fattore indicato."""
+    # Identità a 100%: senza questo, la ri-formattazione dei numeri
+    # (10.5pt → 10.50pt) rompeva il confronto del QSS col tema pristine
+    # (test_theme live-switch) e scartava inutilmente tutti gli
+    # stylesheet ad ogni boot.
+    if abs(factor - 1.0) < 1e-9:
+        return css
     def _scale(m):
         try:
             n = float(m.group(2)) * factor

@@ -154,10 +154,14 @@ def load_config():
 def save_config(config_dict):
     """Scrive un dict in CONFIG/config.toml (formato TOML)."""
     import os
-    config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                               'CONFIG', 'config.toml')
+    base = os.path.join(os.path.dirname(os.path.dirname(__file__)))
+    config_path = os.path.join(base, 'CONFIG', 'config.toml')
     try:
-        backup_path = config_path + '.bak'
+        # Backup in backups/ (sede designata, gitignored): un .bak accanto
+        # al config finisce nel repo (igiene) e viene ricreato a ogni
+        # salvataggio anche invariato dalla GUI aperta.
+        backup_path = os.path.join(base, 'backups', 'config.toml.bak')
+        os.makedirs(os.path.dirname(backup_path), exist_ok=True)
         if os.path.exists(config_path):
             import shutil
             shutil.copy2(config_path, backup_path)

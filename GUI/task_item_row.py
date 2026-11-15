@@ -40,9 +40,12 @@ class TaskItemRow(QWidget):
 
         self.check = QCheckBox()
         self.check.setToolTip("Seleziona il task")
+        # Niente background bianco hardcoded sull'indicatore: nei temi
+        # scuri restava un quadratino bianco (regressione white-panels).
+        # Bordo e radius qui, il riempimento arriva dal tema QSS.
         self.check.setStyleSheet(
             "QCheckBox::indicator { width: 14px; height: 14px; "
-            "border: 1px solid #94a3b8; border-radius: 3px; background: #ffffff; }"
+            "border: 1px solid #94a3b8; border-radius: 3px; }"
             "QCheckBox::indicator:hover { border-color: #2563eb; }"
             "QCheckBox::indicator:checked { background: #2563eb; "
             "border-color: #2563eb; }"

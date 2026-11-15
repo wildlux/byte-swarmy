@@ -128,7 +128,13 @@ class ShutdownMixin:
         """
         for attr in ("_zoom_catchup_timer", "_live_activity_timer",
                      "_timer", "_completion_timer"):
-            t = getattr(self, attr, None)
+            try:
+                t = getattr(self, attr, None)
+            except RuntimeError:
+                # Oggetto C++ già distrutto (deleteLater processato
+                # prima che il test chiami closeEvent manualmente):
+                # niente timer da fermare.
+                continue
             if t is not None:
                 try:
                     t.stop()
@@ -136,10 +142,13 @@ class ShutdownMixin:
                     pass
         try:
             flt = getattr(self, "app_event_filter", None)
-            if flt is not None:
+        except RuntimeError:
+            flt = None
+        if flt is not None:
+            try:
                 QApplication.instance().removeEventFilter(flt)
-        except Exception:
-            pass
+            except RuntimeError:
+                pass
 
     def _accept_close(self, event):
         """Accetta la chiusura fermando prima i timer periodici."""

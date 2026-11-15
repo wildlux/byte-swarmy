@@ -688,3 +688,101 @@ ripetibile la verifica boot+ReAct che finora si faceva a mano.
   sistema attivo. Modalità test per-file con timeout individuale
   (default 240s) — un file hanging non blocca gli altri e la mappa
   finale indica esattamente il colpevole.
+
+## 🚀 Cycle 46 — Regressioni GUI pre-esistenti + igiene repo (2026-11-14)
+
+La mappa per-file del Cycle 45 (50 file: 45 ok, 5 fail) ha scavato fuori
+5 file di test falliti, TUTTI regressioni pre-esistenti (nessuna legata
+a T18–T22). Tutti ora verdi.
+
+### test_push_dialogs + test_close_orchestrator (11 test)
+
+- **DevicePanel senza fallback** (8 test, crash a build-time):
+  `__init__` valutava `self._toggle_orchestrator` come callback del
+  pulsante ▶/⏸ anche senza ControlCenter → AttributeError immediato.
+  Aggiunti metodi standalone `_orchestrator_running` (guardia cmdline
+  anti pid-reuse, stessa semantica launcher), `_toggle_orchestrator`
+  (pausa/riprendi via state/pause.flag) e `_stop_orchestrator`
+  (SIGTERM + sweep, come byte-swarm.sh stop) + alias `toggle_btn`.
+- **QMessageBox non intercettabile**: i test patchano
+  `PyQt6.QtWidgets.QMessageBox` ma il modulo importava il binding
+  diretto → patch cieca. Passato ad accesso module-style
+  (`QtWidgets.QMessageBox`, 10 usi).
+- **`_stop_periodic_timers` RuntimeError** (3 test): `getattr` su
+  attributo Qt di un oggetto C++ già distrutto (deleteLater prima del
+  closeEvent manuale nei test) → guardie try/except RuntimeError.
+
+### test_user_workflow (6 → 0)
+
+- **Zoom non identità al 100%**: `_zoom_scale_css` riformattava
+  `10.5pt` → `10.50pt` anche a fattore 1.0 → il QSS confrontato col
+  tema pristine divergeva al carattere 113 (live-switch fallito) e ogni
+  boot riscalava inutilmente tutti gli stylesheet. Ora è identità a
+  fattore 1.0.
+- **Cache zoom stantia al cambio tema**: `_zoom_base_styles` catturata
+  col tema chiaro al boot veniva ri-applicata dopo lo switch al tema
+  scuro → residui chiari. `_apply_theme_live` ora invalida la cache.
+- **White-panels (dark themes) — causa vera**: non erano stylesheet né
+  indicatori: era l'**icona "pagina bianca" di QFileIconProvider**
+  (riempimento 224,224,224) nella colonna icone del file manager, che
+  sotto offscreen resta bianca nei temi scuri. Bisect di decine di
+  regole QSS (inline tree, tema, tre livelli) aveva già escluso i
+  sospetti: le regole `::indicator` per gli item view sono IGNORATE
+  dallo stile a foglio di stile, e il QSS non può quindi coprirle.
+  Fix a due livelli:
+  1. `GUI/theme/theme.py`: `palette_for()`/`apply_palette()` — la
+     palette applicativa segue il kind del tema (chiaro/scuro), così
+     ogni primitive NATIVO non coperto dal QSS (indicatori item view,
+     menu, tooltip) prende colori a tema; applicata al boot
+     (`control_center`) e nel live-switch (`center_area`).
+  2. `GUI/file_manager.py`: `tint_icon_for_dark()` ri-tinta le icone
+     provider nei temi scuri (remap dei soli pixel quasi-bianchi →
+     #aab2c0 e quasi-neri → #6b7280, alpha preservata; cartelle blu
+     invariate). `FileSystemModel.set_dark_icons()` rigenera le icone
+     degli item già caricati; `FileTreeDrawer.on_theme_changed()` le
+     aggancia al cambio tema live.
+- **Checkbox riga task**: rimosso `background:#ffffff` hardcoded
+  sull'indicatore (GUI/task_item_row.py); bordo via inline, riempimento
+  dal tema.
+- **Temi dark/dracula/hacker**: aggiunti selettori
+  `QTreeView::indicator` (+`:checked`) accanto a `QCheckBox::indicator`
+  (effettivi dove la cascata funziona, es. xcb).
+- **Escalation dinamica**: il test aspettava nomi modello hardcoded
+  (`qwen2.5:3b`) ormai stanti → usa `weight_default_model`.
+- **Re-export**: `_looks_like_file_path` da `CORE.worker` a
+  `CORE.orchestrator` (contratto dei test).
+- `test_toggle_pauses_and_resumes` passa anche combinato (l'ordine
+  non inquina più dopo la invalidazione cache).
+
+### test_refactoring_live (1 → 0)
+
+- La skill `py-refactor-rename` (refactoring RENAME multi-file) era
+  attesa da test ed esecutore (`skill_executor` salta la mappa codice
+  per `py-refactor-*` "la mappa confonde") ma mai creata: l'esistente
+  `py-refactor` è single-file. Creata `SKILLS/py-refactor-rename.md`
+  (keywords mirate: il rename su tutto il progetto matcha la ricetta
+  multi-file, il refactoring generico resta su quella single-file).
+
+### test_repo_hygiene (3 → 0)
+
+- `CONFIG/config.toml.bak`: eliminato (byte-identico a config.toml).
+- `OLLAMA_SML_AGENT/sml_models.db`: runtime DB tracciato in git →
+  `git rm --cached` (file resta su disco) + pattern `OLLAMA_SML_AGENT/*.db`
+  in .gitignore.
+- `CONFIG/config.toml.bak`: il backup veniva riscritto dalla GUI a OGNI
+  salvataggio (anche invariato) e tornava dopo la cancellazione. Fix alla
+  radice: i 4 scrittori (gui_backend.save_config, config_panel._save,
+  actors_panel, model_selector autoselect) ora scrivono il backup in
+  `backups/` (sede designata, gitignored) e il test igiene esclude
+  quella sede. NB: la GUI GIÀ APERTA ha il codice vecchio in memoria —
+  al prossimo salvataggio config può ricreare il .bak alla root finché
+  non viene riavviata.
+- Root `settings.json` (config di un tool esterno, usata da nessun
+  codice) → spostata in `CONFIG/tool_settings.json` (decisione utente).
+- Root `DATI_COMPLESSI.json` (dati di scripts/suite_complex_data.py) →
+  `CONFIG/DATI_COMPLESSI.json`, path dello script aggiornato (assoluto,
+  indipendente dal CWD) (decisione utente).
+- `.audit_status.json` alla root: è lo stato runtime dell'AUDIT DEL
+  PROGETTO (il pannello Audit scrive `<progetto>/.audit_status.json`;
+  per l'auto-audit la root È il progetto, by design) → il test igiene
+  ora ammette i dotfile nascosti.

@@ -163,6 +163,27 @@ T22 → T24 → T23 → T25 → T26 (ultimo, sforzo alto).
   `byte-swarm.sh stop`. ✅ Cycle 45.
 - [x] **test_e2e pid guard**: guardia anti pid-reuse (cmdline
   orchestrator|watchdog, stessa semantica launcher) + catch OSError. ✅ Cycle 45.
+- [x] **Regressioni GUI pre-esistenti** (Cycle 45 per-file map: 5 file
+  fail): DevicePanel fallback + alias (`GUI/device_panel.py`), guardie
+  RuntimeError su timer distrutti (`GUI/cc_shutdown.py`), alias
+  `theme_combo` (`GUI/settings_panel.py`), zoom identità a 100% +
+  invalidazione cache al cambio tema (`GUI/cc_zoom.py`,
+  `GUI/center_area.py`), **causa vera white-panels dark** = icone
+  "pagina bianca" QFileIconProvider → palette a tema
+  (`GUI/theme/theme.py`) + tint icone (`GUI/file_manager.py`,
+  `GUI/file_tree_drawer.py`), checkbox riga senza bianco hardcoded
+  (`GUI/task_item_row.py`), selettori `QTreeView::indicator` nei temi
+  scuri, re-export `_looks_like_file_path` (`CORE/orchestrator.py`),
+  escalation test dinamico (`tests/test_user_workflow.py`). ✅ Cycle 46.
+- [x] **Skill py-refactor-rename** (rinomina multi-file): creata
+  `SKILLS/py-refactor-rename.md` — test_refactoring_live la aspettava
+  e `skill_executor` salta la mappa codice per `py-refactor-*`. ✅ Cycle 46.
+- [x] **Igiene repo**: config.toml.bak eliminato e backup rediretti in
+  `backups/` (4 scrittori GUI/CORE — la GUI aperta ricreava il .bak a
+  ogni salvataggio), sml_models.db untracked + gitignore, root
+  settings.json → `CONFIG/tool_settings.json`, DATI_COMPLESSI.json →
+  `CONFIG/` (path script aggiornato), dotfile runtime ammessi dal test
+  igiene. ✅ Cycle 46.
 
 ---
 

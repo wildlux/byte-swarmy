@@ -449,12 +449,30 @@ class CenterArea(QWidget):
         try:
             main.setStyleSheet(_theme_mod.load_stylesheet(theme)
                                + "\n" + main._window_chrome())
+            # Palette a tema per i primitive nativi non coperti dal QSS
+            # (indicatore checkbox item view, menu non coperti, ...):
+            # senza questo restano bianchi nei temi scuri.
+            from PyQt6.QtWidgets import QApplication as _QA
+            _theme_mod.apply_palette(_QA.instance(), theme)
+            # Icone file del drawer: ri-tintate nei temi scuri (la
+            # "pagina bianca" di QFileIconProvider è un bagliore altrimenti).
+            _drawer = getattr(main, "drawer", None)
+            if _drawer is not None and hasattr(_drawer, "on_theme_changed"):
+                _drawer.on_theme_changed(_theme_mod.theme_kind(theme))
         except Exception as e:
             print(f"[tema] applicazione '{theme}' fallita: {e}")
             return
         # Dopo il cambio tema, il QSS della finestra e' tornato a 100% base:
         # aggiorna la base dello zoom e ri-applica lo zoom corrente, altrimenti
         # i font-size del tema non scalati "resettano" lo zoom visivo.
+        # Invalida la cache degli stylesheet inline catturati dallo zoom:
+        # senza questo, dopo lo switch di tema _apply_zoom ri-applicava gli
+        # stile inline catturati col tema VECCHIO (es. chiaro) sopra il QSS
+        # del tema nuovo (es. scuro) → zone bianche nei temi scuri.
+        from PyQt6.QtWidgets import QApplication as _QApp
+        _app = _QApp.instance()
+        if _app is not None and hasattr(_app, "_zoom_base_styles"):
+            _app._zoom_base_styles.clear()
         try:
             if hasattr(main, "gui_settings"):
                 main._zoom_original_stylesheet = main.styleSheet()

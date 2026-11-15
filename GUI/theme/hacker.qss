@@ -69,8 +69,8 @@ QSlider::groove:horizontal { height: 4px; background: #363d4a; border-radius: 2p
 QSlider::handle:horizontal { background: #00ff41; width: 14px; height: 14px; margin: -5px 0; border-radius: 7px; }
 QSlider::sub-page:horizontal { background: #00ff41; border-radius: 2px; }
 QCheckBox { spacing: 8px; background: transparent; }
-QCheckBox::indicator { width: 16px; height: 16px; border: 1px solid #4a5365; border-radius: 4px; background: #001a00; }
-QCheckBox::indicator:checked { background: #00ff41; border-color: #00ff41; }
+QCheckBox::indicator, QTreeView::indicator { width: 16px; height: 16px; border: 1px solid #4a5365; border-radius: 4px; background: #001a00; }
+QCheckBox::indicator:checked, QTreeView::indicator:checked { background: #00ff41; border-color: #00ff41; }
 QScrollBar:vertical { background: transparent; width: 10px; margin: 0; }
 QScrollBar::handle:vertical { background: #3d4553; border-radius: 5px; min-height: 30px; }
 QScrollBar::handle:vertical:hover { background: #566073; }

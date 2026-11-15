@@ -512,10 +512,16 @@ class TestRunGeneratedCodeAndEscalation(unittest.TestCase):
 
     def test_escalation_suggestion_by_weight(self):
         from CORE.orchestrator import suggest_escalation
+        from CORE.constants import weight_default_model
+        # Il contratto: il messaggio suggerisce il modello di default del
+        # peso successivo (i nomi cambiano coi modelli installati, il
+        # nome NON deve essere hardcoded qui).
         self.assertIn("medium", suggest_escalation("light"))
-        self.assertIn("qwen2.5:3b", suggest_escalation("light"))
+        self.assertIn(weight_default_model("llm", "medium"),
+                      suggest_escalation("light"))
         self.assertIn("heavy", suggest_escalation("medium"))
-        self.assertIn("llama3:8b", suggest_escalation("medium"))
+        self.assertIn(weight_default_model("llm", "heavy"),
+                      suggest_escalation("medium"))
         self.assertIn("peso massimo", suggest_escalation("heavy"))
 
 

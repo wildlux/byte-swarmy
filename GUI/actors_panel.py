@@ -1178,8 +1178,11 @@ class ActorsPanel(QWidget):
             models.setdefault("worker_general", {})["no_tools"] = \
                 self.mg_no_tools.isChecked()
             path = "CONFIG/config.toml"
+            # Backup in backups/ (sede designata, gitignored): un .bak
+            # accanto al config finisce nel repo (igiene).
             try:
-                shutil.copy2(path, path + ".bak")
+                os.makedirs("backups", exist_ok=True)
+                shutil.copy2(path, os.path.join("backups", "config.toml.bak"))
             except Exception:
                 pass
             with open(path, "wb") as f:

@@ -32,7 +32,8 @@ else:
 # Cartelle di runtime/ambiente, ignorate in tutti i glob del repo
 _ENV_DIRS = {".venv", "venv", "env", "ENV", ".git", "__pycache__",
              ".pytest_cache", ".mypy_cache", ".ruff_cache", ".idea",
-             ".vscode", "node_modules"}
+             ".vscode", "node_modules",
+             "backups"}  # sede designata dei backup (gitignored)
 
 # Junk noto rimosso in passato: NON deve tornare sul filesystem
 _KNOWN_JUNK = (
@@ -209,8 +210,13 @@ class TestStructure(unittest.TestCase):
                          f"qss fuori da GUI/theme/: {strays}")
 
     def test_no_json_zip_at_root(self):
+        # I dotfile nascosti sono stato runtime DEL PROGETTO AUDITATO
+        # (es. .audit_status.json scritto dal pannello Audit nel progetto
+        # auditato — per l'auto-audit è la root stessa, by design):
+        # si flaggano solo i file VISIBILI .json/.zip sparsi alla root.
         offenders = [p.name for p in ROOT.iterdir()
-                     if p.is_file() and p.suffix in (".json", ".zip")]
+                     if p.is_file() and not p.name.startswith(".")
+                     and p.suffix in (".json", ".zip")]
         self.assertFalse(offenders,
                          f"File .json/.zip inattesi alla root: {offenders}")
 
