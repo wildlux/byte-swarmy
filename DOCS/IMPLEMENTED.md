@@ -786,3 +786,31 @@ a T18–T22). Tutti ora verdi.
   PROGETTO (il pannello Audit scrive `<progetto>/.audit_status.json`;
   per l'auto-audit la root È il progetto, by design) → il test igiene
   ora ammette i dotfile nascosti.
+
+## 🚀 Cycle 46b — Prima misura bench: pre-T1 vs baseline (2026-11-15)
+
+Prima misura reale del bench (`tools/bench_worker.py`): worktree al
+commit `b9bb4e6` (codice PRIMA di T1–T22) vs baseline attuale, stesso
+hardware, stesso modello (`worker_coder` = qwen2.5-coder:3b), stessi 2
+task (bench-create, bench-patch, 10 step l'uno). 1 campione per task:
+i tempi sono rumorosi, il segnale forte è la correttezza.
+
+| | pre-T1 (b9bb4e6) | baseline (T1–T22) | delta |
+|---|---|---|---|
+| system prompt per step (dopo il 1°) | 2516 ch **costanti** | 668 ch | −73% |
+| contesto ripetuto per step | task+stato interi | ~140 ch | −94% |
+| token input TOTALI (20 step) | ~15.300 | ~4.240 | **−72%** |
+| token generati totali | ~845 | ~1.170 | +38% |
+| artifact corretti | **0/2** | **2/2** | — |
+| wall totale | 48,2s | 74,6s | n.c. |
+
+**Lettura onesta**: pre-T1 i task FALLIVANO entrambi (prompt gonfio →
+il 3B gira in tondo su read_file, circuit breaker, nessun file scritto;
+il wall "minore" riflette solo che NON ha fatto il lavoro). Con il
+prompt compatto gli stessi task si completano 2/2. La velocità di
+generazione (tok/s) resta invariata come previsto — il wall cresce
+perché i passi ora producono contenuto reale invece di brancolare nel
+buio. Il guadagno misurabile del token reduction sul prefill: ~4.600
+char/step in meno di input costante ripetuto.
+NB: il primo step della baseline (15,7s) include il load del modello
+in Ollama; i passi successivi (1,9–5,5s) sono il costo reale per step.

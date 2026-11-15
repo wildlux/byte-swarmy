@@ -184,6 +184,11 @@ T22 → T24 → T23 → T25 → T26 (ultimo, sforzo alto).
   settings.json → `CONFIG/tool_settings.json`, DATI_COMPLESSI.json →
   `CONFIG/` (path script aggiornato), dotfile runtime ammessi dal test
   igiene. ✅ Cycle 46.
+- [x] **Prima misura bench pre-T1 vs baseline** (worktree `b9bb4e6`,
+  stesso modello e task): token input −72% (2516→668 ch system
+  costante), artifact 0/2 → 2/2. Il confronto wall è confondato dal
+  fatto che pre-T1 i task FALLIVANO (loop read_file senza output).
+  Numeri in `DOCS/IMPLEMENTED.md` Cycle 46b. ✅ Cycle 46b.
 
 ---
 
