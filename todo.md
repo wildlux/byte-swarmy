@@ -20,6 +20,16 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
   semplice (es. Finestra + QPushButton + label) come prova pratica della
   capability di scrittura codice; misura se il risultato è "funzionante".
 
+### Capability agentica — test→benchmark feedback + doc summarization (Cycle 51)
+
+- [ ] **Capability: test execution → benchmark feedback**: estendere il
+  flusso worker (`run_test_suite` → `_summarize_result`) per far sì che i
+  risultati dei test vengano riusati come feedback di benchmark/decisione
+  nel task loop.
+- [ ] **Capability: doc reading → summary**: aggiungere al worker un tool di
+  lettura documenti (es. PDF via bash/pdftotext) + riassunto come contesto,
+  invece del documento intero.
+
 ### Responsive
 *(nessun item aperto — T-R3 e gap vuoto risolti nel Cycle 29)*
 
