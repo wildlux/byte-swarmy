@@ -109,3 +109,27 @@ nell'ordine. Flash attention era già attivo via drop-in; il delta attivabile è
 il KV cache `q8_0`. Applicazione persistita via manager env (runtime).
 
 **Chiusura furbate**: A, B, C, E, F e D — **tutte completate e misurate**.
+
+---
+
+## 2026-11-15 — Benchmark esterno (Cycle 59)
+
+**Obiettivo**: sapere se byte-swarmy, così com'è oggi, produce valore misurabile su task di refactoring esterni e non progettati da noi (Fase 0 del piano d'attacco senior).
+
+**Bersaglio**: `bench_target/` — mini-repo Python di 4 file (utils, core/processor, core/validator, models/user).
+**Task**: 8 specifiche di refactoring atomiche e verificabili (type hints, estrazione funzioni pure, logging, docstring, ...).
+
+| metrica | harness (con correction loop + audit) | naked (modello nudo) | delta |
+|---------|--------------------------------------|----------------------|-------|
+| successo al primo colpo | 12% (1/8) | 50% (4/8) | -75% |
+| successo dopo correction loop | 25% (2/8) | 50% (4/8) | -50% |
+| falsi negativi gate (bloccati) | 0 | 0 | n.c. |
+| errori di esecuzione | 0 | 0 | n.c. |
+| wall totale (s) | 1536.67 | 113.05 | n.c. |
+| wall medio/task (s) | 192.08 | 14.13 | n.c. |
+
+**Criterio di uscita (Fase 0):** se il tempo umano netto e' negativo o nullo (supervisione >= lavoro manuale), fermarsi e semplificare prima di aggiungere feature. Se positivo anche solo del 20%, si ha qualcosa su cui costruire.
+
+**Tempo umano netto:** campo da compilare a mano dall'utente (ore di supervisione vs ore di lavoro manuale). Non e' misurabile automaticamente dal sistema.
+
+**Metodologia riproducibile:** i JSON grezzi sono in `state/benchmarks/` (gitignored). Eseguire con: `.venv/bin/python -m CORE.external_benchmark --run` (richiede Ollama). Test senza Ollama: `pytest tests/test_external_benchmark.py`.

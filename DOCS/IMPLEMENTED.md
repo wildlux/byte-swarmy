@@ -1205,6 +1205,17 @@ produce valore su task esterni e non progettati da noi.
     su cui costruire.
   - Entry point CLI: `.venv/bin/python -m CORE.external_benchmark --run`
     (richiede Ollama); senza Ollama gira in dry-run.
+  - **Risultato (eseguito il 2026-11-15)**: modello nudo migliore del harness:
+    successo al primo colpo 50% (naked) vs 12.5% (harness); successo dopo
+    correction loop 50% vs 25%; wall medio/task 14s (naked) vs 192s (harness,
+    13.6x più lento). Il correction loop del harness ha risolto solo 1 task
+    aggiuntivo su 8.
+  - **Criterio di uscita Fase 0: NON raggiunto**. Tempo umano netto negativo:
+    il sistema richiede più supervisione del lavoro manuale. Raccomandazione:
+    fermarsi e semplificare (o passare a un modello più capace per il worker)
+    prima di aggiungere feature.
+  - Report testuale in `DOCS/BENCH.md`; JSON grezzi in
+    `state/benchmarks/external_bench-20261115-164507.json`.
 - **Test**: `tests/test_external_benchmark.py` (11 test, mock senza Ollama:
   criterio di successo, naked task, harness first-try, harness correction
   loop, run_all senza factory, save_results, generate_report, main dry-run).

@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.3.8-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.3.9-blue">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-yellow">
   <img alt="Ollama" src="https://img.shields.io/badge/Ollama-required-orange">
@@ -31,7 +31,7 @@
 > con streaming token in tempo reale, selezione intelligente dei modelli e
 > ottimizzazione termica adattiva (Timestral LLM Tuner).
 
-**Versione:** 0.3.8 · **Licenza:** MIT · **Piattaforma:** Linux
+**Versione:** 0.3.9 · **Licenza:** MIT · **Piattaforma:** Linux
 
 ---
 
@@ -476,9 +476,10 @@ correctness (0/2 → 2/2 artifacts), not wall time.
 - **External benchmarks + independent validation** (Cycle 59): new
   `CORE/external_benchmark.py` with 8 atomic refactoring tasks on an external
   mini-repo (`bench_target/`). Dual mode: harness vs naked model baseline.
-  Measures first-try success, post-correction-loop success, gate false
-  negatives, wall time. Results in `state/benchmarks/`, report in
-  `DOCS/BENCH.md`.
+  **Honest result**: naked model outperformed harness — first-try success
+  50% (naked) vs 12.5% (harness); wall avg/task 14s vs 192s (harness 13.6x
+  slower). Phase 0 exit criterion NOT met: net human time negative. Report in
+  `DOCS/BENCH.md`, raw JSONs in `state/benchmarks/`.
 - **Targeted security fuzzing** (Cycle 60): new `tests/fuzz_security.py` with
   a deterministic (seed-fixed) custom fuzzer covering `validate_bash_command`
   (shell metacharacters, path traversal, out-of-allowlist commands),
@@ -1059,7 +1060,7 @@ Rilasciato sotto licenza MIT. Vedi [LICENSE](LICENSE).
 
 ---
 
-**BYTE-SWARMY v0.3.8**
+**BYTE-SWARMY v0.3.9**
 
 ```
 /ˈbaɪt ˈswɔːrmi/  ·  "BYTE SWOR-mee"

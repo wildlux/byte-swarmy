@@ -556,7 +556,7 @@ def build_real_worker_factory(config_path: str, log) -> callable:
     import tomllib
 
     from CORE.constants import DEFAULT_PATHS
-    from CORE.models import ModelClient
+    from CORE.ollama_client import ModelClient
     from CORE.memory import AgentMemory
     from CORE.tools import ToolSet
     from CORE.worker import Worker
@@ -662,10 +662,20 @@ def main() -> int:
         return 0
 
     # Esecuzione reale
+    import tomllib
+    from CORE.ollama_client import ModelClient
+
     factory = build_real_worker_factory(args.config, log)
+
+    # Carica config e crea un ModelClient dedicato per il naked mode
+    # (usa models.call direttamente, senza harness).
+    with open(args.config, "rb") as f:
+        config = tomllib.load(f)
+    naked_models = ModelClient(config, log)
+
     eb = ExternalBenchmark(
         project_root=ROOT,
-        models=None,  # il worker usa il proprio ModelClient interno
+        models=naked_models,
         log=log,
     )
     results = eb.run_all(worker_factory=factory)

@@ -72,15 +72,13 @@ nuove", ma migliori al sistema:
       `exception_handler`, `state_recovery`, `benchmark`, `MONITORING/predictive`.
       Import nei test aggiornati (`test_usability_hardcore` ora importa da
       `CORE.resilience`). Nessuna metrica peggiorata (tutte le suite verdi).
-5. [x] **Benchmark esterni e validazione indipendente**: ✅ **Cycle 59**:
-      nuovo modulo `CORE/external_benchmark.py` con dataset di 8 task di
-      refactoring atomici su `bench_target/` (mini-repo esterno non progettato
-      da noi). Esegue ogni task sia con harness (worker ReAct + correction loop
-      + audit + risk gate) che con baseline modello nudo (solo `models.call`,
-      nessun harness). Misura: successo al primo colpo, dopo correction loop,
-      falsi negativi del gate, errori, wall time. Salva JSON in
-      `state/benchmarks/` e report in `DOCS/BENCH.md`. Criterio di uscita
-      Fase 0: tempo umano netto positivo anche solo del 20%.
+5. [x] **Benchmark esterni e validazione indipendente**: ✅ **Cycle 59** (eseguito e misurato):
+      nuovo modulo `CORE/external_benchmark.py` con 8 task di refactoring atomici
+      su `bench_target/` (mini-repo esterno). Dual mode: harness vs modello nudo.
+      **Risultato onesto**: modello nudo migliore del harness (50% vs 12.5% primo
+      colpo; 14s vs 192s medio/task). Criterio di uscita Fase 0 NON raggiunto:
+      tempo umano netto negativo → fermarsi e semplificare prima di aggiungere
+      feature. Report in `DOCS/BENCH.md`, JSON in `state/benchmarks/`.
       Test: `tests/test_external_benchmark.py` (11 test, mock senza Ollama).
 6. [x] **Fuzzing mirato sulla sicurezza**: ✅ **Cycle 60**: modulo
       `tests/fuzz_security.py` con generatore custom (seed fisso) che fuzza

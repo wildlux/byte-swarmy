@@ -20,16 +20,20 @@ import sys
 import time
 from pathlib import Path
 
+from typing import Optional
+
 from PyQt6.QtCore import QProcess, QProcessEnvironment, Qt, QTimer
 from PyQt6.QtWidgets import (
-    QCheckBox, QGroupBox, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
-    QPlainTextEdit, QProgressBar, QPushButton, QScrollArea, QVBoxLayout,
-    QWidget, QFrame,
+    QCheckBox, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QListWidget,
+    QListWidgetItem, QPlainTextEdit, QProgressBar, QPushButton, QScrollArea,
+    QVBoxLayout, QWidget, QFrame,
 )
 
 from GUI.theme.theme import set_prop as _theme_prop
 from GUI.theme.theme import set_banner as _theme_banner
 from GUI.theme.theme import token_color as _token_color
+
+from CORE.test_runner import TEST_CATEGORIES, list_categorie  # noqa: E402
 
 _BASE = Path(__file__).resolve().parent.parent
 RESULTS_REL = "state/test_suite/results.json"
@@ -52,12 +56,42 @@ def is_e2e_file(name: str) -> bool:
     return any(h in stem for h in _E2E_HINTS)
 
 
-def discover_test_files(include_e2e: bool = False) -> tuple[list[str], list[str]]:
+def discover_test_files(include_e2e: bool = False,
+                        categorie: Optional[list[str]] = None
+                        ) -> tuple[list[str], list[str]]:
     """Ritorna (files_da_eseguire, files_esclusi) ordinati, solo top-level
-    ``tests/test_*.py``. I file e2e/LLM sono esclusi a meno di opt-in.
+    test file in ``tests/``.
+
+    Riconosce sia i file ``test_*.py`` sia i file di test che non seguono
+    quella convenzione (es. ``fuzz_security.py``).
+    Se ``categorie`` è fornito (lista di chiavi di TEST_CATEGORIES),
+    restituisce solo i file di quelle categorie. I file e2e/LLM sono
+    esclusi a meno di opt-in (include_e2e=True).
     """
-    files = sorted(p.name for p in (_BASE / "tests").glob("test_*.py"))
+    from CORE.test_runner import TEST_CATEGORIES  # noqa: E402
+
+    test_dir = _BASE / "tests"
+    # Raccoglie tutti i file di test: test_*.py + *_test.py + fuzz_*.py
+    files_set: set[str] = set()
+    for pattern in ("test_*.py", "*_test.py", "fuzz_*.py"):
+        for p in test_dir.glob(pattern):
+            if p.is_file() and p.name != "run_tests.py":
+                files_set.add(p.name)
+    files = sorted(files_set)
     e2e = [f for f in files if is_e2e_file(f)]
+
+    if categorie:
+        wanted: set[str] = set()
+        for cat in categorie:
+            wanted.update(TEST_CATEGORIES.get(cat, []))
+        if "tutti" in categorie:
+            wanted = set(files)
+        if not include_e2e:
+            wanted -= set(e2e)
+        files_sorted = sorted(f for f in files if f in wanted)
+        excluded = sorted(f for f in files if f not in wanted)
+        return files_sorted, excluded
+
     if include_e2e:
         return files, []
     return [f for f in files if f not in e2e], e2e
@@ -191,6 +225,49 @@ class TestSuitePanel(QWidget):
         controls.addWidget(self.e2e_cb)
         outer.addLayout(controls)
 
+        # ─── Selezione categorie ──────────────────────────────────────
+        cat_box = QGroupBox("📂 Categorie di test")
+        cat_lay = QVBoxLayout(cat_box)
+        cat_lay.setContentsMargins(14, 10, 14, 10)
+        cat_lay.setSpacing(6)
+
+        # Riga pulsanti Tutti / Nessuno
+        cat_btn_row = QHBoxLayout()
+        cat_btn_row.setSpacing(6)
+        btn_tutti = QPushButton("Tutti")
+        btn_tutti.setFixedWidth(60)
+        btn_tutti.setToolTip("Seleziona tutte le categorie")
+        btn_tutti.clicked.connect(self._seleziona_tutte_categorie)
+        cat_btn_row.addWidget(btn_tutti)
+        btn_nessuno = QPushButton("Nessuno")
+        btn_nessuno.setFixedWidth(60)
+        btn_nessuno.setToolTip("Deseleziona tutte le categorie")
+        btn_nessuno.clicked.connect(self._deseleziona_tutte_categorie)
+        cat_btn_row.addWidget(btn_nessuno)
+        cat_btn_row.addStretch()
+        cat_lay.addLayout(cat_btn_row)
+
+        # Checkbox per categoria (2 per riga)
+        self.cat_checkboxes: dict[str, QCheckBox] = {}
+        cat_grid = QGridLayout()
+        cat_grid.setSpacing(6)
+        cat_lay.addLayout(cat_grid)
+
+        categorie = list_categorie()
+        for i, cat in enumerate(categorie):
+            cb = QCheckBox(cat)
+            cb.setToolTip(
+                f"{len(TEST_CATEGORIES.get(cat, []))} file di test")
+            self.cat_checkboxes[cat] = cb
+            r, c = divmod(i, 2)
+            cat_grid.addWidget(cb, r, c)
+        # Se dispari, riempi la cella vuota
+        if len(categorie) % 2 == 1:
+            cat_grid.addWidget(QLabel(""), len(categorie) // 2, 1)
+
+        cat_lay.addStretch()
+        outer.addWidget(cat_box)
+
         # Progresso
         self.progress = QProgressBar()
         self.progress.setRange(0, 1)
@@ -288,6 +365,17 @@ class TestSuitePanel(QWidget):
         main_lay.setSpacing(0)
         main_lay.addWidget(scroll)
 
+    # ─── 🆕 GUI-executable: selezione categorie ───────────────────────
+    def _seleziona_tutte_categorie(self):
+        """Seleziona tutte le checkbox di categoria."""
+        for cb in self.cat_checkboxes.values():
+            cb.setChecked(True)
+
+    def _deseleziona_tutte_categorie(self):
+        """Deseleziona tutte le checkbox di categoria."""
+        for cb in self.cat_checkboxes.values():
+            cb.setChecked(False)
+
     # ──────────────────────────────────────────────────────────────────
     # Runner (QProcess sequenziale, timeout per file)
     # ──────────────────────────────────────────────────────────────────
@@ -295,9 +383,13 @@ class TestSuitePanel(QWidget):
         if self._proc is not None:
             return
         include_e2e = self.e2e_cb.isChecked()
-        files, excluded = discover_test_files(include_e2e)
+        # Raccoglie le categorie selezionate
+        categorie_sel = [c for c, cb in self.cat_checkboxes.items()
+                         if cb.isChecked()]
+        files, excluded = discover_test_files(include_e2e, categorie_sel)
         if not files:
-            self._log("⚠ Nessun file di test trovato in tests/.")
+            self._log("⚠ Nessun file di test trovato per le categorie "
+                      "selezionate.")
             return
         self._results = []
         self._excluded = excluded
@@ -311,8 +403,10 @@ class TestSuitePanel(QWidget):
         self.progress.setValue(0)
         self.run_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
+        cat_desc = ", ".join(categorie_sel) if categorie_sel else "tutte"
         self._log(f"▶ Suite avviata: {len(files)} file "
-                  f"({len(excluded)} e2e/LLM esclusi, timeout "
+                  f"(categorie: {cat_desc}, "
+                  f"{len(excluded)} esclusi, timeout "
                   f"{DEFAULT_TIMEOUT_S}s per file).")
         self._next()
 
