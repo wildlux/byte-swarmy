@@ -82,8 +82,15 @@ nuove", ma migliori al sistema:
       `state/benchmarks/` e report in `DOCS/BENCH.md`. Criterio di uscita
       Fase 0: tempo umano netto positivo anche solo del 20%.
       Test: `tests/test_external_benchmark.py` (11 test, mock senza Ollama).
-6. [ ] **Fuzzing mirato sulla sicurezza**: input casuali per `run_bash`,
-      `write_file`, parser MCP; regression tests per ogni bypass trovato.
+6. [x] **Fuzzing mirato sulla sicurezza**: ✅ **Cycle 60**: modulo
+      `tests/fuzz_security.py` con generatore custom (seed fisso) che fuzza
+      `validate_bash_command` (metacaratteri shell offuscati, path traversal
+      su comandi allowlistati, comandi fuori allowlist), `ToolSet.write_file`
+      (path traversal, null byte, path troppo lungo, nomi strani dentro
+      project/) e `MCPClient._parse_tool_result` (payload mancanti, troppo
+      lunghi, tipi sbagliati, JSON malformato, None). Invariante: nessun
+      bypass di sicurezza, nessun crash non gestito. Nessun regression test
+      aggiuntivo necessario in test_security.py (nessun bypass trovato).
 7. [ ] **Migliorare l'esperienza utente della GUI per il flusso di approvazione
       umana**: coda approvazioni (`awaiting_human_approval`) con diff
       sintetico, bottoni Approva/Rifiuta/Sospendi; notifica badge; approvazione

@@ -1212,3 +1212,29 @@ produce valore su task esterni e non progettati da noi.
   #2 (runtime verifier, Cycle 56), #3 (test generation, Cycle 57),
   #4 (semplificazione, Cycle 58), #5 (benchmark esterni, Cycle 59).
   Restano #6 (fuzzing sicurezza), #7 (GUI approvazioni umane).
+
+## 🚀 Cycle 60 — Fuzzing mirato sulla sicurezza (2026-11-15)
+
+Sesto intervento strutturale della lista senior (dalla code review, piano
+d'attacco Fase 6): scoprire bypass di sicurezza che i test manuali non trovano.
+
+- **Fuzzing sicurezza** (Cycle 60, #6): nuovo `tests/fuzz_security.py` con
+  generatore custom (seed fisso = 42, riproducibile) che fuzza:
+  - `SAFETY.security.validate_bash_command`: metacaratteri shell offuscati
+    (backtick, $(), ${}, pipe, &&, ||, >, <, \n, \x00...), path traversal su
+    comandi allowlistati (cat, rm, cp, mv, touch, ls), comandi fuori allowlist
+    (nc, curl, sudo, python -c, bash -c, git push, systemctl, kill, ...).
+  - `CORE.tools.ToolSet.write_file`: path traversal (.., path assoluti, ~,
+    nomi strani con punti ripetuti), null byte, path troppo lungo, scritture
+    benigni che devono ancora funzionare.
+  - `CORE.mcp_client.MCPClient._parse_tool_result`: payload mancanti, troppo
+    lunghi, tipi sbagliati, JSON malformato, None, liste/dizionari anomali.
+- **Invariante verifica**: nessun bypass di sicurezza, nessun crash non
+  gestito, nessun file scritto fuori da `project/`.
+- **Test**: `tests/fuzz_security.py` (11 test, nessun Ollama richiesto).
+- **Esito**: nessun bypass trovato — le difese esistenti reggono al fuzzing.
+  Nessun regression test aggiuntivo necessario in `test_security.py`.
+- **Stato**: interventi senior chiusi finora: #1 (risk classifier, Cycle 56),
+  #2 (runtime verifier, Cycle 56), #3 (test generation, Cycle 57),
+  #4 (semplificazione, Cycle 58), #5 (benchmark esterni, Cycle 59),
+  #6 (fuzzing sicurezza, Cycle 60). Resta #7 (GUI approvazioni umane).
