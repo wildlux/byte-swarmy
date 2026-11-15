@@ -1288,3 +1288,25 @@ il blocco umano fruibile attraverso l'interfaccia grafica.
   #3 (test generation, Cycle 57), #4 (semplificazione, Cycle 58),
   #5 (benchmark esterni, Cycle 59), #6 (fuzzing sicurezza, Cycle 60),
   #7 (GUI approvazioni umane, Cycle 61).
+
+## 🚀 Cycle 62 — Semplificazione architetturale Fase 1 (2026-11-16)
+
+Continuazione dell'intervento #4 (semplificazione), Fase 1 del piano d'attacco:
+inventario di CORE/ e rimozione/fusione di moduli che non aggiungono valore
+misurabile.
+
+- **Moduli orfani rimossi** (0 importi da codice di produzione):
+  - `CORE/sml_database.py` (201 righe) — database SQLite per modelli SML,
+    mai usato
+  - `CORE/preflight_cli.py` (69 righe) — CLI di preflight, mai usato
+  - `CORE/loop_detector.py` (111 righe) — fuso in `CORE/worker.py` come
+    funzioni locali (`detect_loop`, `_compression_ratio`, ecc.)
+- **File spostato**: `CORE/example_mcp_server.py` → `tests/example_mcp_server.py`
+  (è un file di test, non di produzione); path aggiornato in
+  `tests/test_mcp_e2e.py`
+- **Import rimosso**: `CORE/orchestrator.py` non importa più `detect_loop`
+  (import inutilizzato)
+- **Risultato**: CORE/ scende da ~50 a ~47 file. Nessuna metrica peggiorata
+  (270 passed, 1000 subtests, boot smoke OK).
+- **Regola rispettata**: il Timestral LLM Tuner (`CORE/llm_tuner.py`) non è
+  stato toccato.

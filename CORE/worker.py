@@ -11,12 +11,12 @@ import json
 import logging
 import re
 import time
+from collections import Counter
 from pathlib import Path
 from typing import Optional
 
 from CORE.constants import DEFAULT_NUM_CTX
 from CORE.correction import build_correction_prompt
-from CORE.loop_detector import detect_loop
 from CORE.last_good_config import last_good_config
 from CORE.memory import AgentMemory
 from CORE.ollama_client import ModelClient
@@ -29,6 +29,56 @@ from SAFETY.security import log_security_event
 log = logging.getLogger("byte-swarmy.worker")
 
 _REGEX = RegexController(DEFAULT_PATTERNS)
+
+# 🆕 Cycle 62: loop detector fuso in worker.py (rimosso CORE/loop_detector.py).
+# Rilevamento ripetizioni nell'output dei modelli LLM: evita che il worker
+# rimanga intrappolato in loop di ripetizione (stesse frasi/n-grammi che si
+# ripetono, o output con bassissima entropia).
+def _ngrams(text: str, n: int) -> list[str]:
+    text = text or ""
+    if n <= 0 or len(text) < n:
+        return []
+    return [text[i : i + n] for i in range(len(text) - n + 1)]
+
+def _compression_ratio(text: str) -> float:
+    text = text or ""
+    if not text:
+        return 0.0
+    tokens = re.findall(r"\S+", text)
+    if not tokens:
+        return 0.0
+    unique = len(set(tokens))
+    if unique == 0:
+        return 0.0
+    return len(tokens) / unique
+
+def _repeated_ngram_ratio(text: str, n: int = 5, threshold: int = 3) -> float:
+    grams = _ngrams(text, n)
+    if not grams:
+        return 0.0
+    counts = Counter(grams)
+    repeated = sum(1 for c in counts.values() if c > threshold)
+    return repeated / len(grams)
+
+def detect_loop(
+    text: str,
+    *,
+    ngram_n: int = 5,
+    ngram_threshold: int = 3,
+    ngram_ratio_limit: float = 0.25,
+    compression_limit: float = 4.0,
+    min_len: int = 40,
+) -> Optional[str]:
+    text = text or ""
+    if len(text) < min_len:
+        return None
+    ratio = _repeated_ngram_ratio(text, n=ngram_n, threshold=ngram_threshold)
+    if ratio >= ngram_ratio_limit:
+        return f"repeated {ngram_n}-grams (ratio={ratio:.2f})"
+    comp = _compression_ratio(text)
+    if comp >= compression_limit:
+        return f"high compression ratio ({comp:.1f}x)"
+    return None
 
 _PATH_EXT_RE = re.compile(r"\.[A-Za-z0-9]{1,5}$")
 

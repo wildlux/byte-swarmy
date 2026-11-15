@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.3.9-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.3.10-blue">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-yellow">
   <img alt="Ollama" src="https://img.shields.io/badge/Ollama-required-orange">
@@ -31,7 +31,7 @@
 > con streaming token in tempo reale, selezione intelligente dei modelli e
 > ottimizzazione termica adattiva (Timestral LLM Tuner).
 
-**Versione:** 0.3.9 · **Licenza:** MIT · **Piattaforma:** Linux
+**Versione:** 0.3.10 · **Licenza:** MIT · **Piattaforma:** Linux
 
 ---
 
@@ -448,7 +448,7 @@ The first real benchmark (pre-token-reduction vs. post-baseline, see
 `DOCS/BENCH.md`) confirmed: **-72% input tokens**, but the measurable win was
 correctness (0/2 → 2/2 artifacts), not wall time.
 
-### Latest — Cycles 52–61
+### Latest — Cycles 52–62
 
 - **Middle capability** (Cycle 52): after a definitive failure of the
   `worker_coder` (junior 3B), the fallback now escalates to
@@ -496,6 +496,11 @@ correctness (0/2 → 2/2 artifacts), not wall time.
   `GUI/control_center.py` updated every 3s when approvals are pending.
   State-transition functions `approve_task`/`reject_task`/`suspend_task` in
   `GUI/task_queue.py`.
+- **Architectural simplification Phase 1** (Cycle 62): removed 3 orphan
+  modules (`CORE/sml_database.py`, `CORE/preflight_cli.py`,
+  `CORE/loop_detector.py` — the latter fused into `CORE/worker.py`).
+  Moved `CORE/example_mcp_server.py` → `tests/`. CORE/ now has ~47 files
+  (down from ~50). No metrics degraded (270 tests passed, boot smoke OK).
 
 ### Exception Hardening
 
@@ -1060,7 +1065,7 @@ Rilasciato sotto licenza MIT. Vedi [LICENSE](LICENSE).
 
 ---
 
-**BYTE-SWARMY v0.3.9**
+**BYTE-SWARMY v0.3.10**
 
 ```
 /ˈbaɪt ˈswɔːrmi/  ·  "BYTE SWOR-mee"

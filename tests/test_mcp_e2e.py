@@ -39,7 +39,7 @@ try:
 except ImportError:
     MCP_AVAILABLE = False
 
-SERVER_SCRIPT = os.path.join(ROOT, "CORE", "example_mcp_server.py")
+SERVER_SCRIPT = os.path.join(ROOT, "tests", "example_mcp_server.py")
 DISCOVERY_TIMEOUT = 12   # secondi: di solito < 2s
 RECEIVE_TIMEOUT = 60     # secondi per averli tutti in callback
 

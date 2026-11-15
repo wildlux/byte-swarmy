@@ -44,6 +44,11 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
 - [ ] **Diary: DB vs file**: decidere DB (SQLite + query via API/socket) vs
   file markdown per il diario LLM; oggi il file basta per il contesto
   self-optimization, il DB solo per analytics/query strutturate.
+  ✅ **Cycle 62** (semplificazione Fase 1): inventario CORE/, rimossi 3 moduli
+  orfani (`sml_database`, `preflight_cli`, `loop_detector` fuso in
+  `worker.py`), spostato `example_mcp_server.py` in `tests/`. CORE/ scende
+  da ~50 a ~47 file. Nessuna metrica peggiorata (270 passed, 1000 subtests,
+  boot smoke OK). Regola rispettata: Timestral LLM Tuner non toccato.
 
 ### Miglioramenti senior da applicare (dalla code review) — priorità decrescente
 

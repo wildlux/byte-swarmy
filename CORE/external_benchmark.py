@@ -174,11 +174,13 @@ class ExternalBenchmark:
     """Esegue benchmark esterni e li confronta con un baseline modello nudo."""
 
     def __init__(self, project_root, bench_target_dir=BENCH_TARGET_DIR,
-                 models=None, log=None, benchmarks_dir=BENCHMARKS_DIR):
+                 models=None, log=None, benchmarks_dir=BENCHMARKS_DIR,
+                 model_key: str = "worker_coder"):
         self.project_root = Path(project_root).resolve()
         self.bench_target_dir = Path(bench_target_dir).resolve()
         self.models = models
         self.log = log
+        self.model_key = model_key
         self.benchmarks_dir = Path(benchmarks_dir)
         self.benchmarks_dir.mkdir(parents=True, exist_ok=True)
         self.results = {
@@ -328,7 +330,7 @@ class ExternalBenchmark:
 
         try:
             response = self.models.call(
-                model_key="worker_coder",
+                model_key=self.model_key,
                 prompt=prompt,
                 system="You are a Python refactoring assistant. Output only the new file content.",
                 max_tokens=1500,
@@ -371,14 +373,36 @@ class ExternalBenchmark:
         }
 
     # ------------------------------------------------------------------
-    def run_all(self, worker_factory=None) -> dict:
+    def run_all(self, worker_factory=None, cooldown_s: int = 0,
+                thermal_limit_c: float = 85.0) -> dict:
         """Esegue tutti i task sia con harness che con naked.
+
+        Args:
+            worker_factory: factory per il worker (se None, harness saltato).
+            cooldown_s: secondi di pausa tra un task e l'altro (riduce il
+                carico termico su macchine con RAM limitata).
+            thermal_limit_c: temperatura CPU massima consentita (°C). Se
+                superata, il benchmark si ferma e salva i risultati parziali.
 
         Se worker_factory e' None, il mode harness salta i task (marcati
         skipped) e resta solo il mode naked (richiede self.models).
         """
         harness_results = []
         naked_results = []
+
+        # Check temperatura iniziale
+        if not self._thermal_ok(thermal_limit_c):
+            self.log.warning(
+                f"Temperatura iniziale sopra {thermal_limit_c}°C — "
+                f"fermo il benchmark.")
+            self.results["tasks"] = {
+                "harness": harness_results,
+                "naked": naked_results,
+            }
+            self.results["summary"] = self._compute_summary(
+                harness_results, naked_results)
+            self.results["thermal_abort"] = True
+            return self.results
 
         for task in BENCH_TASKS:
             # --- harness ---
@@ -398,14 +422,75 @@ class ExternalBenchmark:
             r = self.run_naked_task(task)
             naked_results.append(r)
 
+            # Check temperatura post-task
+            if not self._thermal_ok(thermal_limit_c):
+                self.log.warning(
+                    f"Temperatura sopra {thermal_limit_c}°C dopo task "
+                    f"{task['id']} — fermato.")
+                self.results["tasks"] = {
+                    "harness": harness_results,
+                    "naked": naked_results,
+                }
+                self.results["summary"] = self._compute_summary(
+                    harness_results, naked_results)
+                self.results["thermal_abort"] = True
+                self.results["completed_tasks"] = len(harness_results)
+                return self.results
+
+            # Cooldown tra task (riduce carico termico)
+            if cooldown_s > 0 and task is not BENCH_TASKS[-1]:
+                if self.log:
+                    self.log.info(
+                        f"Cooldown {cooldown_s}s tra task (termico)...")
+                time.sleep(cooldown_s)
+
         self.results["tasks"] = {
             "harness": harness_results,
             "naked": naked_results,
         }
         self.results["summary"] = self._compute_summary(
-            harness_results, naked_results
-        )
+            harness_results, naked_results)
+        self.results["thermal_abort"] = False
+        self.results["completed_tasks"] = len(harness_results)
         return self.results
+
+    # ------------------------------------------------------------------
+    def _thermal_ok(self, limit_c: float) -> bool:
+        """Verifica che la temperatura CPU non superi il limite."""
+        try:
+            max_temp = 0.0
+            import glob as _glob
+            for path in _glob.glob("/sys/class/thermal/thermal_zone*/temp"):
+                try:
+                    val = float(Path(path).read_text().strip()) / 1000.0
+                    max_temp = max(max_temp, val)
+                except Exception:
+                    pass
+            # Fallback: sensors command
+            if max_temp == 0.0:
+                try:
+                    out = subprocess.run(
+                        ["sensors"], capture_output=True, text=True, timeout=5
+                    ).stdout
+                    for line in out.splitlines():
+                        if "Core" in line and ":" in line:
+                            try:
+                                part = line.split(":")[-1].split("°")[0].strip()
+                                val = float(part)
+                                max_temp = max(max_temp, val)
+                            except (ValueError, IndexError):
+                                pass
+                except Exception:
+                    pass
+            if max_temp == 0.0:
+                # Impossibile leggere: fail-open
+                return True
+            if self.log:
+                self.log.info(f"Temperatura CPU: {max_temp:.1f}°C "
+                              f"(limite {limit_c}°C)")
+            return max_temp < limit_c
+        except Exception:
+            return True  # fail-open
 
     # ------------------------------------------------------------------
     def _compute_summary(self, harness_results, naked_results) -> dict:
@@ -547,7 +632,7 @@ class ExternalBenchmark:
 # Entry point CLI — esecuzione reale del benchmark esterno
 # ====================================================================
 
-def build_real_worker_factory(config_path: str, log) -> callable:
+def build_real_worker_factory(config_path: str, log, model_key: str = "worker_coder") -> callable:
     """Costruisce una factory di Worker veri (Ollama reale) per il benchmark.
 
     La factory riceve una sandbox_dir e ritorna un Worker configurato per
@@ -577,7 +662,7 @@ def build_real_worker_factory(config_path: str, log) -> callable:
     memories = {}
 
     def factory(sandbox_dir: Path) -> Worker:
-        agent_id = "bench-worker"
+        agent_id = f"bench-worker-{model_key}"
         if agent_id not in memories:
             memories[agent_id] = AgentMemory(
                 agent_id=agent_id,
@@ -590,7 +675,7 @@ def build_real_worker_factory(config_path: str, log) -> callable:
         tools.set_worker("bench-worker")
         return Worker(
             agent_id=agent_id,
-            model_key="worker_coder",
+            model_key=model_key,
             tools=tools,
             memory=memories[agent_id],
             model_client=models,
@@ -623,8 +708,15 @@ def main() -> int:
                         help="Percorso del config TOML")
     parser.add_argument("--save-report", action="store_true",
                         help="Aggiunge il report a DOCS/BENCH.md")
+    parser.add_argument("--model", default=None,
+                        help="Model key da testare (es. worker_coder, worker_coder_big). "
+                             "Se omesso, confronta worker_coder (3b) vs worker_coder_big (4b).")
     parser.add_argument("--max-retries", type=int, default=3,
                         help="Max retry del correction loop")
+    parser.add_argument("--cooldown", type=int, default=30,
+                        help="Secondi di pausa tra task (riduce carico termico)")
+    parser.add_argument("--thermal-limit", type=float, default=85.0,
+                        help="Temperatura CPU massima (°C) prima di fermare il benchmark")
     args = parser.parse_args()
 
     log = _get_logger()
@@ -665,37 +757,59 @@ def main() -> int:
     import tomllib
     from CORE.ollama_client import ModelClient
 
-    factory = build_real_worker_factory(args.config, log)
+    # Determina quali modelli testare
+    if args.model:
+        models_to_test = [args.model]
+    else:
+        models_to_test = ["worker_coder", "worker_coder_big"]
 
-    # Carica config e crea un ModelClient dedicato per il naked mode
-    # (usa models.call direttamente, senza harness).
-    with open(args.config, "rb") as f:
-        config = tomllib.load(f)
-    naked_models = ModelClient(config, log)
+    all_results = {}
+    for model_key in models_to_test:
+        log.info(f"=== BENCHMARK CON MODELLO: {model_key} ===")
+        factory = build_real_worker_factory(args.config, log, model_key)
 
-    eb = ExternalBenchmark(
-        project_root=ROOT,
-        models=naked_models,
-        log=log,
-    )
-    results = eb.run_all(worker_factory=factory)
-    path = eb.save_results()
-    log.info(f"Risultati salvati in {path}")
+        with open(args.config, "rb") as f:
+            config = tomllib.load(f)
+        naked_models = ModelClient(config, log)
 
-    if args.save_report:
-        report = eb.generate_report()
-        bench_md = ROOT / "DOCS" / "BENCH.md"
-        with open(bench_md, "a", encoding="utf-8") as f:
-            f.write(report)
-        log.info(f"Report aggiunto a {bench_md}")
+        eb = ExternalBenchmark(
+            project_root=ROOT,
+            models=naked_models,
+            log=log,
+            model_key=model_key,
+        )
+        results = eb.run_all(worker_factory=factory,
+                             cooldown_s=args.cooldown,
+                             thermal_limit_c=args.thermal_limit)
+        # Salva risultati con suffisso modello
+        ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+        suffix = model_key.replace("_", "-")
+        filename = f"external_bench-{ts}-{suffix}.json"
+        path = eb.save_results(filename)
+        log.info(f"Risultati per {model_key} salvati in {path}")
+        all_results[model_key] = results
 
-    # Stampa sintesi a console
-    s = results.get("summary", {})
-    print("\n=== SINTESI BENCHMARK ESTERNO ===")
-    print(f"Harness — primo colpo: {s.get('harness', {}).get('first_try_rate', 'n.c.')}")
-    print(f"Harness — dopo loop:   {s.get('harness', {}).get('after_loop_rate', 'n.c.')}")
-    print(f"Naked — primo colpo:   {s.get('naked', {}).get('first_try_rate', 'n.c.')}")
-    print(f"Naked — dopo loop:     {s.get('naked', {}).get('after_loop_rate', 'n.c.')}")
+        if args.save_report:
+            report = eb.generate_report()
+            bench_md = ROOT / "DOCS" / "BENCH.md"
+            with open(bench_md, "a", encoding="utf-8") as f:
+                f.write(f"\n\n--- Modello: {model_key} ---\n")
+                f.write(report)
+            log.info(f"Report per {model_key} aggiunto a {bench_md}")
+
+    # Stampa sintesi comparativa
+    print("\n=== SINTESI BENCHMARK COMPARATIVO ===")
+    for model_key, results in all_results.items():
+        s = results.get("summary", {})
+        h = s.get("harness", {})
+        n = s.get("naked", {})
+        print(f"\n--- {model_key} ---")
+        print(f"  Harness — primo colpo: {h.get('first_try_rate', 'n.c.')} ({h.get('success_first_try', 0)}/{h.get('count', 0)})")
+        print(f"  Harness — dopo loop:   {h.get('after_loop_rate', 'n.c.')} ({h.get('success_after_loop', 0)}/{h.get('count', 0)})")
+        print(f"  Naked — primo colpo:   {n.get('first_try_rate', 'n.c.')} ({n.get('success_first_try', 0)}/{n.get('count', 0)})")
+        print(f"  Naked — dopo loop:     {n.get('after_loop_rate', 'n.c.')} ({n.get('success_after_loop', 0)}/{n.get('count', 0)})")
+        print(f"  Wall harness: {h.get('wall_seconds_total', 0)}s | Wall naked: {n.get('wall_seconds_total', 0)}s")
+
     return 0
 
 

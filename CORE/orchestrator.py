@@ -63,7 +63,6 @@ from SAFETY.risk_classifier import requires_human as risk_requires_human
 from CORE.execute_handler import handle_execute_task
 from CORE.decision_feedback import DecisionValidator
 from CORE.correction import build_correction_prompt
-from CORE.loop_detector import detect_loop
 from CORE.last_good_config import last_good_config
 from MONITORING.thermal_manager import (TimestralManager, TimestralGatekeeper,
                                         load_timestral_overrides,
