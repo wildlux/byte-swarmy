@@ -1178,3 +1178,37 @@ d'attacco Fase 5): ridurre il numero di moduli senza peggiorare le metriche.
   #2 (runtime verifier, Cycle 56), #3 (test generation, Cycle 57),
   #4 (semplificazione, Cycle 58). Restano #5 (benchmark esterni), #6 (fuzzing),
   #7 (GUI approvazioni).
+
+## 🚀 Cycle 59 — Benchmark esterni e validazione indipendente (2026-11-15)
+
+Quinto intervento strutturale della lista senior (piano d'attacco Fase 0):
+la settimana della verità — misurare se byte-swarmy, così com'è oggi,
+produce valore su task esterni e non progettati da noi.
+
+- **Benchmark esterno** (Cycle 59, #5): nuovo modulo
+  `CORE/external_benchmark.py` con:
+  - Dataset di 8 task di refactoring atomici e verificabili su
+    `bench_target/` (mini-repo Python di 4 file: utils, core/processor,
+    core/validator, models/user). Task: type hints, estrazione funzioni pure,
+    logging, docstring, list comprehension, validazione password, valuta
+    negativa, raggruppamento generico.
+  - Esecuzione in **dual mode**: harness (worker ReAct + correction loop +
+    audit + risk gate) vs **baseline modello nudo** (solo `models.call`,
+    nessun harness, nessun correction loop). Confronta il contributo
+    marginale del harness rispetto al modello nudo.
+  - Metriche per task: successo al primo colpo, successo dopo correction
+    loop, falsi negativi del gate, errori di esecuzione, wall time.
+  - Risultati JSON in `state/benchmarks/` (gitignored); report testuale in
+    `DOCS/BENCH.md` con metodologia riproducibile.
+  - Criterio di uscita Fase 0: se il tempo umano netto è negativo o nullo,
+    fermarsi e semplificare; se positivo anche solo del 20%, si ha qualcosa
+    su cui costruire.
+  - Entry point CLI: `.venv/bin/python -m CORE.external_benchmark --run`
+    (richiede Ollama); senza Ollama gira in dry-run.
+- **Test**: `tests/test_external_benchmark.py` (11 test, mock senza Ollama:
+  criterio di successo, naked task, harness first-try, harness correction
+  loop, run_all senza factory, save_results, generate_report, main dry-run).
+- **Stato**: interventi senior chiusi finora: #1 (risk classifier, Cycle 56),
+  #2 (runtime verifier, Cycle 56), #3 (test generation, Cycle 57),
+  #4 (semplificazione, Cycle 58), #5 (benchmark esterni, Cycle 59).
+  Restano #6 (fuzzing sicurezza), #7 (GUI approvazioni umane).

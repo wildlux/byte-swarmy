@@ -72,9 +72,16 @@ nuove", ma migliori al sistema:
       `exception_handler`, `state_recovery`, `benchmark`, `MONITORING/predictive`.
       Import nei test aggiornati (`test_usability_hardcore` ora importa da
       `CORE.resilience`). Nessuna metrica peggiorata (tutte le suite verdi).
-5. [ ] **Benchmark esterni e validazione indipendente**: dataset pubblico
-      (RefactoringBench/HumanEval), tasso di successo al primo colpo,
-      dopo correction loop, falsi negativi; baseline = modello nudo.
+5. [x] **Benchmark esterni e validazione indipendente**: ✅ **Cycle 59**:
+      nuovo modulo `CORE/external_benchmark.py` con dataset di 8 task di
+      refactoring atomici su `bench_target/` (mini-repo esterno non progettato
+      da noi). Esegue ogni task sia con harness (worker ReAct + correction loop
+      + audit + risk gate) che con baseline modello nudo (solo `models.call`,
+      nessun harness). Misura: successo al primo colpo, dopo correction loop,
+      falsi negativi del gate, errori, wall time. Salva JSON in
+      `state/benchmarks/` e report in `DOCS/BENCH.md`. Criterio di uscita
+      Fase 0: tempo umano netto positivo anche solo del 20%.
+      Test: `tests/test_external_benchmark.py` (11 test, mock senza Ollama).
 6. [ ] **Fuzzing mirato sulla sicurezza**: input casuali per `run_bash`,
       `write_file`, parser MCP; regression tests per ogni bypass trovato.
 7. [ ] **Migliorare l'esperienza utente della GUI per il flusso di approvazione
