@@ -337,6 +337,78 @@ def restart_task(task_id: str) -> tuple[bool, str]:
         return False, f"Errore: {e}"
 
 
+def approve_task(task_id: str) -> tuple[bool, str]:
+    """🆕 Cycle 61: riporta un task da 'awaiting_human_approval' a 'pending',
+    così l'orchestratore lo riprende in esecuzione."""
+    db_path = _queue_db_path()
+    if not db_path.exists():
+        return False, "Database coda non trovato"
+    try:
+        con = sqlite3.connect(str(db_path), timeout=10.0)
+        cur = con.cursor()
+        cur.execute(
+            "UPDATE tasks SET status='pending' WHERE id=? "
+            "AND status='awaiting_human_approval'",
+            (task_id,)
+        )
+        con.commit()
+        changed = cur.rowcount
+        con.close()
+        if changed:
+            return True, f"Task {task_id[:12]} approvato — riportato in pending"
+        return False, f"Task {task_id[:12]} non in attesa di approvazione"
+    except Exception as e:
+        return False, f"Errore: {e}"
+
+
+def reject_task(task_id: str, feedback: str) -> tuple[bool, str]:
+    """🆕 Cycle 61: rifiuta un task da 'awaiting_human_approval' con feedback,
+    marcandolo come 'failed' (con ragione specifica per il correction loop)."""
+    db_path = _queue_db_path()
+    if not db_path.exists():
+        return False, "Database coda non trovato"
+    try:
+        con = sqlite3.connect(str(db_path), timeout=10.0)
+        cur = con.cursor()
+        cur.execute(
+            "UPDATE tasks SET status='failed', last_error=?, "
+            "completed_at=? WHERE id=? AND status='awaiting_human_approval'",
+            (f"Rifiutato dall'umano: {feedback[:300]}", time.time(), task_id),
+        )
+        con.commit()
+        changed = cur.rowcount
+        con.close()
+        if changed:
+            return True, f"Task {task_id[:12]} rifiutato: {feedback[:60]}"
+        return False, f"Task {task_id[:12]} non in attesa di approvazione"
+    except Exception as e:
+        return False, f"Errore: {e}"
+
+
+def suspend_task(task_id: str) -> tuple[bool, str]:
+    """🆕 Cycle 61: sospende un task da 'awaiting_human_approval' mettendolo
+    in 'paused' (resta in coda, non viene eseguito finché non viene ripreso)."""
+    db_path = _queue_db_path()
+    if not db_path.exists():
+        return False, "Database coda non trovato"
+    try:
+        con = sqlite3.connect(str(db_path), timeout=10.0)
+        cur = con.cursor()
+        cur.execute(
+            "UPDATE tasks SET status='paused' WHERE id=? "
+            "AND status='awaiting_human_approval'",
+            (task_id,)
+        )
+        con.commit()
+        changed = cur.rowcount
+        con.close()
+        if changed:
+            return True, f"Task {task_id[:12]} sospeso (paused)"
+        return False, f"Task {task_id[:12]} non in attesa di approvazione"
+    except Exception as e:
+        return False, f"Errore: {e}"
+
+
 # ====================================================================
 # USER ACTION LOGGING (logs/user_actions.log)
 # ====================================================================

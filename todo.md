@@ -91,10 +91,16 @@ nuove", ma migliori al sistema:
       lunghi, tipi sbagliati, JSON malformato, None). Invariante: nessun
       bypass di sicurezza, nessun crash non gestito. Nessun regression test
       aggiuntivo necessario in test_security.py (nessun bypass trovato).
-7. [ ] **Migliorare l'esperienza utente della GUI per il flusso di approvazione
-      umana**: coda approvazioni (`awaiting_human_approval`) con diff
-      sintetico, bottoni Approva/Rifiuta/Sospendi; notifica badge; approvazione
-      in blocco solo per `low`/`medium`.
+7. [x] **Migliorare l'esperienza utente della GUI per il flusso di approvazione
+      umana**: ✅ **Cycle 61**: coda approvazioni (`awaiting_human_approval`)
+      dentro `GUI/task_scheduler_panel.py` con titolo, livello di rischio e
+      motivo (parsed dal reason del risk gate), pulsanti Approva/Rifiuta con
+      feedback/Sospendi per task singolo, approvazione in blocco solo per
+      rischio basso/medio (con conferma esplicita per alto/critico), log delle
+      azioni utente in `logs/user_actions.log`. Notifica badge `🔒 N` sulla top
+      bar di `GUI/control_center.py` (aggiornata ogni 3s) quando ci sono
+      approvazioni in sospeso. Funzioni di transizione stato in
+      `GUI/task_queue.py`: `approve_task`, `reject_task`, `suspend_task`.
 
 ### Responsive
 *(nessun item aperto — T-R3 e gap vuoto risolti nel Cycle 29)*

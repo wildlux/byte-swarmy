@@ -1238,3 +1238,42 @@ d'attacco Fase 6): scoprire bypass di sicurezza che i test manuali non trovano.
   #2 (runtime verifier, Cycle 56), #3 (test generation, Cycle 57),
   #4 (semplificazione, Cycle 58), #5 (benchmark esterni, Cycle 59),
   #6 (fuzzing sicurezza, Cycle 60). Resta #7 (GUI approvazioni umane).
+
+## 🚀 Cycle 61 — GUI per approvazioni umane (risk gate) (2026-11-15)
+
+Settimo e ultimo intervento strutturale della lista senior (piano d'attacco
+Fase 2): chiude il cerchio del risk gate iniziato nella Cycle 56, rendendo
+il blocco umano fruibile attraverso l'interfaccia grafica.
+
+- **Coda approvazioni nella GUI** (Cycle 61, #7): nuova sezione
+  "🔒 Coda Approvazioni Umane (risk gate)" dentro
+  `GUI/task_scheduler_panel.py` che mostra solo i task in
+  `awaiting_human_approval` con:
+  - Titolo, ID e livello di rischio (parsed dal `reason` del risk gate:
+    basso/medio/alto/critico, con icone differenziate ✅/⚖️/⚠️/🚨)
+  - Anteprima del motivo di blocco (primi 80 caratteri del reason)
+  - Pulsanti per task singolo: ✅ Approva, ❌ Rifiuta con feedback,
+    ⏸️ Sospendi (mette in `paused`)
+  - Conferma esplicita richiesta per approvare task ad alto/critico rischio
+  - Pulsante "✅ Approva tutti (basso/medio)" per approvazione in blocco
+    solo dei task a rischio basso/medio (con elenco dei titoli nella
+    finestra di conferma)
+  - Log delle azioni utente in `logs/user_actions.log`
+  - Refresh automatico quando si entra nella scheda (`showEvent`)
+- **Notifica badge sulla top bar** (Cycle 61, #7): nuovo `QLabel` `🔒 N`
+  nella toolbar di `GUI/control_center.py` (via `GUI/cc_shell.py`), aggiornato
+  ogni 3 secondi da un timer (`_update_approval_badge`), visibile solo quando
+  ci sono approvazioni in sospeso.
+- **Funzioni di transizione stato** in `GUI/task_queue.py`:
+  - `approve_task(task_id)` → riporta in `pending`
+  - `reject_task(task_id, feedback)` → marca `failed` con motivo
+  - `suspend_task(task_id)` → mette in `paused`
+- **Test**: flusso approvazione/rifiuto/sospensione verificato end-to-end
+  (task creato in `awaiting_human_approval`, approvato → `pending`,
+  rifiutato → `failed`, sospeso → `paused`). Suite GUI esistenti verdi
+  (37 passed).
+- **Stato**: tutti e 7 gli interventi strutturali della lista senior sono
+  ora chiusi: #1 (risk classifier, Cycle 56), #2 (runtime verifier, Cycle 56),
+  #3 (test generation, Cycle 57), #4 (semplificazione, Cycle 58),
+  #5 (benchmark esterni, Cycle 59), #6 (fuzzing sicurezza, Cycle 60),
+  #7 (GUI approvazioni umane, Cycle 61).

@@ -15,12 +15,14 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
     QComboBox, QLineEdit, QDateTimeEdit, QSpinBox, QGroupBox,
     QFormLayout, QScrollArea, QListWidget, QListWidgetItem, QMessageBox,
-    QCheckBox,
+    QCheckBox, QInputDialog,
 )
 from PyQt6.QtCore import Qt, QDateTime, pyqtSignal
 
 from GUI.theme.theme import set_prop as _theme_prop
 from GUI.theme.theme import set_banner as _theme_banner
+
+from GUI.task_queue import approve_task, reject_task, suspend_task  # noqa: E402
 
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCHEDULED_FILE = os.path.join(_BASE, "CONFIG", "scheduled_tasks.json")
@@ -261,6 +263,56 @@ class TaskSchedulerPanel(QWidget):
         list_lay.addLayout(del_row)
 
         lay.addWidget(list_box)
+
+        # ─── 🆕 Cycle 61: Coda Approvazioni Umane (risk gate) ─────────
+        approval_box = QGroupBox("🔒 Coda Approvazioni Umane (risk gate)")
+        approval_lay = QVBoxLayout(approval_box)
+        approval_lay.setContentsMargins(14, 14, 14, 14)
+        approval_lay.setSpacing(8)
+
+        aprov_expl = QLabel(
+            "Task bloccati dal <b>risk gate deterministico</b> (Cycle 56): "
+            "non vengono eseguiti finché un umano non li approva. "
+            "L'approvazione in blocco è consentita solo per rischio "
+            "<b>basso/medio</b>."
+        )
+        aprov_expl.setWordWrap(True)
+        aprov_expl.setStyleSheet("font-size:12px; color:#64748b;")
+        approval_lay.addWidget(aprov_expl)
+
+        self.approval_list = QListWidget()
+        self.approval_list.setObjectName("approval_list")
+        self.approval_list.setMaximumHeight(220)
+        approval_lay.addWidget(self.approval_list, stretch=1)
+
+        # Pulsanti azione
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(6)
+
+        self.approve_one_btn = QPushButton("✅ Approva selezionato")
+        _theme_prop(self.approve_one_btn, "role", "start")
+        self.approve_one_btn.clicked.connect(self._on_approve_one)
+        btn_row.addWidget(self.approve_one_btn)
+
+        self.reject_one_btn = QPushButton("❌ Rifiuta con feedback")
+        _theme_prop(self.reject_one_btn, "role", "danger")
+        self.reject_one_btn.clicked.connect(self._on_reject_one)
+        btn_row.addWidget(self.reject_one_btn)
+
+        self.suspend_one_btn = QPushButton("⏸️ Sospendi")
+        _theme_prop(self.suspend_one_btn, "role", "medium")
+        self.suspend_one_btn.clicked.connect(self._on_suspend_one)
+        btn_row.addWidget(self.suspend_one_btn)
+
+        btn_row.addStretch()
+
+        self.approve_all_btn = QPushButton("✅ Approva tutti (basso/medio)")
+        _theme_prop(self.approve_all_btn, "role", "start")
+        self.approve_all_btn.clicked.connect(self._on_approve_all_safe)
+        btn_row.addWidget(self.approve_all_btn)
+
+        approval_lay.addLayout(btn_row)
+        lay.addWidget(approval_box)
 
         scroll.setWidget(content)
         outer.addWidget(scroll, stretch=1)
@@ -515,6 +567,180 @@ class TaskSchedulerPanel(QWidget):
         """Refresh forzato della lista quando si entra nella scheda."""
         super().showEvent(event)
         self._refresh_list()
+        self._refresh_approvals()
+
+    # ─── 🆕 Cycle 61: metodi coda approvazioni ────────────────────────
+    def _refresh_approvals(self):
+        """Ricrea la lista dei task in awaiting_human_approval."""
+        self.approval_list.clear()
+        project_path = self.get_project_path() if self.get_project_path else None
+        try:
+            from GUI.task_queue import load_tasks
+            tasks = load_tasks(project_path)
+        except Exception:
+            tasks = []
+        pending = [t for t in tasks if t.get("status") == "awaiting_human_approval"]
+        if not pending:
+            item = QListWidgetItem("📭 Nessuna approvazione in sospeso.")
+            item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsSelectable)
+            self.approval_list.addItem(item)
+            self._set_approval_buttons_enabled(False)
+            return
+        self._set_approval_buttons_enabled(True)
+        for t in pending:
+            tid = t.get("id", "")
+            title = t.get("title", "?")
+            reason = t.get("reason", "") or ""
+            # Parsa livello di rischio dal reason:
+            # "RISK_BLOCK: level=high reasons=..."
+            if "level=critical" in reason:
+                level = "critico"
+            elif "level=high" in reason:
+                level = "alto"
+            elif "level=low" in reason:
+                level = "basso"
+            else:
+                level = "medio"
+            icon = {"critico": "🚨", "alto": "⚠️", "medio": "⚖️", "basso": "✅"}.get(level, "•")
+            text = (
+                f"{icon} [{str(tid)[:12]}] {title} — rischio: {level} — "
+                f"{reason[:80]}"
+            )
+            item = QListWidgetItem(text)
+            item.setData(Qt.ItemDataRole.UserRole, tid)
+            item.setData(Qt.ItemDataRole.UserRole + 1, reason)
+            self.approval_list.addItem(item)
+
+    def _set_approval_buttons_enabled(self, enabled: bool):
+        for b in (self.approve_one_btn, self.reject_one_btn,
+                  self.suspend_one_btn, self.approve_all_btn):
+            b.setEnabled(enabled)
+
+    def _selected_approval(self):
+        item = self.approval_list.currentItem()
+        if not item:
+            return None
+        tid = item.data(Qt.ItemDataRole.UserRole)
+        reason = item.data(Qt.ItemDataRole.UserRole + 1) or ""
+        if not tid:
+            return None
+        return tid, reason
+
+    def _on_approve_one(self):
+        sel = self._selected_approval()
+        if not sel:
+            QMessageBox.information(self, "Nessuna selezione",
+                                    "Seleziona un task dalla coda approvazioni.")
+            return
+        tid, reason = sel
+        is_high = ("level=high" in reason) or ("level=critical" in reason)
+        if is_high:
+            reply = QMessageBox.question(
+                self, "Conferma approvazione alto rischio",
+                f"Il task {tid[:12]} ha rischio ALTO/CRITICO.\n"
+                f"Motivo: {reason[:140]}\n\nConfermi l'approvazione?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+        ok, msg = approve_task(tid)
+        if ok:
+            from GUI.gui_backend import log_user_action
+            log_user_action("Task-Action", "approva", tid,
+                            f"approvato da umano: {reason[:60]}")
+            self._refresh_approvals()
+            self._refresh_list()
+            QMessageBox.information(self, "Approvato", msg)
+        else:
+            QMessageBox.warning(self, "Errore", msg)
+
+    def _on_reject_one(self):
+        sel = self._selected_approval()
+        if not sel:
+            QMessageBox.information(self, "Nessuna selezione",
+                                    "Seleziona un task dalla coda approvazioni.")
+            return
+        tid, reason = sel
+        feedback, ok = QInputDialog.getText(
+            self, "Rifiuta task",
+            f"Motivo del rifiuto per {tid[:12]}:\n{reason[:140]}\n\n"
+            f"Feedback (opzionale):",
+        )
+        if not ok:
+            return
+        ok2, msg = reject_task(tid, feedback or "nessun feedback fornito")
+        if ok2:
+            from GUI.gui_backend import log_user_action
+            log_user_action("Task-Action", "rifiuta", tid,
+                            f"rifiutato: {feedback[:60]}")
+            self._refresh_approvals()
+            self._refresh_list()
+            QMessageBox.information(self, "Rifiutato", msg)
+        else:
+            QMessageBox.warning(self, "Errore", msg)
+
+    def _on_suspend_one(self):
+        sel = self._selected_approval()
+        if not sel:
+            QMessageBox.information(self, "Nessuna selezione",
+                                    "Seleziona un task dalla coda approvazioni.")
+            return
+        tid, _reason = sel
+        ok, msg = suspend_task(tid)
+        if ok:
+            from GUI.gui_backend import log_user_action
+            log_user_action("Task-Action", "sospendi", tid,
+                            "sospeso da umano")
+            self._refresh_approvals()
+            self._refresh_list()
+            QMessageBox.information(self, "Sospeso", msg)
+        else:
+            QMessageBox.warning(self, "Errore", msg)
+
+    def _on_approve_all_safe(self):
+        """Approva in blocco solo i task a rischio basso/medio."""
+        project_path = self.get_project_path() if self.get_project_path else None
+        try:
+            from GUI.task_queue import load_tasks
+            tasks = load_tasks(project_path)
+        except Exception:
+            tasks = []
+        safe = [t for t in tasks
+                if t.get("status") == "awaiting_human_approval"
+                and ("level=high" not in (t.get("reason") or ""))
+                and ("level=critical" not in (t.get("reason") or ""))]
+        if not safe:
+            QMessageBox.information(
+                self, "Nessun task idoneo",
+                "Non ci sono task a rischio basso/medio in attesa di approvazione."
+            )
+            return
+        titoli = "\n".join(
+            f"• {t.get('id','')[:12]} — {t.get('title','?')[:50]}"
+            for t in safe
+        )
+        reply = QMessageBox.question(
+            self, "Conferma approvazione blocco (basso/medio)",
+            f"Approva {len(safe)} task a rischio basso/medio?\n\n{titoli[:600]}",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        from GUI.gui_backend import log_user_action
+        n_ok = 0
+        for t in safe:
+            ok, _msg = approve_task(t.get("id", ""))
+            if ok:
+                n_ok += 1
+                log_user_action("Task-Action", "approva-blocco",
+                                t.get("id", ""),
+                                "approvato in blocco basso/medio")
+        self._refresh_approvals()
+        self._refresh_list()
+        QMessageBox.information(
+            self, "Approvazione blocco completata",
+            f"Approvati {n_ok}/{len(safe)} task a rischio basso/medio."
+        )
 
     # ──────────────────────────────────────────────────────────────────
     # Stili

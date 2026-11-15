@@ -287,6 +287,28 @@ class ControlCenter(
         self._zoom_catchup_timer.timeout.connect(self._rescale_missing_widgets)
         self._zoom_catchup_timer.start(1500)
 
+        # 🆕 Cycle 61: badge notifica approvazioni in sospeso (risk gate)
+        self._approval_badge_timer = QTimer(self)
+        self._approval_badge_timer.timeout.connect(self._update_approval_badge)
+        self._approval_badge_timer.start(3000)
+        self._update_approval_badge()
+
+    # 🆕 Cycle 61: badge notifica approvazioni in sospeso (risk gate)
+    def _update_approval_badge(self):
+        """Conta i task in awaiting_human_approval e aggiorna la badge."""
+        try:
+            from GUI.task_queue import load_tasks
+            tasks = load_tasks(None)  # scope globale
+            pending = [t for t in tasks
+                       if t.get("status") == "awaiting_human_approval"]
+            n = len(pending)
+            if n > 0:
+                self._approval_badge.setText(f"🔒 {n}")
+                self._approval_badge.show()
+            else:
+                self._approval_badge.hide()
+        except Exception:
+            self._approval_badge.hide()
 
 
 if __name__ == "__main__":

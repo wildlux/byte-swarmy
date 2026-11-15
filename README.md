@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.3.7-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.3.8-blue">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-yellow">
   <img alt="Ollama" src="https://img.shields.io/badge/Ollama-required-orange">
@@ -31,7 +31,7 @@
 > con streaming token in tempo reale, selezione intelligente dei modelli e
 > ottimizzazione termica adattiva (Timestral LLM Tuner).
 
-**Versione:** 0.3.7 · **Licenza:** MIT · **Piattaforma:** Linux
+**Versione:** 0.3.8 · **Licenza:** MIT · **Piattaforma:** Linux
 
 ---
 
@@ -448,7 +448,7 @@ The first real benchmark (pre-token-reduction vs. post-baseline, see
 `DOCS/BENCH.md`) confirmed: **-72% input tokens**, but the measurable win was
 correctness (0/2 → 2/2 artifacts), not wall time.
 
-### Latest — Cycles 52–60
+### Latest — Cycles 52–61
 
 - **Middle capability** (Cycle 52): after a definitive failure of the
   `worker_coder` (junior 3B), the fallback now escalates to
@@ -486,6 +486,15 @@ correctness (0/2 → 2/2 artifacts), not wall time.
   filenames), and `MCPClient._parse_tool_result` (malformed, oversized,
   mistyped, missing payloads). No security bypass found — existing defenses
   hold.
+- **GUI human-in-the-loop approvals** (Cycle 61): new "🔒 Coda Approvazioni
+  Umane (risk gate)" section inside `GUI/task_scheduler_panel.py` showing only
+  `awaiting_human_approval` tasks with risk level, motive, single-task
+  Approve/Reject-with-feedback/Suspend buttons, and a "Approve all (low/medium
+  risk)" block action with explicit confirmation for high/critical. User action
+  logging in `logs/user_actions.log`. Top-bar badge `🔒 N` in
+  `GUI/control_center.py` updated every 3s when approvals are pending.
+  State-transition functions `approve_task`/`reject_task`/`suspend_task` in
+  `GUI/task_queue.py`.
 
 ### Exception Hardening
 
@@ -1050,7 +1059,7 @@ Rilasciato sotto licenza MIT. Vedi [LICENSE](LICENSE).
 
 ---
 
-**BYTE-SWARMY v0.3.7**
+**BYTE-SWARMY v0.3.8**
 
 ```
 /ˈbaɪt ˈswɔːrmi/  ·  "BYTE SWOR-mee"

@@ -120,6 +120,24 @@ class ShellMixin:
         self.device_panel = DevicePanel(control_center=self)
         lay.addWidget(self.device_panel)
 
+        # 🆕 Cycle 61: badge notifica approvazioni in sospeso (risk gate)
+        self._approval_badge = QLabel("🔒 0")
+        self._approval_badge.setObjectName("approval_badge")
+        self._approval_badge.setFixedWidth(44)
+        self._approval_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._approval_badge.setStyleSheet(
+            "QLabel#approval_badge {"
+            "  color:#dc2626; font-weight:bold; font-size:11px;"
+            "  border:1px solid #dc2626; border-radius:8px;"
+            "  padding:0 4px;"
+            "}"
+        )
+        self._approval_badge.setToolTip(
+            "Task in attesa di approvazione umana (risk gate deterministico)"
+        )
+        self._approval_badge.hide()
+        lay.addWidget(self._approval_badge)
+
         # Il pulsante ▶/⏸ è già dentro DevicePanel (pause_btn) e si collega
         # internamente a control_center._toggle_orchestrator; non serve
         # ricollegarlo da qui (eviterebbe un doppio toggle).
