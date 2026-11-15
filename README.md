@@ -419,6 +419,9 @@ thermal). Returns top 1 + 3 alternatives per role.
 classification) on each model. Results saved to `state/model_benchmarks.json`.
 qwen2.5-coder:1.5b scored 100/100, avg 31.8 tok/s.
 
+**Reports policy**: every benchmark report and measurement lives in
+`DOCS/BENCH.md`; raw JSONs stay in `state/benchmarks/` (gitignored).
+
 ### Recent Optimizations (Cycle 47 — "furbate")
 
 Four post-benchmark optimizations were implemented and verified:

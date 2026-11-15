@@ -25,9 +25,9 @@ Regole:
 4. **Nessun EOF stray o artefatto di heredoc** alla fine del file.
 5. Se il file supera il budget, sposta il contenuto in `DOCS/` e lascia
    solo un riferimento: "Vedi `DOCS/ARCHITECTURE.md`".
-6. **Ogni report/misura va documentato in `DOCS/`** (es. `DOCS/BENCH.md`
-   per i bench); i JSON grezzi restano in `state/benchmarks/`
-   (gitignored). Nessun report volante in chat senza documento.
+6. **Every report/measurement goes in `DOCS/`** (e.g. `DOCS/BENCH.md` for
+   benchmarks); raw JSONs stay in `state/benchmarks/` (gitignored). No
+   report should live only in chat without a document.
 
 > Il tuo AGENT.md è un ottimo documento di progetto, ma è troppo per il
 > suo scopo ultimo: essere letto da modelli da 1.5B–4B. Sposta
