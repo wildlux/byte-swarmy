@@ -841,3 +841,23 @@ Implementate le furbate scelte dall'utente come Cycle 47 (A+B+C+F):
 Nuovi test: `tests/test_cycle47_furbate.py` (25 passed). Boot smoke e bench
 post-furbate da fare al termine della cycle.
 
+## 🚀 Cycle 47b — Bench post-furbate: wall −5,4%, token invariati (2026-11-15)
+
+Bench automatico dentro `tools/verify_all` (dopo il deploy delle furbate):
+baseline (2026-11-15T01:12:58) vs post-furbate (2026-11-15T01:41:15).
+
+| metrica | baseline | ora | delta |
+|---|---|---|---|
+| wall totale | 74,59s | 70,53s | **−5,4%** |
+| token prompt | 4240 | 4240 | 0,0% |
+| token generati | 1349 | 1349 | 0,0% |
+| chiamate LLM | 20 | 20 | 0,0% |
+| bench-create wall | 40,39s | 36,52s | **−9,6%** |
+| bench-patch wall | 34,2s | 34,01s | −0,6% |
+
+Interpretazione: −5,4% di wall con token invariati → il guadagno è quasi
+esclusivamente il **warmup** (il primo step non paga più il load cold). Nessuna
+regressione di uso. Il compile-error pre-esistente (archived GUI test) è
+fuori dallo scope.
+
+

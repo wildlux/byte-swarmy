@@ -37,3 +37,28 @@ correttezza degli artifact.
 - Il wall cresce perché i passi ora producono contenuto reale.
 - Il primo step della baseline (15,7s) include il load del modello in
   Ollama; i passi successivi (1,9–5,5s) sono il costo reale per step.
+
+---
+
+## 2026-11-15 — Post-furbate (Cycle 47) — bench automatico dentro `verify_all`
+
+Dopo l'implementazione delle furbate (warmup/keep_alive, sticky, audit gate,
+watchdog), il bench post-furbate è girato contro la baseline del 2026-11-15
+(01:12:58) e confrontato automaticamente:
+
+| metrica | baseline | ora | delta |
+|---|---|---|---|
+| wall totale (s) | 74,59 | 70,53 | **−5,4%** |
+| token prompt (stima) | 4240 | 4240 | +0,0% |
+| token generati (stima) | 1349 | 1349 | +0,0% |
+| chiamate LLM | 20 | 20 | +0,0% |
+| bench-create: wall | 40,39s | 36,52s | **−9,6%** |
+| bench-patch: wall | 34,2s | 34,01s | −0,6% |
+
+Il claim: il warmup (A) ha ridotto il primo step (bench-create −9,6% ≈ load
+cold 8–15s → ~0); i token usati sono IDENTICI (4240/1349), quindi niente
+regressione di prompt e nessun costo aggiuntivo. Wall −5,4% totale su 2 task.
+
+Nota: i test di compile segnalano 1 errore pre-esistente in
+`tests/archiviati/TEST_GUI_SEPARATA/TEST_GUI_QT_7.py` (da commit
+`3312ad4`, non toccato in questa cycle).

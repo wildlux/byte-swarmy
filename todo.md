@@ -216,6 +216,11 @@ del codice reale su cui agire. Da scegliere con l'utente:
   streaming abort con `FirstTokenTimeout` dopo `[ollama].first_token_timeout`
   (60s) senza token → task in fallback su worker_general.
 
+### Bench post-furbate (Cycle 47b)
+- [x] **Bench post-furbate** (auto dentro verify_all): wall −5,4% (74,59→70,53s),
+  bench-create −9,6% (load cold nascosto dal warmup), token invariati.
+  Report in `DOCS/BENCH.md` Cycle 47b. ✅ Cycle 47b.
+
 ---
 
 ## Fuori scope (per scelta/limiti hardware)
