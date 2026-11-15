@@ -1128,3 +1128,28 @@ review), come da piano d'attacco Fase 0–2 parziale (i primi due gap dichiarati
   verifier, task queue).
 - **Stato**: risk gate + runtime verifier implementati e testati; blocco umano
   end-to-end GUI (prompt approvazione) resta da completare nella GUI flow.
+
+## 🚀 Cycle 57 — Test generation per nuovi percorsi di esecuzione (2026-11-15)
+
+Terzo intervento strutturale della lista senior (dalla code review, piano
+d'attacco Fase 3): chiude il gap "test verdi ma codice mai eseguito".
+
+- **Test generation path-aware** (Cycle 57, #3): nuovo modulo
+  `CORE/test_generator.py`. Dopo ogni `write_file` riuscita su un modulo
+  Python, il worker (`CORE/worker.py`, loop `execute`) genera
+  automaticamente un test di regressione che esercita le funzioni pubbliche
+  del file (via `self.models.call` su `worker_coder`), lo scrive in
+  `tests/test_<nome>_regression.py` e lo esegue con pytest.
+- Se il test fallisce → l'errore specifico diventa `tool_result` con prefisso
+  `ERROR:` → entra nel correction loop con feedback mirato (non un generico
+  "syntax error").
+- Nessuna ricorsione: i file dentro `tests/` e i file `test_*.py` vengono
+  saltati; ogni file sorgente viene testato una sola volta per task.
+- Fail-open: se la generazione/esecuzione del test crasha, il worker continua
+  senza bloccarsi.
+- **Test**: `tests/test_cycle57_test_generation.py` (7 test: generazione ed
+  esecuzione OK, syntax error, skip non-Python, skip test files, skip dentro
+  tests/, skip senza funzioni pubbliche, estrazione nomi funzioni).
+- **Stato**: test generation implementata e testata; interventi senior chiusi
+  finora: #1 (risk classifier, Cycle 56), #2 (runtime verifier, Cycle 56),
+  #3 (test generation, Cycle 57).

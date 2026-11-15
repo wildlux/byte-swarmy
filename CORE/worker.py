@@ -22,6 +22,7 @@ from CORE.memory import AgentMemory
 from CORE.ollama_client import ModelClient
 from CORE.planner import Planner
 from CORE.regex_controller import RegexController, DEFAULT_PATTERNS, json_block
+from CORE.test_generator import TestGenerator
 from CORE.tools import ToolSet
 from SAFETY.security import log_security_event
 
@@ -165,6 +166,11 @@ class Worker:
         self.memory = memory
         self.models = model_client
         self.log = logger
+
+        # 🆕 Cycle 57: test generation per i nuovi percorsi scritti dal worker.
+        self.test_generator = TestGenerator(
+            self.tools.project_root, self.models, self.log
+        )
 
     def _classify_task_tools(self, task: dict) -> set:
         """T1: seleziona i tool rilevanti per il tipo di task.
@@ -624,6 +630,27 @@ class Worker:
                 # memoria per il feedback loop T2 (prompt di correzione)
                 if args and len(args) > 1:
                     self.last_code = str(args[1])[:2000]
+
+                # 🆕 Cycle 57: test generation per il nuovo percorso scritto.
+                # Dopo ogni write_file riuscita su un modulo Python, il worker
+                # genera un test di regressione, lo esegue e, se fallisce,
+                # l'errore specifico entra nel correction loop.
+                try:
+                    if not hasattr(self, "_tested_files"):
+                        self._tested_files = set()
+                    if args and len(args) > 0 and str(args[0]).endswith(".py"):
+                        fp = str(args[0])
+                        if fp not in self._tested_files:
+                            self._tested_files.add(fp)
+                            tg_res = self.test_generator.generate_and_verify(
+                                fp, self.last_code or ""
+                            )
+                            if tg_res.startswith("ERROR"):
+                                tool_result = tg_res
+                                last_tool_result = tg_res
+                except Exception as e:
+                    # Fail-open: la test generation non deve mai bloccare il worker.
+                    self.log.warning(f"test generation failed-open: {e}")
             last_tool_result = tool_result
 
             self.memory.add_event({

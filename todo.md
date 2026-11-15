@@ -61,9 +61,11 @@ nuove", ma migliori al sistema:
       (py_compile; test via pytest); per GUI/orchestrator: avvio headless
       controllato + timeout (boot smoke); su fail → feedback specifico nel
       correction loop. Modulo `CORE/runtime_verifier.py`.
-3. [ ] **Test generation per i nuovi percorsi di esecuzione**: al worker,
-      per ogni nuovo percorso, generare + eseguire test di regressione;
-      se non generabile → `needs_manual_test` + blocco per review umana.
+3. [x] **Test generation per i nuovi percorsi di esecuzione**: ✅ **Cycle 57**:
+      al worker, per ogni nuovo percorso scritto (write_file su modulo .py),
+      generare + eseguire test di regressione via pytest; se non generabile o
+      se fallisce → feedback specifico nel correction loop. Modulo
+      `CORE/test_generator.py`, iniettato in `CORE/worker.py` (`execute`).
 4. [ ] **Semplificazione architetturale**: inventario CORE/MONITORING,
       fusione candidate (`exception_handler`+`state_recovery` → resilience;
       `predictive`+`thermal` → modulo termico; `benchmark`+`model_selector` →
