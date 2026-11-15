@@ -74,9 +74,7 @@ T22 → T24 → T23 → T25 → T26 (ultimo, sforzo alto).
 ## Furbate candidate (verificate contro il codice, Cycle 47?)
 Ottimizzazioni proposte dopo la prima misura bench — ognuna con il punto
 del codice reale su cui agire. Da scegliere con l'utente:
-- [ ] **E. num_ctx A/B bench**: 8192 → 4096/6144 ora che i prompt sono
-  compatti (meno KV cache = più velocità su 4GB); misurato con
-  `tools/bench_worker.py`, report in `DOCS/BENCH.md`.
+(nessuna aperta: menu chiuso — vedi "Furbate completate (menu chiuso)")
 
 ### Bench post-furbate (Cycle 47b)
 
