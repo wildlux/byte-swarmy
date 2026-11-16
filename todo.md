@@ -19,24 +19,26 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
 Macchina fredda: prima il benchmark, poi il resto. Ogni step con la
 regola termica (stadiale, `--cooldown 30 --thermal-limit 60`).
 
-1. [ ] **`tools/verify_cycle.sh` — script del ciclo di verifica standard**
+1. [~] **`tools/verify_cycle.sh` — script del ciclo di verifica standard**
       (furbata onesta: automazione deterministica, NON un LLM che genera
       comandi). Un solo comando che incapsula la sequenza ripetuta a ogni
       ciclo: `py_compile` dei file toccati → test mirati → boot smoke
       (`state/pause.flag` + `CORE.orchestrator`). Zero LLM, zero calore,
       ~18s fissi, stessa disciplina rigorosa. Uso futuro: i cicli si
       verificano con `./tools/verify_cycle.sh <file_modificati...>`
-      invece di 3-4 comandi separati.
-2. [ ] **Benchmark di validazione della corsia veloce (fast lane)** —
-      ⛔ **BLOCCATO TERMICAMENTE su questo hardware** (Cycle 66, 2/2 run
-      abortite su ext-01: da macchina calda il carico scala ~1°C/s, un
-      naked di 21s → 75°C; da freddo ~0,3°C/s). La pausa adattiva è
-      implementata ma il limite 60°C rende impossibile una sessione
-      completa. Opzioni: (a) 1 task per sessione, macchina fredda tra
-      una e l'altra (rispetta il limite); (b) cap temporaneo più alto
-      SOLO per i benchmark (decisione utente); (c) validare su altra
-      macchina/giornata più fresca. Intanto: `enabled = false` (rollback
-      fatto), fix elegibilità + `verify_cycle.sh` committati.
+      invece di 3-4 comandi separati. **Creato e bash-checked (Cycle 66);
+      TODO: prima esecuzione end-to-end.**
+2. [~] **Benchmark di validazione della corsia veloce (fast lane)** —
+      ▶️ **IN ESECUZIONE con protocollo sessioni fredde** (opzione A,
+      scelta utente: la fast lane "è di un'utilità disarmante"). Driver
+      `tools/bench_cold_sessions.py`: 1 task per sessione, macchina
+      fredda ≤45.5°C prima di ogni sessione, 60°C mai sforato. Il
+      **piano d'azione con criteri di verdetto pre-scritti** è in
+      `DOCS/BENCH.md` § "PIANO D'AZIONE — Cycle 66" (living doc, si
+      aggiorna a fine driver). Contesto Cycle 66: 2/2 run abortite su
+      ext-01 → benchmark completo in una sessione impossibile; pausa
+      adattiva implementata e testata; `enabled = false` (rollback
+      fatto), fix elegibilità committato.
 3. [ ] **Micro-ciclo config**: `num_ctx` planner 3072 → 2048 (item #5
       efficientamento) + verifica se Timestral/SystemMonitor/Lifecycle
       hanno già toggle config (item #4). Config-only, zero Ollama.

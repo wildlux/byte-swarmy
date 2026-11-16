@@ -1436,3 +1436,30 @@ benchmark completo non gira sotto 60°C su questo portatile.
   validazione ottenuta, regola "measure, don't add" rispettata).
 - **Verifiche**: py_compile OK; test_thermal_pause 5 passed;
   test_external_benchmark 11 passed; fast lane + e2e 64 passed.
+
+## 🎯 Cycle 66 parte 2 — Piano d'azione sui dati attuali (living doc)
+### (2026-11-16, scritto mentre il driver delle sessioni fredde gira)
+
+Richiesta utente: "scrivi un piano d'azione sui dati attuali e poi li
+aggiorniamo appena abbiamo gli altri dati".
+
+- **`DOCS/BENCH.md` § "PIANO D'AZIONE — Cycle 66"** (living doc):
+  - §1 dati certi misurati: baseline Cycle 59 (naked 50%/14s vs harness
+    12.5%/192s), fisica termica (0,3°C/s da freddo, 1°C/s da caldo,
+    pausa 78→51 in 90s), hardware (7b non entra in 4GB, granite4 MoE
+    unico candidato potente)
+  - §2 decisione opzione A: sessioni fredde
+  - §3 stato fasi 0-5 con segnaposto (driver in esecuzione, tabella 8
+    task, temp_before/after, micro-ciclo config, granite4, 3 modelli)
+  - §4 **criteri di verdetto pre-scritti** (5 regole ordinate per
+    priorità) → l'aggiornamento a fine driver sarà meccanico, senza
+    ri-negoziazione
+  - §5 architettura 3 modelli dell'utente mappata sul codice esistente
+    (Timestral / decision deterministico-first / esecutore granito o API)
+  - §6 vincoli permanenti (60°C, stadiale, measure-don't-add, zero
+    carico durante il driver)
+- **`todo.md`**: item 1 → `[~]` verify_cycle.sh creato (TODO prima
+  esecuzione end-to-end); item 2 → `[~]` driver sessioni fredde in
+  esecuzione, riferimento al piano in BENCH.md.
+- Nessun codice toccato (il driver sta misurando): solo docs. Zero
+  carico CPU durante le sessioni benchmark.

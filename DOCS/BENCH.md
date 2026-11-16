@@ -214,3 +214,106 @@ ridurre i task (2-3), aumentare il cooldown (60s), abbassare il limite
 
 Implementazione di riferimento della regola in codice:
 `CORE/test_generator.py` (stadio scheletro → collect-check → stadio corpi).
+
+---
+
+## 🎯 PIANO D'AZIONE — Cycle 66 (dati attuali, pre-driver) ⏳ LIVING DOC
+
+> **Nota d'uso**: questo piano è scritto SUI DATI ATTUALI e va AGGIORNATO
+> al termine del driver delle sessioni fredde (`tools/bench_cold_sessions.py`,
+> log `/tmp/opencode/bench_cold_sessions.txt`). I campi `⏳` sono i
+> segnaposto da riempire. Niente feature nuove prima: measure, don't add.
+
+### 1. Dati certi a oggi (misurati, non ipotesi)
+
+**Baseline benchmark (Cycle 59)** — stessa macchina, stessi 8 task:
+
+| metrica | harness (correction loop) | naked | delta |
+|---------|---------------------------|-------|-------|
+| successo 1° colpo | 12.5% (1/8) | 50% (4/8) | **naked vince** |
+| wall medio/task | ~192s | ~14s | **13× più lento** |
+
+→ L'harness COM'ERA era un costo puro: il correction loop scalda 3× per
+arrivare a meno successi. Da qui la fast lane (single-shot, max 2 tentativi)
+e la decisione "deterministico prima, LLM come riserva".
+
+**Fisica termica (Cycle 66, limite utente 60°C DURO)**:
+
+| condizione | misura | conseguenza operativa |
+|------------|--------|----------------------|
+| idle fredda | 44°C | finestra di partenza utile: 44-46°C |
+| salita da freddo | 49→78°C in 107s (~0,3°C/s) | segmenti continui ≤ ~35s |
+| salita da caldo | 51→75°C in 21s (~1°C/s) | NESSUN segmento riparte da caldo |
+| pausa adattiva | 78→51°C in 90s | funziona, ma 51°C non basta per ripartire |
+
+→ **Regola operativa**: ogni sessione di benchmark parte da macchina
+fredda (≤45.5°C); nessun carico LLM oltre 60°C; mai due sessioni di fila
+senza raffreddamento naturale. Benchmark completo in una sessione:
+IMPOSSIBILE su questo hardware (2/2 aborti confermati).
+
+**Hardware e modelli**:
+- 4GB RAM → qwen2.5-coder:7b (4.7GB) NON entra; swap = morte termica
+- unico candidato "LLM potente" locale: `granite4:7b-a1b-h` (MoE, ~1B
+  parametri attivi, 4.2GB) → FASE 4
+- fast lane: implementata, elegibilità fixata (8/8 task elegibili,
+  chiave `file` autorevole), **`enabled = false` finché non validata**
+
+### 2. Decisione presa (utente, Cycle 66)
+
+**Opzione A: sessioni fredde** — 1 task per sessione, driver automatico
+aspetta ≤45.5°C prima di ogni sessione, 60°C mai sforato. Utente: la
+fast lane "è di un'utilità disarmante" → va validata a tutti i costi
+termici, non aggirata alzando il cap.
+
+### 3. Stato attuale del piano
+
+| FASE | cosa | stato |
+|------|------|-------|
+| 0 | driver 8 sessioni fredde ext-01..08 in background | ⏳ **IN ESECUZIONE** (~60-90 min, attese passive) |
+| 1 | tabella 8 task fast lane vs naked + verdetto | ⏳ dopo driver (criteri in §4) |
+| 2 | `temp_before`/`temp_after` per fase nel JSON benchmark | [ ] solo DOPO fine driver (coerenza sessioni) |
+| 3 | micro-ciclo config: `num_ctx` planner 3072→2048, toggle Timestral/SystemMonitor, `keep_alive_sec` | [ ] config-only, zero Ollama |
+| 4 | benchmark granite4:7b-a1b-h, regola stadiale, stesso protocollo sessioni fredde | [ ] dopo verdetto fast lane |
+| 5 | architettura 3 modelli (vedi §5) | in parte già in atto |
+
+### 4. Criteri di verdetto PRE-SCRITTI (l'aggiornamento sarà meccanico)
+
+Al termine del driver si compila la tabella ⏳ e si applica la PRIMA
+regola verificata (ordine = priorità):
+
+| # | condizione (su 8 task) | verdetto `fast_lane.enabled` |
+|---|------------------------|------------------------------|
+| 1 | ≥40% 1° colpo E <60s/task medio | `true` → subito FASE 2 |
+| 2 | ≥40% ma ≥60s/task | `true` + FASE 3 ottimizzazione (keep_alive KV cache) |
+| 3 | <40% MA ≥ naked (50%) su qualche metrica | resta `false`, analisi prompt fast lane, 1 retry |
+| 4 | < naked | resta `false` DEFINITIVO, fast lane archiviata (risultato onesto) |
+| 5 | >2 sessioni in thermal abort | protocollo rivisto: cold start 45°C, resume-offset 16 |
+
+Tabella da compilare ⏳:
+
+| task | fast lane 1° colpo | wall | naked 1° colpo | wall | temp max sessione |
+|------|--------------------|------|----------------|------|-------------------|
+| ext-01 | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
+| ext-02 | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
+| ext-03 | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
+| ext-04 | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
+| ext-05 | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
+| ext-06 | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
+| ext-07 | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
+| ext-08 | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
+| **TOT** | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
+
+### 5. Architettura 3 modelli (direzione confermata dall'utente)
+
+| ruolo utente | implementazione attuale | prossima mossa |
+|--------------|------------------------|----------------|
+| **1. Timestral** — controllo termico in loop | `thermal_manager` (gate reattivo + history 662KB) + `llm_tuner` (parametri ridotti da caldo) | già suono e a costo 0; ⏳ opzione: farlo campionare ANCHE durante i benchmark (ora il benchmark bypassa l'orchestrator e la sua history si ferma) |
+| **2. Decision model** — divide i problemi | planner 1.5b, atomizer, risk classifier, euristica elegibilità fast lane | deterministico-FIRST: l'euristica a costo ~0 decide, l'LLM di decisione resta riserva. È già la direzione presa |
+| **3. LLM potente** — implementazione | worker_coder 3b, escalation 4b | FASE 4: granite4 MoE. Se insufficiente → vertice mancante: esecutore REMOTO via API (il calore lo fa altro silicio); costo: internet/soldi — decisione utente |
+
+### 6. Cosa NON fare (vincoli permanenti)
+
+- Mai sopra 60°C. Nessuna eccezione, nemmeno per finire un benchmark.
+- Mai generazioni LLM monolitiche: stadi brevi con verifica host-side.
+- Nessuna feature nuova non misurata; `enabled = false` finché valido.
+- Nessun lavoro CPU-heavy mentre il driver gira (inquinerebbe le misure).
