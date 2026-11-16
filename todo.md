@@ -14,6 +14,30 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
 
 ## Aperti
 
+### 📅 Domani (2026-11-17) — ordine di esecuzione concordato
+
+Macchina fredda: prima il benchmark, poi il resto. Ogni step con la
+regola termica (stadiale, `--cooldown 30 --thermal-limit 60`).
+
+1. [ ] **`tools/verify_cycle.sh` — script del ciclo di verifica standard**
+      (furbata onesta: automazione deterministica, NON un LLM che genera
+      comandi). Un solo comando che incapsula la sequenza ripetuta a ogni
+      ciclo: `py_compile` dei file toccati → test mirati → boot smoke
+      (`state/pause.flag` + `CORE.orchestrator`). Zero LLM, zero calore,
+      ~18s fissi, stessa disciplina rigorosa. Uso futuro: i cicli si
+      verificano con `./tools/verify_cycle.sh <file_modificati...>`
+      invece di 3-4 comandi separati.
+2. [ ] **Benchmark di validazione della corsia veloce (fast lane)** —
+      SOLO a macchina fredda. `[fast_lane] enabled = true` in config.toml,
+      benchmark esterno (`external_benchmark.py`) con guardie termiche e
+      regola stadiale (un task = uno stadio). Confronto fast lane vs
+      harness sugli STESSI 8 task ext-01..ext-08. Criterio per lasciarla
+      ON: ≥ 40% successo primo colpo e < 60s/task. Se non regge →
+      `enabled = false` (rollback a una riga) e resta il risultato onesto.
+3. [ ] **Micro-ciclo config**: `num_ctx` planner 3072 → 2048 (item #5
+      efficientamento) + verifica se Timestral/SystemMonitor/Lifecycle
+      hanno già toggle config (item #4). Config-only, zero Ollama.
+
 ### Test agentico — programmino Qt/PyQt6 via swarm (Cycle 50)
 
 - [ ] **Test agentico Qt/PyQt6**: far creare al swarm un programmino PyQt6
