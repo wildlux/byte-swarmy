@@ -378,15 +378,21 @@ class ExternalBenchmark:
 
     # ------------------------------------------------------------------
     def run_all(self, worker_factory=None, cooldown_s: int = 0,
-                thermal_limit_c: float = 85.0) -> dict:
+                thermal_limit_c: float = 85.0, task_ids: list = None,
+                resume_offset: float = 8.0) -> dict:
         """Esegue tutti i task sia con harness che con naked.
 
         Args:
             worker_factory: factory per il worker (se None, harness saltato).
-            cooldown_s: secondi di pausa tra un task e l'altro (riduce il
-                carico termico su macchine con RAM limitata).
+            cooldown_s: secondi di pausa minima tra un task e l'altro.
             thermal_limit_c: temperatura CPU massima consentita (°C). Se
                 superata, il benchmark si ferma e salva i risultati parziali.
+            task_ids: 🆕 Cycle 66 — se fornito (es. ["ext-01"]), esegue SOLO
+                i task indicati: un task per sessione fredda, così il
+                limite 60°C resta rispettato su hardware senza headroom.
+            resume_offset: 🆕 Cycle 66 — soglia di ripresa della pausa
+                adattiva = thermal_limit_c - resume_offset (default 8;
+                il driver delle sessioni fredde usa 14 → 46°C).
 
         Se worker_factory e' None, il mode harness salta i task (marcati
         skipped) e resta solo il mode naked (richiede self.models).
@@ -409,6 +415,10 @@ class ExternalBenchmark:
             return self.results
 
         for task in BENCH_TASKS:
+            # 🆕 Cycle 66: filtro per task id (sessioni fredde: un task
+            # alla volta, il driver aspetta la macchina fredda tra esse).
+            if task_ids and task["id"] not in task_ids:
+                continue
             # --- harness ---
             if worker_factory is not None:
                 r = self.run_harness_task(task, worker_factory)
@@ -428,7 +438,8 @@ class ExternalBenchmark:
             # 49→78°C in ~107s; le due fasi devono raffreddarsi separate.
             if worker_factory is not None:
                 if not self._thermal_pause(thermal_limit_c,
-                                           fase="tra fast lane e naked"):
+                                           fase="tra fast lane e naked",
+                                           resume_offset=resume_offset):
                     self.log.warning("Max wait termico scaduto — fermo.")
                     self.results["tasks"] = {
                         "harness": harness_results,
@@ -463,7 +474,8 @@ class ExternalBenchmark:
             if task is not BENCH_TASKS[-1]:
                 if cooldown_s > 0:
                     time.sleep(cooldown_s)
-                if not self._thermal_pause(thermal_limit_c, fase="tra task"):
+                if not self._thermal_pause(thermal_limit_c, fase="tra task",
+                                           resume_offset=resume_offset):
                     self.log.warning("Max wait termico scaduto — fermo.")
                     self.results["tasks"] = {
                         "harness": harness_results,
@@ -804,6 +816,14 @@ def main() -> int:
                         help="Secondi di pausa tra task (riduce carico termico)")
     parser.add_argument("--thermal-limit", type=float, default=85.0,
                         help="Temperatura CPU massima (°C) prima di fermare il benchmark")
+    parser.add_argument("--task", default=None,
+                        help="🆕 Cycle 66: esegue SOLO un task (es. ext-03). "
+                             "Un task per sessione fredda: il limite 60°C "
+                             "resta rispettato su hardware senza headroom.")
+    parser.add_argument("--resume-offset", type=float, default=14.0,
+                        help="🆕 Cycle 66: ripresa della pausa adattiva = "
+                             "thermal-limit - offset (default 14 → 46°C per "
+                             "limite 60: da macchina calda il load scala ~1°C/s)")
     args = parser.parse_args()
 
     log = _get_logger()
@@ -867,7 +887,9 @@ def main() -> int:
         )
         results = eb.run_all(worker_factory=factory,
                              cooldown_s=args.cooldown,
-                             thermal_limit_c=args.thermal_limit)
+                             thermal_limit_c=args.thermal_limit,
+                             task_ids=[args.task] if args.task else None,
+                             resume_offset=args.resume_offset)
         # Salva risultati con suffisso modello
         ts = datetime.now().strftime("%Y%m%d-%H%M%S")
         suffix = model_key.replace("_", "-")
