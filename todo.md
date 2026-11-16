@@ -103,16 +103,16 @@ C++/Qt6 core + strato Python). Radiografia fredda (zero LLM):
   QT_ANDROID_Version
 - code_map costruito: 164 file, 1800 simboli → `context` attivo
 
-- [ ] **Skill `project-radiography`** (`.opencode/skill/`): la procedura
+- [x] **Skill `project-radiography`** (`.opencode/skill/`): la procedura
       di radiografia fredda generalizzata (censimento, salute,
       god-file, marker, build system, code_map, item nel ledger) —
       riusabile per qualunque progetto futuro.
-- [ ] Coda popolata nel ledger per-progetto
+- [x] Coda popolata nel ledger per-progetto
       (`project/prismalux/state/debt_ledger.db`, via `--root`)
 - [ ] **Vincolo verifica C++**: il build è CMake (312 file) = carico
       pesante, sotto 60°C va stadiale o ccache/parallelismo limitato —
       gli item C++ si eseguono DOPO una strategia di build
-- [ ] Primo item eseguito a freddo (rinomia SCREEENSHOT, xs)
+- [x] Primo item eseguito a freddo (rinomia SCREEENSHOT, xs)
 - [ ] Push dei commit di prismalux: decisione utente
 
 ### Test agentico — programmino Qt/PyQt6 via swarm (Cycle 50)
