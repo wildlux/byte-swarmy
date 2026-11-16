@@ -73,8 +73,11 @@ def main() -> int:
                     help="etichetta leggibile nella riga di stato")
     ap.add_argument("--start-regex", default=r"=== (?:sessione|task) (\S+?)(?: ===|$)",
                     help="regex dell'unità iniziata (gruppo 1 = id)")
-    ap.add_argument("--done-regex", default=r"salvati in",
-                    help="regex dell'unità completata")
+    ap.add_argument("--done-regex", default=r"external benchmark results salvati in",
+                    help="regex dell'unità completata (default: la riga JSON "
+                         "del benchmark, UNA per sessione — la riga di "
+                         "riepilogo contiene la stessa parola e conterebbe "
+                         "doppio)")
     ap.add_argument("--finish-regex", default=r"\[driver\] DONE",
                     help="regex del job completato (ferma il reporter)")
     ap.add_argument("--eta-guess", type=float, default=15.0,
