@@ -226,6 +226,12 @@ class CenterArea(QWidget):
         self.panel_pages["audit_project"] = AuditProjectPanel()
         self.detail_stack.addWidget(self.panel_pages["audit_project"])
 
+        # Pannello "debt_ledger" → DebtLedgerPanel (coda rifattorizzazioni,
+        # Cycle 70: regola di parità GUI — ogni funzione del ledger è qui)
+        from GUI.debt_ledger_panel import DebtLedgerPanel
+        self.panel_pages["debt_ledger"] = DebtLedgerPanel()
+        self.detail_stack.addWidget(self.panel_pages["debt_ledger"])
+
         # Pannello "hardware" → HardwarePanel (profilo GPU/memoria + strategia)
         from GUI.hardware_panel import HardwarePanel
         self.panel_pages["hardware"] = HardwarePanel()

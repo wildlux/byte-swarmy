@@ -59,6 +59,10 @@ cosa ESISTE via AST→SQLite): il ledger tiene traccia di cosa VA
 RIFATTORIZZATO. Già dentro il progetto: SQLite usato in 5 punti
 (memory_event_store, sml_database, code_map, task_queue, resilience).
 
+- [x] **REGOLA DI PARITÀ GUI (Cycle 70)**: OGNI funzione del ledger
+      è usufruibile dalla Plancia (`GUI/debt_ledger_panel.py`) —
+      stats, list, add, next (🎯), mark, context (🔍), refresh
+      on-demand senza timer nuovi (disciplina Cycle 63).
 - [x] Regole di design (deterministiche, documentate nel modulo):
       1) l'LLM non scrive SQL libero — dialoga con API/CLI Python;
       2) `file_hash` alla registrazione → item `stale` se il file

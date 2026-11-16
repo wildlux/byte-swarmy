@@ -186,6 +186,10 @@ def build_tools_cards(open_panel_callback, log_viewer, code_explorer, backup_log
         ("hardware", "🖥️ Hardware & Modelli",
          "Rilevamento GPU/memoria: strategia auto-suggerita per Worker e modelli",
          "Hardware", "#0891b2", 2, 0),
+        ("debt_ledger", "🏛️ Registro del debito",
+         "Coda di rifattorizzazioni e ottimizzazioni: stato, priorità e "
+         "verifica anti-stantio (SQLite, pianificazione fredda)",
+         "Debt", "#b45309", 2, 1),
     ]
 
     for key, title, subtitle, badge, badge_color, row, col in tool_card_configs:

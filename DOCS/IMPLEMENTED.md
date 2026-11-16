@@ -1612,3 +1612,28 @@ veri, con misurazione:
   hash aggiornato; il vecchio #2 resta in storia.
 - **Stato coda**: done 1 · open 1 (#3) · stale 1.
 - **Verifiche**: 34 test verdi; item #1 chiuso con hash verificato.
+
+## 🖥️ Cycle 70 — Debt ledger integrato nella GUI (regola di parità)
+### (2026-11-16, richiesta utente: "tutte le funzioni devono essere
+### usufruibili dalla gui meglio metterlo come regole")
+
+- **REGOLA DI PARITÀ GUI** (nuova, permanente): ogni funzione del ledger
+  deve avere un controllo nella Plancia — niente API che esistono solo
+  da terminale. Documentata nel pannello, in todo.md e applicata:
+  - `stats` → etichetta coda · `list` → tabella · `add` → dialog
+  - `next` → 🎯 Prossimo: item dalla query, marcato in_progress e
+    selezionato (il lavoro arriva dal ledger, mai da un'idea)
+  - `mark` → ▶ In corso / ✅ Fatto · `context` → 🔍 Contesto code_map
+- **`GUI/debt_ledger_panel.py`** (NUOVO): tabella item (stato colorato,
+  priorità, tipo, sforzo, file, titolo), dialog di registrazione con
+  i 6 campi validati dal modulo, azioni on-demand. Disciplina Cycle 63
+  rispettata: ZERO timer nuovi, refresh solo a bottone. Fail-open:
+  coda vuota o senza code_map → messaggio, mai crash.
+- **Registrazione Plancia**: carta "🏛️ Registro del debito" in
+  `GUI/panels.py` (slot 2,1) + pannello in `GUI/center_area.py`
+  (stesso pattern di audit_project).
+- **Test** `tests/test_debt_ledger_panel.py` (7, offscreen): coda
+  vuota no-crash, list, next-prende-e-seleziona, next senza validi,
+  mark done dalla GUI, context fail-open, NESSUN timer avviato.
+- **Verifiche**: py_compile dei 3 file GUI; 52 test verdi (ledger +
+  pannello + benchmark + fast lane + termici); boot smoke EXIT=124.
