@@ -187,3 +187,30 @@ il KV cache `q8_0`. Applicazione persistita via manager env (runtime).
 **Tempo umano netto:** campo da compilare a mano dall'utente (ore di supervisione vs ore di lavoro manuale). Non e' misurabile automaticamente dal sistema.
 
 **Metodologia riproducibile:** i JSON grezzi sono in `state/benchmarks/` (gitignored). Eseguire con: `.venv/bin/python -m CORE.external_benchmark --run` (richiede Ollama). Test senza Ollama: `pytest tests/test_external_benchmark.py`.
+
+## Regola termica: mini-task stadiali (🆕 Cycle 65)
+
+I task dei benchmark futuri si progettano a STADI brevi, non come
+generazioni monolitiche — il portatile surriscalda sotto carico LLM
+continuo (limite utente: 60°C, mai di più):
+
+1. **Scheletro** — chiedere SOLO la struttura vuota (classe vuota,
+   firme dei metodi, funzioni `test_*` con `pass`). Generazione breve
+   (~150-250 token).
+2. **Verifica host-side** tra gli stadi: `py_compile` /
+   `pytest --collect-only` — gratis (zero LLM). Scova subito gli errori
+   di import e di struttura, il guasto più comune su modelli 3B, senza
+   pagare le generazioni successive.
+3. **Definizioni/corpi** — riempire SOLO i corpi mantenendo la struttura
+   verificata. Generazione breve (~300-500 token).
+4. **Implementazione completa**: mai in un'unica generazione lunga;
+   se serve, è l'ultimo stadio, dopo che la struttura è già verificata.
+
+Nel runner del benchmark: un task = uno stadio, con `--cooldown 30
+--thermal-limit 60` tra task (già implementato in `external_benchmark.py`,
+flag `thermal_abort` su superamento). Se la temperatura sale comunque,
+ridurre i task (2-3), aumentare il cooldown (60s), abbassare il limite
+(55°C) o cambiare macchina.
+
+Implementazione di riferimento della regola in codice:
+`CORE/test_generator.py` (stadio scheletro → collect-check → stadio corpi).

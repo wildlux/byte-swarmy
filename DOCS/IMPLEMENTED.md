@@ -1370,3 +1370,33 @@ che si interfaccia con la brutal honesty del benchmark Cycle 59. Il prompt
   (elegibilità, successo, retry, fallimento pulito, AST scanner attivo,
   fail-open config); suite affini **285 passed, 1 xfailed, 1000 subtests**;
   boot smoke OK.
+
+## 🌡️ Cycle 65 — Regola termica: mini-test stadiali (2026-11-16)
+
+Regola permanente richiesta dall'utente: i test che chiamano l'LLM non
+devono surriscaldare il portatile. Mai generazioni monolitiche — stadi
+brevi con verifica tra uno e l'altro.
+
+- **La regola** (codificata in `todo.md` + `DOCS/BENCH.md`):
+  1. scheletro (classe vuota / `test_*` con `pass`) → verifica host-side
+     (~gratis: `py_compile` / `pytest --collect-only`, zero LLM);
+  2. definizioni/corpi minimi → verifica;
+  3. implementazione completa: mai in un'unica generazione lunga.
+  Ogni stadio genera ≤ ~300 token; nel benchmark un task = uno stadio con
+  `--cooldown 30 --thermal-limit 60`. Errori di import/struttura si
+  scoprono allo stadio 1 senza pagare le generazioni successive.
+- **Implementata in `CORE/test_generator.py`** (era 1 chiamata da 600
+  token che chiedeva il file completo):
+  - stadio 1: prompt SCHELETRO (max_tokens=250) → scrittura →
+    `pytest --collect-only` (import/struttura senza eseguire test);
+  - stadio 2: prompt CORPI che riceve lo scheletro VERIFICATO
+    (max_tokens=500), con controllo anti-alterazione (stessi nomi test);
+  - su qualunque fallimento di stadio: file di test rimosso + ERROR con
+    feedback specifico (niente file mezzi scritti nel progetto utente).
+- **Benefici**: generazioni più brevi = picchi termici minori; il guasto
+  più comune dei 3B (import rotto) si paga allo stadio 1 (~250 token) e
+  non dopo una generazione completa; verificate tra gli stadi = gratis.
+- **Verifiche**: py_compile OK; 5 nuovi test in
+  `tests/test_staged_test_generation.py` (2 stadi, collect-check, anti-
+  alterazione, errori puliti); test Cycle 57 ancora verdi; suite affini
+  **290 passed, 1 xfailed, 1000 subtests**; boot smoke OK.

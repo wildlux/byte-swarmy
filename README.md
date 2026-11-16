@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.3.12-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.3.13-blue">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-yellow">
   <img alt="Ollama" src="https://img.shields.io/badge/Ollama-required-orange">
@@ -31,7 +31,7 @@
 > con streaming token in tempo reale, selezione intelligente dei modelli e
 > ottimizzazione termica adattiva (Timestral LLM Tuner).
 
-**Versione:** 0.3.12 · **Licenza:** MIT · **Piattaforma:** Linux
+**Versione:** 0.3.13 · **Licenza:** MIT · **Piattaforma:** Linux
 
 ---
 
@@ -448,7 +448,7 @@ The first real benchmark (pre-token-reduction vs. post-baseline, see
 `DOCS/BENCH.md`) confirmed: **-72% input tokens**, but the measurable win was
 correctness (0/2 → 2/2 artifacts), not wall time.
 
-### Latest — Cycles 52–64
+### Latest — Cycles 52–65
 
 - **Middle capability** (Cycle 52): after a definitive failure of the
   `worker_coder` (junior 3B), the fallback now escalates to
@@ -514,6 +514,14 @@ correctness (0/2 → 2/2 artifacts), not wall time.
   runtime verifier). Benchmark showed naked beats the ReAct loop (50% @ ~14s
   vs 12.5% @ ~192s). `[fast_lane] enabled=false` until the validation
   benchmark is run on a cool machine ("measure, don't add").
+- **Thermal rule: staged mini-tests** (Cycle 65): LLM-generating tests never
+  in one long generation (overheats the laptop). First the SKELETON (empty
+  class / `test_*` with `pass`) verified host-side with `pytest
+  --collect-only` (free, catches import/structure errors early), then ONLY
+  the bodies — max ~300 generated tokens per stage. Implemented in
+  `CORE/test_generator.py`; codified as a permanent rule in `todo.md` and
+  `DOCS/BENCH.md` for all future benchmarks (one task = one stage, with
+  `--cooldown 30 --thermal-limit 60`).
 
 ### Exception Hardening
 
@@ -1078,7 +1086,7 @@ Rilasciato sotto licenza MIT. Vedi [LICENSE](LICENSE).
 
 ---
 
-**BYTE-SWARMY v0.3.12**
+**BYTE-SWARMY v0.3.13**
 
 ```
 /ˈbaɪt ˈswɔːrmi/  ·  "BYTE SWOR-mee"

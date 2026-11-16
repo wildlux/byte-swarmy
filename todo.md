@@ -51,6 +51,22 @@ Ottimizzazioni per ridurre il consumo energetico, in ordine di impatto
 decrescente. Il benchmark ha dimostrato che il harness è 13.6x più lento
 del modello nudo (192s vs 14s per task) — la vera leva è la semplificazione.
 
+### Regola termica permanente (🆕 Cycle 65)
+
+> **Mini-test, mai generazioni monolitiche.** Ogni test che chiama l'LLM
+> (benchmark, e2e worker, test generation) si fa a STADI brevi con verifica
+> host-side tra uno e l'altro, per non surriscaldare il portatile:
+> 1. **Scheletro** (classe vuota / funzioni test_* con `pass`) →
+>    `pytest --collect-only` o `py_compile` (~gratis, zero LLM);
+> 2. **Definizioni** (corpi minimi, assert essenziali) → verifica;
+> 3. **Implementazione completa** → mai in un'unica generazione lunga.
+>
+> Ogni stadio genera ≤ ~300 token. Nel benchmark: un task = uno stadio,
+> con `--cooldown 30 --thermal-limit 60` tra task. Errori di import o di
+> struttura si scoprono allo stadio 1 SENZA pagare le generazioni
+> successive. Implementata in `CORE/test_generator.py` (scheletro →
+> corpi, collect-check tra gli stadi).
+
 1. [~] **Eliminare il correction loop (single-shot)**: sostituire il ReAct
       loop (10 step) con single-shot (prompt → genera → compila → retry una
       volta). Riduzione consumo stimata ~90%. ✅ **Cycle 64** — corsia
