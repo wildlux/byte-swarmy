@@ -459,7 +459,12 @@ class ExternalBenchmark:
             # 🆕 Cycle 66: pausa termica adattiva tra le due fasi del task:
             # un segmento continuo di load su questa macchina porta
             # 49→78°C in ~107s; le due fasi devono raffreddarsi separate.
+            # 🆕 Cycle 69: anche questa pausa rispetta il cooldown_s
+            # minimo garantito (coerenza con la pausa tra task, item #1
+            # del debt ledger).
             if worker_factory is not None:
+                if cooldown_s > 0:
+                    time.sleep(cooldown_s)
                 if not self._thermal_pause(thermal_limit_c,
                                            fase="tra fast lane e naked",
                                            resume_offset=resume_offset):

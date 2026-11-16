@@ -76,6 +76,14 @@ RIFATTORIZZATO. Già dentro il progetto: SQLite usato in 5 punti
       registrare → next → verificare → chiudere, riusabile in ogni
       sessione futura.
 - [x] Docs: IMPLEMENTED Cycle 68, README versione.
+- [x] **Primo test reale del flusso, a tempo (Cycle 69)**: alimentare la
+      coda con item veri già noti + eseguire il primo con il flusso
+      della skill (`next → progress → context → stadio → done`) e
+      misurare il tempo reale. Obiettivo utente: "molto meno tempo" —
+      la coda elimina l'esplorazione LLM: il lavoro è già scritto in
+      SQL, la sessione esegue. Include la dimostrazione live della
+      regola stale (due item sullo stesso file: il primo eseguito
+      invalida il secondo → ri-registrazione).
 
 ### Test agentico — programmino Qt/PyQt6 via swarm (Cycle 50)
 

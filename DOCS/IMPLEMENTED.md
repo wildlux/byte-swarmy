@@ -1592,3 +1592,23 @@ RIFATTORIZZATO. Nota: SQLite era già in uso in 5 punti del progetto
 - **Verifiche**: py_compile OK; 11 test nuovi (test_debt_ledger:
   priorità, stale-on-change, done skip, prefer_kind, fifo, fail-open,
   validazioni, CLI e2e); suite 34+11=45 verdi. Versione 0.3.16.
+
+## ⏱️ Cycle 69 — Primo test reale del debt ledger, a tempo
+### (2026-11-16, richiesta utente: "dovremmo farlo in mooolto meno tempo")
+
+Prima esecuzione del flusso completo della skill debt-ledger su item
+veri, con misurazione:
+
+- **Coda alimentata**: item #1 (pausa tra fasi ignora cooldown_s) e
+  #2 (dedup lettura temp in _thermal_pause), entrambi veri e noti.
+- **Esecuzione item #1**: `next` → `progress` → `context` (fail-open
+  corretto: [] senza codemap) → stadio (cooldown_s minimo applicato
+  anche alla pausa tra fast lane e naked) → py_compile → 34 test →
+  `done`. **Durata totale: 13,4 secondi.** Nessuna esplorazione LLM:
+  il lavoro era già descritto in SQL.
+- **Regola stale dimostrata live**: eseguito #1 (stesso file), il
+  `next` successivo ha marcato #2 stale automaticamente e restituito
+  "coda vuota" (mai proposto alla cieca). Ri-registrato come #3 con
+  hash aggiornato; il vecchio #2 resta in storia.
+- **Stato coda**: done 1 · open 1 (#3) · stale 1.
+- **Verifiche**: 34 test verdi; item #1 chiuso con hash verificato.
