@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.3.11-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.3.12-blue">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-yellow">
   <img alt="Ollama" src="https://img.shields.io/badge/Ollama-required-orange">
@@ -31,7 +31,7 @@
 > con streaming token in tempo reale, selezione intelligente dei modelli e
 > ottimizzazione termica adattiva (Timestral LLM Tuner).
 
-**Versione:** 0.3.11 · **Licenza:** MIT · **Piattaforma:** Linux
+**Versione:** 0.3.12 · **Licenza:** MIT · **Piattaforma:** Linux
 
 ---
 
@@ -448,7 +448,7 @@ The first real benchmark (pre-token-reduction vs. post-baseline, see
 `DOCS/BENCH.md`) confirmed: **-72% input tokens**, but the measurable win was
 correctness (0/2 → 2/2 artifacts), not wall time.
 
-### Latest — Cycles 52–63
+### Latest — Cycles 52–64
 
 - **Middle capability** (Cycle 52): after a definitive failure of the
   `worker_coder` (junior 3B), the fallback now escalates to
@@ -507,6 +507,13 @@ correctness (0/2 → 2/2 artifacts), not wall time.
   3rd tick (was every 1.5s), SQLite-backed badge/completion bar staggered,
   zoom catch-up only when zoom != 100, SIGINT timer 200ms → 500ms. Estimated
   ~5-10% constant CPU saved at idle.
+- **Fast lane (single-shot worker)** (Cycle 64, OFF by default): tasks with
+  exactly one file target and short text can run via the benchmark's naked
+  prompt (`_execute_fast_lane`) — one LLM call, at most one retry with the
+  specific error, deterministic defenses intact (AST scanner, safe path,
+  runtime verifier). Benchmark showed naked beats the ReAct loop (50% @ ~14s
+  vs 12.5% @ ~192s). `[fast_lane] enabled=false` until the validation
+  benchmark is run on a cool machine ("measure, don't add").
 
 ### Exception Hardening
 
@@ -1071,7 +1078,7 @@ Rilasciato sotto licenza MIT. Vedi [LICENSE](LICENSE).
 
 ---
 
-**BYTE-SWARMY v0.3.11**
+**BYTE-SWARMY v0.3.12**
 
 ```
 /ˈbaɪt ˈswɔːrmi/  ·  "BYTE SWOR-mee"

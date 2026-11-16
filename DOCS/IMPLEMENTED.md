@@ -1336,3 +1336,37 @@ nessun Ollama richiesto.
 - **Verifiche**: py_compile OK; `tests/test_user_workflow.py` 25 passed
   (40 subtests); smoke heartbeat offscreen PASS (5 vecchi timer assenti,
   7 tick simulati + 6 tick reali senza eccezioni, tutti i rami coperti).
+
+## ⚡ Cycle 64 — Corsia veloce single-shot, pronta ma OFF (2026-11-16)
+
+Secondo intervento dell'efficientamento energetico (item #1): la furbata
+che si interfaccia con la brutal honesty del benchmark Cycle 59. Il prompt
+"naked" ha battuto il loop ReAct (50% primo colpo in ~14s contro 12.5% in
+~192s): la corsia veloce riusa ESATTAMENTE quel prompt.
+
+- **`CORE/worker.py`**:
+  - `_fast_lane_target()`: euristica deterministica (~0 costo) — il task è
+    idoneo se contiene UN solo file target e il testo è < 600 ch
+    (`[fast_lane] max_task_chars`);
+  - `_execute_fast_lane()`: prompt nudo (variante di quello del benchmark
+    Cycle 59) → 1 chiamata LLM → estrazione fence → `ToolSet.write_file`
+    (che mantiene AST scanner + safe path + runtime verifier + rollback,
+    difese deterministiche che il benchmark ha mostrato costare poco) →
+    al massimo 1 retry con l'errore SPECIFICO (max 2 tentativi totali,
+    nessun loop);
+  - hook in `execute()`: la corsia precede anche la modalità diretta
+    (funziona senza protocollo tool-call).
+- **Config** (`[fast_lane]`): `enabled=false` DI DEFAULT. La corsia esiste
+  ma non cambia il comportamento: regola "measure, don't add". Attivazione
+  solo dopo il benchmark di validazione a macchina fredda (con
+  `--thermal-limit 60 --cooldown 30`).
+- **Scoperta durante i test**: con la corsia attiva, il task E2E del happy
+  workflow (client finto ReAct) viene intercettato e fallisce — la corsia
+  non è trasparente per i modelli/flow ReAct. Motivo in più per il default
+  OFF e per la validazione benchmark prima dell'uso reale.
+- **Stima attesa** (da confermare col benchmark): ~90% di energia in meno
+  e ~13x più veloce sui task eleggibili (single file).
+- **Verifiche**: py_compile OK; 15 nuovi test in `tests/test_fast_lane.py`
+  (elegibilità, successo, retry, fallimento pulito, AST scanner attivo,
+  fail-open config); suite affini **285 passed, 1 xfailed, 1000 subtests**;
+  boot smoke OK.

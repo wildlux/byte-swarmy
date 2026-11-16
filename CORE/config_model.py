@@ -136,6 +136,26 @@ class RoutingConfig:
 
 
 @dataclass
+class FastLaneConfig:
+    """🆕 Cycle 64: corsia veloce (single-shot) per task con UN solo file target.
+
+    Riusa il prompt del benchmark "naked" (quello che ha battuto il loop
+    ReAct: 50% primo colpo in ~14s contro 12.5% in ~192s) invece del loop
+    ReAct. Le difese deterministiche restano attive perché già dentro
+    ToolSet.write_file (AST scanner, safe path, runtime verifier, rollback):
+    il benchmark ha mostrato che costano poco, mentre gli strati LLM
+    (ReAct multi-step, correction loop, audit) sono quelli che rallentano.
+    Default conservativo enabled=False: la corsia esiste ma NON cambia il
+    comportamento finché il benchmark di validazione non la conferma
+    (regola "measure, don't add"). Attivazione: [fast_lane] enabled=true.
+    """
+    enabled: bool = False
+    max_task_chars: int = 600      # oltre: probabile task multi-step
+    max_tokens: int = 1500         # come il benchmark naked
+    max_attempts: int = 2          # 1 colpo + 1 retry con l'errore specifico
+
+
+@dataclass
 class PathsConfig:
     project_root: str = "./project"
     state_dir: str = "./state"
@@ -244,6 +264,7 @@ class AppConfig:
     safety: SafetyConfig = field(default_factory=SafetyConfig)
     security: SecurityConfig = field(default_factory=SecurityConfig)
     routing: RoutingConfig = field(default_factory=RoutingConfig)
+    fast_lane: FastLaneConfig = field(default_factory=FastLaneConfig)
     paths: PathsConfig = field(default_factory=PathsConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     decision_models: DecisionModelsConfig = field(
@@ -384,6 +405,15 @@ def load_typed_config(path: str | Path = "CONFIG/config.toml") -> AppConfig:
         timeout_bash=int(ro.get("timeout_bash", 30)),
         worker_coder_keywords=list(dk.get("worker_coder", [])),
         worker_general_keywords=list(dk.get("worker_general", [])),
+    )
+
+    # 🆕 Cycle 64: corsia veloce (single-shot) — default conservativo False
+    fl = _get("fast_lane")
+    config.fast_lane = FastLaneConfig(
+        enabled=bool(fl.get("enabled", False)),
+        max_task_chars=int(fl.get("max_task_chars", 600)),
+        max_tokens=int(fl.get("max_tokens", 1500)),
+        max_attempts=int(fl.get("max_attempts", 2)),
     )
 
     # paths

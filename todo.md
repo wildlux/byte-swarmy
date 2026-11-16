@@ -51,9 +51,14 @@ Ottimizzazioni per ridurre il consumo energetico, in ordine di impatto
 decrescente. Il benchmark ha dimostrato che il harness è 13.6x più lento
 del modello nudo (192s vs 14s per task) — la vera leva è la semplificazione.
 
-1. [ ] **Eliminare il correction loop (single-shot)**: sostituire il ReAct
+1. [~] **Eliminare il correction loop (single-shot)**: sostituire il ReAct
       loop (10 step) con single-shot (prompt → genera → compila → retry una
-      volta). Riduzione consumo stimata ~90%. Richiede Ollama per test.
+      volta). Riduzione consumo stimata ~90%. ✅ **Cycle 64** — corsia
+      veloce implementata (`CORE/worker.py: _execute_fast_lane`), prompt
+      nudo del benchmark, max 2 tentativi, difese deterministiche intatte
+      (AST scanner, safe path, runtime verifier). **Default OFF** in attesa
+      del benchmark di validazione a macchina fredda (regola "measure,
+      don't add"). Attivazione: `[fast_lane] enabled = true` in config.toml.
 2. [ ] **Ridurre il prefill del worker**: rimuovere tool non usati dal prompt,
       comprimere descrizioni. Riduzione stimata ~30-50% per step.
 3. [x] **Consolidare i timer della GUI**: ✅ **Cycle 63** — un solo

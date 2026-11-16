@@ -423,6 +423,13 @@ class Worker:
         # 🆕 Modalità diretta (senza tool): la skill sostituisce il loop
         # ReAct. Attiva se l'attore LLM (CONFIG/actors.json) o il modello
         # (CONFIG/config.toml [models.*]) hanno no_tools=true.
+        # 🆕 Cycle 64: la corsia veloce la precede — single-shot funziona
+        # anche per modelli no_tools (non usa il protocollo tool-call).
+        fl_cfg = self._fast_lane_cfg()
+        fl_target = self._fast_lane_target(task, fl_cfg) if fl_cfg.enabled else None
+        if fl_target:
+            return self._execute_fast_lane(task, fl_target, fl_cfg)
+
         if self._direct_mode_enabled():
             return self._execute_direct(task)
 
@@ -866,6 +873,172 @@ class Worker:
             return (f"File generato in modalità diretta: {res['path']} "
                     f"(tentativi: {res['attempts']})\n{preview}")
         return f"ERROR: generazione diretta fallita: {res['error']}"
+
+    # ── 🆕 Cycle 64: CORSAIA VELOCE (single-shot) ──────────────────────
+    # Il benchmark esterno (DOCS/BENCH.md) ha dimostrato che il prompt
+    # "nudo" batte il loop ReAct: 50% primo colpo in ~14s contro 12.5% in
+    # ~192s. La corsia veloce riusa ESATTAMENTE quel prompt per i task
+    # con un solo file target, e delega la scrittura a ToolSet.write_file
+    # (che ha già dentro AST scanner, safe path, runtime verifier e
+    # rollback — difese deterministiche che il benchmark ha mostrato
+    # costare poco). Zero loop ReAct, zero audit LLM, zero test generation:
+    # un solo colpo, al massimo un retry con l'errore specifico.
+
+    _FAST_LANE_FILE_RE = re.compile(
+        r"[A-Za-z0-9_\-/][A-Za-z0-9_\-./]{0,120}"
+        r"\.(?:py|md|txt|json|toml|cfg|ini|ya?ml|sh)\b"
+    )
+
+    def _fast_lane_cfg(self):
+        """Legge [fast_lane] da CONFIG/config.toml. Fail-open: default."""
+        try:
+            from CORE.config_model import load_typed_config
+            return load_typed_config().fast_lane
+        except Exception:
+            from CORE.config_model import FastLaneConfig
+            return FastLaneConfig()
+
+    def _fast_lane_target(self, task: dict, cfg) -> Optional[str]:
+        """Elegibilità alla corsia veloce: UN solo file target, testo breve.
+
+        Euristica deterministica (costo ~0): cerca i path file nel testo del
+        task; se ne trova ESATTAMENTE uno e il testo è sotto max_task_chars
+        (probabile task single-file), ritorna il path relativo. Altrimenti
+        None → corsia classica ReAct.
+        """
+        title = str(task.get("title", "") or "")
+        desc = str(task.get("description", "") or "")
+        # Il benchmark usa anche la chiave "file" esplicita
+        explicit = str(task.get("file", "") or "")
+        text = f"{title}\n{desc}"
+
+        candidates = set(self._FAST_LANE_FILE_RE.findall(text))
+        if explicit:
+            candidates.add(explicit)
+        # Path troppo lunghi/cartelle sospette fuori dal progetto
+        candidates = {
+            c for c in candidates
+            if len(c) < 200 and ".." not in c and not c.startswith("/")
+        }
+        if len(candidates) != 1:
+            return None
+        if len(title) + len(desc) > cfg.max_task_chars:
+            return None
+        return next(iter(candidates))
+
+    def _read_target_content(self, rel_path: str) -> str:
+        """Contenuto attuale del file target ('' se non esiste)."""
+        try:
+            from SAFETY.security import safe_project_path
+            full = safe_project_path(rel_path, str(self.tools.project_root))
+            if full.exists() and full.is_file():
+                return full.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+        return ""
+
+    def _strip_fences(self, raw: str) -> str:
+        """Estrazione contenuto: identica al benchmark naked (Cycle 59),
+        ma preserva il newline finale (file sorgente POSIX-friendly)."""
+        raw = (raw or "").strip()
+        if raw.startswith("```"):
+            parts = raw.split("```", 2)
+            if len(parts) >= 2:
+                raw = parts[1]
+                if raw.startswith("python"):
+                    raw = raw[len("python"):].strip()
+        raw = raw.strip()
+        return raw + "\n" if raw else ""
+
+    def _fast_lane_prompt(self, rel_path: str, task: dict,
+                          content_before: str, error: str = "") -> str:
+        """Prompt della corsia veloce: variante del prompt naked del
+        benchmark (stessa struttura che ha fatto 50% in ~14s/task)."""
+        base = (
+            "Sei un programmatore. Ricevi il contenuto di un file e il task "
+            "da applicare. Ritorna SOLO il nuovo contenuto completo del "
+            "file, niente spiegazioni, niente blocchi markdown.\n\n"
+            f"FILE: {rel_path}\n"
+            f"TASK: {task.get('title', '')}\n"
+            f"DESCRIZIONE: {task.get('description', '')}\n\n"
+            f"CONTENUTO ATTUALE:\n```python\n{content_before}\n```\n\n"
+            f"NUOVO CONTENUTO:"
+        )
+        if error:
+            base = (
+                "Il tuo contenuto precedente è stato RIFIUTATO "
+                "dalla verifica di sintassi/sicurezza.\n\n"
+                f"ERRORE:\n{error[:400]}\n\n"
+                f"{base}"
+            )
+        return base
+
+    def _execute_fast_lane(self, task: dict, rel_path: str, cfg) -> str:
+        """Corsia veloce: prompt nudo → 1 colpo → write sicura → retry.
+
+        Stesso contratto di execute(): stringa; prefisso "ERROR" → il
+        dispatcher può armare il correction loop (sui pochi task falliti).
+        """
+        content_before = self._read_target_content(rel_path)
+        try:
+            sf = Path("state/streaming.txt")
+            sf.parent.mkdir(parents=True, exist_ok=True)
+            sf.write_text(f"[fast lane] single-shot: {rel_path} in corso…",
+                          encoding="utf-8")
+        except Exception:
+            pass
+
+        last_error = ""
+        last_content = ""
+        attempts = 0
+        for attempt in range(max(1, int(cfg.max_attempts))):
+            attempts += 1
+            prompt = self._fast_lane_prompt(
+                rel_path, task, content_before,
+                error=last_error if attempt > 0 else "",
+            )
+            try:
+                raw = self.models.call(
+                    model_key=self.model_key,
+                    prompt=prompt,
+                    system="You are a coding assistant. Output only the new file content.",
+                    max_tokens=int(cfg.max_tokens),
+                )
+            except Exception as e:
+                last_error = f"chiamata LLM fallita: {e}"
+                self.log.warning(
+                    f"[{self.agent_id}] fast lane attempt {attempt+1} errore: {e}")
+                continue
+            content = self._strip_fences(raw)
+            if not content:
+                last_error = "risposta vuota dal modello"
+                continue
+            last_content = content
+            # Scrittura via ToolSet: eredita AST scanner, safe path,
+            # runtime verifier e rollback (difese deterministiche).
+            result = self.tools.write_file(rel_path, content)
+            if not str(result).startswith("ERROR"):
+                self.last_code = content
+                self.memory.add_event({
+                    "type": "task_end",
+                    "content": (f"fast lane: {rel_path} tentativi="
+                                f"{attempts} model={self.model_key}"),
+                })
+                preview = content[:160] + "..." if len(content) > 160 else content
+                return (f"File scritto in corsia veloce: {rel_path} "
+                        f"(tentativi: {attempts})\n{preview}")
+            last_error = str(result)
+            self.log.warning(
+                f"[{self.agent_id}] fast lane attempt {attempt+1} rifiutato: "
+                f"{last_error[:200]}")
+
+        self.last_code = last_content
+        self.memory.add_event({
+            "type": "task_failed",
+            "content": (f"fast lane fallita: {rel_path} tentativi={attempts} "
+                        f"errore={last_error[:200]}"),
+        })
+        return f"ERROR: corsia veloce fallita su {rel_path}: {last_error}"
 
     # T22: cache delle compressioni del contesto persistente — chiave
     # (hash del testo, model key usato). La compressione costa una
