@@ -56,8 +56,11 @@ del modello nudo (192s vs 14s per task) — la vera leva è la semplificazione.
       volta). Riduzione consumo stimata ~90%. Richiede Ollama per test.
 2. [ ] **Ridurre il prefill del worker**: rimuovere tool non usati dal prompt,
       comprimere descrizioni. Riduzione stimata ~30-50% per step.
-3. [ ] **Consolidare i timer della GUI**: 5 timer separati (500ms-3s) → un
-      singolo timer a 2-3s. Riduzione CPU costante ~5-10%.
+3. [x] **Consolidare i timer della GUI**: ✅ **Cycle 63** — un solo
+      heartbeat (1s) al posto di 5 timer (500ms/1500ms/1500ms/3000ms);
+      subprocess costosi (nvidia-smi + ollama ps) da ogni 1.5s a ogni 3s,
+      zoom catch-up solo se zoom != 100, timer SIGINT 200ms → 500ms.
+      Stima ~5-10% CPU costante in meno a riposo.
 4. [ ] **Spegnere componenti inutili via config**: disabilitare Timestral,
       SystemMonitor, LifecycleManager quando non necessari.
 5. [ ] **Ridurre num_ctx del planner**: 3072 → 2048 (come orchestrator).

@@ -170,11 +170,9 @@ class ShellMixin:
             self._completion_bar.setFormat("Pronto")
             self._completion_bar.setToolTip("Percentuale di task completati nella coda globale")
             self.statusBar().addPermanentWidget(self._completion_bar)
-            # Timer di aggiornamento ogni 3s
-            from PyQt6.QtCore import QTimer
-            self._completion_timer = QTimer(self)
-            self._completion_timer.timeout.connect(self._update_completion_bar)
-            self._completion_timer.start(3000)
+            # 🆕 Cycle 63: nessun timer dedicato — l'aggiornamento periodico
+            # gira nel heartbeat unico di control_center (_energy_heartbeat).
+            # Resta la prima lettura immediata.
             self._update_completion_bar()
 
             # Pulsanti fisici zoom (in basso a destra, dopo la completion bar)

@@ -208,9 +208,15 @@ class ControlCenter(
         _la_lay.addWidget(self.live_activity_label, stretch=1)
         root.addWidget(self.live_activity_bar)
 
-        self._live_activity_timer = QTimer(self)
-        self._live_activity_timer.timeout.connect(self._update_live_activity)
-        self._live_activity_timer.start(500)
+        # 🆕 Cycle 63: efficientamento energetico — un solo heartbeat (1s)
+        # al posto di 4 timer separati (500ms/1500ms/1500ms/3000ms). Il lavoro
+        # costoso (subprocess nvidia-smi/ollama ps, query SQLite) gira ogni 3
+        # tick invece che a ogni battito; la Live Activity resta a 1s perché
+        # è una semplice lettura di file.
+        self._energy_tick = 0
+        self._energy_timer = QTimer(self)
+        self._energy_timer.timeout.connect(self._energy_heartbeat)
+        self._energy_timer.start(1000)
         self._update_live_activity()
 
         root.addWidget(self._build_toolbar())
@@ -262,9 +268,9 @@ class ControlCenter(
         self._kv = "-"
         self._mem = "-"
         self._freq = "-"
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self._tick_metrics)
-        self._timer.start(1500)
+        # 🆕 Cycle 63: la prima lettura metriche resta immediata, poi gira
+        # nel heartbeat unico (ogni 3 tick).
+        self._tick_metrics()
 
         self._editor_overlay = None
         self._editor_docked = None
@@ -280,18 +286,37 @@ class ControlCenter(
         # quei widget restavano al font-base anche con zoom salvato != 100.
         self._apply_zoom(self.gui_settings.zoom_level)
 
-        # Catch-up periodico: i widget creati DOPO lo zoom (pannelli aperti
-        # dai menu, sezioni CPU/GPU ricreate, dialog) vengono scalati entro
-        # ~1.5s invece di restare al font base fino al prossimo re-zoom.
-        self._zoom_catchup_timer = QTimer(self)
-        self._zoom_catchup_timer.timeout.connect(self._rescale_missing_widgets)
-        self._zoom_catchup_timer.start(1500)
-
-        # 🆕 Cycle 61: badge notifica approvazioni in sospeso (risk gate)
-        self._approval_badge_timer = QTimer(self)
-        self._approval_badge_timer.timeout.connect(self._update_approval_badge)
-        self._approval_badge_timer.start(3000)
+        # 🆕 Cycle 63: zoom catch-up e badge approvazioni non hanno più
+        # timer propri — girano nel heartbeat unico (_energy_heartbeat).
+        # Prima lettura immediata del badge (come prima).
         self._update_approval_badge()
+
+    def _energy_heartbeat(self):
+        """🆕 Cycle 63: heartbeat unico (1s) al posto di 4 timer separati.
+
+        Distribuisce il lavoro sui tick per ridurre il consumo a riposo:
+          - ogni tick (1s): Live Activity (sola lettura di state/streaming.txt,
+            economica) e zoom catch-up SOLO se zoom != 100 (a 100 è un no-op);
+          - ogni 3 tick (3s): metriche di sistema — il pezzo costoso, con
+            subprocess nvidia-smi + `ollama ps` (prima ogni 1.5s: ora la
+            metà delle fork e dei wakeup);
+          - ogni 3 tick, sfalsati di 1: badge approvazioni + barra
+            completamento (una query SQLite ciascuno).
+        """
+        self._energy_tick += 1
+        self._update_live_activity()
+        # Zoom catch-up: necessario solo finché lo zoom è attivo (il metodo
+        # ha già un early-return a zoom 100, ma qui evitiamo anche la chiamata).
+        try:
+            if getattr(self.gui_settings, "zoom_level", 100) != 100:
+                self._rescale_missing_widgets()
+        except Exception:
+            pass
+        if self._energy_tick % 3 == 0:
+            self._tick_metrics()
+        elif self._energy_tick % 3 == 1:
+            self._update_approval_badge()
+            self._update_completion_bar()
 
     # 🆕 Cycle 61: badge notifica approvazioni in sospeso (risk gate)
     def _update_approval_badge(self):
@@ -397,11 +422,13 @@ if __name__ == "__main__":
     _signal.signal(_signal.SIGINT, _sigint_handler)
 
     # Timer necessario: Qt ha un ciclo eventi C++ che non torna mai al loop
-    # Python se l'app è idle. Il timer forza Qt a tornare in Python ogni
-    # 200ms, così il signal handler può essere eseguito immediatamente.
+    # Python se l'app è idle. Il timer forza Qt a tornare in Python così il
+    # signal handler può essere eseguito. 🆕 Cycle 63: 500ms invece di 200ms
+    # (2.5× wakeup in meno a riposo; il Ctrl+C resta comunque percepibile
+    # entro mezzo secondo).
     from PyQt6.QtCore import QTimer as _QTimer
     _sigint_timer = _QTimer()
-    _sigint_timer.start(200)
+    _sigint_timer.start(500)
     _sigint_timer.timeout.connect(lambda: None)  # no-op
 
     w.show()

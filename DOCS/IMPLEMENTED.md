@@ -1310,3 +1310,29 @@ misurabile.
   (270 passed, 1000 subtests, boot smoke OK).
 - **Regola rispettata**: il Timestral LLM Tuner (`CORE/llm_tuner.py`) non è
   stato toccato.
+
+## ⚡ Cycle 63 — Efficientamento energetico: heartbeat unico GUI (2026-11-16)
+
+Primo intervento della sezione "Efficientamento energetico" del todo
+(item #3): consolidamento dei timer della GUI. Nessuna modifica al backend,
+nessun Ollama richiesto.
+
+- **Prima**: 5 QTimer separati — `_live_activity_timer` (500ms), `_timer`
+  metriche (1500ms, con 3× nvidia-smi + 1× `ollama ps` a ogni battito),
+  `_zoom_catchup_timer` (1500ms), `_approval_badge_timer` (3000ms),
+  `_completion_timer` (3000ms) + timer SIGINT no-op (200ms).
+- **Dopo**: un solo `_energy_timer` (1000ms) con scheduling a rotazione:
+  - ogni tick: Live Activity (lettura file, economica) e zoom catch-up
+    SOLO se zoom != 100;
+  - ogni 3 tick: metriche di sistema (subprocess costosi: da ~2.7 fork/s
+    a ~0.9 fork/s a riposo);
+  - ogni 3 tick sfalsati: badge approvazioni + barra completamento
+    (query SQLite).
+- **Timer SIGINT**: 200ms → 500ms (2.5× wakeup in meno, Ctrl+C comunque
+  percepibile entro mezzo secondo).
+- **Risultato stimato a riposo**: ~5-10% CPU costante in meno (wakeups e
+  fork subprocess ridotti; niente più 3× nvidia-smi + ollama ps al secondo
+  e mezzo).
+- **Verifiche**: py_compile OK; `tests/test_user_workflow.py` 25 passed
+  (40 subtests); smoke heartbeat offscreen PASS (5 vecchi timer assenti,
+  7 tick simulati + 6 tick reali senza eccezioni, tutti i rami coperti).
