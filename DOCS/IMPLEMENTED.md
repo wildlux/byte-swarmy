@@ -1637,3 +1637,33 @@ veri, con misurazione:
   mark done dalla GUI, context fail-open, NESSUN timer avviato.
 - **Verifiche**: py_compile dei 3 file GUI; 52 test verdi (ledger +
   pannello + benchmark + fast lane + termici); boot smoke EXIT=124.
+
+## 🦋 Cycle 71 — Prismalux: radiografia + skill + campagna refactoring
+### (2026-11-16, richiesta utente: nuovo progetto target di test)
+
+- **NUOVA SKILL `project-radiography`** (`.opencode/skill/`, già
+  attiva nel sistema): la procedura di radiografia fredda
+  generalizzata — censimento per tipo, distribuzione per directory,
+  salute compilazione, god-file, marker debito, build system,
+  code_map, registrazione item nel ledger. Zero LLM, riusabile per
+  qualunque progetto futuro.
+- **Prismalux radiografato** (repo utente, clonato in
+  `project/prismalux`): 312 cpp + 180 h + 164 py (0 errori di
+  compilazione), 6 god-file >100KB in gui/pages, 123 marker
+  TODO/FIXME (36 in gui/pages), 3 stack Android parallele. code_map
+  costruito (164 file, 1800 simboli → context attivo).
+- **Coda ledger per-progetto** (`--root project/prismalux`): 4 item
+  reali; eseguito e chiuso #4 (rinomia SCREEENSHOT→SCREENSHOT, xs,
+  2 riferimenti aggiornati, 0 residui).
+- **REGOLA UTENTE (importante)**: prismalux è un TEST di refactoring
+  esterno — **nessun artefatto di byte-swarmy dentro il suo repo**.
+  Beccato e corretto sul vivo: `git add -A` aveva infilato i DB del
+  tooling (debt_ledger.db + codemap.db) nel commit del clone →
+  `git rm --cached` + .gitignore (.byteswarm/, state/) + amend. E in
+  byte-swarmy `project/*` è già gitignored (il clone resta esterno in
+  entrambe le direzioni).
+- **Vincolo termico documentato**: il build C++ (312 file, CMake) =
+  carico pesante; gli item C++ (god-file split, effort l) restano in
+  coda finché esiste una strategia di build stadiale/ccache.
+- **Stato coda prismalux**: done 1 · open 3 (god-file p2, triage
+  marker p3, 3 stack Android p3). Push del clone: decisione utente.

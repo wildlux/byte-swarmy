@@ -89,6 +89,32 @@ RIFATTORIZZATO. Già dentro il progetto: SQLite usato in 5 punti
       regola stale (due item sullo stesso file: il primo eseguito
       invalida il secondo → ri-registrazione).
 
+### 🦋 Prismalux — campagna refactoring (nuovo progetto target, Cycle 71)
+
+Repo utente clonato in `project/prismalux` (piattaforma AI locale,
+C++/Qt6 core + strato Python). Radiografia fredda (zero LLM):
+- Python: 164 file, **0 errori di compilazione** (sano)
+- C++: 312 cpp + 180 h in `gui/`, **6 god-file >100KB** in
+  `gui/pages/` (widget_vision3d 177KB, settings_llm 142KB,
+  main_ai_pipeline 132KB, main_ai_tools 127KB, settings_ai 119KB,
+  main_graph 119KB)
+- 123 marker TODO/FIXME/XXX/HACK (36 solo in gui/pages)
+- 3 stack Android parallele: kivy_VERSION, flet_VERSION,
+  QT_ANDROID_Version
+- code_map costruito: 164 file, 1800 simboli → `context` attivo
+
+- [ ] **Skill `project-radiography`** (`.opencode/skill/`): la procedura
+      di radiografia fredda generalizzata (censimento, salute,
+      god-file, marker, build system, code_map, item nel ledger) —
+      riusabile per qualunque progetto futuro.
+- [ ] Coda popolata nel ledger per-progetto
+      (`project/prismalux/state/debt_ledger.db`, via `--root`)
+- [ ] **Vincolo verifica C++**: il build è CMake (312 file) = carico
+      pesante, sotto 60°C va stadiale o ccache/parallelismo limitato —
+      gli item C++ si eseguono DOPO una strategia di build
+- [ ] Primo item eseguito a freddo (rinomia SCREEENSHOT, xs)
+- [ ] Push dei commit di prismalux: decisione utente
+
 ### Test agentico — programmino Qt/PyQt6 via swarm (Cycle 50)
 
 - [ ] **Test agentico Qt/PyQt6**: far creare al swarm un programmino PyQt6
