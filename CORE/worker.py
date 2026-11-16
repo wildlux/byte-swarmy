@@ -908,13 +908,19 @@ class Worker:
         """
         title = str(task.get("title", "") or "")
         desc = str(task.get("description", "") or "")
-        # Il benchmark usa anche la chiave "file" esplicita
-        explicit = str(task.get("file", "") or "")
+        # 🆕 Cycle 66: la chiave "file" esplicita è AUTOREVOLE (contratto
+        # coda/benchmark): se presente, gli eventuali riferimenti nel testo
+        # sono varianti dello stesso target (es. "utils.py" vs
+        # "bench_target/utils.py") e non lo rendono multi-file.
+        explicit = str(task.get("file", "") or "").strip()
+        if explicit:
+            if len(explicit) < 200 and ".." not in explicit \
+                    and not explicit.startswith("/"):
+                return explicit
+            return None
         text = f"{title}\n{desc}"
 
         candidates = set(self._FAST_LANE_FILE_RE.findall(text))
-        if explicit:
-            candidates.add(explicit)
         # Path troppo lunghi/cartelle sospette fuori dal progetto
         candidates = {
             c for c in candidates

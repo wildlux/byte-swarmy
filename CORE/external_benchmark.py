@@ -238,6 +238,10 @@ class ExternalBenchmark:
             "id": task["id"],
             "title": task["title"],
             "description": task["description"],
+            # 🆕 Cycle 66: la coda fornisce il file target — anche il
+            # benchmark lo passa (contratto identico), così la corsia
+            # veloce è eleggibile come i task reali.
+            "file": task["file"],
             "type": "fix",
             "source": "external_benchmark",
         }
@@ -419,6 +423,22 @@ class ExternalBenchmark:
                 })
 
             # --- naked ---
+            # 🆕 Cycle 66: pausa termica adattiva tra le due fasi del task:
+            # un segmento continuo di load su questa macchina porta
+            # 49→78°C in ~107s; le due fasi devono raffreddarsi separate.
+            if worker_factory is not None:
+                if not self._thermal_pause(thermal_limit_c,
+                                           fase="tra fast lane e naked"):
+                    self.log.warning("Max wait termico scaduto — fermo.")
+                    self.results["tasks"] = {
+                        "harness": harness_results,
+                        "naked": naked_results,
+                    }
+                    self.results["summary"] = self._compute_summary(
+                        harness_results, naked_results)
+                    self.results["thermal_abort"] = True
+                    self.results["completed_tasks"] = len(harness_results)
+                    return self.results
             r = self.run_naked_task(task)
             naked_results.append(r)
 
@@ -437,12 +457,23 @@ class ExternalBenchmark:
                 self.results["completed_tasks"] = len(harness_results)
                 return self.results
 
-            # Cooldown tra task (riduce carico termico)
-            if cooldown_s > 0 and task is not BENCH_TASKS[-1]:
-                if self.log:
-                    self.log.info(
-                        f"Cooldown {cooldown_s}s tra task (termico)...")
-                time.sleep(cooldown_s)
+            # 🆕 Cycle 66: pausa adattiva tra task (al posto del cooldown
+            # fisso): aspetta che scenda sotto limit-8°C, max 900s.
+            # Il cooldown_s resta come pausa minima garantita.
+            if task is not BENCH_TASKS[-1]:
+                if cooldown_s > 0:
+                    time.sleep(cooldown_s)
+                if not self._thermal_pause(thermal_limit_c, fase="tra task"):
+                    self.log.warning("Max wait termico scaduto — fermo.")
+                    self.results["tasks"] = {
+                        "harness": harness_results,
+                        "naked": naked_results,
+                    }
+                    self.results["summary"] = self._compute_summary(
+                        harness_results, naked_results)
+                    self.results["thermal_abort"] = True
+                    self.results["completed_tasks"] = len(harness_results)
+                    return self.results
 
         self.results["tasks"] = {
             "harness": harness_results,
@@ -455,6 +486,62 @@ class ExternalBenchmark:
         return self.results
 
     # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    def _thermal_pause(self, limit_c: float, fase: str = "",
+                       resume_offset: float = 8.0,
+                       max_wait_s: float = 900.0) -> bool:
+        """🆕 Cycle 66: pausa termica ADATTIVA (invece del cooldown fisso).
+
+        Aspetta che la temperatura scenda sotto la soglia di ripresa
+        (limit_c - resume_offset, es. 52°C per limite 60°C), controllando
+        ogni 10s. Necessaria perché su questo portatile un singolo task
+        porta 49→78°C in ~107s: un cooldown fisso di 30s non basta e un
+        segmento continuo di load deve durare <~35s.
+
+        Args:
+            limit_c: limite termico del benchmark (es. 60).
+            fase: etichetta leggibile nei log ("tra task", "tra fasi").
+            resume_offset: scarto tra limite e soglia di ripresa (°C).
+            max_wait_s: attesa massima prima di rinunciare (900s).
+
+        Ritorna True se la macchina è raffreddata (o fail-open), False se
+        scaduto il max wait (il chiamante aborta con thermal_abort).
+        """
+        resume = max(40.0, limit_c - resume_offset)
+        waited = 0.0
+        while True:
+            try:
+                import glob as _glob
+                max_temp = 0.0
+                for path in _glob.glob("/sys/class/thermal/thermal_zone*/temp"):
+                    try:
+                        val = float(Path(path).read_text().strip()) / 1000.0
+                        max_temp = max(max_temp, val)
+                    except Exception:
+                        pass
+            except Exception:
+                return True  # fail-open
+            if max_temp <= resume:
+                if self.log and waited > 0:
+                    self.log.info(
+                        f"[termico] ripresa ({fase}) dopo {waited:.0f}s: "
+                        f"{max_temp:.1f}°C ≤ {resume:.0f}°C")
+                return True
+            if waited >= max_wait_s:
+                if self.log:
+                    self.log.warning(
+                        f"[termico] max wait scaduto ({fase}): "
+                        f"{max_temp:.1f}°C > {resume:.0f}°C dopo "
+                        f"{waited:.0f}s")
+                return False
+            if self.log and waited % 60 == 0:
+                self.log.info(
+                    f"[termico] attesa raffreddamento ({fase}): "
+                    f"{max_temp:.1f}°C > {resume:.0f}°C "
+                    f"(attesi {waited:.0f}s/{max_wait_s:.0f}s)")
+            time.sleep(10.0)
+            waited += 10.0
+
     def _thermal_ok(self, limit_c: float) -> bool:
         """Verifica che la temperatura CPU non superi il limite."""
         try:

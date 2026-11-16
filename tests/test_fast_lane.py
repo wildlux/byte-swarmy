@@ -116,6 +116,23 @@ class TestFastLaneTarget(unittest.TestCase):
              "file": "validator.py"}
         self.assertEqual(self.w._fast_lane_target(t, self.cfg), "validator.py")
 
+    def test_chiave_file_autorevole_su_varianti_nel_testo(self):
+        """🆕 Cycle 66: 'file' esplicito + varianti nel testo (es. il task
+        del benchmark con 'utils.py' nel titolo e 'bench_target/utils.py'
+        nella descrizione) → NON è multi-file: la chiave vince."""
+        t = {"title": "Aggiungi type hints a utils.py",
+             "description": "In bench_target/utils.py, aggiungi type hints.",
+             "file": "utils.py"}
+        self.assertEqual(self.w._fast_lane_target(t, self.cfg), "utils.py")
+
+    def test_chiave_file_traversal_no(self):
+        t = {"title": "crea", "description": "", "file": "../evil.py"}
+        self.assertIsNone(self.w._fast_lane_target(t, self.cfg))
+
+    def test_chiave_file_vuota_fallback_testo(self):
+        t = {"title": "crea utils.py", "description": "", "file": "  "}
+        self.assertEqual(self.w._fast_lane_target(t, self.cfg), "utils.py")
+
     def test_due_file_no(self):
         t = {"title": "collega main.py e utils.py", "description": ""}
         self.assertIsNone(self.w._fast_lane_target(t, self.cfg))

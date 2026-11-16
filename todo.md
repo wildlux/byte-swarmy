@@ -28,12 +28,15 @@ regola termica (stadiale, `--cooldown 30 --thermal-limit 60`).
       verificano con `./tools/verify_cycle.sh <file_modificati...>`
       invece di 3-4 comandi separati.
 2. [ ] **Benchmark di validazione della corsia veloce (fast lane)** —
-      SOLO a macchina fredda. `[fast_lane] enabled = true` in config.toml,
-      benchmark esterno (`external_benchmark.py`) con guardie termiche e
-      regola stadiale (un task = uno stadio). Confronto fast lane vs
-      harness sugli STESSI 8 task ext-01..ext-08. Criterio per lasciarla
-      ON: ≥ 40% successo primo colpo e < 60s/task. Se non regge →
-      `enabled = false` (rollback a una riga) e resta il risultato onesto.
+      ⛔ **BLOCCATO TERMICAMENTE su questo hardware** (Cycle 66, 2/2 run
+      abortite su ext-01: da macchina calda il carico scala ~1°C/s, un
+      naked di 21s → 75°C; da freddo ~0,3°C/s). La pausa adattiva è
+      implementata ma il limite 60°C rende impossibile una sessione
+      completa. Opzioni: (a) 1 task per sessione, macchina fredda tra
+      una e l'altra (rispetta il limite); (b) cap temporaneo più alto
+      SOLO per i benchmark (decisione utente); (c) validare su altra
+      macchina/giornata più fresca. Intanto: `enabled = false` (rollback
+      fatto), fix elegibilità + `verify_cycle.sh` committati.
 3. [ ] **Micro-ciclo config**: `num_ctx` planner 3072 → 2048 (item #5
       efficientamento) + verifica se Timestral/SystemMonitor/Lifecycle
       hanno già toggle config (item #4). Config-only, zero Ollama.

@@ -1400,3 +1400,39 @@ brevi con verifica tra uno e l'altro.
   `tests/test_staged_test_generation.py` (2 stadi, collect-check, anti-
   alterazione, errori puliti); test Cycle 57 ancora verdi; suite affini
   **290 passed, 1 xfailed, 1000 subtests**; boot smoke OK.
+
+## 🌡️ Cycle 66 — Pausa termica adattiva + verifica benchmark fast lane
+### (2026-11-16, bloccata dal limite termico 60°C)
+
+Tentativo di validazione della corsia veloce (fast lane) con il benchmark
+esterno. Risultato onesto: **2/2 run abortite per termica su ext-01**, il
+benchmark completo non gira sotto 60°C su questo portatile.
+
+- **Fix elegibilità** (`CORE/worker.py`): la chiave `file` esplicita è
+  AUTOREVOLE — prima un task con "utils.py" nel titolo e
+  "bench_target/utils.py" nella descrizione risultava "multi-file" →
+  non eleggibile. Ora tutti gli 8 task del benchmark sono eleggibili.
+- **Fix harness** (`CORE/external_benchmark.py`): `run_harness_task` ora
+  passa la chiave `file` al worker (contratto identico alla coda reale).
+- **Pausa termica adattiva** (`_thermal_pause`): tra fast lane↔naked e
+  tra task, aspetta che la temperatura scenda sotto limit−8°C (check
+  ogni 10s, max wait 900s, poi `thermal_abort`). Il cooldown fisso di
+  30s era inutile: un singolo task porta 49→78°C in ~107s (0,27°C/s).
+  Bug beccato nei test: pre-check con logica invertita (usciva sempre
+  OK) — rimosso, il loop gestisce tutto. 5 nuovi test
+  (`tests/test_thermal_pause.py`).
+- **`tools/verify_cycle.sh`**: script del ciclo di verifica standard
+  (py_compile → test_runner con timeout → boot smoke) — un solo comando,
+  zero LLM, zero calore. Rende eseguibile l'item #1 del piano di domani.
+- **Dati termici misurati** (il vero risultato della sessione):
+  - freddo (44°C): ~0,3°C/s di salita sotto load 3b
+  - macchina calda (51°C): **~1°C/s** — un naked di 21s → 75°C
+  - pausa adattiva: 78→51°C in 90s (funziona, ma 51°C non è abbastanza
+  freddo per ripartire)
+  - conclusione fisica: sotto 60°C, SOLO segmenti brevi da partenza
+    fredda (44-46°C); un benchmark completo in una sessione è
+    praticamente impossibile su questo hardware.
+- **Stato config**: `fast_lane.enabled = false` (rollback: nessuna
+  validazione ottenuta, regola "measure, don't add" rispettata).
+- **Verifiche**: py_compile OK; test_thermal_pause 5 passed;
+  test_external_benchmark 11 passed; fast lane + e2e 64 passed.
