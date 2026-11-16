@@ -37,6 +37,12 @@ regola termica (stadiale, `--cooldown 30 --thermal-limit 60`).
 3. [ ] **Micro-ciclo config**: `num_ctx` planner 3072 → 2048 (item #5
       efficientamento) + verifica se Timestral/SystemMonitor/Lifecycle
       hanno già toggle config (item #4). Config-only, zero Ollama.
+      + **caching**: valutare `[hardware].keep_alive_sec` esplicito
+      (es. 300s) per tenere worker_coder caldo tra task — l'unica
+      manovra KV-cache gratuita su Ollama (costo: ~2GB RAM residenti;
+      la KV cache quantizzata q8_0 + FA è già attiva, Furbata D).
+      llama-server diretto con --prompt-cache resta FASE 3 (item #6),
+      da misurare solo dopo l'esito della fast lane.
 
 ### Test agentico — programmino Qt/PyQt6 via swarm (Cycle 50)
 
