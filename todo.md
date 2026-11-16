@@ -40,15 +40,16 @@ regola termica (stadiale, `--cooldown 30 --thermal-limit 60`).
       min/sessione dominate dalle attese di raffreddamento. Restano
       attivi e riusabili: `temp_before/after` per fase nel JSON,
       pausa termica adattiva, driver + reporter, dati parziali.
-3. [ ] **Micro-ciclo config**: `num_ctx` planner 3072 → 2048 (item #5
-      efficientamento) + verifica se Timestral/SystemMonitor/Lifecycle
-      hanno già toggle config (item #4). Config-only, zero Ollama.
-      + **caching**: valutare `[hardware].keep_alive_sec` esplicito
-      (es. 300s) per tenere worker_coder caldo tra task — l'unica
-      manovra KV-cache gratuita su Ollama (costo: ~2GB RAM residenti;
-      la KV cache quantizzata q8_0 + FA è già attiva, Furbata D).
+3. [x] **Micro-ciclo config** — ✅ FATTO (Cycle 67, v0.3.15):
+      `num_ctx` planner 3072 → 2048 (allineato al default tipizzato);
+      `[hardware].keep_alive_sec = 900` NUOVO (warmup al boot utile 15
+      min invece di 5, modello caldo tra task; RAM reale 7.6GB — 3.3
+      liberi, i ~2.5GB residenti ci stanno e si scaricano da soli);
+      toggle verificati: Timestral ce l'ha già (`[thermal].enabled`),
+      SystemMonitor e Lifecycle sono PASSIVI (zero thread, zero costo
+      da fermo) → toggle non necessari, nessun codice toccato.
       llama-server diretto con --prompt-cache resta FASE 3 (item #6),
-      da misurare solo dopo l'esito della fast lane.
+      da misurare solo dopo un eventuale riscontro di carico reale.
 
 ### Test agentico — programmino Qt/PyQt6 via swarm (Cycle 50)
 

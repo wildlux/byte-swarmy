@@ -21,7 +21,7 @@ top_p = 0.9
 top_k = 40
 repeat_penalty = 1.1
 repeat_last_n = 512
-num_ctx = 3072
+num_ctx = 2048
 num_predict = 512
 
 [models.worker_coder]
@@ -231,6 +231,14 @@ categories = []
 [hardware]
 mode = "auto"
 warmup_model = "worker_coder"
+# 🆕 Cycle 67: retention esplicita del modello in RAM dopo le richieste.
+# Default Ollama ("auto") = ~300s: il warmup al boot resterebbe utile
+# solo 5 minuti. 900s = 15 min → il warmup paga davvero e i task in
+# una sessione di lavoro restano a modello caldo (load gratis).
+# Costo: ~2.5GB RAM residenti per 15 min (7.6GB totali, 3.3 liberi —
+# c'è lo spazio, e poi si scarica da solo). Rollback: rimuovere la
+# riga (= torna "auto").
+keep_alive_sec = 900
 
 [orchestrator]
 max_task_retries = 3

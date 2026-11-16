@@ -1525,3 +1525,34 @@ per fase, pausa termica adattiva, sessioni fredde driver +
 progress_reporter (fixato il doppio conteggio: done-regex conta solo
 la riga JSON), dati parziali in state/benchmarks/, fisica termica
 documentata. Prossimo lavoro: FASE 3 micro-ciclo config (zero Ollama).
+
+## ⚙️ Cycle 67 — FASE 3: micro-ciclo config (zero Ollama, zero calore)
+### (2026-11-16, dopo la chiusura del benchmark)
+
+Applicati i restanti item di efficientamento concordati:
+
+1. **`num_ctx` planner 3072 → 2048** (`[models.planner]`): allineato al
+   default del config tipizzato (2048). Il planner divide problemi con
+   prompt brevi — 1536 token utili per il prompt sono ampi. Rollback:
+   una riga.
+2. **`[hardware].keep_alive_sec = 900`** (NUOVO, prima assente = "auto"):
+   con il default Ollama (~300s) il warmup al boot (`warmup_model =
+   "worker_coder"`) restava utile solo 5 minuti. 900s = 15 min →
+   il warmup paga davvero e i task in sessione restano a modello caldo
+   (load 8-15s gratis). Costo onesto: ~2.5GB RAM residenti per 15 min —
+   con 7.6GB totali e 3.3 liberi c'è lo spazio, e poi si scarica da
+   solo. NOTA: la RAM reale è 7.6GB (non 4GB come in nota precedente).
+3. **Verifica toggle Timestral/SystemMonitor/Lifecycle** (item #4
+   efficientamento — RICERCA, non modifica):
+   - Timestral: toggle GIÀ presente (`[thermal].enabled = true`, thread
+     30s) ✓
+   - SystemMonitor: PASSIVO (solo `check_resources()` on-demand dagli
+     health check — zero thread, zero costo da fermo) → toggle NON
+     necessario ✓
+   - Lifecycle: PASSIVO (metodi una-tantum al boot + backup periodico
+     già in timer orchestrator) → toggle NON necessario ✓
+   Esito onesto: nessun codice toccato, verifica documentata.
+
+**Verifiche**: config tipizzata (planner num_ctx=2048, keep_alive_sec=
+900, fast_lane OFF) OK; boot smoke EXIT=124 con pausa rispettata;
+34 test verdi. Versione 0.3.15.
