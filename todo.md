@@ -44,6 +44,27 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
 - [ ] **Diary: DB vs file**: decidere DB (SQLite + query via API/socket) vs
   file markdown per il diario LLM; oggi il file basta per il contesto
   self-optimization, il DB solo per analytics/query strutturate.
+
+### Efficientamento energetico (proposto dopo il benchmark Cycle 59)
+
+Ottimizzazioni per ridurre il consumo energetico, in ordine di impatto
+decrescente. Il benchmark ha dimostrato che il harness è 13.6x più lento
+del modello nudo (192s vs 14s per task) — la vera leva è la semplificazione.
+
+1. [ ] **Eliminare il correction loop (single-shot)**: sostituire il ReAct
+      loop (10 step) con single-shot (prompt → genera → compila → retry una
+      volta). Riduzione consumo stimata ~90%. Richiede Ollama per test.
+2. [ ] **Ridurre il prefill del worker**: rimuovere tool non usati dal prompt,
+      comprimere descrizioni. Riduzione stimata ~30-50% per step.
+3. [ ] **Consolidare i timer della GUI**: 5 timer separati (500ms-3s) → un
+      singolo timer a 2-3s. Riduzione CPU costante ~5-10%.
+4. [ ] **Spegnere componenti inutili via config**: disabilitare Timestral,
+      SystemMonitor, LifecycleManager quando non necessari.
+5. [ ] **Ridurre num_ctx del planner**: 3072 → 2048 (come orchestrator).
+6. [ ] **Caching KV cache (llama.cpp)**: salvare il cache del system prompt
+      e riutilizzarlo tra chiamate. Richiede passaggio a llama.cpp diretto.
+7. [ ] **Batch scritture disco**: batch delle write_file, commit solo alla
+      fine del task.
   ✅ **Cycle 62** (semplificazione Fase 1): inventario CORE/, rimossi 3 moduli
   orfani (`sml_database`, `preflight_cli`, `loop_detector` fuso in
   `worker.py`), spostato `example_mcp_server.py` in `tests/`. CORE/ scende
