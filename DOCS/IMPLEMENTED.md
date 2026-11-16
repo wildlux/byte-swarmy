@@ -1556,3 +1556,39 @@ Applicati i restanti item di efficientamento concordati:
 **Verifiche**: config tipizzata (planner num_ctx=2048, keep_alive_sec=
 900, fast_lane OFF) OK; boot smoke EXIT=124 con pausa rispettata;
 34 test verdi. Versione 0.3.15.
+
+## 🏛️ Cycle 68 — Registro del debito tecnico (debt ledger) + skill
+### (2026-11-16, strategia refactoring dell'utente)
+
+Idea utente: DB + skill per far dialogare LLM e SQL e tenere traccia di
+tutti i pezzi da rifattorizzare. È la metà mancante di code_map.py
+(che mappa cosa ESISTE via AST→SQLite): il ledger traccia cosa VA
+RIFATTORIZZATO. Nota: SQLite era già in uso in 5 punti del progetto
+(memory_event_store, sml_database, code_map, task_queue, resilience).
+
+- **`CORE/debt_ledger.py`** (NUOVO): schema `debt_items` (kind, file,
+  file_hash, title, rationale, priority, effort, status, timestamps),
+  API (`add/next/list/mark/get/stats/context_for_file`) e CLI completa.
+  Le 3 regole di design codificate:
+  1. L'LLM NON scrive SQL libero — dialoga con API/CLI deterministiche
+     (pianificazione fredda, adatta al limite 60°C);
+  2. `file_hash` alla registrazione → item `stale` al primo next() se
+     il file cambia (mai proposto alla cieca);
+  3. un item per sessione, stadiale: next() sceglie dalla coda
+     (priority ASC + created ASC, prefer_kind ripriorizza).
+- **Integrazione code_map**: `context_for_file()` riporta i simboli del
+  file dalla mappa (fail-open, cap 30) per RIUSARE le API esistenti.
+- **Skill** `.opencode/skill/debt-ledger/SKILL.md`: flusso registrare →
+  next → context → stadio → done, riusabile in ogni sessione futura
+  (già registrata dal sistema).
+- **Bug beccati in costruzione**: (1) argparse: --root solo sul parser
+  principale non arriva ai sub → parent parser condiviso; (2) schema
+  creato solo da init() → no such table da stats → schema garantito a
+  ogni connessione (idempotente); (3) _check_staleness ignorava il
+  project_root (usava il repo di default) → root passata in next().
+- **Demo reale**: registrato l'item #1 vero (pausa tra fasi ignora
+  cooldown_s minimo, prio 3, xs) — il flusso next/hash/stale funziona
+  su dati reali.
+- **Verifiche**: py_compile OK; 11 test nuovi (test_debt_ledger:
+  priorità, stale-on-change, done skip, prefer_kind, fifo, fail-open,
+  validazioni, CLI e2e); suite 34+11=45 verdi. Versione 0.3.16.

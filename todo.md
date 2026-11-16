@@ -51,6 +51,32 @@ regola termica (stadiale, `--cooldown 30 --thermal-limit 60`).
       llama-server diretto con --prompt-cache resta FASE 3 (item #6),
       da misurare solo dopo un eventuale riscontro di carico reale.
 
+### 🏛️ Strategia refactoring — Registro del debito (debt ledger) (Cycle 68)
+
+Idea utente: DB per tracciare i pezzi da rifattorizzare + skill per il
+dialogo LLM↔SQL. È la metà mancante di `CORE/code_map.py` (che mappa
+cosa ESISTE via AST→SQLite): il ledger tiene traccia di cosa VA
+RIFATTORIZZATO. Già dentro il progetto: SQLite usato in 5 punti
+(memory_event_store, sml_database, code_map, task_queue, resilience).
+
+- [x] Regole di design (deterministiche, documentate nel modulo):
+      1) l'LLM non scrive SQL libero — dialoga con API/CLI Python;
+      2) `file_hash` alla registrazione → item `stale` se il file
+      cambia (anti-stantio: un ledger stantio è peggio di niente);
+      3) un item per sessione, stadiale — il "next" arriva da una
+      query, non da un'idea (pianificazione fredda, adatta al
+      limite 60°C).
+- [x] **`CORE/debt_ledger.py`** — schema + API (`add`, `next`, `list`,
+      `mark`, `stats`) + CLI (`add/next/list/done/stats/context`) +
+      integrazione `code_map` (`context_for_file` fail-open).
+      DB: `state/debt_ledger.db`.
+- [x] **Test** `tests/test_debt_ledger.py` — priorità, stale-on-change,
+      done skip, fail-open senza codemap.
+- [ ] **Skill** `.opencode/skill/debt-ledger/SKILL.md` — flusso
+      registrare → next → verificare → chiudere, riusabile in ogni
+      sessione futura.
+- [x] Docs: IMPLEMENTED Cycle 68, README versione.
+
 ### Test agentico — programmino Qt/PyQt6 via swarm (Cycle 50)
 
 - [ ] **Test agentico Qt/PyQt6**: far creare al swarm un programmino PyQt6
