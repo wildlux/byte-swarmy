@@ -419,6 +419,14 @@ class ModelClient:
         elif "seed" in modelfile_params and modelfile_params["seed"] is not None:
             options["seed"] = modelfile_params["seed"]
 
+        # 🆕 Cycle 66: num_thread passthrough (controllo del calore nei
+        # benchmark su hardware senza headroom: meno thread = meno calore).
+        # Il tuner NON lo tocca: è un vincolo fisico, non un parametro
+        # di esplorazione.
+        nt = _pick("num_thread")
+        if nt is not None:
+            options["num_thread"] = int(nt)
+
         # 🆕 Apply TimestralLLMTuner if available
         if hasattr(self, "llm_tuner") and self.llm_tuner:
             try:

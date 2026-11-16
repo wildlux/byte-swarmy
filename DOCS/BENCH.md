@@ -269,9 +269,9 @@ termici, non aggirata alzando il cap.
 
 | FASE | cosa | stato |
 |------|------|-------|
-| 0 | driver 8 sessioni fredde ext-01..08 in background | ⏳ **IN ESECUZIONE** (~60-90 min, attese passive) |
+| 0 | driver 8 sessioni fredde ext-01..08 in background | ⏳ **IN ESECUZIONE v2** (rilanciato dopo correzione, vedi §7) |
 | 1 | tabella 8 task fast lane vs naked + verdetto | ⏳ dopo driver (criteri in §4) |
-| 2 | `temp_before`/`temp_after` per fase nel JSON benchmark | [ ] solo DOPO fine driver (coerenza sessioni) |
+| 2 | `temp_before`/`temp_after` per fase nel JSON benchmark | [x] **FATTO Cycle 66 parte 3** (in entrambi i runner, ogni sessione registra i propri picchi) |
 | 3 | micro-ciclo config: `num_ctx` planner 3072→2048, toggle Timestral/SystemMonitor, `keep_alive_sec` | [ ] config-only, zero Ollama |
 | 4 | benchmark granite4:7b-a1b-h, regola stadiale, stesso protocollo sessioni fredde | [ ] dopo verdetto fast lane |
 | 5 | architettura 3 modelli (vedi §5) | in parte già in atto |
@@ -317,3 +317,27 @@ Tabella da compilare ⏳:
 - Mai generazioni LLM monolitiche: stadi brevi con verifica host-side.
 - Nessuna feature nuova non misurata; `enabled = false` finché valido.
 - Nessun lavoro CPU-heavy mentre il driver gira (inquinerebbe le misure).
+
+### 7. CorrezioneCycle 66 parte 3 — cosa è cambiato prima del rilancio
+
+Le prime 2 sessioni (ext-01, ext-02) hanno evidenziato 2 problemi:
+
+1. **Fast lane era OFF nel driver** (rollback fatto prima del lancio →
+   il driver ha ereditato `enabled=false` e ha girato il correction
+   loop completo: wall 190s/117s, attempts=3). Le 2 sessioni valgono
+   come baseline "harness completo" ma NON misurano la fast lane.
+2. **La fisica reale è più severa del previsto**: la generazione LLM
+   scalda ~1°C/s da QUALSIASI partenza (il dato 0,3°C/s includeva il
+   setup). Anche da 46°C freddi, un naked di 14-21s → 65-66°C, e il
+   correction loop → 78-82°C. Il limite 60°C veniva sforato DURANTE
+   i task (la guardia ferma solo dopo).
+
+**Fix prima del rilancio (opzione confermata dall'utente)**:
+- `num_thread = 2` iniettato SOLO in memoria per il benchmark
+  (CLI `--num-thread`, config.toml intatto): ~metà del calore,
+  inferenza più lenta ma sotto i 60°C. Stessa condizione per fast
+  lane e naked → confronto equo.
+- `fast_lane.enabled = true` (per la validazione).
+- `temp_before`/`temp_after` per fase nel JSON (verifica empirica del
+  fix: se una sessione supera 60°C, si vede subito e si abbassa a 1).
+- Le prime 2 sessioni restano nei JSON come baseline harness-completo.

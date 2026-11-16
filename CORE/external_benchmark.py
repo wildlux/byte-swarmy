@@ -218,6 +218,19 @@ class ExternalBenchmark:
             return False
 
     # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _max_temp() -> float:
+        """Temperatura massima attuale tra le zone termiche (0.0 = n/d)."""
+        import glob as _glob
+        m = 0.0
+        for path in _glob.glob("/sys/class/thermal/thermal_zone*/temp"):
+            try:
+                m = max(m, float(Path(path).read_text().strip()) / 1000.0)
+            except Exception:
+                pass
+        return m
+
     def run_harness_task(self, task: dict, worker_factory,
                          max_retries: int = 3) -> dict:
         """Esegue un task tramite il worker ReAct (con harness).
@@ -245,6 +258,9 @@ class ExternalBenchmark:
             "type": "fix",
             "source": "external_benchmark",
         }
+
+        # 🆕 Cycle 66: temperatura prima/dopo la fase (quale parte scalda)
+        temp_before = self._max_temp()
 
         start = time.time()
         attempts = 0
@@ -297,6 +313,8 @@ class ExternalBenchmark:
             "gate_blocks": gate_blocks,
             "error": error,
             "wall_seconds": round(wall, 2),
+            "temp_before": round(temp_before, 1) if temp_before else None,
+            "temp_after": round(self._max_temp(), 1) or None,
         }
 
     # ------------------------------------------------------------------
@@ -326,6 +344,9 @@ class ExternalBenchmark:
             f"CONTENUTO ATTUALE:\n```python\n{content_before}\n```\n\n"
             f"NUOVO CONTENUTO:"
         )
+
+        # 🆕 Cycle 66: temperatura prima/dopo la fase (quale parte scalda)
+        temp_before = self._max_temp()
 
         start = time.time()
         success = False
@@ -374,6 +395,8 @@ class ExternalBenchmark:
             "error": error,
             "wall_seconds": round(wall, 2),
             "response_preview": response[:200] if response else "",
+            "temp_before": round(temp_before, 1) if temp_before else None,
+            "temp_after": round(self._max_temp(), 1) or None,
         }
 
     # ------------------------------------------------------------------
@@ -731,8 +754,14 @@ class ExternalBenchmark:
 # Entry point CLI — esecuzione reale del benchmark esterno
 # ====================================================================
 
-def build_real_worker_factory(config_path: str, log, model_key: str = "worker_coder") -> callable:
+def build_real_worker_factory(config_path: str, log, model_key: str = "worker_coder",
+                              num_thread: int = 0) -> callable:
     """Costruisce una factory di Worker veri (Ollama reale) per il benchmark.
+
+    Args:
+        num_thread: 🆕 Cycle 66 — se >0, inietta num_thread nelle opzioni
+            del modello SOLO in memoria (config.toml resta intatto):
+            meno thread = meno calore = sotto il limite 60°C.
 
     La factory riceve una sandbox_dir e ritorna un Worker configurato per
     operare su quella directory come project_root.
@@ -747,6 +776,12 @@ def build_real_worker_factory(config_path: str, log, model_key: str = "worker_co
 
     with open(config_path, "rb") as f:
         config = tomllib.load(f)
+
+    # 🆕 Cycle 66: override num_thread solo in memoria (mai su config.toml)
+    if num_thread > 0:
+        cfg_m = config.setdefault("models", {}).setdefault(model_key, {})
+        cfg_m["num_thread"] = int(num_thread)
+        log.info(f"num_thread override (benchmark): {num_thread}")
 
     # ToolSet condiviso (safe sulla sandbox per write_file)
     def _make_tools(sandbox_dir: Path) -> ToolSet:
@@ -824,6 +859,11 @@ def main() -> int:
                         help="🆕 Cycle 66: ripresa della pausa adattiva = "
                              "thermal-limit - offset (default 14 → 46°C per "
                              "limite 60: da macchina calda il load scala ~1°C/s)")
+    parser.add_argument("--num-thread", type=int, default=0,
+                        help="🆕 Cycle 66: override num_thread Ollama SOLO per "
+                             "il benchmark (in memoria, config.toml intatto). "
+                             "Meno thread = meno calore = sotto i 60°C. "
+                             "2 = metà dei core fisici dell'i7-7700HQ.")
     args = parser.parse_args()
 
     log = _get_logger()
@@ -873,10 +913,16 @@ def main() -> int:
     all_results = {}
     for model_key in models_to_test:
         log.info(f"=== BENCHMARK CON MODELLO: {model_key} ===")
-        factory = build_real_worker_factory(args.config, log, model_key)
+        factory = build_real_worker_factory(args.config, log, model_key,
+                                            num_thread=args.num_thread)
 
         with open(args.config, "rb") as f:
             config = tomllib.load(f)
+        # 🆕 Cycle 66: stessa iniezione per il naked (condizioni identiche
+        # a quelle dell'harness, altrimenti il confronto non è equo).
+        if args.num_thread > 0:
+            cfg_m = config.setdefault("models", {}).setdefault(model_key, {})
+            cfg_m["num_thread"] = int(args.num_thread)
         naked_models = ModelClient(config, log)
 
         eb = ExternalBenchmark(

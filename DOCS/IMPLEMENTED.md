@@ -1463,3 +1463,32 @@ aggiorniamo appena abbiamo gli altri dati".
   esecuzione, riferimento al piano in BENCH.md.
 - Nessun codice toccato (il driver sta misurando): solo docs. Zero
   carico CPU durante le sessioni benchmark.
+
+## 🔄 Cycle 66 parte 3 — Correzione driver: num_thread + fast lane ON + temp per fase
+### (2026-11-16, prima del rilancio delle sessioni fredde)
+
+Status check a richiesta utente ("come procede?"): 2/8 sessioni fatte
+ma con 2 problemi beccati nei dati.
+
+- **Problema 1 (errore di sequenza mio)**: il driver era partito con
+  `fast_lane.enabled = false` (rollback pre-lancio) → girava il
+  correction loop completo (attempts=3, wall 190/117s). Le 2 sessioni
+  valgono come baseline harness-completo, non misurano la fast lane.
+- **Problema 2 (fisica reale)**: la generazione LLM scalda ~1°C/s da
+  qualsiasi partenza (46→65°C in 14s; correction loop → 78-82°C). Il
+  limite 60°C veniva sforato DURANTE i task. Il "0,3°C/s da freddo"
+  era una media ingannevole che includeva il setup.
+- **Decisione utente**: stop + riavvio corretto.
+- **Fix** (config-only, zero root):
+  - `--num-thread` nel benchmark: inietta `num_thread = 2` SOLO in
+    memoria (config.toml intatto), stesso valore per fast lane e naked
+    → confronto equo, ~metà del calore. Passthrough aggiunto in
+    `_get_tuned_options` (il tuner non lo tocca: è un vincolo fisico).
+  - `fast_lane.enabled = true` per la validazione.
+  - FASE 2 del piano completata: `temp_before`/`temp_after` per fase
+    in entrambi i runner (helper `_max_temp()`; ogni sessione registra
+    i propri picchi → verifica empirica del fix num_thread).
+  - `tools/bench_cold_sessions.py` passa `--num-thread 2`.
+- **Verifiche**: py_compile OK; 34 test verdi (thermal pause +
+  benchmark + fast lane); config check fast_lane ON.
+- Le prime 2 sessioni (ext-01/02) restano nei JSON come baseline.

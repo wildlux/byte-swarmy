@@ -74,6 +74,7 @@ def main() -> int:
              "--config", str(ROOT / "CONFIG" / "config.toml"),
              "--model", "worker_coder", "--cooldown", "30",
              "--thermal-limit", "60", "--resume-offset", "14",
+             "--num-thread", "2",
              "--task", tid],
             cwd=str(ROOT),
         )
