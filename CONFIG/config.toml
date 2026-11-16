@@ -81,7 +81,7 @@ name = "moondream:latest"
 # del loop ReAct (12.5%, ~192s/task). DEFAULT FALSE: attivare solo DOPO il
 # benchmark di validazione a macchina fredda (regola "measure, don't add").
 [fast_lane]
-enabled = true
+enabled = false
 max_task_chars = 600
 max_tokens = 1500
 max_attempts = 2

@@ -269,12 +269,12 @@ termici, non aggirata alzando il cap.
 
 | FASE | cosa | stato |
 |------|------|-------|
-| 0 | driver 8 sessioni fredde ext-01..08 in background | ⏳ **IN ESECUZIONE v2** (rilanciato dopo correzione, vedi §7) |
-| 1 | tabella 8 task fast lane vs naked + verdetto | ⏳ dopo driver (criteri in §4) |
+| 0 | driver 8 sessioni fredde ext-01..08 in background | ✅ **CHIUSO con verdetto §8** (2/8 fatte, stop definitivo utente) |
+| 1 | tabella 8 task fast lane vs naked + verdetto | ✅ **FATTO** (tabella compilata 2/8, verdetto §8: fast lane NON validata → OFF) |
 | 2 | `temp_before`/`temp_after` per fase nel JSON benchmark | [x] **FATTO Cycle 66 parte 3** (in entrambi i runner, ogni sessione registra i propri picchi) |
-| 3 | micro-ciclo config: `num_ctx` planner 3072→2048, toggle Timestral/SystemMonitor, `keep_alive_sec` | [ ] config-only, zero Ollama |
-| 4 | benchmark granite4:7b-a1b-h, regola stadiale, stesso protocollo sessioni fredde | [ ] dopo verdetto fast lane |
-| 5 | architettura 3 modelli (vedi §5) | in parte già in atto |
+| 3 | micro-ciclo config: `num_ctx` planner 3072→2048, toggle Timestral/SystemMonitor, `keep_alive_sec` | [ ] config-only, zero Ollama → **prossimo lavoro** |
+| 4 | benchmark granite4:7b-a1b-h, regola stadiale, stesso protocollo sessioni fredde | ⛔ **BLOCCATO dallo stesso muro termico** (60°C sforato nelle fasi) — solo con cap di frequenza (sudo) o altra macchina |
+| 5 | architettura 3 modelli (vedi §5) | decision deterministico-first resta la direzione; implementazione locale non validata |
 
 ### 4. Criteri di verdetto PRE-SCRITTI (l'aggiornamento sarà meccanico)
 
@@ -289,19 +289,46 @@ regola verificata (ordine = priorità):
 | 4 | < naked | resta `false` DEFINITIVO, fast lane archiviata (risultato onesto) |
 | 5 | >2 sessioni in thermal abort | protocollo rivisto: cold start 45°C, resume-offset 16 |
 
-Tabella da compilare ⏳:
+Tabella da compilare ⏳ — **COMPILATA con i dati reali (verdetto §8)**:
 
-| task | fast lane 1° colpo | wall | naked 1° colpo | wall | temp max sessione |
-|------|--------------------|------|----------------|------|-------------------|
-| ext-01 | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| ext-02 | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| ext-03 | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| ext-04 | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| ext-05 | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| ext-06 | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| ext-07 | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| ext-08 | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| **TOT** | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
+| task | fast lane 1° colpo | wall | naked 1° colpo | wall | temp picco |
+|------|--------------------|------|----------------|------|------------|
+| ext-01 | NO (fallback loop, attempts=3) | 95.25s | SKIPPED (max wait 900s scaduto) | - | 79.0°C |
+| ext-02 | NO (fallback loop, attempts=3) | 94.19s | NO | 21.41s | 80.0°C |
+| ext-03..08 | — sessioni mai eseguite (utente: stop definitivo) — | | | | |
+
+## 8. VERDETTO FINALE — fast lane NON validata (🆕 Cycle 66 chiusura)
+
+**Decisione utente (16/11/2026 ~13:10): stop definitivo del benchmark
+su questo hardware.** Ragioni misurate, non opinioni:
+
+1. **Il limite 60°C è inviolabile e i picchi lo sforano sempre**:
+   79-80°C durante le fasi anche con `num_thread=2` — su i7-7700HQ il
+   turbo compensa (meno thread = frequenza per core più alta = stessa
+   potenza, pendenza 0,27-0,29°C/s INVARIATA). L'unica leva reale è il
+   cap di frequenza (sudo) o altra macchina: leve non disponibili ora.
+2. **Fast lane 0/2 con fallback al correction loop** (attempts=3):
+   campione insufficiente per un verdetto statistico, MA zero successi
+   primo colpo — nessuna evidenza pro.
+3. **Costo tempo**: ~21-23 min/sessione (dominati dalle attese di
+   raffreddamento al mezzogiorno), 8 sessioni ≈ 3h+ per un campione
+   minimo, con est-01 naked perso (max wait 900s).
+
+**Esito**: `fast_lane.enabled = false` (rollback permanente finché non
+cambino le condizioni: cap di frequenza, altra macchina, o giornata
+fresca). Regola "measure, don't add" rispettata: l'idea
+"deterministico-first" della FASE 5 resta la direzione, ma questa
+implementazione locale non è validata — NON si usa in produzione.
+
+**Cosa resta di utile** (non buttato):
+- `temp_before`/`temp_after` per fase nel JSON: ogni sessione registra
+  i propri picchi (strumento attivo per qualunque test futuro)
+- Pausa termica adattiva + fisica documentata (0,27-0,29°C/s sotto
+  load LLM su questa CPU, turbo compreso)
+- `tools/bench_cold_sessions.py` + `tools/progress_reporter.py`
+  riusabili per il prossimo tentativo (cap di frequenza / altra macchina)
+- Dati parziali in `state/benchmarks/` (baseline harness-completo
+  est-01/02 delle 11:xx + fast lane fallback est-01/02 delle 12:xx)
 
 ### 5. Architettura 3 modelli (direzione confermata dall'utente)
 

@@ -28,17 +28,18 @@ regola termica (stadiale, `--cooldown 30 --thermal-limit 60`).
       verificano con `./tools/verify_cycle.sh <file_modificati...>`
       invece di 3-4 comandi separati. **Creato e bash-checked (Cycle 66);
       TODO: prima esecuzione end-to-end.**
-2. [~] **Benchmark di validazione della corsia veloce (fast lane)** —
-      ▶️ **IN ESECUZIONE con protocollo sessioni fredde** (opzione A,
-      scelta utente: la fast lane "è di un'utilità disarmante"). Driver
-      `tools/bench_cold_sessions.py`: 1 task per sessione, macchina
-      fredda ≤45.5°C prima di ogni sessione, 60°C mai sforato. Il
-      **piano d'azione con criteri di verdetto pre-scritti** è in
-      `DOCS/BENCH.md` § "PIANO D'AZIONE — Cycle 66" (living doc, si
-      aggiorna a fine driver). Contesto Cycle 66: 2/2 run abortite su
-      ext-01 → benchmark completo in una sessione impossibile; pausa
-      adattiva implementata e testata; `enabled = false` (rollback
-      fatto), fix elegibilità committato.
+2. [x] **Benchmark di validazione della corsia veloce (fast lane)** —
+      ✅ **CHIUSO con verdetto onesto** (Cycle 66, decisione utente
+      "stop definitivo"): fast lane NON validata → `enabled = false`
+      permanente. Motivi misurati in `DOCS/BENCH.md` §8: (1) il limite
+      60°C viene sforato nelle fasi (79-80°C) anche con `num_thread=2`
+      — il turbo della i7-7700HQ compensa, pendenza 0,27-0,29°C/s
+      invariata; l'unica leva reale è il cap di frequenza (sudo) o
+      altra macchina; (2) fast lane 0/2 con fallback al correction
+      loop (campione insufficiente ma zero evidenze pro); (3) ~22
+      min/sessione dominate dalle attese di raffreddamento. Restano
+      attivi e riusabili: `temp_before/after` per fase nel JSON,
+      pausa termica adattiva, driver + reporter, dati parziali.
 3. [ ] **Micro-ciclo config**: `num_ctx` planner 3072 → 2048 (item #5
       efficientamento) + verifica se Timestral/SystemMonitor/Lifecycle
       hanno già toggle config (item #4). Config-only, zero Ollama.

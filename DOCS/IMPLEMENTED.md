@@ -1492,3 +1492,36 @@ ma con 2 problemi beccati nei dati.
 - **Verifiche**: py_compile OK; 34 test verdi (thermal pause +
   benchmark + fast lane); config check fast_lane ON.
 - Le prime 2 sessioni (ext-01/02) restano nei JSON come baseline.
+
+## 🏁 Cycle 66 parte 5 — VERDETTO: fast lane NON validata, benchmark chiuso
+### (2026-11-16 ~13:10, decisione utente: "stop definitivo benchmark")
+
+Mentre il driver girava (2/8 sessioni finite), i dati hanno mostrato:
+
+- **`num_thread=2` NON riduce il calore**: pendenza 0,27-0,29°C/s
+  INVARIATA vs i run senza override. Spiegazione fisica: su i7-7700HQ
+  il turbo compensa (meno thread → frequenza per core più alta →
+  stessa potenza complessiva). La leva giusta sarebbe il cap di
+  frequenza (sudo) o altra macchina.
+- **Picchi 79-80°C durante le fasi** anche da partenza fredda
+  (grazie ai nuovi `temp_before/after`: 52→79°C fast, 46.5→69°C naked
+  in 21s). Il limite 60°C è sforato durante ogni task: seconda
+  violazione del protocollo → l'utente ha fermato tutto.
+- **Fast lane attiva ma 0/2 primo colpo**, sempre con fallback al
+  correction loop (attempts=3, wall ~95s). Campione insufficiente ma
+  zero evidenze pro.
+- ext-01 naked perso: max wait 900s scaduto (raffreddamento lento al
+  mezzogiorno).
+
+**Verdetto** (`DOCS/BENCH.md` §8, con criteri pre-scritti del piano):
+`fast_lane.enabled = false` PERMANENTE finché non cambino le condizioni
+(cap di frequenza, altra macchina, giornata fresca). Regola
+"measure, don't add" rispettata fino in fondo: l'idea
+deterministico-first resta la direzione architetturale, questa
+implementazione locale NON entra in produzione.
+
+**Cosa resta** (tutto riusabile, niente buttato): temp_before/after
+per fase, pausa termica adattiva, sessioni fredde driver +
+progress_reporter (fixato il doppio conteggio: done-regex conta solo
+la riga JSON), dati parziali in state/benchmarks/, fisica termica
+documentata. Prossimo lavoro: FASE 3 micro-ciclo config (zero Ollama).
