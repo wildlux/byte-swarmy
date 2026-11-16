@@ -1,7 +1,7 @@
 ---
 id: py-json-store
 title: Python JSON store (single file)
-keywords: json, persistenza, salvataggio, lettura, file, store, database, dati
+keywords: json, persistenza, salvataggio, store, database
 ---
 # Recipe: JSON store (single file)
 

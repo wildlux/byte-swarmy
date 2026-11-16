@@ -1667,3 +1667,44 @@ veri, con misurazione:
   coda finché esiste una strategia di build stadiale/ccache.
 - **Stato coda prismalux**: done 1 · open 3 (god-file p2, triage
   marker p3, 3 stack Android p3). Push del clone: decisione utente.
+
+## 🦋 Cycle 72 — Prismalux item #5: fallimento, root cause, fallback (2026-11-17)
+
+### Run 2 (worker reale, agent fresco)
+- Attesa fredda: 28 minuti (ambient 46-53°C, spikes 71°C) → poi 35s di
+  esecuzione, 3 step, **nessun cambiamento a server.py**.
+- Il worker ha scritto solo `store.json` (0 byte poi 16 byte) e si è
+  fermato: "No further actions needed". Temperatura 46→66°C in 35s —
+  **violazione del limite 60°C** (causa: il routing ha passato il task a
+  `worker_granite` SENZA l'override `num_thread`, perché l'override era
+  applicato solo al `model_key` base).
+
+### Root cause provato DETERMINISTICAMENTE (zero LLM)
+- `find_skill(title, desc)` ha matchato **py-json-store** in ENTRAMBI i
+  run (la descrizione conteneva "file" e, nel DISCIPLINA, "store").
+- `format_skill_block` iniettava la ricetta con "Create project/main.py"
+  e "STORE_FILE = store.json" nel prompt, con il footer
+  "when in doubt, follow the recipe instead of inventing".
+- Il modello 3b ha seguito la ricetta alla lettera → main.py / store.json.
+  Non era "il modello è stupido": il SISTEMA gli dava una ricetta sbagliata.
+- Anche la complessità "alta" del routing (81 file, profondità 3) veniva
+  da "main" e "read_file" citati nella DISCIPLINA → routing heavy.
+
+### Fix (Cycle 72)
+- SKILLS/py-json-store.md (e 3 altre: unittest, cli-script, context-manager):
+  rimossi keywords generici (`file`, `lettura`, `dati`, `test`, `main`,
+  `input`, `output`, `funzione`, `with`) — restano i specifici.
+- `tools/swarm_refactor_session.py` v2:
+  - override `num_thread` su TUTTI i modelli (protezione termica anche
+    quando il routing cambia modello);
+  - DISCIPLINA senza nomi di tool/file (non inquina routing né skill).
+- Test: `tests/test_skills_matching.py` (11) blocca la regressione:
+  il task docker_mcp non matcha py-json-store, i match legittimi restano.
+
+### Fallback deterministico (item #5)
+- Applicato `sed` su `MCPs/docker_mcp/server.py`: 2 bare `except:` →
+  `except Exception:` (2 righe, py_compile OK, 0 bare residui).
+- Commit nel clone: `refactor: bare except -> except Exception` (avanti 2).
+- Item #5 marcato done nel ledger per-progetto (fallback documentato).
+- Item #6 (altri server MCP con bare except) resta in coda per la prossima
+  sessione — ora il worker ha una chance onesta con il matcher fixato.

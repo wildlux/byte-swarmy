@@ -1,7 +1,7 @@
 ---
 id: py-context-manager
 title: Python context manager (__enter__/__exit__) (single file)
-keywords: context manager, with, __enter__, __exit__, risorsa, gestione risorse, apertura e chiusura
+keywords: context manager, __enter__, __exit__, risorsa, gestione risorse, apertura e chiusura
 ---
 # Recipe: context manager (single file)
 

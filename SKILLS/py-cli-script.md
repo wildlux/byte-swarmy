@@ -1,7 +1,7 @@
 ---
 id: py-cli-script
 title: Python CLI script (single file)
-keywords: script, cli, console, terminale, input, output, main, funzione
+keywords: script, cli, console, terminale, comando da riga di comando
 ---
 # Recipe: CLI script (single file)
 

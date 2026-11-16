@@ -1,7 +1,7 @@
 ---
 id: py-unittest
 title: Python unittest test file (single file)
-keywords: unittest, test unitari, testcase, asserzioni, verifica automatica, test
+keywords: unittest, test unitari, testcase, asserzioni, verifica automatica
 ---
 # Recipe: unittest test file (single file)
 
