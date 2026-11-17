@@ -130,13 +130,21 @@ non nel clone):
 
 ### Capability agentica — test→benchmark feedback + doc summarization (Cycle 51)
 
-- [ ] **Capability: test execution → benchmark feedback**: estendere il
-  flusso worker (`run_test_suite` → `_summarize_result`) per far sì che i
-  risultati dei test vengano riusati come feedback di benchmark/decisione
-  nel task loop.
-- [ ] **Capability: doc reading → summary**: aggiungere al worker un tool di
-  lettura documenti (es. PDF via bash/pdftotext) + riassunto come contesto,
-  invece del documento intero.
+- [x] **Capability: test execution → benchmark feedback** ✅ Cycle 78:
+      implementato in `CORE/worker.py` (done=true viene rifiutato se la
+      suite è stata eseguita e fallisce; i fallimenti vengono iniettati
+      come prompt di correzione, max 2 retry, poi allow done con warning).
+      I risultati dei test diventano così un segnale di feedback che
+      guida il loop, non solo un warning. Connesso a `_summarize_result`
+      (già esistente) per l'estrazione intelligente.
+- [x] **Capability: doc reading → summary** ✅ Cycle 78: nuovo tool
+      `read_document(path)` in `CORE/tools.py` (testo diretto per
+      .txt/.md/.py/.json/.csv/.log/.html/.xml + PDF via pdftotext con
+      layout; troncamento a max_file_size_readable), registrato in
+      `allowed_tools`, dispatch in `worker._call_tool`, descrizione nel
+      prompt, e summarization dedicata in `_summarize_result`
+      (prime 5 righe + titoli/capitoli). Il worker può ora leggere
+      documenti lunghi senza saturare il contesto.
 
 - [x] **Middle capability: escalation 3B→4B** ✅ Cycle 52: fallback del
   worker_coder (junior) → `worker_coder_big` (middle, qwen3-coder:4b) invece
@@ -149,9 +157,14 @@ non nel clone):
   bordo (problem, context, attempts, failures, learnings, optimization) al
   termine di un task; persistenza in `state/diary/`. Implementato con scrittura
   sicura + sanitizzazione task_id. ✅ Cycle 53.
-- [ ] **Diary: DB vs file**: decidere DB (SQLite + query via API/socket) vs
-  file markdown per il diario LLM; oggi il file basta per il contesto
-  self-optimization, il DB solo per analytics/query strutturate.
+- [x] **Diary: DB vs file** ✅ Cycle 78: **decisione documentata** —
+      il diario LLM resta **file markdown** per il contesto
+      self-optimization (attuale, basta per il contesto del worker); DB
+      (SQLite) solo per analytics/query strutturate, da introdurre SOLO
+      quando c'è un caso d'uso reale di query (oggi non c'è). Motivazione:
+      il file è leggibile/editabile a mano, versionabile, zero schema
+      da migrare; il DB aggiungerebbe complessità senza beneficio
+      misurabile (regola "measure, don't add").
 
 ### Efficientamento energetico (proposto dopo il benchmark Cycle 59)
 

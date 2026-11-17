@@ -462,6 +462,7 @@ class Worker:
         self.last_code = ""      # ultimo codice scritto (feedback loop T2)
         # --- CIRCUIT BREAKER STATE ---
         repeated_actions = {}
+        test_fail_retries = 0  # 🆕 Cycle 78: test results → feedback loop
 
         for step in range(self.MAX_STEPS):
             self.memory.heartbeat()
@@ -615,9 +616,39 @@ class Worker:
                         break
 
                 if test_passed is False:
-                    # Quality check rilassato: solo warning, non blocca done=true.
-                    # L'auditor comunque verificherà la qualità del codice.
-                    self.log.info(f"[{self.agent_id}] task marked done without passing tests (warning only).")
+                    # 🆕 Cycle 78: test results → benchmark feedback.
+                    # Se la suite è stata eseguita e fallisce, non dichiarare
+                    # done: inietta i fallimenti come prompt di correzione e
+                    # continua il loop (max 2 retry, poi allow done con warning).
+                    if test_fail_retries < 2:
+                        test_fail_retries += 1
+                        # Estrai i fallimenti dal report in history
+                        fail_lines = []
+                        for ev in reversed(history):
+                            if (ev.get("type") == "tool_result"
+                                    and "run_test_suite" in ev.get("content", "")):
+                                for ln in ev["content"].splitlines():
+                                    if ("FAIL" in ln.upper()
+                                            or "ERROR" in ln.upper()):
+                                        fail_lines.append(ln.strip())
+                                break
+                        fail_text = "\n".join(fail_lines[:6]) or "(vedi report test)"
+                        self.log.info(
+                            f"[{self.agent_id}] done=true rifiutato: test "
+                            f"falliti (retry {test_fail_retries}/2)")
+                        prompt = (
+                            f"Tests FAILED — cannot declare done yet.\n"
+                            f"Failing tests:\n{fail_text}\n\n"
+                            "Fix the code so these tests pass, then run "
+                            "run_test_suite again to verify. "
+                            "Do NOT declare done until tests pass.\n\n"
+                            "Next step (JSON only):"
+                        )
+                        continue
+                    # retry esauriti: allow done con warning
+                    self.log.info(f"[{self.agent_id}] task marked done without passing tests (warning only, retries exhausted).")
+                else:
+                    self.log.info(f"[{self.agent_id}] task marked done (tests: {test_passed}).")
 
                 result = action.get("result", "(no result)")
                 self.memory.add_event({"type": "task_done", "content": result[:200]})
@@ -1198,6 +1229,15 @@ class Worker:
             head = lines[:10]
             out = head + key[:5]
             return "\n".join(out)[:300]
+        # read_document: prime 5 righe + righe con titoli/capitoli
+        if name in ("read_document",):
+            lines = result.splitlines()
+            if len(lines) <= 20:
+                return result[:400]
+            key = [ln for ln in lines if ln.strip().startswith(("#", "==", "--")) or any(k in ln.lower() for k in ("chapter", "section", "capitolo", "sezione"))]
+            head = lines[:5]
+            out = head + key[:8]
+            return "\n".join(out)[:400] if out else result[:400]
         # run_test_suite: summary + primi 3 errori
         if name in ("run_test_suite", "test"):
             lines = result.splitlines()
@@ -1329,6 +1369,8 @@ class Worker:
         try:
             if name == "read_file":
                 return self.tools.read_file(args[0])
+            elif name == "read_document":
+                return self.tools.read_document(args[0])
             elif name == "write_file":
                 return self.tools.write_file(args[0], args[1])
             elif name == "patch_code":

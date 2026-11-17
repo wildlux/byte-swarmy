@@ -127,7 +127,7 @@ class ToolSet:
     def allowed_tools(self) -> set[str]:
         """Tool che il worker può realmente chiamare."""
         tools = {
-            "read_file", "read_file_slice", "write_file", "patch_code",
+            "read_file", "read_file_slice", "read_document", "write_file", "patch_code",
             "delete_file", "move_file", "list_files",
             "run_bash", "search",
             "analyze_project", "find_references", "lint_code",
@@ -167,6 +167,58 @@ class ToolSet:
             return full.read_text(encoding="utf-8", errors="replace")
         except Exception as e:
             return f"ERROR reading {path}: {e}"
+
+    # ----- 1b. read_document (testo/PDF/markdown -> estrazione + summary) -----
+    def read_document(self, path: str) -> str:
+        """Legge un documento di testo dal progetto.
+
+        Supporta: .txt, .md, .py, .json, .csv, .log (testo diretto) e
+        .pdf (via pdftotext se installato). Per i PDF restituisce il testo
+        estratto (troncato a max_file_size_readable).
+        """
+        try:
+            full = safe_project_path(path, self.project_root)
+        except SecurityError as exc:
+            self._audit("blocked_path",
+                        'op=read_document path="%s" reason="%s"' % (self._q(path), exc),
+                        "WARNING")
+            return "ERROR: %s. You can only read files inside project/." % exc
+
+        if not full.exists():
+            return "ERROR: file not found: %s" % path
+        if full.is_dir():
+            return "ERROR: '%s' is a directory." % path
+
+        suffix = full.suffix.lower()
+        text_exts = {".txt", ".md", ".markdown", ".py", ".json", ".csv",
+                     ".log", ".rst", ".yaml", ".yml", ".toml", ".ini",
+                     ".cfg", ".html", ".xml"}
+        try:
+            if suffix == ".pdf":
+                import shutil, subprocess
+                if not shutil.which("pdftotext"):
+                    return ("ERROR: pdftotext non installato. "
+                            "Installa poppler-utils (apt install poppler-utils).")
+                proc = subprocess.run(
+                    ["pdftotext", "-layout", str(full), "-"],
+                    capture_output=True, text=True, timeout=60,
+                )
+                if proc.returncode != 0:
+                    return "ERROR pdftotext: %s" % proc.stderr[:300]
+                text = proc.stdout
+            elif suffix in text_exts:
+                text = full.read_text(encoding="utf-8", errors="replace")
+            else:
+                return ("ERROR: formato non supportato '%s'. "
+                        "Supportati: %s, .pdf" % (suffix, ", ".join(sorted(text_exts))))
+        except Exception as e:
+            return "ERROR reading document %s: %s" % (path, e)
+
+        size = len(text)
+        if size > self.cfg["routing"]["max_file_size_readable"]:
+            text = text[:self.cfg["routing"]["max_file_size_readable"]]
+            text += "\n\n[... troncato a %d byte]" % self.cfg["routing"]["max_file_size_readable"]
+        return text
 
     # ----- 2. write_file (transazionale: tmp nella stessa dir, poi rename) -----
     def write_file(self, path: str, content: str) -> str:
@@ -610,6 +662,7 @@ class ToolSet:
         """Firma dei tool per il system prompt dell'agente."""
         return {
             "read_file": "read_file(path) -> str: legge un file dentro project/",
+            "read_document": "read_document(path) -> str: legge un documento (.txt/.md/.py/.pdf via pdftotext) e restituisce il testo estratto (troncato)",
             "read_file_slice": "read_file_slice(path, start_line, end_line) -> str: legge max 200 righe di un file grande (righe 1-based)",
             "write_file": "write_file(path, content) -> str: scrive atomicamente in project/",
             "patch_code": "patch_code(path, old_text, new_text) -> str: sostituisce una porzione di testo in un file",
