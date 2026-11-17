@@ -1748,3 +1748,8 @@ veri, con misurazione:
 - `tools/fan_control_qt.py` (NUOVO): GUI PyQt6 ventole (MAX/AUTO/OFF/
   Stop) con temperatura live da max-across-zones; test smoke offscreen.
 - Suite: 22 test verdi (matching skill, runner, ledger). Boot smoke OK.
+
+- 🌀 **VENTOLA/** (richiesta utente): il controllo ventole ora vive in
+  `VENTOLA/` (`ventola.py` + `avvia.sh` doppio-click + README con i
+  comandi sudo equivalenti). Mossa con `git mv` da `tools/` — GUI
+  rilanciata dal nuovo percorso.
