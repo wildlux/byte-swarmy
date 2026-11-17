@@ -77,6 +77,11 @@ PROTECTED_FILES = frozenset({
     "readme.md", "license", "license.md",
 })
 
+# 🆕 Cycle 80: cartelle di riferimento curate — il worker NON può
+# sovrascriverle (sono "salva culo" per ridurre le allucinazioni).
+PROTECTED_PATH_PREFIXES = ("gui/refs/", "skills/", ".opencode/skill/")
+
+
 # File che non devono mai finire nell'output di grep/search.
 GREP_EXCLUDES = (
     "--exclude=.env",
@@ -155,7 +160,7 @@ class ToolSet:
             "extract_method",
             "git_commit", "git_diff", "git_status", "git_log",
             "git_branch", "git_merge", "git_pull", "git_push", "git_remote",
-            "run_test_suite", "list_tools", "diary_llm",
+            "run_test_suite", "list_refs", "list_tools", "diary_llm",
         }
         try:
             from GUI.settings_store import get_usb_tools_enabled
@@ -240,6 +245,24 @@ class ToolSet:
             text += "\n\n[... troncato a %d byte]" % self.cfg["routing"]["max_file_size_readable"]
         return text
 
+    # ----- 1c. list_refs — elenco dei cheat sheet in GUI/refs/ -----
+    def list_refs(self) -> str:
+        """Elenca i file di riferimento (cheat sheet) disponibili in
+        GUI/refs/. Il worker puo' leggerli con read_file/read_document
+        per ridurre le allucinazioni su API comuni."""
+        try:
+            refs_dir = safe_project_path("GUI/refs", self.project_root)
+        except SecurityError as exc:
+            return "ERROR: %s" % exc
+        if not refs_dir.exists() or not refs_dir.is_dir():
+            return "Nessun ref disponibile (cartella GUI/refs/ assente)."
+        files = sorted(p.name for p in refs_dir.iterdir()
+                       if p.is_file() and p.suffix in (".md", ".txt", ".py"))
+        if not files:
+            return "Nessun ref disponibile."
+        return "REFS DISPONIBILI (leggi con read_file):\n" + "\n".join(
+            "  - GUI/refs/%s" % f for f in files)
+
     # ----- 2. write_file (transazionale: tmp nella stessa dir, poi rename) -----
     def write_file(self, path: str, content: str) -> str:
         """Scrive in modo atomico dentro project/. Rifiuta path non sicuri.
@@ -276,6 +299,15 @@ class ToolSet:
                         "WARNING")
             return (f"ERROR: {exc}. Write only inside project/ "
                     f"(e.g. 'project/main.py').")
+
+        # 🆕 Cycle 80: cartelle di riferimento curate — mai sovrascrivibili.
+        norm = path.replace("\\", "/").lower().lstrip("./")
+        if any(norm.startswith(p) for p in PROTECTED_PATH_PREFIXES):
+            self._audit("blocked_protected_ref",
+                        f'path="{self._q(path)}"', "CRITICAL")
+            return ("ERROR: write_file bloccato: '%s' e' in una cartella di "
+                    "riferimento curata (GUI/refs, SKILLS, .opencode/skill). "
+                    "I ref sono read-only." % path)
 
         # 🆕 Cycle 79: file di infrastruttura critica — mai sovrascrivibili
         # con write_file (il danno a requirements.txt: 203 righe -> 9 byte).
@@ -729,6 +761,7 @@ class ToolSet:
         return {
             "read_file": "read_file(path) -> str: legge un file dentro project/",
             "read_document": "read_document(path) -> str: legge un documento (.txt/.md/.py/.pdf via pdftotext) e restituisce il testo estratto (troncato)",
+            "list_refs": "list_refs() -> str: elenca i cheat sheet disponibili in GUI/refs/ (PyQt6, ToolSet API, debt ledger). Leggili con read_file per ridurre allucinazioni.",
             "read_file_slice": "read_file_slice(path, start_line, end_line) -> str: legge max 200 righe di un file grande (righe 1-based)",
             "write_file": "write_file(path, content) -> str: scrive atomicamente in project/",
             "patch_code": "patch_code(path, old_text, new_text) -> str: sostituisce una porzione di testo in un file",

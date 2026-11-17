@@ -1212,7 +1212,13 @@ class Worker:
                 files.append(str(path.relative_to(root)))
                 if len(files) >= 10:
                     break
-            return "\n".join(files) if files else "(empty project)"
+            out = "\n".join(files) if files else "(empty project)"
+            try:
+                if (root / "GUI" / "refs").is_dir():
+                    out += "\nREFS: cheat sheets disponibili — chiama list_refs()"
+            except Exception:
+                pass
+            return out
         except Exception:
             return "(cannot read project state)"
 
@@ -1229,6 +1235,9 @@ class Worker:
             head = lines[:10]
             out = head + key[:5]
             return "\n".join(out)[:300]
+        # list_refs: output corto, lascia com'è
+        if name in ("list_refs",):
+            return result[:300]
         # read_document: prime 5 righe + righe con titoli/capitoli
         if name in ("read_document",):
             lines = result.splitlines()
@@ -1371,6 +1380,8 @@ class Worker:
                 return self.tools.read_file(args[0])
             elif name == "read_document":
                 return self.tools.read_document(args[0])
+            elif name == "list_refs":
+                return self.tools.list_refs()
             elif name == "write_file":
                 return self.tools.write_file(args[0], args[1])
             elif name == "patch_code":

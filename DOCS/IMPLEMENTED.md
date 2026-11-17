@@ -1833,3 +1833,21 @@ veri, con misurazione:
 - **Test**: `tests/test_toolset_gates.py` (14 test) — file protetti,
   shrink sospetto/legittimo, path traversal, AST scanner, gate base.
   Il componente più critico (la gate) ha ora test dedicati.
+
+## 📚 Cycle 81 — "Salva culo" refs (2026-11-17)
+
+- **Nuova cartella `GUI/refs/`** con cheat sheet curati per ridurre le
+  allucinazioni del worker: `pyqt6.md` (widget/layout/segnali/threading),
+  `toolset_api.md` (firme dei tool + errori comuni), `debt_ledger.md`
+  (CLI + regole). Sono read-only (path protetto: il worker non può
+  sovrascriverli).
+- **Nuovo tool `list_refs()`** in `ToolSet`: elenca i cheat sheet
+  disponibili; il worker li legge con `read_file`/`read_document`. Il
+  prompt iniziale menziona "REFS: cheat sheets disponibili — chiama
+  list_refs()" se la cartella esiste. `_summarize_result` gestisce
+  `list_refs` (output corto).
+- **Perché non RAG**: il matching deterministico (keyword) è sufficiente
+  per un piccolo set curato; il RAG aggiungerebbe nondeterminism +
+  infra senza beneficio misurabile (regola "measure, don't add").
+- Regola di parità GUI: i ref sono file, non funzioni del ledger, quindi
+  non richiedono un controllo nella Plancia (sono letti dal worker via tool).
