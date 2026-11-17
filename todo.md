@@ -112,6 +112,14 @@ C++/Qt6 core + strato Python). Radiografia fredda (zero LLM):
 - [ ] **Vincolo verifica C++**: il build è CMake (312 file) = carico
       pesante, sotto 60°C va stadiale o ccache/parallelismo limitato —
       gli item C++ si eseguono DOPO una strategia di build
+- [x] **Bare `except:` nei server MCP: PATTERN CHIUSO** (Cycle 72-73:
+      root cause skill-hijack provata + 3 run worker onesti + fallback
+      deterministico `sed` — 22 file, 57 conversioni, 0 residui,
+      commit clone `037ff1f`)
+- [x] **Lezione UEFI** (Cycle 73): B0D4 è un sensore REALE (100°C sotto
+      carico → blocco UEFI); revert dei cambi coretemp-only, guardia
+      dura ≥90°C nel runner, GUI ventole `tools/fan_control_qt.py`
+      (nbfc + pkexec) — prerequisito dei run LLM
 - [x] Primo item eseguito a freddo (rinomia SCREEENSHOT, xs)
 - [ ] Push dei commit di prismalux: decisione utente
 
