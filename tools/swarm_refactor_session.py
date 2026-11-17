@@ -55,7 +55,15 @@ DISCIPLINA = (
 
 
 def read_max_temp() -> float:
-    """Max temperatura CPU letta dai sensori termici (°C)."""
+    """Max temperatura tra le zone termiche (°C).
+
+    🆕 Cycle 73 (lezione UEFI): si usa la max su TUTTE le zone —
+    B0D4 non è un falso sensore (misurato: 52°C a freddo, 100°C sotto
+    carico → UEFI block). Ignorarlo significa non vedere il componente
+    più caldo. Il gate severo è la protezione, non il nemico: le
+    attese lunghe si risolvono con le VENTOLE (tools/fan_control_qt.py),
+    non abbassando la guardia.
+    """
     m = 0.0
     for p in glob.glob("/sys/class/thermal/thermal_zone*/temp"):
         try:
@@ -148,16 +156,26 @@ def main(argv=None) -> int:
     ap.add_argument("--task-id", default="swarm-task")
     ap.add_argument("--config", default="CONFIG/config.toml")
     ap.add_argument("--model", default="worker_coder")
+    ap.add_argument("--threshold", type=float, default=COLD_THRESHOLD_C,
+                    help="Soglia di raffreddamento (°C) prima di avviare "
+                         "(default %.1f). Per task xs con runner v2 (num_thread "
+                         "su tutti i modelli) si puo' alzare a ~48°C." %
+                    COLD_THRESHOLD_C)
     args = ap.parse_args(argv)
 
     cwd = Path.cwd()
-    ok, temp = wait_cold(log=log)
+    ok, temp = wait_cold(threshold=args.threshold, log=log)
     if not ok:
         log.error("mai raffreddato sotto %.1f°C in %ds (ultima %.1f°C): "
                   "niente run (regola termica)", COLD_THRESHOLD_C,
                   MAX_WAIT_SEC, temp)
         return 2
     log.info("freddo raggiunto: %.1f°C → avvio sessione", temp)
+    # 🆕 Guardia dura (lezione UEFI, Cycle 73): se QUALSIQUE zona è
+    # ≥ 90°C il blocco UEFI è dietro l'angolo — mai inferenza.
+    if temp >= 90.0:
+        log.error("zona ≥ 90°C (%.1f°C): abort di sicurezza", temp)
+        return 3
 
     task = build_task(args.task_id, args.title, args.description, args.file)
     try:

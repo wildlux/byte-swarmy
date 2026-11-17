@@ -1708,3 +1708,43 @@ veri, con misurazione:
 - Item #5 marcato done nel ledger per-progetto (fallback documentato).
 - Item #6 (altri server MCP con bare except) resta in coda per la prossima
   sessione — ora il worker ha una chance onesta con il matcher fixato.
+
+## 🦋 Cycle 73 — Lezione UEFI, fallback deterministico, GUI ventole (2026-11-17)
+
+### ⚠️ LEZIONE UEFI (importante, registrata nel ledger)
+- Il laptop (HP Pavilion Power 15-cb0xx) ha subito un **blocco UEFI per
+  surriscaldamento** durante i run. Conseguenza misurata: un file
+  sorgente corrotto (null bytes) → ripristinato da git.
+- **Ho sbagliato**: avevo definito "falso" il sensore B0D4 (100°C sotto
+  carico) e cambiato la fonte termica a coretemp-only in
+  CORE/routing.py, MONITORING/thermal_manager.py e tools/* → il sistema
+  diventava cieco sul componente più caldo, mentre l'inferenza LLM
+  continuava. **REVERT completo**: la max su TUTTE le zone termiche è
+  la scelta sicura (vede il componente più caldo, qualunque esso sia).
+- B0D4 verificato a freddo: 49-52°C (varia col carico = sensore reale).
+- **La soluzione è il controllo ventole, non abbassare la guardia**:
+  `tools/fan_control_qt.py` (nbfc + pkexec, dialog password KDE) e
+  **guardia dura** nel runner: mai inferenza se una zona ≥ 90°C.
+- Il limite utente 60°C con inferenza reale resta difficile
+  (misurato 42→70°C coretemp in 39s anche con num_thread=2): le
+  ventole al massimo sono ora un prerequisito dei run LLM.
+
+### Campagna prismalux: ombrello #6 + #7 chiusi via fallback deterministico
+- 3 run LLM onesti (runner v1/v2/v3): il worker 3b NON è capace per
+  modifiche minime a codice esistente (run 3: legge il file — il fix
+  skill-matcher funziona — ma poi scrive file sbagliati: ha SOVRASCRITTO
+  requirements.txt con 9 byte di spazzatura; ripristinato da git).
+- Verdetto: le gate del ToolSet proteggono i test ma NON i file dati —
+  per questa classe di task il fallback `sed` è l'esecutore giusto.
+- `sed` bare `except:` → `except Exception:` su TUTTI i server MCP:
+  22 file, **57 conversioni**, py_compile OK su ciascuno, 0 bare residui.
+  Commit clone `037ff1f` (avanti 3).
+- Ledger prismalux: done 4 (#4 #5 #6 #7) · open 3 (#1 god-file C++
+  bloccato sulla strategia build, #2 triage marker, #3 Android).
+
+### Altro
+- Bug runner fixati: `--model` ripristinato (Namespace AttributeError),
+  `--threshold` aggiunto come flag configurabile.
+- `tools/fan_control_qt.py` (NUOVO): GUI PyQt6 ventole (MAX/AUTO/OFF/
+  Stop) con temperatura live da max-across-zones; test smoke offscreen.
+- Suite: 22 test verdi (matching skill, runner, ledger). Boot smoke OK.
