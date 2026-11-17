@@ -1211,11 +1211,22 @@ class Worker:
         return _raw
 
     # 🆕 Cycle 82: mappa task -> cheat sheet (deterministica, soglia >=2)
+    # 🆕 Cycle 83: ref per window manager espliciti. I trigger (nome del
+    # WM) DEVONO comparire: un task "crea GUI" generico non inietta
+    # nessun ref WM (evita cross-contamination). I boost aggiungono score
+    # ma non triggerano da soli.
     _REF_KEYWORDS = {
         "GUI/refs/pyqt6.md": [
-            "pyqt", "qt", "gui", "widget", "finestra", "pulsante",
-            "qlabel", "qpushbutton", "qapplication", "qmainwindow",
-            "layout", "segnale", "thread", "dialog",
+            "pyqt", "pyqt6", "pyqt5", "pyqt4",
+            "qapplication", "qmainwindow", "qlabel", "qpushbutton",
+            "qwidget", "qboxlayout", "qthread", "pyqtsignal", "pyqtslot",
+        ],
+        "GUI/refs/pyside6.md": [
+            "pyside", "pyside6", "pyside2", "shiboken",
+            "qapplication", "qmainwindow", "qlabel", "qpushbutton",
+        ],
+        "GUI/refs/tkinter.md": [
+            "tkinter", "ttk", "tk.Tk", "mainloop", "tkinter.ttk",
         ],
         "GUI/refs/toolset_api.md": [
             "tool", "read_file", "write_file", "patch", "api",
@@ -1228,16 +1239,50 @@ class Worker:
         ],
     }
 
+    # Trigger obbligatori per i ref WM (vuoto = nessun trigger, soglia normale)
+    _REF_TRIGGERS = {
+        "GUI/refs/pyqt6.md": ["pyqt", "pyqt6", "pyqt5", "pyqt4",
+                              "qapplication", "qmainwindow"],
+        "GUI/refs/pyside6.md": ["pyside", "pyside6", "pyside2", "shiboken"],
+        "GUI/refs/tkinter.md": ["tkinter", "ttk"],
+    }
+
+    # Soglia minima di score per ref (default 2)
+    _REF_THRESHOLD = {
+        "GUI/refs/pyqt6.md": 1,
+        "GUI/refs/pyside6.md": 1,
+        "GUI/refs/tkinter.md": 1,
+    }
+
     def _build_refs_block(self, task: dict) -> str:
-        """Seleziona e inietta i ref rilevanti (soglia >=2 keyword)."""
+        """Seleziona e inietta i ref rilevanti.
+
+        🆕 Cycle 83: per i ref WM il trigger (nome del WM) deve comparire,
+        altrimenti il ref non viene iniettato (niente cross-contamination).
+        Matching per confine di parola (regex), non substring, per evitare
+        falsi positivi (es. "tk" in "toolkit").
+        """
         try:
+            import re as _re
             text = (str(task.get("title", "")) + " "
                     + str(task.get("description", ""))).lower()
             scored = []
             for ref_path, kws in self._REF_KEYWORDS.items():
-                score = sum(1 for k in kws if k in text)
-                if score >= 2:
-                    scored.append((score, ref_path))
+                triggers = self._REF_TRIGGERS.get(ref_path, [])
+                if triggers:
+                    trigger_hits = sum(
+                        1 for k in triggers
+                        if _re.search(r"(?<!\w)" + _re.escape(k) + r"(?!\w)", text))
+                    if trigger_hits == 0:
+                        continue  # WM non menzionato -> skip
+                else:
+                    trigger_hits = 0
+                score = sum(
+                    1 for k in kws
+                    if _re.search(r"(?<!\w)" + _re.escape(k) + r"(?!\w)", text))
+                threshold = self._REF_THRESHOLD.get(ref_path, 2)
+                if score >= threshold:
+                    scored.append((score + trigger_hits * 10, ref_path))
             if not scored:
                 return "(nessuno)"
             scored.sort(reverse=True)

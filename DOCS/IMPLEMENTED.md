@@ -1851,3 +1851,19 @@ veri, con misurazione:
   infra senza beneficio misurabile (regola "measure, don't add").
 - Regola di parità GUI: i ref sono file, non funzioni del ledger, quindi
   non richiedono un controllo nella Plancia (sono letti dal worker via tool).
+
+## 📚 Cycle 83 — Ref per window manager espliciti (2026-11-17)
+
+- **Nuovi cheat sheet**: `GUI/refs/tkinter.md`, `GUI/refs/pyside6.md`
+  (confronto PySide6 vs PyQt6, segnali, threading, tool di conversione).
+  `pyqt6.md` già esistente.
+- **Iniezione condizionale con trigger obbligatori**: un ref WM si
+  inietta SOLO se il nome del WM compare esplicitamente nel task
+  (pyqt/pyqt6, pyside/pyside6, tkinter/ttk). Un task "crea GUI" generico
+  non inietta nessun ref WM (evita cross-contamination). Soglia >=2
+  keyword per i ref generici (toolset_api, debt_ledger).
+- **Matching per confine di parola** (regex `(?<!\w)...(?!\w)`) invece
+  di substring: evita falsi positivi ("tk" in "toolkit").
+- **Max 2 ref per prompt**, 600 char ciascuno, fail-open.
+- Verificato con smoke test: "crea finestra PyQt6" -> solo pyqt6.md;
+  "crea GUI generica" -> nessun ref WM.
