@@ -40,6 +40,12 @@ sotto carico sostenuto. Le ventole al massimo sono un **prerequisito**
 dei run di byte-swarmy (`tools/swarm_refactor_session.py` ha una
 guardia dura: mai inferenza se una zona termica ≥ 90°C).
 
-La temperatura mostrata è la **max su tutte le zone termiche**
-(comprese CPU e il sensore DPTF B0D4, reale e critico su questo
-modello): verde < 60°C, arancione 60-80°C, rosso ≥ 80°C.
+La finestra mostra:
+- **numero primario = CPU vera** (coretemp, dinamica — verde < 60°C,
+  arancione 60-80°C, rosso ≥ 80°C);
+- **riga secondaria = zona termica più calda** con il suo nome, così
+  nulla è nascosto. Nota: la zona DPTF `B0D4` di questo modello
+  **satura a 100.0°C esatti sotto carico** (misurato Cycle 74: GPU
+  38°C, CPU max 63°C, B0D4 100.0) — quando compare l'avviso
+  "satura (sensore DPTF noto difettoso)" il numero da guardare è
+  quello della CPU.

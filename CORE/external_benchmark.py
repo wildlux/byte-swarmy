@@ -170,6 +170,36 @@ BENCH_TASKS = [
 ]
 
 
+def _cpu_temp_now() -> float:
+    """Temp CPU REALE (°C): coretemp (per-core max), fallback
+    x86_pkg_temp. B0D4 satura a 100.0 e non è usabile."""
+    vals: list[float] = []
+    try:
+        import glob as _glob
+        for hw in _glob.glob("/sys/class/hwmon/hwmon*"):
+            try:
+                if Path(hw, "name").read_text().strip() != "coretemp":
+                    continue
+                for p in _glob.glob(f"{hw}/temp*_input"):
+                    vals.append(float(Path(p).read_text().strip()) / 1000.0)
+            except (OSError, ValueError):
+                continue
+        if vals:
+            return max(vals)
+        for z in _glob.glob("/sys/class/thermal/thermal_zone*"):
+            try:
+                if Path(z, "type").read_text().strip() != "x86_pkg_temp":
+                    continue
+                t = float(Path(z, "temp").read_text().strip()) / 1000.0
+                if 0 < t < 100:
+                    return t
+            except (OSError, ValueError):
+                continue
+    except Exception:
+        pass
+    return max(vals) if vals else 0.0
+
+
 class ExternalBenchmark:
     """Esegue benchmark esterni e li confronta con un baseline modello nudo."""
 
@@ -221,15 +251,8 @@ class ExternalBenchmark:
     # ------------------------------------------------------------------
     @staticmethod
     def _max_temp() -> float:
-        """Temperatura massima attuale tra le zone termiche (0.0 = n/d)."""
-        import glob as _glob
-        m = 0.0
-        for path in _glob.glob("/sys/class/thermal/thermal_zone*/temp"):
-            try:
-                m = max(m, float(Path(path).read_text().strip()) / 1000.0)
-            except Exception:
-                pass
-        return m
+        """Temp CPU reale (°C) — coretemp, non il falso DPTF B0D4."""
+        return _cpu_temp_now()
 
     def run_harness_task(self, task: dict, worker_factory,
                          max_retries: int = 3) -> dict:

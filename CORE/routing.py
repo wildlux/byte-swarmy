@@ -149,31 +149,39 @@ def reset_hysteresis() -> None:
 
 # ── M4: guardia termica ────────────────────────────────────────────────
 def _read_cpu_temp_now() -> float:
-    """Temp CPU max (°C) da /sys — stessa meccanica di TimestralManager.
-    0.0 = non disponibile (fail-open)."""
-    temps: list[float] = []
+    """Temp CPU REALE (°C) — coretemp (per-core max), fallback
+    x86_pkg_temp. Fail-open: 0.0 se non disponibile.
+
+    🆕 Cycle 74: il sensore DPTF B0D4 di questi HP satura a 100.0°C
+    esatti sotto carico e resta bloccato (misurato: 30s di ventole al
+    massimo, CPU 57→46°C, B0D4 inchiodato a 100.0). Non è una
+    temperatura reale — usarlo come gate blocca il runner per sempre.
+    Gate su CPU vera; B0D4 è solo un WARNING (vedi stuck_hot_zones).
+    """
+    vals: list[float] = []
     try:
-        tdir = Path("/sys/class/thermal")
-        for zone in tdir.glob("thermal_zone*"):
-            f = zone / "temp"
-            if f.exists():
-                try:
-                    temps.append(int(f.read_text().strip()) / 1000.0)
-                except Exception:
+        for hw in Path("/sys/class/hwmon").iterdir():
+            try:
+                if (hw / "name").read_text().strip() != "coretemp":
                     continue
+                for f in hw.glob("temp*_input"):
+                    vals.append(int(f.read_text().strip()) / 1000.0)
+            except Exception:
+                continue
+        if vals:
+            return max(vals)
+        for zone in Path("/sys/class/thermal").glob("thermal_zone*"):
+            try:
+                if (zone / "type").read_text().strip() != "x86_pkg_temp":
+                    continue
+                t = int((zone / "temp").read_text().strip()) / 1000.0
+                if 0 < t < 100:
+                    return t
+            except Exception:
+                continue
     except Exception:
         pass
-    if not temps:
-        try:
-            hdir = Path("/sys/class/hwmon")
-            for hw in hdir.iterdir():
-                for f in hw.glob("temp*_input"):
-                    try:
-                        temps.append(int(f.read_text().strip()) / 1000.0)
-                    except Exception:
-                        continue
-        except Exception:
-            pass
+    return max(vals) if vals else 0.0
     return max(temps) if temps else 0.0
 
 

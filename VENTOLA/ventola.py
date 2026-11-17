@@ -24,16 +24,18 @@ from PyQt6.QtWidgets import (
 
 
 def cpu_temp() -> float:
-    """Max temperatura tra le zone termiche (°C) — see lezione UEFI
-    Cycle 73: B0D4 è reale (100°C sotto carico = pre-blocco UEFI);
-    mostrare il componente più caldo è la scelta sicura."""
-    m = 0.0
-    for p in glob.glob("/sys/class/thermal/thermal_zone*/temp"):
+    """Temp CPU VERA (°C): coretemp (per-core max). B0D4 satura a
+    100.0 e non è usabile come numero primario (vedi hottest_zone)."""
+    vals = []
+    for d in glob.glob("/sys/class/hwmon/hwmon*"):
         try:
-            m = max(m, float(Path(p).read_text().strip()) / 1000.0)
+            if Path(d, "name").read_text().strip() != "coretemp":
+                continue
+            for p in glob.glob(f"{d}/temp*_input"):
+                vals.append(float(Path(p).read_text().strip()) / 1000.0)
         except (OSError, ValueError):
-            pass
-    return m
+            continue
+    return max(vals) if vals else 0.0
 
 
 def cpu_core_temp() -> float:

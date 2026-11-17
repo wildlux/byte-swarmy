@@ -55,22 +55,32 @@ DISCIPLINA = (
 
 
 def read_max_temp() -> float:
-    """Max temperatura tra le zone termiche (°C).
-
-    🆕 Cycle 73 (lezione UEFI): si usa la max su TUTTE le zone —
-    B0D4 non è un falso sensore (misurato: 52°C a freddo, 100°C sotto
-    carico → UEFI block). Ignorarlo significa non vedere il componente
-    più caldo. Il gate severo è la protezione, non il nemico: le
-    attese lunghe si risolvono con le VENTOLE (tools/fan_control_qt.py),
-    non abbassando la guardia.
-    """
-    m = 0.0
-    for p in glob.glob("/sys/class/thermal/thermal_zone*/temp"):
-        try:
-            m = max(m, float(Path(p).read_text().strip()) / 1000.0)
-        except (OSError, ValueError):
-            pass
-    return m
+    """Temp CPU REALE (°C): coretemp (per-core max), fallback
+    x86_pkg_temp. B0D4 satura a 100.0 e non è usabile."""
+    vals = []
+    try:
+        for d in glob.glob("/sys/class/hwmon/hwmon*"):
+            try:
+                if Path(d, "name").read_text().strip() != "coretemp":
+                    continue
+                for p in glob.glob(f"{d}/temp*_input"):
+                    vals.append(float(Path(p).read_text().strip()) / 1000.0)
+            except (OSError, ValueError):
+                continue
+        if vals:
+            return max(vals)
+        for z in glob.glob("/sys/class/thermal/thermal_zone*"):
+            try:
+                if Path(z, "type").read_text().strip() != "x86_pkg_temp":
+                    continue
+                t = float(Path(z, "temp").read_text().strip()) / 1000.0
+                if 0 < t < 100:
+                    return t
+            except (OSError, ValueError):
+                continue
+    except Exception:
+        pass
+    return max(vals) if vals else 0.0
 
 
 def wait_cold(threshold: float = COLD_THRESHOLD_C,
@@ -90,14 +100,18 @@ def wait_cold(threshold: float = COLD_THRESHOLD_C,
 
 
 def build_task(task_id: str, title: str, description: str,
-               file_path: str) -> dict:
-    """Task dict con la disciplina già dentro la descrizione."""
+               file_path: str, discipline: bool = True) -> dict:
+    """Task dict; la disciplina (read-first) è opzionale — per file
+    nuovi non c'è nulla da leggere, quindi discipline=False."""
+    desc = description
+    if discipline:
+        desc = f"{description} {DISCIPLINA}"
     return {
         "id": task_id,
         "title": title,
-        "description": f"{description} {DISCIPLINA}",
+        "description": desc,
         "file": file_path,
-        "type": "fix",
+        "type": "fix" if discipline else "create",
         "source": "debt_ledger",
     }
 
@@ -161,6 +175,9 @@ def main(argv=None) -> int:
                          "(default %.1f). Per task xs con runner v2 (num_thread "
                          "su tutti i modelli) si puo' alzare a ~48°C." %
                     COLD_THRESHOLD_C)
+    ap.add_argument("--no-discipline", action="store_true",
+                    help="Non appendere la DISCIPLINA read-first (per file "
+                         "nuovi che non esistono ancora).")
     args = ap.parse_args(argv)
 
     cwd = Path.cwd()
@@ -171,13 +188,30 @@ def main(argv=None) -> int:
                   MAX_WAIT_SEC, temp)
         return 2
     log.info("freddo raggiunto: %.1f°C → avvio sessione", temp)
-    # 🆕 Guardia dura (lezione UEFI, Cycle 73): se QUALSIQUE zona è
+    # 🆕 Avviso (Cycle 74): B0D4 satura a 100.0 sotto carico e resta
+    # bloccato (misurato: 30s ventole al max, B0D4 inchiodato a 100.0
+    # mentre CPU 57→46°C). Il gate è su CPU vera, ma avviso se una zona
+    # è ≥ 95°C — probabilmente il sensore DPTF saturo, NON la CPU.
+    hot = []
+    for z in glob.glob("/sys/class/thermal/thermal_zone*"):
+        try:
+            t = float(Path(z, "temp").read_text().strip()) / 1000.0
+            if t >= 95.0:
+                hot.append((Path(z, "type").read_text().strip(), t))
+        except (OSError, ValueError):
+            continue
+    if hot:
+        log.warning("zone ≥ 95°C (probabilmente B0D4 saturo): %s — "
+                    "il gate e' su CPU vera, ma ventole al MAX prima "
+                    "di proseguire", hot)
+    # 🆕 Guardia dura (lezione UEFI, Cycle 73): se la CPU vera è
     # ≥ 90°C il blocco UEFI è dietro l'angolo — mai inferenza.
     if temp >= 90.0:
-        log.error("zona ≥ 90°C (%.1f°C): abort di sicurezza", temp)
+        log.error("CPU vera ≥ 90°C (%.1f°C): abort di sicurezza", temp)
         return 3
 
-    task = build_task(args.task_id, args.title, args.description, args.file)
+    task = build_task(args.task_id, args.title, args.description, args.file,
+                      discipline=not args.no_discipline)
     try:
         report = run_session(cwd / args.project, task, args.config,
                              args.model, log)

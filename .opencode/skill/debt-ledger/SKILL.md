@@ -3,68 +3,85 @@ name: debt-ledger
 description: Registro del debito tecnico di byte-swarmy (SQLite). Usa quando trovi un pezzo da rifattorizzare/ottimizzare, quando devi scegliere su cosa lavorare, o quando l'utente parla di refactoring, debito tecnico, ottimizzazioni da tracciare.
 ---
 
-# Registro del debito tecnico (debt ledger)
+# Debt ledger — il flusso completo
 
-SQLite in `state/debt_ledger.db`, gestito SOLO via `CORE/debt_ledger.py`
-(API o CLI). **Mai SQL libero**: le query sono deterministiche, gratis,
-zero calore — la pianificazione avviene a macchina fredda, l'esecuzione
-in un item per sessione (regola stadiale, limite 60°C).
+Il ledger decide il lavoro: **`next` torna la coda, mai "un'idea"**.
+Deterministico-first: l'LLM non scrive SQL libero, dialoga con le
+API/CLI del modulo (`CORE/debt_ledger.py`). Verifiche anti-stantio con
+`file_hash` (se il file è cambiato dopo la registrazione, l'item
+diventa `stale` e non torna da `next`).
 
-## Le 3 regole
+## Regole permanenti (leali e non negoziabili)
 
-1. **Registra trovando**: ogni volta che noti un pezzo da rifattorizzare
-   o ottimizzare, un comando `add` (5 secondi). Il ledger vale più del
-   ricordo.
-2. **`file_hash` protegge dalla marcium**: il modulo calcola l'hash del
-   file ALLA registrazione; se il file cambia, l'item va in `stale`
-   automaticamente e non viene mai proposto alla cieca. Se un item è
-   stale: riverifica la premessa e ri-registralo (il vecchio resta in
-   storia).
-3. **Il "next" viene da una query, non da un'idea**: prima di scegliere
-   lavoro, chiedi al ledger. `prefer_kind` ripriorizza un tipo di lavoro
-   senza violare le priorità.
+1. **REGISTRA solo con premessa misurata** — numeri dalla radiografia
+   (skill `project-radiography`), mai "mi sembra". Il vincolo di
+   verifica (build? test? grep?) va scritto nel rationale.
+2. **UN item per sessione** — stadiale: mini-test, mai generazioni
+   monolitiche.
+3. **`next` decide** — apri la sessione con `next`; il titolo dell'item
+   è il lavoro. Se l'item è stale → prima capire perché (file
+   cambiato: rileggere, registrare nuovo o aggiornare).
+4. **Per-progetto**: ogni progetto target ha il SUO ledger
+   (`--root project/<nome>`); quello di default è di byte-swarmy.
+5. **REGOLA DI PARITÀ GUI (Cycle 70)**: ogni funzione del ledger deve
+   avere un controllo nella Plancia (`GUI/debt_ledger_panel.py`) —
+   niente API che esistono solo da terminale. Se aggiungi una funzione,
+   aggiungi anche il bottone.
+6. **Chiudi onesto**: `done` solo dopo verifica deterministica
+   (py_compile + grep + diff + `git status` del clone). Se il worker
+   LLM fallisce → verdetto scritto, fallback deterministico
+   documentato, item chiuso comunque (la coda non si seppellisce).
 
-## CLI (l'interfaccia ufficiale per l'LLM)
+## CLI (tutti i comandi)
 
 ```bash
-# registra (il file può anche non esistere ancora)
-.venv/bin/python -m CORE.debt_ledger add \
-    --kind refactor|optimization|test|docs \
-    --file PERCORSO/relativo.py \
-    --title "Cosa" --rationale "Perché" \
-    --priority 1|2|3 --effort xs|s|m|l
+D=".venv/bin/python -m CORE.debt_ledger"
 
-# scegli su cosa lavorare (con check anti-stantio automatico)
-.venv/bin/python -m CORE.debt_ledger next [--kind test]
+# registrare (premessa misurata nel rationale!)
+$D add [--root project/<nome>] --kind refactor|optimization|test|docs \
+    --file <percorso> --title "Cosa" --rationale "Perché, con dati" \
+    [--priority 1|2|3] [--effort xs|s|m|l]
 
-# lista e stato
-.venv/bin/python -m CORE.debt_ledger list [--status open]
-.venv/bin/python -m CORE.debt_ledger stats
-
-# avanzamento di un item
-.venv/bin/python -m CORE.debt_ledger progress <id>   # inizio lavoro
-.venv/bin/python -m CORE.debt_ledger done <id>       # fine (dopo verifica)
-
-# contesto del file dal code_map (simboli esistenti, fail-open)
-.venv/bin/python -m CORE.debt_ledger context PERCORSO/relativo.py
+# il lavoro decide da solo
+$D next [--root ...]          # prende l'item valido a priorità più alta
+$D list [--root ...] [--status open|done|in_progress|stale]
+$D mark <id> in_progress|done|open [--root ...]
+$D done <id> [--root ...]     # scorciatoia per mark done
+$D get <id> [--root ...]      # dettaglio completo
+$D context <file> [--root ...] # simboli del file dal code_map (fail-open)
+$D stats [--root ...]         # done · in_progress · open · stale
 ```
 
-## Flusso di una sessione di rifattorizzazione (stadiale, 60°C)
+`--kind` ammessi: `refactor`, `optimization`, `test`, `docs`.
+`--effort`: `xs`, `s`, `m`, `l` (stima onesta, non aspirazionale).
 
-1. `next` → prendi UN item.
-2. `progress <id>` → inizio.
-3. `context <file>` → simboli dal code_map: RIUSA le API esistenti
-   invece di allucinarle.
-4. Esegui lo stadio (generazione breve, verifica host-side:
-   `py_compile` + test mirati, mai generazioni monolitiche).
-5. Verifica verde → `done <id>`. Fallita → ri-registra l'item con la
-   premessa corretta e lascia `in_progress` con nota nel rationale.
+## Il ciclo di sessione (stadiale)
 
-## Integrazione con il resto del progetto
+```
+1. $D next                 → l'item torna dalla query (id, title, file)
+2. Stadio di lavoro:
+   a. LLM? → tools/swarm_refactor_session.py (agent fresh, guardie
+      termiche, disciplina in descrizione) — SOLO con ventole attive
+   b. Meccanico? → esecutore deterministico (sed/grep/refactor API),
+      documentato come fallback nel ledger/docs
+3. Verifica deterministica:
+   - py_compile dei file toccati
+   - grep del pattern (deve valere 0 residui se l'item lo promette)
+   - git diff (sano: solo le righe promesse)
+   - git status del clone (nessun file hallucinato)
+4. $D done <id>            → item chiuso
+5. Docs: DOCS/IMPLEMENTED.md + todo.md + README versione
+6. Commit + push byte-swarmy
+```
 
-- `CORE/code_map.py` (AST→SQLite): fonte del contesto simboli —
-  il ledger NON duplica la mappa, la riusa.
-- `todo.md`: resta il piano di progetto; il ledger è il pezzo-level
-  (file/funzione) e si aggiorna da solo via CLI.
-- `tools/verify_cycle.sh`: la verifica del punto 4 è lo stesso ciclo
-  standard (py_compile → test → boot smoke).
+## Esempio reale (Cycle 69, misurato)
+
+Ciclo completo — `next` → esecuzione fredda → verifica → `done` —
+**13,4 secondi**: la disciplina costa meno di una pausa termica.
+
+## GUI (regola di parità)
+
+Pannello 🏛️ **Registro del debito** in Plancia: `stats` (etichetta),
+`list` (tabella), `add` (dialog), `next` (🎯 Prossimo: prende, marca
+in corso, seleziona), `mark` (▶ In corso / ✅ Fatto), `context`
+(🔍 simboli code_map), refresh solo a bottone (zero timer nuovi).
