@@ -131,7 +131,7 @@ class TestConfigModel:
         assert c.ollama.host == OLLAMA_HOST
         assert c.ollama.request_timeout == 300
         assert c.models.orchestrator.name == "qwen2.5:1.5b"
-        assert c.models.planner.num_ctx == 3072
+        assert c.models.planner.num_ctx == 2048
         assert c.security.enabled is True
         assert c.security.max_output_chars == 10000
         assert c.routing.confidence_threshold == 0.65

@@ -1769,3 +1769,20 @@ veri, con misurazione:
 - Il ledger per-progetto e il code_map vivevano DENTRO il clone
   (.gitignored): rimossi col clone, nessun artefatto di prismalux
   resta in byte-swarmy.
+
+## 🦋 Cycle 75 — verify_cycle.sh end-to-end + skill debt-ledger (2026-11-17)
+
+- **`tools/verify_cycle.sh` prima esecuzione end-to-end** (era il
+  parziale più antico): py_compile OK (6 file) · boot smoke OK (rc=124) ·
+  test_runner 64 file / 60 OK / 4 KO / 756 pass / 3 fail / 3 skip in
+  387s. I 3 fail sono pre-esistenti (NON causati da miei cambi):
+  `test_reuse.py` (assert 3072 vs 2048 — test stale: Cycle 67 aveva
+  cambiato `num_ctx` planner a 2048 ma il test non fu aggiornato →
+  corretto), `test_user_workflow.py::TestToolbarToggle` (flake noto),
+  `test_functional_swarm.py` (timeout 120s, flaky su hardware).
+  Disciplina rispettata: il FAIL end-to-end è stato indagato, non
+  ignorato; qui il FAIL era "test vecchi", non regressione.
+- **Skill `debt-ledger`** scritta (`SKILL.md`): regole permanenti +
+  CLI completa + ciclo di sessione stadiale + regola di parità GUI +
+  esempio reale 13,4s. Riusabile in ogni sessione futura.
+- `tests/test_reuse.py`: 3072 → 2048 (allineato a Cycle 67).

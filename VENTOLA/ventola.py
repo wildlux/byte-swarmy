@@ -36,6 +36,39 @@ def cpu_temp() -> float:
     return m
 
 
+def cpu_core_temp() -> float:
+    """Temp CPU VERA (°C): max per-core di coretemp (dinamica).
+
+    Cycle 74: B0D4 SATURA a 100.0°C esatti sotto carico (misurato:
+    GPU 38°C, CPU max 63°C, B0D4 100.0) → il numero max-zone sembra
+    bloccato nella GUI. Il numero primario mostrato è questo.
+    """
+    vals = []
+    for d in glob.glob("/sys/class/hwmon/hwmon*"):
+        try:
+            if Path(d, "name").read_text().strip() != "coretemp":
+                continue
+            for p in glob.glob(f"{d}/temp*_input"):
+                vals.append(float(Path(p).read_text().strip()) / 1000.0)
+        except (OSError, ValueError):
+            continue
+    return max(vals) if vals else 0.0
+
+
+def hottest_zone() -> tuple[float, str]:
+    """(temp, nome) della zona termica più calda (per la riga secondaria)."""
+    best = (0.0, "?")
+    for z in glob.glob("/sys/class/thermal/thermal_zone*"):
+        try:
+            t = float(Path(z, "temp").read_text().strip()) / 1000.0
+            name = Path(z, "type").read_text().strip()
+            if t > best[0]:
+                best = (t, name)
+        except (OSError, ValueError):
+            continue
+    return best
+
+
 def max_temp() -> float:
     """Compatibilità: alias di cpu_temp (fonte vera)."""
     return cpu_temp()
@@ -92,17 +125,25 @@ class FanControl(QWidget):
 
     # ------------------------------------------------------------------
     def _tick(self) -> None:
-        t = max_temp()
-        self.temp.setText(f"🌡️ {t:.1f}°C")
-        if t >= 80:
+        cpu = cpu_core_temp()
+        hot, hot_name = hottest_zone()
+        # Primario: CPU vera (dinamica — B0D4 satura e sembrerebbe bloccato)
+        self.temp.setText(f"🌡️ CPU {cpu:.1f}°C")
+        if cpu >= 80:
             self.temp.setStyleSheet(
                 "font-size: 34px; font-weight: 600; color: #b91c1c;")
-        elif t >= 60:
+        elif cpu >= 60:
             self.temp.setStyleSheet(
                 "font-size: 34px; font-weight: 600; color: #b45309;")
         else:
             self.temp.setStyleSheet(
                 "font-size: 34px; font-weight: 600; color: #15803d;")
+        # Secondario: la zona più calda (trasparenza, niente nascosto)
+        warn = ""
+        if hot >= 95.0 and cpu < 80:
+            warn = " — ⚠️ satura (sensore DPTF noto difettoso)"
+        self.state.setText(
+            f"zona più calda: {hot_name} {hot:.1f}°C{warn}")
 
     def _run(self, what: str, _root: bool) -> None:
         cmds = {

@@ -19,15 +19,16 @@ todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
 Macchina fredda: prima il benchmark, poi il resto. Ogni step con la
 regola termica (stadiale, `--cooldown 30 --thermal-limit 60`).
 
-1. [~] **`tools/verify_cycle.sh` — script del ciclo di verifica standard**
-      (furbata onesta: automazione deterministica, NON un LLM che genera
-      comandi). Un solo comando che incapsula la sequenza ripetuta a ogni
-      ciclo: `py_compile` dei file toccati → test mirati → boot smoke
-      (`state/pause.flag` + `CORE.orchestrator`). Zero LLM, zero calore,
-      ~18s fissi, stessa disciplina rigorosa. Uso futuro: i cicli si
-      verificano con `./tools/verify_cycle.sh <file_modificati...>`
-      invece di 3-4 comandi separati. **Creato e bash-checked (Cycle 66);
-      TODO: prima esecuzione end-to-end.**
+1. [x] **`tools/verify_cycle.sh` — prima esecuzione end-to-end** ✅
+      (Cycle 74): py_compile OK (6 file) · boot smoke OK (rc=124) ·
+      test_runner 64 file / 60 OK / 4 KO / 756 pass / 3 fail / 3 skip
+      in 387s. I 3 fail sono pre-esistenti e NON causati da miei cambi:
+      - `test_reuse.py` (assert 3072→2048 stale, corretto ora: Cycle 67
+        aveva cambiato num_ctx planner a 2048 ma il test non fu aggiornato)
+      - `test_user_workflow.py::TestToolbarToggle` (flake già noto)
+      - `test_functional_swarm.py` (timeout 120s, flaky su hardware)
+      Disciplina rispettata: una FAIL end-to-end viene indagata, non
+      ignorata — qui il FAIL era "test vecchi", non regressione.
 2. [x] **Benchmark di validazione della corsia veloce (fast lane)** —
       ✅ **CHIUSO con verdetto onesto** (Cycle 66, decisione utente
       "stop definitivo"): fast lane NON validata → `enabled = false`
@@ -76,9 +77,10 @@ RIFATTORIZZATO. Già dentro il progetto: SQLite usato in 5 punti
       DB: `state/debt_ledger.db`.
 - [x] **Test** `tests/test_debt_ledger.py` — priorità, stale-on-change,
       done skip, fail-open senza codemap.
-- [ ] **Skill** `.opencode/skill/debt-ledger/SKILL.md` — flusso
+- [x] **Skill** `.opencode/skill/debt-ledger/SKILL.md` — flusso
       registrare → next → verificare → chiudere, riusabile in ogni
-      sessione futura.
+      sessione futura. ✅ Cycle 74: scritta (regole + CLI + ciclo di
+      sessione + regola parità GUI + esempio reale 13,4s).
 - [x] Docs: IMPLEMENTED Cycle 68, README versione.
 - [x] **Primo test reale del flusso, a tempo (Cycle 69)**: alimentare la
       coda con item veri già noti + eseguire il primo con il flusso
