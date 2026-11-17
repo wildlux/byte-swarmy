@@ -108,17 +108,10 @@ class OrchestratorMixin:
         paused_style = ("QPushButton#primary_btn { background:#f59e0b; color:white; "
                         "font-weight:bold; font-size:14px; border-radius:6px; "
                         "border:none; }")
-        # Verifica che l'orchestratore sia effettivamente in esecuzione
-        orch_running = False
-        try:
-            if os.path.exists(pid_file):
-                with open(pid_file) as _f:
-                    _pid = int(_f.read().strip())
-                with open(f"/proc/{_pid}/cmdline", "rb") as _f:
-                    _cmd = _f.read().replace(b"\\x00", b" ").decode("utf-8", "replace")
-                orch_running = ("orchestrator" in _cmd or "watchdog" in _cmd)
-        except Exception:
-            orch_running = False
+        # 🆕 Cycle 85: unica fonte di verità — prima qui c'era un controllo
+        # pid/proc inline DUPLICATO che bypassava _is_orchestrator_running
+        # (e i test ermetici). Il dedup è anche un fix di coerenza.
+        orch_running = self._is_orchestrator_running()
         if not orch_running:
             # Avvia l'orchestratore in background
             try:
@@ -205,7 +198,7 @@ class OrchestratorMixin:
             with open(pid_file) as _f:
                 _pid = int(_f.read().strip())
             with open(f"/proc/{_pid}/cmdline", "rb") as _f:
-                _cmd = _f.read().replace(b"\\x00", b" ").decode("utf-8", "replace")
+                _cmd = _f.read().replace(b"\x00", b" ").decode("utf-8", "replace")
             return ("orchestrator" in _cmd or "watchdog" in _cmd)
         except Exception:
             return False

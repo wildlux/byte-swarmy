@@ -1951,3 +1951,20 @@ sandbox + boot smoke. Risultati.
 Riepilogo finale suite (senza i 2 flake noti): 789 passed, 0 failed,
 3 skipped, 1050 subtests passed, in 18:54 (più lenta del previsto:
 i gate ora eseguono veri comandi sandbox invece di morire su NameError).
+
+### 🔴 Seguito classificazione "flake" (Cycle 85c)
+12. **TestToolbarToggle NON era un flake**: click su "orchestratore non
+    attivo" → branch auto-start → subprocess REALE + 5s attesa → '▶'!='⏸'.
+    Il flake era self-healing (run successiva: orchestratore vivo →
+    passa). Il test ha anche avviato orchestratori veri (killati).
+    Fix doppio:
+    - prodotto: `_toggle_orchestrator` usa `_is_orchestrator_running()`
+      come unica fonte di verità (il controllo pid/proc era DUPLICATO
+      inline e bypassava il metodo) + typo `b"\\x00"` → `b"\x00"` (NUL)
+    - test: setUp/tearDown ermetici — patch `_is_orchestrator_running`
+      su True, pulizia pause.flag → mai subprocess nei test
+    Verifica: TestToolbarToggle 1 passed (8.45s), 0 orchestratori
+    spawnati; test_user_workflow completo 25 passed + 46 subtests.
+13. **test_functional_swarm: NON un flake** — passa da solo (7 passed,
+    21:00: lento ma verde; EXIT=0). Da escludere dai run veloci, non
+    dai run di verifica completi.

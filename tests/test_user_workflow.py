@@ -279,7 +279,27 @@ class TestThemeLiveSwitch(unittest.TestCase):
 
 
 class TestToolbarToggle(unittest.TestCase):
-    """Il pulsante ▶/⏸ della toolbar è collegato e fa la pausa REALE."""
+    """Il pulsante ▶/⏸ della toolbar è collegato e fa la pausa REALE.
+
+    🆕 Cycle 85: il test è ERMETICO — patcha `_is_orchestrator_running`
+    su True così il click esercita SOLO la semantica pausa/riprendi.
+    Senza patch, con pid stale il branch auto-start lanciava un
+    orchestratore REALE (subprocess + 5s di attesa): il test falliva
+    ('▶' != '⏸') e inquinava la macchina — il "flake" era self-healing
+    perché alla run successiva l'orchestratore era vivo.
+    """
+
+    def setUp(self):
+        center = _window()
+        self._orig_running = center._is_orchestrator_running
+        center._is_orchestrator_running = lambda: True
+        # Ambiente pulito: niente flag pre-esistente
+        (ROOT / "state" / "pause.flag").unlink(missing_ok=True)
+
+    def tearDown(self):
+        center = _window()
+        center._is_orchestrator_running = self._orig_running
+        (ROOT / "state" / "pause.flag").unlink(missing_ok=True)
 
     def test_toggle_pauses_and_resumes(self):
         center = _window()
