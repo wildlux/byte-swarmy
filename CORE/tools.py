@@ -20,13 +20,19 @@ from __future__ import annotations
 
 import os
 import re
+import json
 import resource
 import shlex
 import signal
 import subprocess
+import sys
 import uuid
 from pathlib import Path
 from typing import Callable, Optional, Sequence
+
+# Root del repo (tests/run_tests.py ecc.); indipendente da cwd.
+# Nota: il worker NON lavora qui — project_root (config) è il suo workspace.
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 def _tmp_name(base: str, suffix: str = "") -> str:
@@ -970,60 +976,85 @@ class ToolSet:
 
     # ----- 17. run_test_suite -----
     def run_test_suite(self) -> str:
-        """Esegue la suite di test in sandbox e restituisce un report semplificato.
+        """Esegue i test del PROGETTO del worker e restituisce un report.
 
-        Cerca i test in tests/ e usa pytest o unittest.
+        Il worker lavora su project_root (es. project/): la suite da
+        eseguire è quella DEL PROGETTO, non quella del repo host (mai
+        visibile dentro il sandbox). Ordine:
+          1. <project_root>/tests/run_tests.py (runner JSON) se esiste
+          2. altrimenti `python -m pytest -q` su <project_root>/tests
+          3. altrimenti errore istruttivo
         """
         try:
-            # Usiamo il runner JSON creato per la GUI per avere output strutturato
-            runner_path = BASE_DIR / "tests" / "run_tests.py"
-            if not runner_path.exists():
-                return "ERROR: test runner not found in tests/run_tests.py"
+            root = Path(self.project_root)
+            runner_path = root / "tests" / "run_tests.py"
 
-            # Esecuzione in sandbox
-            cmd, env = sandbox.build_command(
-                [sys.executable, str(runner_path), "--json"],
-                self.project_root,
+            if runner_path.exists():
+                # 1. Runner JSON del progetto (output strutturato)
+                cmd, env = sandbox.build_command(
+                    self._sandbox_argv(
+                        [sys.executable, str(runner_path), "--json"]),
+                    self.project_root,
+                )
+
+                proc = subprocess.Popen(
+                    cmd,
+                    cwd=str(self.project_root),
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    env=env,
+                    start_new_session=True,
+                    preexec_fn=self._preexec(60),
+                )
+                stdout, stderr = proc.communicate()
+
+                if proc.returncode != 0 and not stdout:
+                    return f"ERROR executing tests: {stderr}"
+
+                # Parsing del report JSON
+                raw = stdout.strip()
+                start, end = raw.find("{"), raw.rfind("}")
+                if start < 0 or end <= start:
+                    return f"ERROR: invalid test report\n{stdout[:500]}"
+
+                data = json.loads(raw[start:end+1])
+                summary = data.get("summary", {})
+
+                report = (
+                    f"TEST REPORT: {summary.get('passed', 0)}/{summary.get('total', 0)} PASS\n"
+                    f"FAIL: {summary.get('failed', 0)} | ERR: {summary.get('errors', 0)}\n"
+                    "---"
+                )
+
+                # Aggiungi solo i test falliti per non saturare il contesto
+                for t in data.get("tests", []):
+                    if t["status"] in ("FAIL", "ERROR"):
+                        report += f"\n[{t['status']}] {t['name']}: {t['detail']}"
+
+                return report if len(report) > 15 else report + "\nAll tests passed!"
+
+            # 2. Fallback: pytest diretto sulla suite del progetto
+            tests_dir = root / "tests"
+            if tests_dir.is_dir():
+                out = self._run(
+                    [sys.executable, "-m", "pytest", "-q",
+                     str(tests_dir.relative_to(root))],
+                    timeout=180, cwd=root,
+                )
+                # Sintesi per non saturare il contesto del worker
+                lines = [ln for ln in out.splitlines() if ln.strip()]
+                tail = "\n".join(lines[-12:])
+                return f"PYTEST REPORT:\n{tail}"
+
+            # 3. Nessuna suite nel progetto
+            return (
+                "ERROR: no tests/ directory in project "
+                f"({root.name}). Crea tests/ prima di chiedere "
+                "l'esecuzione della suite."
             )
-
-            proc = subprocess.Popen(
-                cmd,
-                cwd=str(self.project_root),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                env=env,
-                start_new_session=True,
-                preexec_fn=self._preexec(60),
-            )
-            stdout, stderr = proc.communicate()
-
-            if proc.returncode != 0 and not stdout:
-                return f"ERROR executing tests: {stderr}"
-
-            # Parsing del report JSON
-            raw = stdout.strip()
-            start, end = raw.find("{"), raw.rfind("}")
-            if start < 0 or end <= start:
-                return f"ERROR: invalid test report\n{stdout[:500]}"
-
-            data = json.loads(raw[start:end+1])
-            summary = data.get("summary", {})
-
-            report = (
-                f"TEST REPORT: {summary.get('passed', 0)}/{summary.get('total', 0)} PASS\n"
-                f"FAIL: {summary.get('failed', 0)} | ERR: {summary.get('errors', 0)}\n"
-                "---"
-            )
-
-            # Aggiungi solo i test falliti per non saturare il contesto
-            for t in data.get("tests", []):
-                if t["status"] in ("FAIL", "ERROR"):
-                    report += f"\n[{t['status']}] {t['name']}: {t['detail']}"
-
-            return report if len(report) > 15 else report + "\nAll tests passed!"
         except Exception as e:
             return f"ERROR running test suite: {e}"
 
@@ -1209,6 +1240,32 @@ class ToolSet:
 
         return _limit
 
+    def _sandbox_argv(self, argv: Sequence[str]) -> list[str]:
+        """Mappa un argv host → argv visibile dentro il sandbox.
+
+        `sys.executable` e i path assoluti sotto project_root NON esistono
+        dentro bwrap (progetto montato in /workspace, venv in /opt/venv).
+        Senza questa traduzione bandit/mypy/run_test_suite falliscono con
+        "bwrap: execvp ... No such file or directory".
+        """
+        root = Path(self.project_root).resolve()
+        out: list[str] = []
+        for i, a in enumerate(argv):
+            s = str(a)
+            if i == 0 and (s == sys.executable or s.startswith(sys.prefix)):
+                out.append(sandbox.python_executable())
+                continue
+            p = Path(s)
+            if p.is_absolute():
+                try:
+                    rel = p.resolve().relative_to(root)
+                    out.append(f"{sandbox.WORKSPACE}/{rel.as_posix()}")
+                    continue
+                except (ValueError, OSError):
+                    pass
+            out.append(s)
+        return out
+
     def _run(self, argv: Sequence[str], timeout: int,
              cwd: Optional[Path] = None) -> str:
         """Esegue argv dentro il sandbox bubblewrap, senza shell.
@@ -1251,7 +1308,7 @@ class ToolSet:
         try:
             workdir = sandbox.sandbox_workdir(cwd, self.project_root)
             cmd, env = sandbox.build_command(
-                argv, self.project_root, workdir=workdir,
+                self._sandbox_argv(argv), self.project_root, workdir=workdir,
             )
         except sandbox.SandboxError as exc:
             self._audit(

@@ -475,8 +475,10 @@ class OrchestratorMixin:
                 if running_any:
                     self._completion_bar.setRange(0, 0)  # modalità indeterminata
                     self._completion_bar.setFormat("In elaborazione…")
+                    _proj_name = os.path.basename(
+                        (project_path or '').rstrip('/')) or "tutti"
                     self._completion_bar.setToolTip(
-                        f"Progetto: {proj_name}\n"
+                        f"Progetto: {_proj_name}\n"
                         f"Task in esecuzione: {target_title or '-'}\n"
                         f"Sotto-task attivi: {sub_done}/{sub_total}\n"
                         f"Totale storico: {done_all}/{tot_all}"

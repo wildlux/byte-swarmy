@@ -46,12 +46,11 @@ except ImportError:
     try:
         import tomli as tomllib
     except ImportError:
-        log.error("ERROR: serve Python 3.11+ o `pip install tomli`")
+        # log non è ancora configurato qui: stderr è deterministico
+        print("ERROR: serve Python 3.11+ o `pip install tomli`",
+              file=sys.stderr)
         sys.exit(1)
 
-from CORE.tools import ToolSet
-from CORE.memory import AgentMemory
-from CORE.ollama_client import ModelClient
 from CORE.regex_controller import RegexController, DEFAULT_PATTERNS, json_block
 
 # Controllore regex riusabile (json_object, json_array già nei default)

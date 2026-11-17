@@ -1883,3 +1883,60 @@ veri, con misurazione:
   toolkit specificato → ref iniettato. Il clarifier gestisce il "ask if vague".
 - I due pezzi insieme formano il pattern deterministico richiesto:
   vago → chiedi; specifico → inietta il ref giusto.
+
+## 🛡️ Cycle 85 — Audit robustezza: 12 difetti trovati e corretti (2026-11-17)
+
+Batteria: py_compile (264 file) + pyflakes (installato) + pytest + smoke
+sandbox + boot smoke. Risultati.
+
+### 🔴 Funzionalità silenziosamente morte (fix)
+1. **persistent_memory mai importata in worker.py**: `record_task_completed`,
+   `update_project_context`, `build_context_for_prompt` esistevano in
+   CORE/persistent_memory.py ma il try/except le seppelliva → il contesto
+   persistente nel prompt iniziale era SEMPRE vuoto da sempre. Fix: import.
+2. **run_test_suite dead-on-arrival**: NameError su `sys`/`json`/`BASE_DIR`
+   (mai importati in tools.py), mascherato dal try/except. Il planner
+   ORDINA al worker di usarlo → ogni worker lo chiamava e riceveva errore.
+   Fix: import + riorientamento al PROGETTO del worker (project_root),
+   con fallback pytest e errore istruttivo ("no tests/").
+3. **bwrap execvp failure**: argv con path host (sys.executable, script
+   host) non esistono nel sandbox (progetto in /workspace, venv in
+   /opt/venv). Fix: helper `_sandbox_argv` in ToolSet — traduce
+   interprete → sandbox.python_executable() e path assoluti sotto
+   project_root → /workspace/...; applicato in `_run` e run_test_suite.
+   PRIMA: bandit/mypy nel gate lint fallivano ugualmente (mascherati).
+4. **_ollama_installed inesistente** (task_scheduler_panel): la combo
+   modelli mostrava solo "(default)" sempre. Fix: ollama_list_models().
+5. **proj_name undefined** (cc_orchestrator): NameError nel tooltip della
+   barra quando un task è in esecuzione. Fix: calcolo locale.
+6. **`python GUI/center_area.py` crash**: blocco __main__ con crash
+   handler ben fatto ma sys/QApplication/ControlCenter mai importati.
+   Fix: import nel blocco.
+7. **undefined names residue**: `subprocess` (external_benchmark fallback
+   sensors), riga morta `temps` (routing), `log` nel fallback tomli
+   (orchestrator → print su stderr), doppio import ToolSet/AgentMemory/
+   ModelClient (orchestrator), `def embed` mai chiuso (ollama_client:
+   corpo orfano dopo return → ripristinata firma).
+
+### 🟠 Collection pytest
+8. **tests/archiviati ignora il file troncato**: TEST_GUI_QT_7.py è
+   troncato su disco (riga 545) e TRACCIATO in git → pytest lo raccoglie
+   e l'exit code dell'intera run diventa ERROR. Fix: root conftest.py
+   con collect_ignore = ["tests/archiviati"] + sys.path insurance.
+
+### ✅ Verifica (tutti test deterministici, zero LLM)
+9. **Cross-contamination ref Cycle 83**: task "PySide6 + QApplication"
+   riceveva pyqt6.md (con pyqtSignal → crash garantito). Fix: trigger di
+   famiglia + mutua esclusione (pyside esplicito → skip pyqt6, e
+   viceversa; entrambi espliciti → entrambi, per task di conversione).
+   11 test: tests/test_refs_injection.py.
+10. **toolset_api.md corretto**: run_test_suite documentata con la
+    semantica reale (test del progetto, non del repo) + typo "simbodo".
+
+### Verifiche eseguite
+- pyflakes: 0 undefined names su CORE/tools/SAFETY/MONITORING/VENTOLA/GUI
+- 40 passed (+18 subtests) su sandbox/toolset_gates/refs_injection/swarm_session
+- Smoke sandbox reale: run_test_suite su progetto pytest → 1 passed;
+  lint_code → SYNTAX OK + messaggi informativi bandit/mypy
+- Bare except in CORE: 0
+- Boot smoke + import GUI headless: OK

@@ -540,6 +540,7 @@ class CenterArea(QWidget):
 
 if __name__ == "__main__":
     # ── Crash handler: salva traceback su logs/crash.log prima di terminare ──
+    import sys  # noqa: E402  (richiesto dal __main__: launch diretto)
     import os as _os, traceback as _traceback
     from datetime import datetime as _datetime
     from pathlib import Path as _Path
@@ -576,6 +577,8 @@ if __name__ == "__main__":
 
     sys.excepthook = _crash_excepthook
 
+    from PyQt6.QtWidgets import QApplication  # noqa: E402
+    from GUI.control_center import ControlCenter  # noqa: E402
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     w = ControlCenter()

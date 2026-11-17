@@ -221,9 +221,10 @@ class TaskSchedulerPanel(QWidget):
         # Modello da usare (opzionale)
         self.task_model = QComboBox()
         try:
-            from GUI.actors_panel import OLLAMA_MODELS as _fallback
+            from GUI.actors_panel import (OLLAMA_MODELS as _fallback,
+                                          ollama_list_models as _ollama_list)
             fill_model_combo(self.task_model,
-                             _ollama_installed() or _fallback,
+                             _ollama_list() or _fallback,
                              with_default=True)
         except Exception:
             self.task_model.addItem("(default)", "(default)")

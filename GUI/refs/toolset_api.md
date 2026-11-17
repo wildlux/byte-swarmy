@@ -23,7 +23,7 @@ Path sempre relativi a project_root (es. "CORE/worker.py", non "/home/...").
 
 ## Analisi
 - `analyze_project()` → str: struttura del progetto
-- `find_references(symbol)` → str: chi usa il simbodo
+- `find_references(symbol)` → str: chi usa il simbolo
 - `analyze_complexity(path)` → str
 - `get_call_graph(symbol)` → str
 - `extract_method(path, start, end, new_name)` → str
@@ -34,8 +34,10 @@ Path sempre relativi a project_root (es. "CORE/worker.py", non "/home/...").
 - `git_commit(msg)`, `git_merge(branch)`, `git_pull()`, `git_push()`
 
 ## Test & bash
-- `run_test_suite()` → str: report pytest (PASS/FAIL/ERR)
-- `run_bash(cmd)` → str: comando shell in sandbox
+- `run_test_suite()` → str: esegue i test DEL PROGETTO (project_root),
+  in sandbox. Ordine: tests/run_tests.py del progetto (JSON) →
+  altrimenti `pytest -q tests/` → altrimenti errore "no tests/".
+  `run_bash(cmd)` → str: comando shell in sandbox
 - `list_tools()` → dict: tool disponibili
 
 ## Diario

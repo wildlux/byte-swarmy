@@ -483,6 +483,8 @@ class ModelClient:
             except (TypeError, ValueError):
                 clamped["num_predict"] = 512
         return clamped
+
+    def embed(self, text: str) -> list:
         """Calcola embedding. Non scarica il modello chat (più leggero)."""
         emb_name = self.models_cfg["embedding"]["name"]
         payload = {"model": emb_name, "prompt": text}

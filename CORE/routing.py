@@ -182,7 +182,6 @@ def _read_cpu_temp_now() -> float:
     except Exception:
         pass
     return max(vals) if vals else 0.0
-    return max(temps) if temps else 0.0
 
 
 def _latest_temps() -> tuple[float, float]:

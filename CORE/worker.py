@@ -20,6 +20,11 @@ from CORE.correction import build_correction_prompt
 from CORE.last_good_config import last_good_config
 from CORE.memory import AgentMemory
 from CORE.ollama_client import ModelClient
+from CORE.persistent_memory import (
+    build_context_for_prompt,
+    record_task_completed,
+    update_project_context,
+)
 from CORE.planner import Planner
 from CORE.regex_controller import RegexController, DEFAULT_PATTERNS, json_block
 from CORE.test_generator import TestGenerator
@@ -1254,6 +1259,23 @@ class Worker:
         "GUI/refs/tkinter.md": 1,
     }
 
+    # 🆕 robustezza: trigger "di famiglia" (specifici, NON condivisi tipo
+    # QApplication). Se una famiglia Qt è esplicitamente menzionata,
+    # l'altra famiglia in conflitto NON viene iniettata (evita
+    # pyqtSignal su task PySide6 e viceversa). QApplication/QMainWindow
+    # restano trigger condivisi solo quando NESSUNA famiglia è esplicita
+    # (default PyQt6).
+    _REF_FAMILY_TRIGGERS = {
+        "GUI/refs/pyqt6.md": ("pyqt", "pyqt6", "pyqt5", "pyqt4"),
+        "GUI/refs/pyside6.md": ("pyside", "pyside6", "pyside2", "shiboken"),
+        "GUI/refs/tkinter.md": ("tkinter", "ttk"),
+    }
+    # Gruppi in conflitto: se l'altro membro è esplicito e io no → skip.
+    _REF_CONFLICTS = {
+        "GUI/refs/pyqt6.md": "GUI/refs/pyside6.md",
+        "GUI/refs/pyside6.md": "GUI/refs/pyqt6.md",
+    }
+
     def _build_refs_block(self, task: dict) -> str:
         """Seleziona e inietta i ref rilevanti.
 
@@ -1266,20 +1288,35 @@ class Worker:
             import re as _re
             text = (str(task.get("title", "")) + " "
                     + str(task.get("description", ""))).lower()
+
+            def _wb(k: str) -> bool:
+                return bool(_re.search(
+                    r"(?<!\w)" + _re.escape(k) + r"(?!\w)", text))
+
+            # 🆕 robustezza: hit per famiglia (specifici, non condivisi)
+            fam_hits = {rp: sum(1 for k in fam
+                                if _wb(k))
+                        for rp, fam in self._REF_FAMILY_TRIGGERS.items()}
+
             scored = []
             for ref_path, kws in self._REF_KEYWORDS.items():
                 triggers = self._REF_TRIGGERS.get(ref_path, [])
                 if triggers:
-                    trigger_hits = sum(
-                        1 for k in triggers
-                        if _re.search(r"(?<!\w)" + _re.escape(k) + r"(?!\w)", text))
+                    trigger_hits = sum(1 for k in triggers if _wb(k))
                     if trigger_hits == 0:
                         continue  # WM non menzionato -> skip
                 else:
                     trigger_hits = 0
-                score = sum(
-                    1 for k in kws
-                    if _re.search(r"(?<!\w)" + _re.escape(k) + r"(?!\w)", text))
+                # 🆕 mutua esclusione famiglie: se il conflitto è
+                # esplicitamente menzionato e la mia famiglia no → skip.
+                # Task "converti pyqt6 in pyside6" (entrambe esplicite)
+                # inietta entrambi — comportamento intenzionale.
+                other = self._REF_CONFLICTS.get(ref_path)
+                if other is not None:
+                    if fam_hits.get(ref_path, 0) == 0 and \
+                            fam_hits.get(other, 0) > 0:
+                        continue
+                score = sum(1 for k in kws if _wb(k))
                 threshold = self._REF_THRESHOLD.get(ref_path, 2)
                 if score >= threshold:
                     scored.append((score + trigger_hits * 10, ref_path))
