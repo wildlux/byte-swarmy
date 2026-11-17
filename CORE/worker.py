@@ -1191,15 +1191,68 @@ class Worker:
         except Exception:
             skill_block = ""  # fail-open: mai bloccare il worker per le skill
 
+        # 🆕 Cycle 82: iniezione condizionale di cheat sheet (GUI/refs/*)
+        # come RIFERIMENTO, non come ricetta ("follow exactly"). Riduce le
+        # allucinazioni su API comuni (PyQt6, ToolSet, debt ledger) senza
+        # affidarsi al worker che scelga di leggerli. Soglia: >=2 keyword
+        # matchate (evita il bug py-json-store: keyword generiche che
+        # hijackano il prompt). Max 2 ref, ciascuno troncato a 600 char.
+        refs_block = self._build_refs_block(task)
+
         _raw = (
             f"TASK: {task.get('title', '')} | DESC: {task.get('description', '')} | "
             f"STATE: {self._project_state()} | CTX: {persistent_context} | "
             f"RULES: {Planner.WORKER_CONSTRAINTS} | SKILL: {skill_block}\n"
+            f"REFS (API di riferimento — usale, non inventare):\n{refs_block}\n"
             "PLAN: 1.write_file 2.read/lint verify 3.done=true\n"
             f"{correction_block}"
             "First step (JSON only):"
         )
         return _raw
+
+    # 🆕 Cycle 82: mappa task -> cheat sheet (deterministica, soglia >=2)
+    _REF_KEYWORDS = {
+        "GUI/refs/pyqt6.md": [
+            "pyqt", "qt", "gui", "widget", "finestra", "pulsante",
+            "qlabel", "qpushbutton", "qapplication", "qmainwindow",
+            "layout", "segnale", "thread", "dialog",
+        ],
+        "GUI/refs/toolset_api.md": [
+            "tool", "read_file", "write_file", "patch", "api",
+            "toolset", "read_document", "list_refs", "run_test",
+            "git_commit", "git_diff",
+        ],
+        "GUI/refs/debt_ledger.md": [
+            "ledger", "debt", "refactor", "next", "mark", "done",
+            "item", "coda", "stale", "context",
+        ],
+    }
+
+    def _build_refs_block(self, task: dict) -> str:
+        """Seleziona e inietta i ref rilevanti (soglia >=2 keyword)."""
+        try:
+            text = (str(task.get("title", "")) + " "
+                    + str(task.get("description", ""))).lower()
+            scored = []
+            for ref_path, kws in self._REF_KEYWORDS.items():
+                score = sum(1 for k in kws if k in text)
+                if score >= 2:
+                    scored.append((score, ref_path))
+            if not scored:
+                return "(nessuno)"
+            scored.sort(reverse=True)
+            chosen = [rp for _, rp in scored[:2]]
+            parts = []
+            for rp in chosen:
+                try:
+                    full = self.tools.project_root / rp
+                    content = full.read_text(encoding="utf-8", errors="replace")
+                    parts.append(f"--- {rp} ---\n{content[:600]}")
+                except Exception:
+                    continue
+            return "\n".join(parts) if parts else "(nessuno)"
+        except Exception:
+            return "(nessuno)"  # fail-open
 
     def _project_state(self) -> str:
         """Snapshot veloce dello stato del progetto (senza shell)."""
