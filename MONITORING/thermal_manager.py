@@ -466,37 +466,37 @@ class TimestralManager:
         except Exception:
             return 0.0
 
-def _read_cpu_temp_max(self) -> float:
-    """Temp CPU REALE (°C): coretemp (per-core max), fallback
-    x86_pkg_temp. B0D4 (DPTF) satura a 100.0 e non è usabile."""
-    temps = []
-    try:
-        for hwmon in Path("/sys/class/hwmon").iterdir():
-            try:
-                name = (hwmon / "name").read_text().strip()
-            except Exception:
-                continue
-            if name == "coretemp":
-                for temp_file in hwmon.glob("temp*_input"):
-                    try:
-                        temps.append(
-                            int(temp_file.read_text().strip()) / 1000.0)
-                    except Exception:
-                        continue
-        if temps:
-            return max(temps)
-        for zone in Path("/sys/class/thermal").glob("thermal_zone*"):
-            try:
-                if (zone / "type").read_text().strip() != "x86_pkg_temp":
+    def _read_cpu_temp_max(self) -> float:
+        """Temp CPU REALE (°C): coretemp (per-core max), fallback
+        x86_pkg_temp. B0D4 (DPTF) satura a 100.0 e non è usabile."""
+        temps = []
+        try:
+            for hwmon in Path("/sys/class/hwmon").iterdir():
+                try:
+                    name = (hwmon / "name").read_text().strip()
+                except Exception:
                     continue
-                t = int((zone / "temp").read_text().strip()) / 1000.0
-                if 0 < t < 100:
-                    return t
-            except Exception:
-                continue
-    except Exception:
-        pass
-    return max(temps) if temps else 0.0
+                if name == "coretemp":
+                    for temp_file in hwmon.glob("temp*_input"):
+                        try:
+                            temps.append(
+                                int(temp_file.read_text().strip()) / 1000.0)
+                        except Exception:
+                            continue
+            if temps:
+                return max(temps)
+            for zone in Path("/sys/class/thermal").glob("thermal_zone*"):
+                try:
+                    if (zone / "type").read_text().strip() != "x86_pkg_temp":
+                        continue
+                    t = int((zone / "temp").read_text().strip()) / 1000.0
+                    if 0 < t < 100:
+                        return t
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return max(temps) if temps else 0.0
 
     def _read_cpu_freq(self) -> int:
         """Media delle frequenze CPU in kHz."""
