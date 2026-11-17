@@ -1867,3 +1867,19 @@ veri, con misurazione:
 - **Max 2 ref per prompt**, 600 char ciascuno, fail-open.
 - Verificato con smoke test: "crea finestra PyQt6" -> solo pyqt6.md;
   "crea GUI generica" -> nessun ref WM.
+
+## 💬 Cycle 84 — Clarifier: GUI senza toolkit → domanda (2026-11-17)
+
+- **Principio utente**: "ask vaghi, then if X do Y" — deterministico.
+  - `CORE/clarifier.py`: nuovo pattern di ambiguità: se il task parla di
+    GUI/interfaccia/finestra/widget/maschera ma NON menziona nessun
+    toolkit (pyqt/pyside/tkinter/qt/tk/ttk/wx/kivy/flet/dearpygui), il
+    clarifier genera la domanda "Quale toolkit GUI/window manager?"
+    con opzioni PyQt6/PySide6/tkinter/Altro.
+  - Se il toolkit è esplicito, nessuna domanda → il ref corrispondente
+    viene iniettato automaticamente (Cycle 82-83).
+  - Fail-open: se il rilevamento fallisce, il task procede senza chiarimento.
+- **Il "if X then Y" è già implementato** via `_REF_KEYWORDS` + `_REF_TRIGGERS`:
+  toolkit specificato → ref iniettato. Il clarifier gestisce il "ask if vague".
+- I due pezzi insieme formano il pattern deterministico richiesto:
+  vago → chiedi; specifico → inietta il ref giusto.

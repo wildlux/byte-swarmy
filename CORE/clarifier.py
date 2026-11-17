@@ -101,6 +101,17 @@ _AMBIGUITY_PATTERNS: list[tuple[re.Pattern, str, list[str]]] = [
 ]
 
 
+# ── Window manager / GUI toolkit (Cycle 84) ─────────────────────
+# Se il task parla di GUI/interfaccia/finestra ma NON specifica il
+# toolkit, è ambiguo: il worker rischierebbe di inventare (PyQt vs
+# PySide vs tkinter). Principio: "ask vaghi, then if X do Y" —
+# deterministico: toolkit specificato → ref iniettato (Cycle 82-83).
+_GUI_TOOLKIT_RE = re.compile(
+    r"\b(gui|interfaccia|finestra|window|widget|maschera)\b", re.I)
+_GUI_TOOLKIT_NAMES = ("pyqt", "pyside", "tkinter", "qt", "tk", "ttk", "wx",
+                      "kivy", "flet", "dearpygui")
+
+
 def detect_ambiguity(task_title: str, task_description: str = "") -> list[Question]:
     """Analizza il task e restituisce le domande con opzioni.
 
@@ -120,6 +131,19 @@ def detect_ambiguity(task_title: str, task_description: str = "") -> list[Questi
                         id=qid,
                         text=qtext,
                         options=list(options),
+                    ))
+        # 🆕 Cycle 84: GUI senza toolkit specificato -> chiedi.
+        # Deterministico: se nessun toolkit e' menzionato, e' ambiguo.
+        if _GUI_TOOLKIT_RE.search(text):
+            if not any(t in text for t in _GUI_TOOLKIT_NAMES):
+                qid = "Qgui"
+                if qid not in seen_ids:
+                    seen_ids.add(qid)
+                    questions.append(Question(
+                        id=qid,
+                        text="Quale toolkit GUI/window manager vuoi usare?",
+                        options=["PyQt6", "PySide6", "tkinter (stdlib)",
+                                 "Altro (specifica)"],
                     ))
         return questions
     except Exception:
