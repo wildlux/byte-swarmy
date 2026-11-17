@@ -232,6 +232,12 @@ class CenterArea(QWidget):
         self.panel_pages["debt_ledger"] = DebtLedgerPanel()
         self.detail_stack.addWidget(self.panel_pages["debt_ledger"])
 
+        # Pannello "fan_control" → FanPanel (controllo ventole nbfc+pkexec,
+        # Cycle 77: prerequisito dei run LLM — limite termico 60°C)
+        from GUI.fan_panel import FanPanel
+        self.panel_pages["fan_control"] = FanPanel()
+        self.detail_stack.addWidget(self.panel_pages["fan_control"])
+
         # Pannello "hardware" → HardwarePanel (profilo GPU/memoria + strategia)
         from GUI.hardware_panel import HardwarePanel
         self.panel_pages["hardware"] = HardwarePanel()

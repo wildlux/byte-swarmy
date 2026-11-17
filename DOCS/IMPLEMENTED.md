@@ -1801,3 +1801,20 @@ veri, con misurazione:
   come non è capace di modifiche minime — la capability di scrittura
   codice su questa macchina va misurata su modelli più forti o con
   esecutori deterministici.
+
+## 🌀 Cycle 77 — Ventole dentro byte-swarmy (2026-11-17)
+
+- **Plancia**: nuova carta "🌀 Ventole" (`GUI/fan_panel.py` → riusa
+  `VENTOLA/ventola.py`, regola di parità GUI rispettata) con temp live,
+  MAX/AUTO/OFF/Stop via pkexec (dialog password KDE).
+- **Runner** (`tools/swarm_refactor_session.py`):
+  - `--max-run-sec` (default 300s = 5 min): hard cap wall-clock su
+    `worker.execute` (thread daemon + join timeout) per evitare il blocco
+    UEFI — se scade, log "TIME LIMIT EXCEEDED" e abort.
+  - best-effort avvio ventole al massimo via `sudo -n` (non blocca se
+    non configurato: l'utente resta responsabile, con warning esplicito).
+  - gate su CPU vera (coretemp) + warning se una zona ≥ 95°C (B0D4
+    saturo, sensore noto difettoso).
+- **Scopo**: il limite "tot minuti" richiesto dall'utente è ora
+  enforced dal runner; il controllo ventole è dentro il software
+  (Plancia), non uno strumento esterno.

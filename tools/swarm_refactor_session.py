@@ -117,8 +117,18 @@ def build_task(task_id: str, title: str, description: str,
 
 
 def run_session(project: Path, task: dict, config_path: str = "CONFIG/config.toml",
-                model_key: str = "worker_coder", log=None) -> dict:
-    """1 task con Worker diretto su agent fresh. Ritorna il report."""
+                model_key: str = "worker_coder", log=None,
+                max_run_sec: int = 300) -> dict:
+    """1 task con Worker diretto su agent fresh. Ritorna il report.
+
+    🆕 Cycle 77: hard cap wall-clock (max_run_sec) per evitare che un
+    run LLM prolungato scateni il blocco UEFI. Il Worker è bloccante e
+    non cancellabile: si esegue in un thread daemon e si fa join con
+    timeout; se scade, si logga l'abort e si esce (il thread continua
+    in background ma il runner non aspetta più).
+    """
+    import threading
+
     from CORE.constants import DEFAULT_PATHS
     from CORE.memory import AgentMemory
     from CORE.ollama_client import ModelClient
@@ -127,10 +137,6 @@ def run_session(project: Path, task: dict, config_path: str = "CONFIG/config.tom
 
     with open(config_path, "rb") as f:
         config = tomllib.load(f)
-    # Override termico SOLO in memoria (mai su config.toml, Cycle 66).
-    # 🆕 v2 (run 2: 46→66°C in 35s): su TUTTI i modelli — il routing
-    # può passare a worker_granite, e senza override girerebbe con
-    # i thread di default violando il limite 60°C.
     for _mk in config.setdefault("models", {}):
         config["models"][_mk]["num_thread"] = NUM_THREAD
 
@@ -149,11 +155,36 @@ def run_session(project: Path, task: dict, config_path: str = "CONFIG/config.tom
 
     temp_before = read_max_temp()
     t0 = time.time()
-    result = worker.execute(task)
+
+    holder = {"result": None, "exc": None}
+
+    def _run():
+        try:
+            holder["result"] = worker.execute(task)
+        except Exception as e:  # noqa: BLE001
+            holder["exc"] = e
+
+    th = threading.Thread(target=_run, daemon=True)
+    th.start()
+    th.join(timeout=max_run_sec)
+
     wall = time.time() - t0
     temp_after = read_max_temp()
-    return {"result": result, "wall": wall,
-            "temp_before": temp_before, "temp_after": temp_after}
+
+    if th.is_alive():
+        if log:
+            log.error("TIME LIMIT EXCEEDED (%ds): abort run per "
+                      "sicurezza UEFI — il thread continua in background",
+                      max_run_sec)
+        return {"result": "TIME LIMIT EXCEEDED: run abortito per "
+                          "sicurezza UEFI (max %ds)" % max_run_sec,
+                "wall": wall, "temp_before": temp_before,
+                "temp_after": temp_after, "aborted": True}
+    if holder["exc"] is not None:
+        raise holder["exc"]
+    return {"result": holder["result"], "wall": wall,
+            "temp_before": temp_before, "temp_after": temp_after,
+            "aborted": False}
 
 
 def main(argv=None) -> int:
@@ -161,6 +192,29 @@ def main(argv=None) -> int:
                         format="%(asctime)s [%(levelname)s] %(message)s",
                         stream=sys.stdout)
     log = logging.getLogger("swarm_session")
+
+    # 🆕 Cycle 77: best-effort avvio ventole al massimo (sudo -n, non
+    # blocca se non configurato: l\'utente resta responsabile).
+    def _fan_best_effort():
+        import subprocess
+        for cmd in (["sudo", "-n", "nbfc", "start"],
+                    ["sudo", "-n", "nbfc", "set", "-s", "100"]):
+            try:
+                r = subprocess.run(cmd, capture_output=True, text=True,
+                                    timeout=10)
+                if r.returncode != 0:
+                    log.warning("ventole non avviate automaticamente "
+                                "(%s): %s — premi MAX in VENTOLA prima "
+                                "di lanciare", " ".join(cmd),
+                                r.stderr.strip()[:80])
+                    return False
+            except Exception as e:  # noqa: BLE001
+                log.warning("ventole non avviate automaticamente: %s", e)
+                return False
+        log.info("ventole avviate al massimo (best-effort sudo -n)")
+        return True
+
+    _fan_best_effort()
 
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--project", required=True, type=Path)
@@ -178,6 +232,9 @@ def main(argv=None) -> int:
     ap.add_argument("--no-discipline", action="store_true",
                     help="Non appendere la DISCIPLINA read-first (per file "
                          "nuovi che non esistono ancora).")
+    ap.add_argument("--max-run-sec", type=int, default=300,
+                    help="Hard cap wall-clock per il run (default 300s = "
+                         "5 min) — protezione UEFI.")
     args = ap.parse_args(argv)
 
     cwd = Path.cwd()
@@ -214,7 +271,8 @@ def main(argv=None) -> int:
                       discipline=not args.no_discipline)
     try:
         report = run_session(cwd / args.project, task, args.config,
-                             args.model, log)
+                             args.model, log,
+                             max_run_sec=args.max_run_sec)
     except Exception as e:  # noqa: BLE001 — report onesto anche in errore
         log.error("sessione fallita: %s", e)
         return 1
