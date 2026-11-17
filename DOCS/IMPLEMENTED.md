@@ -1786,3 +1786,18 @@ veri, con misurazione:
   CLI completa + ciclo di sessione stadiale + regola di parità GUI +
   esempio reale 13,4s. Riusabile in ogni sessione futura.
 - `tests/test_reuse.py`: 3072 → 2048 (allineato a Cycle 67).
+
+## 🦋 Cycle 76 — Test agentico Qt/PyQt6: verdetto FAIL (2026-11-17)
+
+- 4° run LLM, 4° fallimento (coerenza col verdetto bare-except):
+  task "crea VENTOLA/hello_qt.py". Il worker ha ignorato il file target
+  e scritto `project/main.py` (10 byte) + `patch_code.py` (bloccato da
+  regression gate); `hello_qt.py` NON creato. Routing "media → worker_coder"
+  (nessun heavy, bene). Temp 41→79°C in 105s (guardia 90°C non scattata).
+- Danno pulito: main.py ripristinato da git, patch_code.py e
+  tests/test_patch_code_regression.py rimossi, worktree tornato pulito.
+- **Deliverable del test prodotto**: un verdetto onesto, non un'app.
+  Il worker 3b non è capace di creare un file PyQt6 da zero, esattamente
+  come non è capace di modifiche minime — la capability di scrittura
+  codice su questa macchina va misurata su modelli più forti o con
+  esecutori deterministici.

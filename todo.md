@@ -116,9 +116,17 @@ non nel clone):
 
 ### Test agentico — programmino Qt/PyQt6 via swarm (Cycle 50)
 
-- [ ] **Test agentico Qt/PyQt6**: far creare al swarm un programmino PyQt6
-  semplice (es. Finestra + QPushButton + label) come prova pratica della
-  capability di scrittura codice; misura se il risultato è "funzionante".
+- [x] **Test agentico Qt/PyQt6** ✅ Cycle 76: **VERDETTO FAIL** (4° run LLM,
+      4° fallimento). Task: creare `VENTOLA/hello_qt.py` (finestra +
+      QLabel contatore + QPushButton). Il worker ha ignorato il file
+      target e scritto `project/main.py` (10 byte) + `patch_code.py`
+      (bloccato da regression gate); `hello_qt.py` NON è stato creato.
+      Temp 41→79°C in 105s; guardia 90°C non scattata. Danno pulito
+      (main.py ripristinato, patch_code.py/tests/test_patch_code_regression.py
+      rimossi). Conclusione: il worker 3b non è capace neppure di creare
+      un file PyQt6 da zero — coerenza con il verdetto sui bare-except.
+      **Il test ha prodotto il suo deliverable (un verdetto onesto), non
+      un'app funzionante.** Restano solo item deterministici (capability).
 
 ### Capability agentica — test→benchmark feedback + doc summarization (Cycle 51)
 
