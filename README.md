@@ -961,7 +961,9 @@ byte-swarmy/
 ├── avvia.sh / ferma.sh / sync.sh / setup.sh / setup-hardening.sh
 ├── SECURITY.md / IMPLEMENTED.md / SPECIFICATIONS.md / AGENT.md / todo.md
 ├── BYTE-SWARMY.desktop      # KDE menu entry
-└── requirements_gui.txt
+├── requirements.txt         # Dipendenze complete (GUI + RE)
+├── REVERSE_ENGEREENING_TOOLS/requirements_re.txt
+└── GUI/requirements_gui.txt
 ```
 
 ---
@@ -1028,7 +1030,7 @@ python -m CORE.benchmark --model qwen2.5-coder:1.5b  # solo uno
 
 | Sintomo | Causa probabile | Soluzione |
 |---|---|---|
-| `ModuleNotFoundError: PyQt6` | Dipendenze GUI assenti | `./setup.sh` o `pip install -r requirements_gui.txt` |
+| `ModuleNotFoundError: PyQt6` | Dipendenze GUI assenti | `./setup.sh` o `pip install -r GUI/requirements_gui.txt` |
 | `ModuleNotFoundError: rapidfuzz` | Router intenti non installato | `pip install rapidfuzz` |
 | `ModuleNotFoundError: mcp` | Dipendenze MCP assenti | `pip install mcp httpx httpx-sse` |
 | Orchestratore non parte | Virtualenv non attivo | `source .venv/bin/activate` |

@@ -136,7 +136,7 @@ ensure_env() {
             echo "❌ setup.sh non trovato. Installa manualmente:"
             echo "   python3 -m venv .venv"
             echo "   source .venv/bin/activate"
-            echo "   pip install -r requirements_gui.txt"
+            echo "   pip install -r GUI/requirements_gui.txt"
             exit 1
         fi
     fi

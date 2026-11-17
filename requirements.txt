@@ -1,0 +1,45 @@
+# requirements.txt — Dipendenze complete di BYTE-SWARMY
+#
+# Installa tutto in una volta:
+#   pip install -r requirements.txt
+#
+# Dipendenze specializzate (stesso contenuto, per installazione mirata):
+#   GUI/requirements_gui.txt          — solo GUI Qt6 + MCP + Timestral
+#   REVERSE_ENGEREENING_TOOLS/requirements_re.txt — solo reverse engineering
+#
+# Per installazione mirata:
+#   pip install -r GUI/requirements_gui.txt
+#   pip install -r REVERSE_ENGEREENING_TOOLS/requirements_re.txt
+
+# ============================================================
+# GUI (PyQt6 + MCP + intent router + Timestral)
+# ============================================================
+PyQt6>=6.6
+tomli-w>=1.0
+rapidfuzz>=3.0
+mcp>=1.0.0,<2
+httpx>=0.27
+httpx-sse>=0.4
+uvicorn>=0.30
+starlette>=0.37
+
+# ============================================================
+# Reverse Engineering (disassembler, binary analysis, networking)
+# ============================================================
+capstone>=5.0.0
+r2pipe>=1.8.0
+pyshark>=0.6
+pefile>=2023.2.7
+lief>=0.14.0
+scapy>=2.5.0
+yara-python>=4.3.0
+
+# ============================================================
+# Note
+# ============================================================
+# System tools (radare2, tshark, ghidra) must be installed separately:
+#   scripts/setup/re_tools.sh  (or REVERSE_ENGEREENING_TOOLS/setup_re_tools.sh)
+# Timestral (thermal_manager.py) uses only /proc and /sys (Linux stdlib).
+# tomli/tomllib already in stdlib on Python 3.11+.
+# mcp 2.x changes API (FastMCP->MCPServer): pin <2 (CORE/mcp_client.py
+# and CORE/example_mcp_server.py are written for 1.x).

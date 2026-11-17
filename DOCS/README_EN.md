@@ -686,7 +686,7 @@ byte-swarmy/
 ├── avvia.sh / ferma.sh / sync.sh / setup.sh / setup-hardening.sh
 ├── SECURITY.md / IMPLEMENTED.md / SPECIFICATIONS.md / AGENT.md / todo.md
 ├── BYTE-SWARMY.desktop      # KDE menu entry
-└── requirements_gui.txt
+└── GUI/requirements_gui.txt
 ```
 
 ---
@@ -774,7 +774,7 @@ for the full capability table, limitations, and conditions.
 
 | Symptom | Likely cause | Solution |
 |---|---|---|
-| `ModuleNotFoundError: PyQt6` | GUI deps missing | `./setup.sh` or `pip install -r requirements_gui.txt` |
+| `ModuleNotFoundError: PyQt6` | GUI deps missing | `./setup.sh` or `pip install -r GUI/requirements_gui.txt` |
 | `ModuleNotFoundError: rapidfuzz` | Intent router not installed | `pip install rapidfuzz` |
 | `ModuleNotFoundError: mcp` | MCP deps missing | `pip install mcp httpx httpx-sse` |
 | Orchestrator won't start | Virtualenv not active | `source .venv/bin/activate` |
