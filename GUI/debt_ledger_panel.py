@@ -113,6 +113,16 @@ class DebtLedgerPanel(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
 
+        # 🆕 Cycle 85: regola di parità GUI — back_btn per tornare alla
+        # Plancia (stesso pattern di hardware_panel/test_suite_panel).
+        head = QHBoxLayout()
+        head.addStretch()
+        back = QPushButton("← Indietro alla Plancia (Backspace)")
+        back.setObjectName("back_btn")
+        back.clicked.connect(self._back_to_main)
+        head.addWidget(back)
+        layout.addLayout(head)
+
         # Riga stats + azioni
         top = QHBoxLayout()
         self.stats_label = QLabel("coda: —")
@@ -174,6 +184,19 @@ class DebtLedgerPanel(QWidget):
         layout.addWidget(hint)
 
     # ------------------------------------------------------------------
+    def _back_to_main(self):
+        """Torna alla plancia di controllo (walk-up sul parent tree).
+
+        Stesso pattern di hardware_panel/test_suite_panel: la regola di
+        parità GUI (Cycle 70) esige che ogni pannello abbia una via di
+        ritorno esplicita alla Plancia.
+        """
+        p = self.parent()
+        while p and not hasattr(p, "back_to_main"):
+            p = p.parent()
+        if p and hasattr(p, "back_to_main"):
+            p.back_to_main()
+
     def refresh(self) -> None:
         """Rilegge stats + item dal ledger (nessun timer: solo on-demand)."""
         try:

@@ -31,8 +31,6 @@ top_p = 0.8
 top_k = 20
 repeat_penalty = 1.1
 repeat_last_n = 256
-# 🆕 Cycle 48 (furbata E): num_ctx A/B. 8192 baseline; 4096 testato via bench
-# (meno KV cache → potenziale più velocità). Restore a 8192 dopo il confronto.
 num_ctx = 8192
 num_predict = 1024
 seed = 42
@@ -76,10 +74,6 @@ no_tools = false
 [models.embedding]
 name = "moondream:latest"
 
-# 🆕 Cycle 64: corsia veloce (single-shot) per task con UN solo file target.
-# Riusa il prompt del benchmark naked (50% primo colpo, ~14s/task) invece
-# del loop ReAct (12.5%, ~192s/task). DEFAULT FALSE: attivare solo DOPO il
-# benchmark di validazione a macchina fredda (regola "measure, don't add").
 [fast_lane]
 enabled = false
 max_task_chars = 600
@@ -231,13 +225,6 @@ categories = []
 [hardware]
 mode = "auto"
 warmup_model = "worker_coder"
-# 🆕 Cycle 67: retention esplicita del modello in RAM dopo le richieste.
-# Default Ollama ("auto") = ~300s: il warmup al boot resterebbe utile
-# solo 5 minuti. 900s = 15 min → il warmup paga davvero e i task in
-# una sessione di lavoro restano a modello caldo (load gratis).
-# Costo: ~2.5GB RAM residenti per 15 min (7.6GB totali, 3.3 liberi —
-# c'è lo spazio, e poi si scarica da solo). Rollback: rimuovere la
-# riga (= torna "auto").
 keep_alive_sec = 900
 
 [orchestrator]

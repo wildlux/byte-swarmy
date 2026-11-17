@@ -1940,3 +1940,14 @@ sandbox + boot smoke. Risultati.
   lint_code → SYNTAX OK + messaggi informativi bandit/mypy
 - Bare except in CORE: 0
 - Boot smoke + import GUI headless: OK
+
+### 🟡 Seguito suite completa (789 passed, 2 failed → poi corretti)
+11. **Parità GUI violata**: DebtLedgerPanel e FanPanel (pannelli
+    istanziati direttamente, non via wrap_in_panel_page) non avevano
+    back_btn → il test di ritorno alla Plancia falliva su 2 subtests.
+    Fix: back_btn + _back_to_main (pattern hardware_panel) su entrambi.
+    Test parità: 15/15 subtests verdi; 22 test ledger/ventola verdi.
+
+Riepilogo finale suite (senza i 2 flake noti): 789 passed, 0 failed,
+3 skipped, 1050 subtests passed, in 18:54 (più lenta del previsto:
+i gate ora eseguono veri comandi sandbox invece di morire su NameError).
