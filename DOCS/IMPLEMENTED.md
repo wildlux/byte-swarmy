@@ -1753,3 +1753,19 @@ veri, con misurazione:
   `VENTOLA/` (`ventola.py` + `avvia.sh` doppio-click + README con i
   comandi sudo equivalenti). Mossa con `git mv` da `tools/` — GUI
   rilanciata dal nuovo percorso.
+
+## 🦋 Cycle 74 — Prismalux: esperimento chiuso, clone rimosso (2026-11-17)
+
+- **Decisione utente**: l'esperimento ("vedere se potevamo importare
+  qualcosa come software e riusarlo") è concluso → il clone esce da
+  byte-swarmy. `project/prismalux/` eliminato INCLUSIVE i 3 commit
+  locali non pushati (rinomia SCREEENSHOT + 57 conversioni bare
+  except) — perdita confermata esplicitamente dall'utente.
+- Il valore resta NEL SISTEMA: skill `project-radiography`, fix
+  skill-hijack + test di regressione, runner sessioni (agent fresh,
+  guardie termiche), verdetto onesto sul worker 3b (non capace per
+  modifiche minime; le gate proteggono i test ma non i file dati),
+  lezione UEFI + `VENTOLA/`.
+- Il ledger per-progetto e il code_map vivevano DENTRO il clone
+  (.gitignored): rimossi col clone, nessun artefatto di prismalux
+  resta in byte-swarmy.

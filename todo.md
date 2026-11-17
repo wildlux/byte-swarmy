@@ -89,39 +89,28 @@ RIFATTORIZZATO. Già dentro il progetto: SQLite usato in 5 punti
       regola stale (due item sullo stesso file: il primo eseguito
       invalida il secondo → ri-registrazione).
 
-### 🦋 Prismalux — campagna refactoring (nuovo progetto target, Cycle 71)
+### 🦋 Prismalux — ESPERIMENTO CHIUSO, clone rimosso (Cycle 74, 2026-11-17)
 
-Repo utente clonato in `project/prismalux` (piattaforma AI locale,
-C++/Qt6 core + strato Python). Radiografia fredda (zero LLM):
-- Python: 164 file, **0 errori di compilazione** (sano)
-- C++: 312 cpp + 180 h in `gui/`, **6 god-file >100KB** in
-  `gui/pages/` (widget_vision3d 177KB, settings_llm 142KB,
-  main_ai_pipeline 132KB, main_ai_tools 127KB, settings_ai 119KB,
-  main_graph 119KB)
-- 123 marker TODO/FIXME/XXX/HACK (36 solo in gui/pages)
-- 3 stack Android parallele: kivy_VERSION, flet_VERSION,
-  QT_ANDROID_Version
-- code_map costruito: 164 file, 1800 simboli → `context` attivo
+**Obiettivo dell'utente**: vedere se si poteva importare qualcosa come
+software e riusarlo — fatto. **Decisione utente**: il clone esce da
+byte-swarmy e si elimina (i 3 commit locali non pushati vanno persi,
+confermato esplicitamente). `project/prismalux/` rimosso.
 
-- [x] **Skill `project-radiography`** (`.opencode/skill/`): la procedura
-      di radiografia fredda generalizzata (censimento, salute,
-      god-file, marker, build system, code_map, item nel ledger) —
-      riusabile per qualunque progetto futuro.
-- [x] Coda popolata nel ledger per-progetto
-      (`project/prismalux/state/debt_ledger.db`, via `--root`)
-- [ ] **Vincolo verifica C++**: il build è CMake (312 file) = carico
-      pesante, sotto 60°C va stadiale o ccache/parallelismo limitato —
-      gli item C++ si eseguono DOPO una strategia di build
-- [x] **Bare `except:` nei server MCP: PATTERN CHIUSO** (Cycle 72-73:
-      root cause skill-hijack provata + 3 run worker onesti + fallback
-      deterministico `sed` — 22 file, 57 conversioni, 0 residui,
-      commit clone `037ff1f`)
-- [x] **Lezione UEFI** (Cycle 73): B0D4 è un sensore REALE (100°C sotto
-      carico → blocco UEFI); revert dei cambi coretemp-only, guardia
-      dura ≥90°C nel runner, GUI ventole `tools/fan_control_qt.py`
-      (nbfc + pkexec) — prerequisito dei run LLM
-- [x] Primo item eseguito a freddo (rinomia SCREEENSHOT, xs)
-- [ ] Push dei commit di prismalux: decisione utente
+Cosa resta a byte-swarmy (il valore dell'esperimento è nel sistema,
+non nel clone):
+- [x] **Skill `project-radiography`** — radiografia fredda riusabile
+      per qualunque progetto futuro
+- [x] **Fix skill-hijack** (find_skill matchava keywords generiche →
+      il worker seguiva ricette sbagliate) + test di regressione
+- [x] **Runner `tools/swarm_refactor_session.py`** (agent fresh,
+      gate termiche, guardia ≥90°C, threshold configurabile)
+- [x] **Verdetto onesto**: il worker 3b NON è capace per modifiche
+      minime a codice esistente; le gate proteggono i test ma non i
+      file dati → per quella classe serve l'esecutore deterministico
+- [x] **Lezione UEFI** + `VENTOLA/` (controllo ventole, prerequisito
+      dei run LLM su questa macchina)
+- [x] Radiografia riusabile come metodo (312 cpp/180 h/164 py,
+      6 god-file, 123 marker — dati storici in DOCS/IMPLEMENTED.md)
 
 ### Test agentico — programmino Qt/PyQt6 via swarm (Cycle 50)
 
