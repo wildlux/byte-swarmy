@@ -57,6 +57,25 @@ _REGEX = RegexController(DEFAULT_PATTERNS)
 # Branch che i worker non possono cancellare.
 PROTECTED_BRANCHES = frozenset({"main", "master", "develop", "trunk"})
 
+# 🆕 Cycle 79: file di infrastruttura critica. Il worker NON può
+# sovrascriverli/cancellarli con write_file/delete_file/move_file:
+# il danno a requirements.txt (203 righe → 9 byte) è avvenuto perché
+# la gate precedente non li copriva. patch_code resta permesso (edit
+# mirati: es. aggiungere una dipendenza). La lista è di basename:
+# vale per qualunque percorso dentro project/.
+PROTECTED_FILES = frozenset({
+    "requirements.txt", "requirements-dev.txt", "requirements-test.txt",
+    "pyproject.toml", "setup.py", "setup.cfg", "tox.ini", "pipfile",
+    "pipfile.lock", "poetry.lock",
+    ".gitignore", ".gitattributes",
+    "makefile", "cmakelists.txt",
+    "package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
+    "cargo.toml", "go.mod", "go.sum",
+    "dockerfile", "docker-compose.yml", "docker-compose.yaml",
+    "config.toml", "config.yaml", "config.yml",
+    "readme.md", "license", "license.md",
+})
+
 # File che non devono mai finire nell'output di grep/search.
 GREP_EXCLUDES = (
     "--exclude=.env",
@@ -256,6 +275,37 @@ class ToolSet:
                         "WARNING")
             return (f"ERROR: {exc}. Write only inside project/ "
                     f"(e.g. 'project/main.py').")
+
+        # 🆕 Cycle 79: file di infrastruttura critica — mai sovrascrivibili
+        # con write_file (il danno a requirements.txt: 203 righe -> 9 byte).
+        # patch_code resta permesso (edit mirati). delete_file/move_file
+        # hanno la stessa guardia.
+        if os.path.basename(path).lower() in PROTECTED_FILES and full.exists():
+            self._audit("blocked_protected_write",
+                        f'path="{self._q(path)}"', "CRITICAL")
+            return ("ERROR: write_file bloccato: '%s' e' un file di "
+                    "infrastruttura critica (protetto). Usa patch_code per "
+                    "modifiche mirate, oppure modifica il file a mano." % path)
+
+        # 🆕 Cycle 79: guardia anti-shrink sospetto. Se un file esistente
+        # e' grande (>500 byte) e il nuovo contenuto e' <20% delle
+        # dimensioni originali, blocca: e' il pattern esatto del danno
+        # (requirements.txt 203 righe -> 9 byte, main.py 53 righe -> 1).
+        try:
+            if full.exists():
+                old_size = full.stat().st_size
+                if (old_size >= 500
+                        and len(content) < max(50, old_size // 5)):
+                    self._audit("blocked_suspicious_shrink",
+                                f'path="{self._q(path)}" old={old_size} '
+                                f'new={len(content)}', "CRITICAL")
+                    return ("ERROR: write_file bloccato: shrink sospetto "
+                            "(%d byte -> %d byte, <20%% dell'originale). "
+                            "Se intendi davvero ridurre il file, usa "
+                            "patch_code o modifica a mano." % (old_size, len(content)))
+        except OSError:
+            pass
+
         # M7: quota disco — non permettere scritture con project/ già saturo.
         guard = self._disk_guard()
         if guard:
@@ -432,6 +482,13 @@ class ToolSet:
             return ("ERROR: '{p}' is a directory: delete_file deletes "
                     "single files only.".format(p=path))
 
+        # 🆕 Cycle 79: file di infrastruttura critica — non cancellabili.
+        if os.path.basename(path).lower() in PROTECTED_FILES:
+            self._audit("blocked_protected_delete",
+                        f'path="{self._q(path)}"', "CRITICAL")
+            return ("ERROR: delete_file bloccato: '%s' e' un file di "
+                    "infrastruttura critica (protetto)." % path)
+
         size = full.stat().st_size
         try:
             full.unlink()
@@ -457,6 +514,14 @@ class ToolSet:
         if src.is_dir():
             return (f"ERROR: '{path}' is a directory: move_file moves "
                     "single files only.")
+
+        # 🆕 Cycle 79: file di infrastruttura critica — non sovrascrivibili
+        # via move (dst protetto).
+        if os.path.basename(new_path).lower() in PROTECTED_FILES and dst.exists():
+            self._audit("blocked_protected_move",
+                        f'"{self._q(path)}"->"{self._q(new_path)}"', "CRITICAL")
+            return ("ERROR: move_file bloccato: la destinazione '%s' e' un "
+                    "file di infrastruttura critica (protetto)." % new_path)
         if dst.exists():
             return f"ERROR: '{new_path}' already exists: choose another name."
         if src == dst:

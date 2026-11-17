@@ -1818,3 +1818,18 @@ veri, con misurazione:
 - **Scopo**: il limite "tot minuti" richiesto dall'utente è ora
   enforced dal runner; il controllo ventole è dentro il software
   (Plancia), non uno strumento esterno.
+
+## 🔒 Cycle 79 — Gate di sicurezza: file protetti + shrink sospetto (2026-11-17)
+
+- **Root cause del danno Cycle 76**: il worker ha sovrascritto
+  `requirements.txt` (203 righe → 9 byte) perché la security gate
+  controllava solo test skeleton e codice pericoloso, non i file di
+  infrastruttura. Fix: `PROTECTED_FILES` (frozenset di basename, case-
+  insensitive) in `CORE/tools.py`: `write_file`/`delete_file`/`move_file`
+  bloccati su file protetti esistenti; `patch_code` resta permesso
+  (edit mirati = percorso sicuro). Guardia aggiuntiva "suspicious
+  shrink": se un file esistente ≥500 byte viene ridotto a <20% delle
+  dimensioni originali, blocca (pattern esatto del danno).
+- **Test**: `tests/test_toolset_gates.py` (14 test) — file protetti,
+  shrink sospetto/legittimo, path traversal, AST scanner, gate base.
+  Il componente più critico (la gate) ha ora test dedicati.
