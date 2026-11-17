@@ -65,6 +65,7 @@ PROTECTED_BRANCHES = frozenset({"main", "master", "develop", "trunk"})
 # vale per qualunque percorso dentro project/.
 PROTECTED_FILES = frozenset({
     "requirements.txt", "requirements-dev.txt", "requirements-test.txt",
+    "requirements_gui.txt", "requirements_re.txt",
     "pyproject.toml", "setup.py", "setup.cfg", "tox.ini", "pipfile",
     "pipfile.lock", "poetry.lock",
     ".gitignore", ".gitattributes",
