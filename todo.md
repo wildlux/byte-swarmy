@@ -85,7 +85,7 @@ medi, infine sottofondi e igiene.
       dello slot, output piccolo. ⚠ Richiede run LLM (ventole al max,
       limite 60°C, sessione corta). Criterio done: 3 task reali
       misurati con pass@1 per tipo di slot in DOCS/BENCH.md.
-4. [ ] **[Robustezza #3] Config: validazione fail-fast all'avvio** —
+4. [x] **[Robustezza #3] Config: validazione fail-fast all'avvio** —
       verificato (`CORE/orchestrator.py:170`): toml invalido/chiave
       errata → warning e si girano i DEFAULT silenziosamente. Criterio
       done: schema check a boot (chiavi, tipi, range), errore chiaro +

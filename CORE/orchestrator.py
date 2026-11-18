@@ -126,9 +126,114 @@ def setup_logger(config) -> logging.Logger:
 # CONFIG LOADER
 # ====================================================================
 
+class ConfigError(ValueError):
+    """Configurazione invalida: elenco degli errori in `.errors`."""
+
+    def __init__(self, errors):
+        self.errors = list(errors)
+        super().__init__("; ".join(self.errors))
+
+
+def _is_int(v, allow_bool=False):
+    return isinstance(v, int) and (allow_bool or not isinstance(v, bool))
+
+
+def _is_str(v):
+    return isinstance(v, str)
+
+
+def validate_config(config) -> list[str]:
+    """Valida lo schema di config.toml. Ritorna lista di errori (vuota = ok).
+
+    Controlla sezioni, chiavi, tipi e range. Fail-fast: l'orchestratore
+    rifiuta di avviarsi se ci sono errori (Robustezza #3).
+    """
+    errors: list[str] = []
+    if not isinstance(config, dict):
+        return ["config non è un dict"]
+
+    # paths
+    paths = config.get("paths")
+    if not isinstance(paths, dict):
+        errors.append("sezione [paths] mancante o non dict")
+    else:
+        for key in ("project_root", "state_dir", "tasks_dir", "logs_dir",
+                    "backups_dir"):
+            if key not in paths:
+                errors.append(f"paths.{key} mancante")
+            elif not _is_str(paths.get(key)):
+                errors.append(f"paths.{key} deve essere stringa")
+
+    # orchestrator
+    o = config.get("orchestrator", {})
+    if not isinstance(o, dict):
+        errors.append("sezione [orchestrator] non dict")
+    else:
+        v = o.get("max_task_retries", 3)
+        if not _is_int(v):
+            errors.append("orchestrator.max_task_retries deve essere int")
+        elif v < 1:
+            errors.append("orchestrator.max_task_retries deve essere >= 1")
+        v = o.get("retry_cooldown_sec", 30)
+        if not _is_int(v):
+            errors.append("orchestrator.retry_cooldown_sec deve essere int")
+        elif v < 0:
+            errors.append("orchestrator.retry_cooldown_sec deve essere >= 0")
+        v = o.get("sticky_models", True)
+        if not isinstance(v, bool):
+            errors.append("orchestrator.sticky_models deve essere bool")
+        v = o.get("best_of_n", 1)
+        if not _is_int(v):
+            errors.append("orchestrator.best_of_n deve essere int")
+        elif v < 1:
+            errors.append("orchestrator.best_of_n deve essere >= 1")
+
+    # security
+    sec = config.get("security", {})
+    if not isinstance(sec, dict):
+        errors.append("sezione [security] non dict")
+    else:
+        for key, mn in (("max_output_chars", 1), ("max_file_size_write", 1),
+                        ("max_file_size_bytes", 1), ("max_memory_mb", 1)):
+            v = sec.get(key)
+            if v is None:
+                continue
+            if not _is_int(v):
+                errors.append(f"security.{key} deve essere int")
+            elif v < mn:
+                errors.append(f"security.{key} deve essere >= {mn}")
+
+    # routing
+    rt = config.get("routing", {})
+    if not isinstance(rt, dict):
+        errors.append("sezione [routing] non dict")
+    else:
+        v = rt.get("max_file_size_readable")
+        if v is not None and (not _is_int(v) or v < 1):
+            errors.append("routing.max_file_size_readable deve essere int >= 1")
+        v = rt.get("timeout_bash")
+        if v is not None and (not _is_int(v) or v < 1):
+            errors.append("routing.timeout_bash deve essere int >= 1")
+
+    # logging
+    lg = config.get("logging", {})
+    if not isinstance(lg, dict):
+        errors.append("sezione [logging] non dict")
+    else:
+        v = lg.get("level")
+        if v is not None and not _is_str(v):
+            errors.append("logging.level deve essere stringa")
+
+    return errors
+
+
 def load_config(path: str = "CONFIG/config.toml") -> dict:
     with open(path, "rb") as f:
-        return tomllib.load(f)
+        config = tomllib.load(f)
+    errors = validate_config(config)
+    if errors:
+        raise ConfigError(errors)
+    return config
 
 
 
@@ -138,7 +243,15 @@ class Orchestrator:
     Follows Single Responsibility Principle (SRP).
     """
     def __init__(self, config_path: str = "CONFIG/config.toml"):
-        self.config = load_config(config_path)
+        try:
+            self.config = load_config(config_path)
+        except ConfigError as e:
+            # Fail-fast: config invalida → errore chiaro + exit (Robustezza #3).
+            print("CONFIGURAZIONE INVALIDA:", file=sys.stderr)
+            for err in e.errors:
+                print(f"  - {err}", file=sys.stderr)
+            print("Correggi CONFIG/config.toml e riavvia.", file=sys.stderr)
+            raise SystemExit(1)
         self.log = setup_logger(self.config)
 
         # --- SYSTEM ISOLATION CHECK (Safe Mode) ---
