@@ -82,7 +82,6 @@ def classify(task: dict, touched_paths=None, diff_lines: int = 0,
     reasons: list[str] = []
 
     ttype = str(task.get("type") or task.get("task_type") or "generic").lower()
-    text = f"{task.get('title') or ''} {task.get('description') or ''} ".lower()
     touched = [str(p) for p in (touched_paths or [])]
 
     critical_hits = [p for p in touched if _is_critical_path(p)]

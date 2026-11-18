@@ -7,7 +7,6 @@ from __future__ import annotations
 import os
 import pwd
 import logging
-from pathlib import Path
 from typing import Tuple
 
 def check_isolation() -> Tuple[bool, str]:
@@ -30,19 +29,9 @@ def check_isolation() -> Tuple[bool, str]:
     # 2. Verifica Cgroups (Memory/CPU limits)
     # Controlliamo se esistono i file di limite in /sys/fs/cgroup
     # Nota: questo dipende dalla versione del kernel e se è cgroup v1 o v2
-    cgroup_detected = False
-    cgroup_paths = [
-        Path("/sys/fs/cgroup/memory/byte-swarmy/memory.limit_in_bytes"), # v1
-        Path("/sys/fs/cgroup/user.slice/user-1000.slice/memory.max"),    # v2 generic
-    ]
+    # (cgroups richiede root per l'installazione: non bloccante, solo
+    # informativo — il limite di memoria resta gestito da RLIMIT_AS.)
 
-    for p in cgroup_paths:
-        if p.exists():
-            cgroup_detected = True
-            break
-
-    # Non lo rendiamo bloccante perché cgroups richiede root per l'installazione,
-    # ma lo registriamo.
 
     # 3. Verifica Bubblewrap installato (già fatto in tools.py, ma qui lo rendiamo sistemico)
     import subprocess
