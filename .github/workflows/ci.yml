@@ -27,10 +27,9 @@ jobs:
         run: |
           python -m compileall -q CORE GUI tools scripts SAFETY INTENT tests
 
-      - name: pyflakes — 0 nomi indefiniti (e 0 warning su CORE/)
+      - name: pyflakes — 0 nomi indefiniti
         run: |
           set -e
-          # Fallisce se ci sono nomi indefiniti (allucinazioni API)
           if python -m pyflakes CORE/ GUI/ tools/ scripts/ SAFETY/ INTENT/ tests/*.py 2>&1 | grep -i "undefined name"; then
             echo "ERRORE: nomi indefiniti rilevati"
             exit 1
@@ -54,14 +53,7 @@ jobs:
             tests/test_clarifier.py \
             -q -p no:cacheprovider --no-header
 
-      - name: Security scan (baseline: 7 errori)
+      - name: "Security scan (baseline: 7 errori)"
         run: |
           python tools/security_scan.py --json > /tmp/scan.json || true
-          python - <<'PY'
-          import json
-          d = json.load(open("/tmp/scan.json"))
-          errs = sum(1 for x in d if x.get("level") in ("error", "ERROR"))
-          print(f"security_scan: {errs} errori (baseline 7)")
-          if errs > 7:
-              raise SystemExit(f"Nuovi errori security scan: {errs} > 7")
-          PY
+          python -c "import json; d=json.load(open('/tmp/scan.json')); errs=sum(1 for x in d if x.get('level') in ('error','ERROR')); print(f'security_scan: {errs} errori (baseline 7)'); raise SystemExit(1) if errs>7 else 0"
