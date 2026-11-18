@@ -7,16 +7,13 @@ Senza LLM: rilevamento ambiguità, parsing risposte, chiarimento, loop.
 from __future__ import annotations
 
 import sys
-import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from CORE.clarifier import (  # noqa: E402
-    ClarificationResult,
     Question,
     clarify,
     clarify_loop,
@@ -59,10 +56,26 @@ class TestDetectAmbiguity(unittest.TestCase):
         self.assertTrue(is_clear("stampa ciao mondo"))
         self.assertFalse(is_clear("rifattorizza il modulo auth per usare OAuth2"))
 
-    def test_fail_open(self):
-        # Non deve sollevare mai
-        qs = detect_ambiguity("")
-        self.assertEqual(qs, [])
+    def test_task_ambiguo_test_runner(self):
+        qs = detect_ambiguity("scrivi test per il modulo auth")
+        self.assertTrue(len(qs) > 0)
+        texts = [q.text for q in qs]
+        self.assertTrue(any("runner" in t.lower() or "marker" in t.lower()
+                            for t in texts))
+
+    def test_task_ambiguo_handler_sistema(self):
+        qs = detect_ambiguity("crea un handler di sistema per il backup")
+        self.assertTrue(len(qs) > 0)
+        texts = [q.text for q in qs]
+        self.assertTrue(any("servizio di sistema" in t.lower() or "meccanismo" in t.lower()
+                            for t in texts))
+
+    def test_task_ambiguo_formato_config(self):
+        qs = detect_ambiguity("leggi il file json di configurazione")
+        self.assertTrue(len(qs) > 0)
+        texts = [q.text for q in qs]
+        self.assertTrue(any("formato" in t.lower() and "configurazione" in t.lower()
+                            for t in texts))
 
 
 class TestParseAnswer(unittest.TestCase):

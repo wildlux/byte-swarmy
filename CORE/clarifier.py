@@ -45,7 +45,7 @@ class Question:
         for i, opt in enumerate(self.options, 1):
             lines.append(f"     {i}) {opt}")
         if self.allow_free:
-            lines.append(f"     0) Altro (specifica)")
+            lines.append("     0) Altro (specifica)")
         return "\n".join(lines)
 
 
@@ -98,6 +98,18 @@ _AMBIGUITY_PATTERNS: list[tuple[re.Pattern, str, list[str]]] = [
     (re.compile(r"\b(sicurezza|security|auth|permessi|rbac)\b", re.I),
      "Livello di sicurezza richiesto?",
      ["Base (validazione input)", "Standard (auth + RBAC)", "Enterprise (audit + encryption)", "Massimo (zero-trust)"]),
+    # 🆕 P2-6: test runner/marker
+    (re.compile(r"\b(scrivi|aggiungi|genera)\s+test\b|\btest\s+(per|su|di)\b", re.I),
+     "Quale runner/marker di test vuoi usare?",
+     ["pytest (default)", "unittest", "marker @slow/@integration", "coverage report"]),
+    # 🆕 P2-6: handler di sistema / servizio
+    (re.compile(r"\b(handler\s+di\s+sistema|servizio\s+di\s+sistema|daemon|systemd|cron\s+job|background\s+service)\b", re.I),
+     "Quale meccanismo per il servizio di sistema?",
+     ["systemd unit", "cron job", "script manuale", "demone Python"]),
+    # 🆕 P2-6: formato file di configurazione
+    (re.compile(r"\b(file\s+(json|yaml|toml|csv|ini)|configurazione\s+file|config\s+file)\b", re.I),
+     "Quale formato per i file di configurazione?",
+     ["TOML (config.toml)", "JSON", "YAML", "INI"]),
 ]
 
 

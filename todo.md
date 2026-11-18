@@ -128,7 +128,7 @@ medi, infine sottofondi e igiene.
       valida che ogni simbolo citato nei refs esista davvero
       (deterministico). Criterio done: 3 refs nuovi + validatore +
       test.
-11. [ ] **[P2-6] Clarifier: estendere oltre GUI** — pattern per test
+11. [x] **[P2-6] Clarifier: estendere oltre GUI** — pattern per test
       ("scrivi test per X": runner? marker?), persistenza (sqlite?
       json?), handler di sistema. Criterio done: 3 pattern nuovi + test.
 12. [ ] **[P2-4] Memoria/contesto: misurare l'impatto reale** — l'import
