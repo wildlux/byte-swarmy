@@ -176,7 +176,7 @@ Il 3B da solo vale poco. Ma il **sistema** (skill + gate + routing + correction 
 
 **Il valore vero è nel sistema, non nel modello.** E il sistema è onesto: non mente. `ok=true` solo se il codice gira E produce i marker attesi.
 
-**🎯 Goal dichiarato**: portare il **sistema** (modello + meccanismi) a livello **middle senior** — o quanto più vicino possibile. Criteri misurabili (≥70% task al primo tentativo, 0 allucinazioni API) e scala dei livelli: [`DOCS/MIGLIORAMENTI.md`](DOCS/MIGLIORAMENTI.md).
+**🎯 Goal dichiarato**: portare il **sistema** (modello + meccanismi) a livello **middle senior** — o quanto più vicino possibile. Criteri misurabili (≥70% task al primo tentativo, 0 allucinazioni API, **0 errori e 0 warning** — codice pulito ed elegante, i warning sono il termometro di eleganza e performance) e scala dei livelli: [`DOCS/MIGLIORAMENTI.md`](DOCS/MIGLIORAMENTI.md).
 
 ### Quanto lontano si può andare con questo approccio?
 

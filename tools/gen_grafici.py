@@ -391,7 +391,7 @@ def build_svg() -> str:
         [("Junior — 3b nudo (baseline C72: 0/4 task GUI)", 1, "done"),
          ("Junior+ — sistema v0.3.30 (meccanismi attivi)", 2, "current"),
          ("Middle — ≥50% primo colpo, GUI ≥50%", 3, "next"),
-         ("Middle Senior — GOAL ≥70%, 0 alluc. API", 4, "goal")],
+         ("Middle Senior — GOAL ≥70%, 0 warning", 4, "goal")],
         x0 + 60, x1, y,
         "D. Scala di seniorità del sistema — GOAL: almeno middle senior",
         "Il modello 3b non diventerà un senior; il SISTEMA (modello + "

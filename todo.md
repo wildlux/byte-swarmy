@@ -18,6 +18,16 @@ c'è una roadmap viva: la scala verso il goal middle senior
 
 > Ogni item ha un criterio di done **misurabile**. Filosofia:
 > deterministico-first, una voce per sessione, mai generazioni monolitiche.
+>
+> **⭐ Regola Zero Warning (2026-11-18, richiesta esplicita)**: il goal
+> non è solo "0 errori" — è **0 errori E 0 warning**. I warning non
+> sono decorativi: ogni unused import è costo di avvio, ogni variabile
+> morta è confusione, ogni deprecation è un errore futuro. Il codice
+> deve essere pulito ed elegante: i warning sono il termometro della
+> eleganza e della performance. Baseline misurata: **pyflakes 474**
+> (375 imported-but-unused · 39 variabili morte · 16 redefinition ·
+> 44 altro); baseline pytest-warning: da misurare (prima sessione
+> utile). La campagna è un item del programma (Robustezza #10).
 
 ### P1 — Prerequisiti del goal (misurare per governare)
 
@@ -236,6 +246,16 @@ compute grezzo.
       (tests/archiviati) o rimozione; oggi è superficie di audit
       rumorosa. Criterio done: directory spostata o taggata, scanner
       ripulito dei finding.
+10. [ ] **Campagna Zero Warning: pyflakes 474 → 0** — regola nel goal
+       (vedi header roadmap): il codice deve essere pulito ed elegante,
+       i warning misurano eleganza+performance. Baseline: 375 unused
+       import + 39 variabili morte + 16 redefinition + 44 altro.
+       Criterio done: pyflakes 0 su CORE+GUI+tools+scripts+SAFETY+
+       INTENT+tests/*.py; batch deterministici (executor meccanico per
+       gli unused import, una famiglia GUI/CORE per sessione) + baseline
+       pytest-warning misurata e ridotta a 0 con `-W error` dove
+       possibile. GO/NO-GO per la parte `-W error` se warning di
+       terze parti (Qt) non sopprimibili in modo onesto.
 
 
 

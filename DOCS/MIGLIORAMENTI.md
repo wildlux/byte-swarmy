@@ -22,7 +22,7 @@ Scala (grafico D, criteri misurabili):
 | **Junior** — 1/4 | 3b nudo senza sistema: 0/4 task GUI, modifiche minime fallite, requirements sovrascritto | baseline (C72) |
 | **Junior+** — 2/4 | Sistema v0.3.30: 16 meccanismi attivi, executor deterministico per cambi meccanici, gate su tutto | **◀ siamo qui** |
 | **Middle** — 3/4 | ≥50% dei task chiusi al primo tentativo (senza correction), task GUI ≥50% | target intermedio |
-| **Middle Senior** — 4/4 | **≥70% al primo tentativo; task GUI ≥75%; 0 simboli API inesistenti nei file scritti (gate import-check); 0 violazioni gate** | ★ GOAL |
+| **Middle Senior** — 4/4 | **≥70% al primo tentativo; task GUI ≥75%; 0 simboli API inesistenti nei file scritti (gate import-check); 0 violazioni gate; 0 warning (pyflakes + pytest — regola Zero Warning)** | ★ GOAL |
 
 Come si misura: la stessa suite (`verify_cycle.sh` + test di parità +
 benchmark di sessione). Ogni meccanismo della sezione B è un gradino
