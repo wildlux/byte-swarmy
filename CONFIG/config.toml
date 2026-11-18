@@ -168,6 +168,9 @@ logs_dir = "./logs"
 backups_dir = "./backups"
 git_dir = "./project"
 
+[backup]
+retention_sessions = 5
+
 [logging]
 level = "DEBUG"
 file = "./logs/byte-swarmy.log"

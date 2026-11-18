@@ -23,9 +23,11 @@ import re
 import json
 import resource
 import shlex
+import shutil
 import signal
 import subprocess
 import sys
+import time
 import uuid
 from pathlib import Path
 from typing import Optional, Sequence
@@ -146,6 +148,11 @@ class ToolSet:
         # (nomi indefiniti) eseguito a ogni scrittura e al `done`.
         self.touched_python: dict[str, str] = {}
 
+        # Robustezza #2: snapshot pre-write (backup deterministico).
+        self._backup_session_ts = int(time.time())
+        self._backup_retention = int(
+            (self.cfg.get("backup") or {}).get("retention_sessions", 5))
+
         # REGOLA 0 — la difesa è sempre attiva.
         # `security.enabled` esiste solo per retrocompatibilità: qualunque
         # tentativo di disattivarlo (config, test, task injection) viene
@@ -212,6 +219,80 @@ class ToolSet:
             if issues:
                 pending[rel] = issues
         return pending
+
+    # ------------------------------------------------------------------
+    # Robustezza #2 — snapshot pre-write (backup deterministico)
+    # ------------------------------------------------------------------
+    def _snapshot_path(self, rel_path: str):
+        """Path del backup per questo file/sessione, o None se non applicabile."""
+        try:
+            full = safe_project_path(rel_path, self.project_root)
+        except Exception:
+            return None
+        if not full.exists() or not full.is_file():
+            return None
+        backups_root = Path(self.cfg["paths"].get("backups_dir", "./backups"))
+        session_dir = backups_root / f"prewrite-{self._backup_session_ts}"
+        dest = session_dir / rel_path
+        try:
+            dest.resolve().relative_to(session_dir.resolve())
+        except ValueError:
+            return None
+        return dest
+
+    def snapshot_before_write(self, path: str) -> str:
+        """Copia il file corrente in backups/prewrite-<ts>/<relpath>.
+
+        Chiamato prima di ogni scrittura sovrascrivente. Fail-open: se il
+        backup fallisce, la scrittura procede (il backup è una rete, non
+        un gate). Ritorna il path del backup o '' se non applicabile.
+        """
+        dest = self._snapshot_path(path)
+        if dest is None:
+            return ""
+        try:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(safe_project_path(path, self.project_root), dest)
+            self._prune_prewrite_backups()
+            return str(dest)
+        except Exception as e:
+            self.log.warning(f"snapshot pre-write fallito per {path}: {e}")
+            return ""
+
+    def restore_from_backup(self, path: str, session_ts: int | None = None) -> str:
+        """Ripristina un file dal backup pre-write.
+
+        session_ts: timestamp della sessione (default: quella corrente).
+        Ritorna 'OK: ...' o 'ERROR: ...'.
+        """
+        ts = session_ts if session_ts is not None else self._backup_session_ts
+        try:
+            full = safe_project_path(path, self.project_root)
+        except Exception as e:
+            return f"ERROR: {e}"
+        backups_root = Path(self.cfg["paths"].get("backups_dir", "./backups"))
+        src = backups_root / f"prewrite-{ts}" / path
+        if not src.exists() or not src.is_file():
+            return f"ERROR: backup non trovato per {path} (sessione {ts})"
+        try:
+            full.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, full)
+            return f"OK: ripristinato {path} da backup prewrite-{ts}"
+        except Exception as e:
+            return f"ERROR: restore fallito: {e}"
+
+    def _prune_prewrite_backups(self) -> None:
+        backups_root = Path(self.cfg["paths"].get("backups_dir", "./backups"))
+        if not backups_root.exists():
+            return
+        sessions = sorted(backups_root.glob("prewrite-*"),
+                          key=lambda p: p.name)
+        keep = max(1, self._backup_retention)
+        for old in sessions[:-keep]:
+            try:
+                shutil.rmtree(old)
+            except Exception:
+                pass
 
     def allowed_tools(self) -> set[str]:
         """Tool che il worker può realmente chiamare."""
@@ -411,6 +492,8 @@ class ToolSet:
         if full.exists() and full.is_dir():
             return f"ERROR: '{path}' is a directory."
 
+        # Robustezza #2: snapshot pre-write (solo se il file esiste).
+        self.snapshot_before_write(path)
         try:
             full.parent.mkdir(parents=True, exist_ok=True)
             tmp = full.parent / _tmp_name(full.name)
@@ -1259,6 +1342,8 @@ class ToolSet:
                         "NON usare patch_code per correggere: riscrivi l'intero "
                         "file pulito con write_file.")
 
+            # Robustezza #2: snapshot pre-write.
+            self.snapshot_before_write(path)
             # Scrittura transazionale
             full.parent.mkdir(parents=True, exist_ok=True)
             tmp = full.parent / _tmp_name(full.name, ".patch")

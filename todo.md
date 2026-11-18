@@ -90,7 +90,7 @@ medi, infine sottofondi e igiene.
       errata → warning e si girano i DEFAULT silenziosamente. Criterio
       done: schema check a boot (chiavi, tipi, range), errore chiaro +
       exit se invalido; test config corrotta.
-5. [ ] **[Robustezza #2] Backup pre-write nel worker** — verificato
+5. [x] **[Robustezza #2] Backup pre-write nel worker** — verificato
       (0 snapshot in write_file/patch_code): se una patch corrompe un
       file, l'unica rete è git manuale. Criterio done: snapshot
       deterministico in `backups/<ts>/<relpath>` (retention max N
