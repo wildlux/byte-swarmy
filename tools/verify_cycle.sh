@@ -6,6 +6,7 @@
 #   2) test mirati (via CORE.test_runner, con timeout per file)
 #   3) boot smoke (orchestrator in pausa: exit 124 = OK atteso)
 #   4) metrica primo colpo % (P1-1, zero LLM: legge tasks/queue.db)
+#   5) security scan (baseline 15 errori, falsi positivi documentati)
 #
 # Automazione deterministica, NON un LLM che genera comandi:
 # zero LLM, zero calore, stessa disciplina rigorosa.
@@ -60,6 +61,16 @@ fi
 
 echo "== 4/4 metrica primo colpo (P1-1) =="
 "$PY" tools/first_try_report.py || true
+
+echo "== 5/5 security scan (baseline: 15 errori, falsi positivi documentati) =="
+"$PY" tools/security_scan.py --json > /tmp/bswarm-scan.json 2>/dev/null || true
+errs=$("$PY" -c "import json; d=json.load(open('/tmp/bswarm-scan.json')); print(sum(1 for x in d if x.get('level') in ('error','ERROR')))" 2>/dev/null || echo 0)
+if [ "$errs" -gt 15 ]; then
+    echo "✗ security scan: $errs errori (baseline 15) — nuovi errori"
+    fail=1
+else
+    echo "✓ security scan: $errs errori (baseline 15)"
+fi
 
 if [ "$fail" -eq 0 ]; then
     echo "✅ VERIFICA CICLO: PASS"

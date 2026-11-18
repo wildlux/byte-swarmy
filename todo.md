@@ -156,7 +156,7 @@ medi, infine sottofondi e igiene.
       famiglia GUI/CORE per sessione) + baseline pytest-warning
       misurata e ridotta con `-W error` dove possibile. GO/NO-GO
       onesto se i warning Qt non sono sopprimibili.
-16. [ ] **[Robustezza #7] security_scan.py in CI + verify_cycle** — lo
+16. [x] **[Robustezza #7] security_scan.py in CI + verify_cycle** — lo
       scanner esiste (262 finding, 13 errori: 9 in GLM_SOLUZIONE_WEB)
       ma NON gira in nessuna pipeline. Criterio done: security_scan
       nel workflow CI e in verify_cycle.sh con baseline (errori

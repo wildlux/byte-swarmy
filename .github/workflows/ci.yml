@@ -54,11 +54,14 @@ jobs:
             tests/test_clarifier.py \
             -q -p no:cacheprovider --no-header
 
-      - name: Security scan (baseline)
+      - name: Security scan (baseline: 15 errori)
         run: |
           python tools/security_scan.py --json > /tmp/scan.json || true
           python - <<'PY'
           import json
           d = json.load(open("/tmp/scan.json"))
-          print("security_scan finding:", d.get("summary", d))
+          errs = sum(1 for x in d if x.get("level") in ("error", "ERROR"))
+          print(f"security_scan: {errs} errori (baseline 15)")
+          if errs > 15:
+              raise SystemExit(f"Nuovi errori security scan: {errs} > 15")
           PY
