@@ -20,7 +20,6 @@ a un decoder quando valuta il modello su problemi da programmatore.
 from __future__ import annotations
 
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -331,8 +330,8 @@ def gguf_meta(gguf_path: Path, max_kv: int = 40) -> dict:
             magic = f.read(4)
             if magic != b"GGUF":
                 return vals
-            _version = int.from_bytes(f.read(4), "little")
-            _tensors = int.from_bytes(f.read(8), "little")
+            int.from_bytes(f.read(4), "little")
+            int.from_bytes(f.read(8), "little")
             kv_count = int.from_bytes(f.read(8), "little")
 
             def _rd_str():

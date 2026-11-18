@@ -17,8 +17,7 @@ from __future__ import annotations
 
 import os
 import re
-from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Optional, Sequence
+from pathlib import Path, PurePosixPath
 
 from SAFETY.security import (  # noqa: F401 — ri-esportate per comodità
     is_sensitive_path,

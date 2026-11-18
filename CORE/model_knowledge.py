@@ -18,7 +18,6 @@ degradando mostra solo i combo esistenti, mai un crash.
 from __future__ import annotations
 
 import json
-import re
 import subprocess
 from pathlib import Path
 

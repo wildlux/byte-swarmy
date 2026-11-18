@@ -38,12 +38,11 @@ Versione: 1.0
 """
 import subprocess
 import shutil
-import os
 import sys
 import json
 import tempfile
 from pathlib import Path
-from typing import Optional, Union, List, Dict
+from typing import Optional, Dict
 import logging
 _OUT = sys.stdout
 

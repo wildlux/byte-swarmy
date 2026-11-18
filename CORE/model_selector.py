@@ -27,7 +27,6 @@ Usage:
 from __future__ import annotations
 
 import json
-import os
 import urllib.request
 from pathlib import Path
 from typing import Optional
@@ -394,7 +393,7 @@ def score_model_for_role(model: dict, role: str, hardware: dict,
     # 3. Name match (preferred names)
     if model["name"] in role_def["preferred_names"]:
         score += 20
-        reasons.append(f"exact preferred name match")
+        reasons.append("exact preferred name match")
     elif role_def.get("name_keywords"):
         # worker_coder: reward se il nome contiene "coder"
         name_lower = model["name"].lower()
@@ -417,7 +416,7 @@ def score_model_for_role(model: dict, role: str, hardware: dict,
         reasons.append(f"thermal penalty (GPU {gpu_temp:.0f}°C, model > 2GB)")
     elif gpu_temp > 75 and model_gb > 3.0:
         score -= 8
-        reasons.append(f"minor thermal penalty")
+        reasons.append("minor thermal penalty")
 
     # 6. Quantization bonus (Q4_K_M è buon compromesso)
     quant = model.get("quantization", "")
@@ -489,7 +488,7 @@ def get_recommendations(
         if not scored:
             recs[role] = {
                 "model": None, "score": 0,
-                "reason": f"no suitable model (all rejected by hard gates)"
+                "reason": "no suitable model (all rejected by hard gates)"
             }
             continue
 

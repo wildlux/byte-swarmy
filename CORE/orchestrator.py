@@ -13,12 +13,9 @@ Niente multiprocessing, niente asyncio. Sequenziale e predicibile.
 
 from __future__ import annotations
 
-import ast
 import json
 import logging
 import os
-import re
-import shutil
 import signal
 import sys
 import time
@@ -26,7 +23,6 @@ import tarfile
 from pathlib import Path
 from typing import Optional
 
-from CORE.constants import DEFAULT_NUM_CTX
 from MONITORING.lifecycle_manager import LifecycleManager
 from MONITORING.system_monitor import SystemMonitor
 from CORE.task_dispatcher import TaskDispatcher
@@ -51,7 +47,7 @@ except ImportError:
               file=sys.stderr)
         sys.exit(1)
 
-from CORE.regex_controller import RegexController, DEFAULT_PATTERNS, json_block
+from CORE.regex_controller import RegexController, DEFAULT_PATTERNS
 
 # Controllore regex riusabile (json_object, json_array già nei default)
 _REGEX = RegexController(DEFAULT_PATTERNS)
@@ -71,7 +67,7 @@ from CORE.task_queue import TaskQueue
 from CORE.planner import Planner
 from CORE.auditor import AuditWorker
 from CORE.generic_planner import GenericTaskPlanner
-from CORE.worker import Worker, suggest_escalation, _looks_like_file_path
+from CORE.worker import Worker, suggest_escalation
 
 
 # ====================================================================
@@ -606,7 +602,7 @@ class Orchestrator:
                     self.log.info(f"generic task {task['id']} -> {len(subtasks)} code tasks")
                     return
                 else:
-                    self.log.warning(f"generic planner returned 0 subtasks, falling back to worker")
+                    self.log.warning("generic planner returned 0 subtasks, falling back to worker")
             else:
                 self.log.warning("generic planner disabled or no decision model, "
                                  "treating as regular task")
@@ -883,7 +879,6 @@ class Orchestrator:
         Non sovrascrive mai un avvia.sh esistente (quello dell'LLM vince).
         """
         try:
-            from CORE.constants import weight_default_model  # noqa: F401 (coerenza import)
             proj = Path(self.config["paths"]["project_root"])
             avvio = proj / "avvia.sh"
             if avvio.exists():

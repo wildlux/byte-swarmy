@@ -454,7 +454,7 @@ def run_direct(task: dict, project_root: str,
     # disponibili). Fail-open: se non c'è ask_fn, procede senza.
     if clarify:
         try:
-            from CORE.clarifier import detect_ambiguity, clarify as _clarify
+            from CORE.clarifier import detect_ambiguity
             qs = detect_ambiguity(title, description)
             if qs and ask_fn is not None:
                 from CORE.clarifier import clarify_loop
@@ -665,7 +665,6 @@ def run_direct(task: dict, project_root: str,
 if __name__ == "__main__":
     import argparse
     import json
-    import sys
 
     ap = argparse.ArgumentParser(
         description="Generazione diretta con skill (LLM senza tool)")

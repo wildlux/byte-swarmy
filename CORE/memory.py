@@ -9,10 +9,9 @@ import json
 import time
 from collections import deque
 from pathlib import Path
-from typing import Any, List, Dict, Optional
 import sqlite3
 
-from CORE.memory_provider import SQLiteMemoryProvider, JSONMemoryProvider, MemoryProvider
+from CORE.memory_provider import SQLiteMemoryProvider, MemoryProvider
 
 
 class AgentMemory:

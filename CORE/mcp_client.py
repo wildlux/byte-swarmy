@@ -17,10 +17,8 @@ from __future__ import annotations
 import json
 import time
 import threading
-import urllib.request
-import urllib.error
 from typing import Optional, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 # ---------------------------------------------------------------------------

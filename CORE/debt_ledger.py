@@ -268,7 +268,7 @@ def main(argv: Optional[list] = None) -> int:
     p_done.add_argument("id", type=int)
     p_prog = sub.add_parser("progress", parents=[parent], help="marca un item in_progress")
     p_prog.add_argument("id", type=int)
-    p_stat = sub.add_parser("stats", parents=[parent], help="conteggi per stato")
+    sub.add_parser("stats", parents=[parent], help="conteggi per stato")
     p_ctx = sub.add_parser("context", parents=[parent], help="simboli del file dal code_map")
     p_ctx.add_argument("file")
 

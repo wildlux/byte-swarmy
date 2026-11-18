@@ -296,7 +296,7 @@ class ExternalBenchmark:
         try:
             # Primo tentativo
             attempts += 1
-            result = worker.execute(bench_task)
+            worker.execute(bench_task)
             content_after = self._read_target_file(sandbox_dir, task["file"])
             success_first_try = self._evaluate_check(task["check"], content_after)
 
@@ -309,7 +309,7 @@ class ExternalBenchmark:
                         f"stato applicato correttamente. Riprova applicando "
                         f"esattamente quanto richiesto."
                     )
-                    result = worker.execute(bench_task)
+                    worker.execute(bench_task)
                     content_after = self._read_target_file(
                         sandbox_dir, task["file"]
                     )

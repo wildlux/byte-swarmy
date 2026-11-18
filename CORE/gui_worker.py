@@ -12,7 +12,6 @@ implementa solo `_execute()` e i segnali specifici aggiuntivi.
 """
 from __future__ import annotations
 
-from typing import Optional
 
 from PyQt6.QtCore import QThread, pyqtSignal as Signal
 

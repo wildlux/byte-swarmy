@@ -19,7 +19,6 @@ forzare una configurazione manuale via CONFIG/config.toml [hardware].
 from __future__ import annotations
 
 import json
-import os
 import platform
 import re
 import subprocess
@@ -760,7 +759,7 @@ if __name__ == "__main__":
         log.info(f"  Bandwidth:        {profile.bandwidth_gbps:.0f} GB/s")
         log.info(f"  CPU cores:        {profile.cpu_cores}")
         log.info("")
-        log.info(f"  ─── Strategia suggerita ───")
+        log.info("  ─── Strategia suggerita ───")
         log.info(f"  Strategy:         {profile.strategy}")
         log.info(f"  Worker count:     {profile.worker_count}")
         log.info(f"  Keep alive:       {profile.keep_alive_sec}s")
@@ -770,12 +769,12 @@ if __name__ == "__main__":
         log.info(f"  Description:      {profile.description}")
         log.info("")
         if not profile.detection_ok:
-            log.warning(f"  ⚠️ Detection warnings:")
+            log.warning("  ⚠️ Detection warnings:")
             for w in profile.detection_warnings:
                 log.info(f"    - {w}")
             log.info("")
         if args.verbose:
-            log.info(f"  ─── Raw data ───")
+            log.info("  ─── Raw data ───")
             log.info(json.dumps(profile.raw_data, indent=2, default=str))
         log.info(f"  Summary: {profile.summary}")
         log.info("")

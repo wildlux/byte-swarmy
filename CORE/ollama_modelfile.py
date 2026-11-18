@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import re
 import subprocess
-from typing import Optional
 
 # Chiavi PARAMETER che cerchiamo nel Modelfile
 PARAM_RE = re.compile(

@@ -7,7 +7,7 @@ Blocca l'uso di funzioni pericolose indipendentemente dall'offuscamento del codi
 from __future__ import annotations
 import ast
 import re
-from typing import Tuple, List, Set
+from typing import Tuple, List
 
 # Firma degli artefatti di escape la causa i crash loops del 27/10/2026:
 # riga che INIZIA con un backslash-virgoetta (\\" o \\') fuori da qualunque

@@ -14,7 +14,6 @@ import logging
 import time
 import urllib.request
 from pathlib import Path
-from typing import Any, Dict, List, Optional
 
 from CORE.constants import DEFAULT_NUM_CTX
 from CORE.ollama_client import ModelClient
