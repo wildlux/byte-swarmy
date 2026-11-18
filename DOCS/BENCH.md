@@ -368,3 +368,19 @@ Le prime 2 sessioni (ext-01, ext-02) hanno evidenziato 2 problemi:
 - `temp_before`/`temp_after` per fase nel JSON (verifica empirica del
   fix: se una sessione supera 60°C, si vede subito e si abbassa a 1).
 - Le prime 2 sessioni restano nei JSON come baseline harness-completo.
+
+---
+
+## Robustezza #8 — pytest-xdist (verdetto: NO-GO per la suite completa, 2026-11-18)
+
+- **Baseline (non-Qt subset, 78 test)**: -n1 1.5s · -n2 1.4s · -n4 1.4s
+  (speedup ~0: i test sono troppo veloci per beneficiare del parallelismo).
+- **Instabilità**: `TestClarificationDialogSmoke::test_dialog_creation` (Qt
+  QApplication per worker) crasha sotto xdist (worker crash) con -n2/-n4.
+  Confermato in 3 run consecutivi.
+- **Verdetto: NO-GO** per la suite completa (fail-open onesto, come da
+  criterio). Il parallelismo non porta beneficio misurabile e instabilizza
+  i test Qt. Mantenere `pytest` seriale per la suite intera.
+- **Uso ammesso**: sottoinsieme puramente non-Qt (es. i nuovi test
+  deterministici) con `-n 2/4` per feedback rapido in sviluppo, mai in CI
+  sulla suite completa.

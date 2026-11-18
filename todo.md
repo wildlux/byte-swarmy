@@ -208,7 +208,7 @@ medi, infine sottofondi e igiene.
       (requirements.txt: solo `>=`): una reinstall futura può prendere
       versioni incompatibili. Criterio done: `pip freeze` dal venv →
       lock file + riga nel README.
-27. [ ] **[Robustezza #8] pytest-xdist per la suite (1134s)** —
+27. [x] **[Robustezza #8] pytest-xdist per la suite (1134s)** —
       benchmark `pytest -n 2/4` offscreen; se i test Qt instabilitano
       → verdict NO-GO scritto (fail-open onesto).
 28. [ ] **[Robustezza #9] Verdetto GLM_SOLUZIONE_WEB** — 9 errori
