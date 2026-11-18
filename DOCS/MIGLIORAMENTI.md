@@ -1,4 +1,4 @@
-# 📈 Miglioramenti implementati — Cycle 70 → 85 (v0.3.18 → v0.3.30)
+# 📈 Miglioramenti implementati — Cycle 70 → 85k (v0.3.18 → v0.3.32)
 
 ![Grafico miglioramenti](grafici/miglioramenti.svg)
 
@@ -20,9 +20,9 @@ Scala (grafico D, criteri misurabili):
 | Livello | Criterio | Stato |
 |---|---|---|
 | **Junior** — 1/4 | 3b nudo senza sistema: 0/4 task GUI, modifiche minime fallite, requirements sovrascritto | baseline (C72) |
-| **Junior+** — 2/4 | Sistema v0.3.30: 16 meccanismi attivi, executor deterministico per cambi meccanici, gate su tutto | **◀ siamo qui** |
+| **Junior+** — 2/4 | Sistema v0.3.32: 26 meccanismi attivi, gate per-slot + assembler + import-check, Zero Warning (0 pyflakes), corpus feedback, best-of-N | **◀ siamo qui** |
 | **Middle** — 3/4 | ≥50% dei task chiusi al primo tentativo (senza correction), task GUI ≥50% | target intermedio |
-| **Middle Senior** — 4/4 | **≥70% al primo tentativo; task GUI ≥75%; 0 simboli API inesistenti nei file scritti (gate import-check); 0 violazioni gate; 0 warning (pyflakes + pytest — regola Zero Warning)** | ★ GOAL |
+| **Middle Senior** — 4/4 | **≥70% al primo tentativo; task GUI ≥75%; 0 simboli API inesistenti nei file scritti (gate import-check); 0 violazioni gate; 0 warning (pyflakes + pytest — regola Zero Warning) ✅ raggiunto (474 → 0)** | ★ GOAL |
 
 Come si misura: la stessa suite (`verify_cycle.sh` + test di parità +
 benchmark di sessione). Ogni meccanismo della sezione B è un gradino
@@ -32,14 +32,14 @@ verso il goal; il progresso è un numero, non un'impressione.
 
 | Asse | Oggi | Goal | Gap → azione (todo.md) |
 |---|:-:|:-:|---|
-| Task GUI (creazione) | 1/4 | 3/4 | scaffolding deterministico (template) |
-| Modifiche minime | 2/4 | 3/4 | executor + disciplina già ok, misurare primo colpo |
+| Task GUI (creazione) | 1/4 | 3/4 | scaffolding deterministico (template) — SLOT-3 |
+| Modifiche minime | 3/4 | 4/4 | best-of-N attivo (fast lane), executor + disciplina |
 | Refactoring mecc. | 3/4 | 4/4 | estendere executor AST |
-| Gate / verifica | 4/4 | 4/4 | punto di forza del sistema |
-| Fedeltà API | 2/4 | 4/4 | gate import-check (0 allucinazioni misurabili) |
-| Chiarimenti ambigui | 2/4 | 3/4 | estendere pattern clarifier oltre GUI |
-| Architettura | 1/4 | 2/4 | decision tree v2 (limite onesto del 3b) |
-| Memoria / contesto | 2/4 | 4/4 | import sistemato (C85): ora misurare l'impatto |
+| Gate / verifica | 4/4 | 4/4 | punto di forza: gate per-slot + import-check |
+| Fedeltà API | 3/4 | 4/4 | gate import-check (0 allucinazioni misurabili) + refs interni |
+| Chiarimenti ambigui | 3/4 | 4/4 | clarifier esteso (3 pattern nuovi) |
+| Architettura | 2/4 | 3/4 | SLOT: gate + assembler pronti, planner v2 (SLOT-3) |
+| Memoria / contesto | 2/4 | 4/4 | import sistemato (C85): ora misurare l'impatto (P2-4) |
 
 ---
 
@@ -57,7 +57,7 @@ Commit: `4a1cb1a` (12 difetti) · `0bb4998` (parità GUI) · `72e1b71` (toolbar)
 
 ---
 
-## B. I 16 meccanismi di robustezza e anti-allucinazione attivi
+## B. I 26 meccanismi di robustezza e anti-allucinazione attivi
 
 | # | Meccanismo | Introdotto |
 |--:|---|---|
@@ -77,6 +77,16 @@ Commit: `4a1cb1a` (12 difetti) · `0bb4998` (parità GUI) · `72e1b71` (toolbar)
 | 14 | `_sandbox_argv`: traduzione path host→sandbox (bandit/mypy/test) | v0.3.30 (C85) |
 | 15 | `run_test_suite` reale: test del progetto nel sandbox + fallback pytest | v0.3.30 (C85) |
 | 16 | Test toolbar ermetici (mai subprocess dai test) | v0.3.30 (C85c) |
+| 17 | Metrica "primo colpo %" (queue.db.first_try + report tool) | v0.3.31 (C85i) |
+| 18 | Gate per-slot (pyflakes/AST sul frammento prima dell'assembly) | v0.3.31 (C85j) |
+| 19 | Assembler deterministico (marker `# @@slot` / `# @@imports`) | v0.3.31 (C85j) |
+| 20 | Gate import-check (0 allucinazioni API, retry ≤2) | v0.3.31 (C85j) |
+| 21 | Corpus di feedback (Triple JSONL + hook worker + curate CLI) | v0.3.31 (C85k) |
+| 22 | Best-of-N con gate come giudice (fast lane) | v0.3.32 (C85l) |
+| 23 | Watchdog backoff escalato + guardia crash-loop | v0.3.32 (C85l) |
+| 24 | Refs interni (orchestrator/ledger/scheduler) + validate_refs.py | v0.3.32 (C85l) |
+| 25 | Clarifier esteso (test runner, handler sistema, formato config) | v0.3.32 (C85l) |
+| 26 | Zero Warning: pyflakes 474 → 0 su CORE/GUI/tools/scripts/SAFETY/tests | v0.3.32 (C85m) |
 
 ---
 
@@ -115,5 +125,5 @@ reale. Nessun flake residuo: `test_functional_swarm` passa da solo
 
 ---
 
-*Documento e grafico generati dal Cycle 85 — aggiornare `tools/gen_grafici.py`
+*Documento e grafico generati dal Cycle 85k — aggiornare `tools/gen_grafici.py`
 e rigenerare quando si aggiungono nuovi meccanismi.*

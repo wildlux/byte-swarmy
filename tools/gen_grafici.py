@@ -54,6 +54,10 @@ CHART_B = [
     ("v0.3.28", 11),  # 84: clarifier ask-if-vague
     ("v0.3.30", 16),  # 85: audit robustezza (mutua esclusione, sandbox
                       #      argv, run_test_suite reale, test ermetici...)
+    ("v0.3.31+", 26), # 85i-85k: metrica primo colpo, gate per-slot,
+                      #      assembler, import-check, corpus feedback,
+                      #      best-of-N, watchdog backoff, clarifier +3,
+                      #      refs interni, validate_refs, Zero Warning
 ]
 
 # ── Dati Chart C: suite di test ──────────────────────────────────────
@@ -333,7 +337,7 @@ def radar_section(axes, oggi, goal, cx, cy, R, top, title, subtitle):
                  f'rx="2" fill="{C_BLUE}" fill-opacity="0.25" '
                  f'stroke="{C_BLUE}" stroke-width="2"/>')
     parts.append(f'<text x="{cx - 102}" y="{ly + 10}" font-family="{FONT}" '
-                 f'font-size="11.5" fill="{C_GRAY}">oggi (v0.3.31)</text>')
+                 f'font-size="11.5" fill="{C_GRAY}">oggi (v0.3.32+)</text>')
     parts.append(f'<rect x="{cx + 10}" y="{ly}" width="12" height="12" '
                  f'rx="2" fill="{C_GREEN}" fill-opacity="0.25" '
                  f'stroke="{C_GREEN}" stroke-width="2" '
@@ -351,7 +355,7 @@ def build_svg() -> str:
     sections.append(
         f'<text x="20" y="38" font-family="{FONT}" font-size="20" '
         f'font-weight="bold" fill="#0f172a">byte-swarmy — Miglioramenti '
-        f'implementati (Cycle 70 → 85)</text>')
+        f'implementati (Cycle 70 → 85k)</text>')
     sections.append(
         f'<text x="20" y="60" font-family="{FONT}" font-size="12" '
         f'fill="{C_GRAY}">Generato deterministicamente da '
@@ -373,7 +377,7 @@ def build_svg() -> str:
         CHART_B, x0, x1, y,
         "B. Meccanismi di robustezza e anti-allucinazione attivi "
         "(cumulativo)",
-        "Elenco completo dei 16 meccanismi in DOCS/MIGLIORAMENTI.md",
+        "Elenco completo dei 26 meccanismi in DOCS/MIGLIORAMENTI.md",
         y_max=16)
     sections.append(s)
 
@@ -402,7 +406,7 @@ def build_svg() -> str:
         ["Task GUI (creazione)", "Modifiche minime", "Refactoring mecc.",
          "Gate / verifica", "Fedeltà API", "Chiarimenti ambigui",
          "Architettura", "Memoria / contesto"],
-        [1, 2, 3, 4, 2, 2, 1, 2],
+        [1, 3, 3, 4, 3, 3, 2, 2],
         [3, 3, 4, 4, 4, 3, 2, 4],
         cx=W // 2, cy=y + 205, R=130, top=y,
         title="E. Radar capacità — dove siamo deboli (→ todo.md)",
