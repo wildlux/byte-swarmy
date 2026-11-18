@@ -1999,3 +1999,19 @@ i gate ora eseguono veri comandi sandbox invece di morire su NameError).
   refs moduli interni, clarifier esteso; P3: decision tree v2,
   confronto 7b/14b per GUI, leva cpupower.
 - Tabella radar-per-asse in DOCS/MIGLIORAMENTI.md.
+
+## 🚀 Cycle 85g — Programma "come i migliori" in todo.md (2026-11-18)
+
+- **todo.md**: sezione "🚀 Programma 'come i migliori' — GLM / Claude /
+  OpenAI / DeepSeek / Qwen" con **Fasi A-H (items 10-20)**, nell'ordine
+  reale dei lab: evals prima di tutto → data engine (corpus triple
+  verificate + curazione) → self-improvement STaR/ReST (feasibility
+  QLoRA 3b con GO/NO-GO onesto, GPU 4GB/1GB libera = borderline) →
+  inference-time scaling (best-of-N col gate come giudice, sweep
+  num_ctx) → distillazione → retrieval soluzioni passate (TF-IDF, no
+  RAG neurale) → A/B prompt variants (DSPy-style) → Timestral giudice
+  di qualità **mai sovrano** (il gate resta l'unica autorità).
+- Ogni fase con criterio di done misurabile e dipendenze esplicite
+  (Fase A dipende da P1-1). Sezione "Cosa NON facciamo": PPO/RL
+  infrastrutturale, reward-model training, cluster multi-GPU — fuori
+  dai vincoli hardware/termici; il nostro "RL" è il correction loop.

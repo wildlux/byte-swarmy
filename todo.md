@@ -68,6 +68,101 @@ c'è una roadmap viva: la scala verso il goal middle senior
       cap di frequenza per run lunghi; richiede sudo, documentare come
       prerequisito in README (sezione termica).
 
+---
+
+## 🚀 Programma "come i migliori" — GLM / Claude / OpenAI / DeepSeek / Qwen (2026-11-18)
+
+> Le tecniche con cui i lab più forti saltano di qualità, adattate ai
+> nostri vincoli (3B locale, GTX 1050 4GB, termica 60°C, zero budget).
+> **L'ordine è quello vero dei lab**: prima evals, poi dati, poi
+> training, poi inference-time, poi distillazione. Il nostro "RL" è il
+> correction loop + gate: ogni successo verificato è un reward.
+
+### Fase A — Evals prima di tutto (lo standard di TUTTI i lab)
+
+10. [ ] **Eval suite interna (mini-SWE-bench del progetto)** — i task
+      reali dei Cycle 70-85 diventano test-case con soluzione di
+      riferimento; runner misura primo colpo % **per asse del radar**
+      (non solo media). Criterio done: `evals/` con ≥12 casi + runner
+      + report per famiglia. Dipende da: P1-1 (metrica primo colpo).
+
+### Fase B — Data engine (il vero segreto di Qwen e DeepSeek: qualità > quantità)
+
+11. [ ] **Corpus di triple verificate** — ogni sessione salva
+      (prompt, output, verdetto gate) in `state/feedback_corpus/`
+      (+ tool-trace del worker). È il carburante di tutto il resto.
+      Criterio done: schema JSONL + writer nel worker + contatore
+      per-sessione nel report. Zero LLM.
+12. [ ] **Curazione deterministica** — dedup, stratificazione per
+      difficoltà/asse, SOLO esempli gate-verificati; report qualità
+      (n, per asse, n duplicati scartati). Criterio done: script
+      `tools/curate_corpus.py` + report esportato.
+
+### Fase C — Self-improvement: STaR/ReST (il loop R1 di DeepSeek in miniatura)
+
+13. [ ] **Feasibility QLoRA 3b + GO/NO-GO onesto** — GPU 4GB (1GB
+      libera) = borderline: unload ollama → ~3GB liberi; 1 run piccolo
+      (500 esempi, 1 epoca) di notte a macchina fredda. Vincolo duro:
+      ventole al max + guardia ≥90°C (già esiste). Criterio done:
+      feasibility report (VRAM reali, tempo/epoca) + verdict GO/NO-GO
+      scritto qui. NO-GO ammesso e onesto.
+14. [ ] **(se GO) SFT su successi verificati** — LoRA 3b sul corpus
+      curato (successi + correction come hard-negatives, stile V-STaR);
+      valutazione SOLO sull'eval suite Fase A (mai eyeball). Criterio
+      done: adapter salvato + A/B eval con/without LoRA in BENCH.md;
+      se non batte la baseline → NON si integra (lezione fast lane).
+
+### Fase D — Inference-time scaling (self-consistency OpenAI / reranking DeepSeek)
+
+15. [ ] **Best-of-N con gate come giudice** — per task hard (GUI,
+      architettura): N=3 candidati in parallelo, il gate (deterministico)
+      sceglie il migliore o rifiuta tutti. Criterio done: flag
+      `best_of_n` in config + benchmark costo/qualità (3x token vs
+      primo colpo %) in BENCH.md.
+16. [ ] **Sweep num_ctx + flash-attention** — 2048/3072/4096 con
+      `flash_attention_kv` su llama.cpp: più contesto = meno
+      dimenticanze (misurato: il bug requirements era conteso
+      parzialmente per contesto corto). Criterio done: tabella
+      qualità/tempo in BENCH.md, soglia aggiornata se vince.
+
+### Fase E — Distillazione (DeepSeek: R1→modelli piccoli)
+
+17. [ ] **Distill occasionale** — UN task hard eseguito da un modello
+      più grande (7b/14b via ollama, macchina fredda), soluzione
+      verificata dal gate → la coppia (prompt, soluzione) entra nel
+      corpus Fase B → il 3b impara dall'esempio senza mai girarlo in
+      produzione. Criterio done: `tools/distill_task.py` + ≥3 esempi
+      nel corpus.
+
+### Fase F — Memoria delle soluzioni (memory di Claude/ChatGPT, versione deterministica)
+
+18. [ ] **Retrieval di soluzioni passate** — TF-IDF/keyword su task
+      già chiusi (NO RAG neurale — coerente col verdetto Cycle 78):
+      "task simile a X, soluzione che è passata al gate qui". Criterio
+      done: tool `retrieve_similar_task()` + A/B (con/senza) su 10 task.
+
+### Fase G — Prompt optimization data-driven (DSPy-style)
+
+19. [ ] **A/B automatico delle varianti prompt** — refs on/off,
+      posizione REFS, formato PLAN: testate sull'eval suite (Fase A),
+      si promuove solo la variante che vince misurato. Criterio done:
+      `tools/eval_prompt_variants.py` + 1 esperimento chiuso con
+      verdetto in BENCH.md.
+
+### Fase H — LLM-as-judge controllato (Constitutional/RLEF light, Anthropic-style)
+
+20. [ ] **Timestral come giudice di qualità (mai sovrano)** — quando il
+      gate passa ma la qualità è dubbia, il decision model valuta;
+      logga accordo/disaccordo col gate. MAI override automatico: il
+      gate deterministico resta l'unica autorità (principio del
+      sistema). Criterio done: giudice opzionale + report accordo
+      gate↔giudice su 20 casi.
+
+**Cosa NON facciamo (onestà):** PPO/RL infrastrutturale, reward-model
+training, cluster multi-GPU — fuori dai vincoli hardware e termici.
+Il nostro "reinforcement" è già il correction loop: dati verificati >
+compute grezzo.
+
 
 ## Aperti
 
