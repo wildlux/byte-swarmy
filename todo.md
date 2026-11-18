@@ -211,7 +211,7 @@ medi, infine sottofondi e igiene.
 27. [x] **[Robustezza #8] pytest-xdist per la suite (1134s)** —
       benchmark `pytest -n 2/4` offscreen; se i test Qt instabilitano
       → verdict NO-GO scritto (fail-open onesto).
-28. [ ] **[Robustezza #9] Verdetto GLM_SOLUZIONE_WEB** — 9 errori
+28. [x] **[Robustezza #9] Verdetto GLM_SOLUZIONE_WEB** — 9 errori
       S010 in codice esperimento nel repo: decidere archivio o
       rimozione; oggi è superficie di audit rumorosa. Criterio done:
       directory spostata/taggata, scanner ripulito.

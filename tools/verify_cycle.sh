@@ -62,14 +62,14 @@ fi
 echo "== 4/4 metrica primo colpo (P1-1) =="
 "$PY" tools/first_try_report.py || true
 
-echo "== 5/5 security scan (baseline: 15 errori, falsi positivi documentati) =="
+echo "== 5/5 security scan (baseline: 7 errori, falsi positivi documentati) =="
 "$PY" tools/security_scan.py --json > /tmp/bswarm-scan.json 2>/dev/null || true
 errs=$("$PY" -c "import json; d=json.load(open('/tmp/bswarm-scan.json')); print(sum(1 for x in d if x.get('level') in ('error','ERROR')))" 2>/dev/null || echo 0)
-if [ "$errs" -gt 15 ]; then
-    echo "✗ security scan: $errs errori (baseline 15) — nuovi errori"
+if [ "$errs" -gt 7 ]; then
+    echo "✗ security scan: $errs errori (baseline 7) — nuovi errori"
     fail=1
 else
-    echo "✓ security scan: $errs errori (baseline 15)"
+    echo "✓ security scan: $errs errori (baseline 7)"
 fi
 
 if [ "$fail" -eq 0 ]; then
