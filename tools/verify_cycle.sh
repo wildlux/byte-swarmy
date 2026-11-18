@@ -5,6 +5,7 @@
 #   1) py_compile dei file toccati
 #   2) test mirati (via CORE.test_runner, con timeout per file)
 #   3) boot smoke (orchestrator in pausa: exit 124 = OK atteso)
+#   4) metrica primo colpo % (P1-1, zero LLM: legge tasks/queue.db)
 #
 # Automazione deterministica, NON un LLM che genera comandi:
 # zero LLM, zero calore, stessa disciplina rigorosa.
@@ -45,7 +46,7 @@ if ! "$PY" -m CORE.test_runner --categoria "$CATEGORY" --timeout "$TTIMEOUT"; th
     fail=1
 fi
 
-echo "== 3/3 boot smoke =="
+echo "== 3/4 boot smoke =="
 touch state/pause.flag
 timeout 15 "$PY" -m CORE.orchestrator CONFIG/config.toml >/dev/null 2>&1
 smoke_rc=$?
@@ -56,6 +57,9 @@ else
     echo "✗ boot smoke FALLITO (rc=$smoke_rc)"
     fail=1
 fi
+
+echo "== 4/4 metrica primo colpo (P1-1) =="
+"$PY" tools/first_try_report.py || true
 
 if [ "$fail" -eq 0 ]; then
     echo "✅ VERIFICA CICLO: PASS"

@@ -221,6 +221,8 @@ class Worker:
         self.memory = memory
         self.models = model_client
         self.log = logger
+        # P1-1: tentativi interni dell'ultimo execute (1 = primo colpo).
+        self.last_attempts = 1
 
         # 🆕 Cycle 57: test generation per i nuovi percorsi scritti dal worker.
         self.test_generator = TestGenerator(
@@ -410,6 +412,9 @@ class Worker:
     def execute(self, task: dict) -> str:
         """Esegue un task. Ritorna il risultato testuale."""
         self.tools.set_worker(self.agent_id)
+        # P1-1: riparte da 1 a ogni task — nessun valore ereditato dal
+        # task precedente se un percorso esce senza aggiornarlo.
+        self.last_attempts = 1
         # 🆕 Fix: reset completo memoria per evitare eredità da task precedenti
         try:
             if hasattr(self.memory, 'events'):
@@ -656,6 +661,8 @@ class Worker:
                     self.log.info(f"[{self.agent_id}] task marked done (tests: {test_passed}).")
 
                 result = action.get("result", "(no result)")
+                # P1-1: i retry per test falliti contano come correction.
+                self.last_attempts = 1 + test_fail_retries
                 self.memory.add_event({"type": "task_done", "content": result[:200]})
                 # 🆕 Registra task completato nella memoria persistente
                 try:
@@ -891,6 +898,7 @@ class Worker:
 
         res = run_direct(task, project_root, model_key=self.model_key,
                          client=self.models, max_retries=3)
+        self.last_attempts = int(res.get("attempts") or 1)
         self.last_code = str(res.get("code") or "")
         # 🆕 Fase 7: la decisione di routing visibile nei log/memoria
         route_txt = str(res.get("route") or "")
@@ -1035,6 +1043,7 @@ class Worker:
         attempts = 0
         for attempt in range(max(1, int(cfg.max_attempts))):
             attempts += 1
+            self.last_attempts = attempts
             prompt = self._fast_lane_prompt(
                 rel_path, task, content_before,
                 error=last_error if attempt > 0 else "",

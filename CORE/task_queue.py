@@ -12,9 +12,7 @@ import logging
 import sqlite3
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-
-from CORE.constants import TaskStatus
+from typing import List, Optional
 
 log = logging.getLogger("byte-swarmy")
 
@@ -40,6 +38,7 @@ class TaskQueue:
                     context TEXT,
                     status TEXT,
                     attempts INTEGER DEFAULT 0,
+                    first_try INTEGER,
                     created_at REAL,
                     parent TEXT,
                     type TEXT,
@@ -69,6 +68,11 @@ class TaskQueue:
             conn.execute("ALTER TABLE tasks ADD COLUMN retry_after REAL")
         if "project_path" not in cols:
             conn.execute("ALTER TABLE tasks ADD COLUMN project_path TEXT")
+        # 🆕 P1-1: metrica "primo colpo %". NULL = task deterministico
+        # (swarm/execute) o mai valutato; 1 = chiuso al primo tentativo;
+        # 0 = servito retry/correction/fallback.
+        if "first_try" not in cols:
+            conn.execute("ALTER TABLE tasks ADD COLUMN first_try INTEGER")
 
     def _get_conn(self):
         # timeout=30: busy-wait su lock concorrenti (threads/GUI) invece di
@@ -187,13 +191,22 @@ class TaskQueue:
             conn.commit()
             return dict(res) if res else None
 
-    def mark_done(self, task_id: str, result: str) -> None:
+    def mark_done(self, task_id: str, result: str,
+                  first_try: Optional[bool] = None) -> None:
+        """Chiude il task.
+
+        first_try: True = chiuso al primo tentativo (metrica P1-1);
+        False = servito retry/correction; None (default) = non valutato
+        (task deterministici swarm/execute).
+        """
+        ft = None if first_try is None else (1 if first_try else 0)
         with self._get_conn() as conn:
             # Non sovrascrivere un task fermato dall'utente (status='failed')
-            cur = conn.execute(
-                "UPDATE tasks SET status = 'done', result = ?, completed_at = ? "
+            conn.execute(
+                "UPDATE tasks SET status = 'done', result = ?, "
+                "completed_at = ?, first_try = COALESCE(?, first_try) "
                 "WHERE id = ? AND status NOT IN ('failed', 'stuck')",
-                (result[:500], time.time(), task_id)
+                (result[:500], time.time(), ft, task_id)
             )
             conn.commit()
 
@@ -229,7 +242,8 @@ class TaskQueue:
             fail_col = "failure_reason" if status == "stuck" else "last_error"
 
             conn.execute(
-                f"UPDATE tasks SET attempts = ?, status = ?, {fail_col} = ? WHERE id = ?",  # nosec: colonna dinamica validata (fail_col ∈ {failure_reason,last_error})
+                f"UPDATE tasks SET attempts = ?, status = ?, {fail_col} = ?, "
+                "first_try = 0 WHERE id = ?",  # nosec: colonna dinamica validata (fail_col ∈ {failure_reason,last_error})
                 (attempts, status, reason[:300], task_id)
             )
             conn.commit()
@@ -280,6 +294,11 @@ class TaskQueue:
     def mark_pending(self, task_id: str) -> None:
         """Rimette un task in pending (usato per il fallback modello)."""
         self.set_status(task_id, "pending")
+        # P1-1: un task rimesso in coda non è "primo colpo".
+        with self._get_conn() as conn:
+            conn.execute("UPDATE tasks SET first_try = 0 WHERE id = ?",
+                         (task_id,))
+            conn.commit()
 
         # non ripesca piu' nulla di definitivo: loop terminato
 
@@ -331,7 +350,8 @@ class TaskQueue:
                 retry_after = (time.time() + cooldown_sec) if cooldown_sec > 0 else None
                 conn.execute(
                     "UPDATE tasks SET attempts = ?, status = ?, "
-                    "description = ?, last_error = ?, retry_after = ? WHERE id = ?",
+                    "description = ?, last_error = ?, retry_after = ?, "
+                    "first_try = 0 WHERE id = ?",
                     (attempts, status, str(correction_prompt)[:4000],
                      reason[:300], retry_after, task_id),
                 )
@@ -339,7 +359,8 @@ class TaskQueue:
                 status = self.STATUS_FINAL
                 conn.execute(
                     "UPDATE tasks SET attempts = ?, status = ?, "
-                    "last_error = ?, completed_at = ? WHERE id = ?",
+                    "last_error = ?, completed_at = ?, first_try = 0 "
+                    "WHERE id = ?",
                     (attempts, status, reason[:300], time.time(), task_id),
                 )
             conn.commit()

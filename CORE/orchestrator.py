@@ -772,7 +772,15 @@ class Orchestrator:
 
             if audit_res.get("decision") == "APPROVE":
                 self.log.info(f"task {task['id']} APPROVED by auditor")
-                self.queue.mark_done(task["id"], result)
+                # 🆕 P1-1 (metrica "primo colpo %"): primo colpo = nessun
+                # retry di coda (attempts==0) E nessun retry interno del
+                # worker (last_attempts<=1: direct/fast lane/test-retry).
+                first_try = (
+                    int(task.get("attempts") or 0) == 0
+                    and int(getattr(worker, "last_attempts", 1) or 1) <= 1
+                )
+                self.queue.mark_done(task["id"], result,
+                                     first_try=first_try)
                 # 🆕 Salva la configurazione LLM usata come "last good"
                 # per poter fare rollback se una config futura fallisce.
                 used_opts = self.models.last_options_used.get(

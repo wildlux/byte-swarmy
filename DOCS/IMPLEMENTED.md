@@ -2034,3 +2034,40 @@ i gate ora eseguono veri comandi sandbox invece di morire su NameError).
   ([P1-1], [Fase A], [Robustezza #N]) per non rompere i riferimenti.
 - Storico (sezioni completate) conservato integralmente sotto
   "📜 Storico recente".
+
+## 📊 Cycle 85i — P1-1 metrica "primo colpo %" (2026-11-18)
+
+Primo item del piano riordinato per impatto: **senza misura il goal
+(≥70% primo tentativo) non è verificabile**. Zero LLM, ~1 sessione.
+
+- **`CORE/task_queue.py`**: colonna `first_try` (INTEGER) con migrazione
+  automatica idempotente (`ALTER TABLE` solo se assente; verificata su
+  copia del DB reale: 17 task preservati, 0 valutati).
+  - `mark_done(task_id, result, first_try=None)` → 1/0;
+    `COALESCE(?, first_try)` non azzera un valore già scritto
+    (es. chiusura automatica del parent).
+  - `mark_failed`, `fail_with_correction`, `mark_pending` → `first_try=0`.
+  - NULL = task deterministico (swarm/execute) o mai valutato: la metrica
+    conta SOLO dove un LLM ha lavorato.
+- **`CORE/worker.py`**: `last_attempts` (tentativi interni dell'ultimo
+  execute) resettato a 1 all'inizio di ogni task e aggiornato nei tre
+  percorsi: direct (`run_direct`), fast lane (`attempts`), ReAct
+  (`1 + test_fail_retries`).
+- **`CORE/orchestrator.py`**: all'APPROVE, `first_try = attempts di coda
+  == 0 AND worker.last_attempts <= 1` → `mark_done(..., first_try=...)`.
+  Un task non è "primo colpo" se ha servito retry di coda, correction,
+  fallback modello o retry interni.
+- **`tools/first_try_report.py`** (nuovo): legge `queue.db` e stampa
+  `primo_colpo: X/Y (Z%)`; risolve il DB esistente più recente tra
+  `data/tasks/` e `tasks/` (`BW_TASKS_DB` forza un path); riconosce lo
+  schema pre-migrazione (`legacy`) e non confonde "assente" con
+  "non migrato". Fail-open (exit 0) per non rompere `verify_cycle.sh`.
+- **`tools/verify_cycle.sh`**: nuovo passo **4/4** che stampa la metrica
+  a ogni ciclo (prima: 3 passi).
+- **`tests/test_first_try.py`** (nuovo): 9 test — default NULL, 1/0 nei
+  percorsi done/failed/correction/pending, COALESCE, conteggio solo
+  valutati, schema legacy, fail-open su DB assente.
+- Zero Warning: pyflakes 0 sui file toccati; ripuliti anche i 4 warning
+  preesistenti di `CORE/task_queue.py` (2 import inutilizzati +
+  variabile morta).
+- Test: 51 passed (nuovo file + queue/gatekeeper/orchestrator chiusura).
