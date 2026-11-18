@@ -123,7 +123,7 @@ medi, infine sottofondi e igiene.
       (il bug requirements era conteso in parte per contesto corto).
       Criterio done: tabella qualità/tempo in DOCS/BENCH.md, soglia
       aggiornata se vince.
-10. [ ] **[P2-5] Fedeltà API: refs ai moduli interni** — refs per
+10. [x] **[P2-5] Fedeltà API: refs ai moduli interni** — refs per
       orchestrator/ledger/scheduler (come toolset_api); script che
       valida che ogni simbolo citato nei refs esista davvero
       (deterministico). Criterio done: 3 refs nuovi + validatore +

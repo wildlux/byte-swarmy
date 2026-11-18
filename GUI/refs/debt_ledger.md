@@ -1,3 +1,4 @@
+# Modulo: CORE.debt_ledger
 # Debt ledger — cheat sheet (byte-swarmy)
 
 ## CLI (tutti i comandi)

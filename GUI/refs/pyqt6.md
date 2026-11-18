@@ -1,3 +1,4 @@
+# Modulo: external
 # PyQt6 — cheat sheet (byte-swarmy)
 
 ## App minima

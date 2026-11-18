@@ -1,3 +1,4 @@
+# Modulo: external
 # Tkinter — cheat sheet (byte-swarmy)
 
 Tkinter è nella stdlib (no pip). Per GUI native più moderne: `ttk` (tema).

@@ -1,3 +1,4 @@
+# Modulo: external
 # PySide6 — cheat sheet (byte-swarmy)
 
 PySide6 è il binding ufficiale Qt (LGPL). **API quasi identica a PyQt6**

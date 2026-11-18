@@ -1,3 +1,5 @@
+# Namespace: ToolSet
+# Modulo: CORE.tools
 # ToolSet API — cheat sheet (byte-swarmy)
 
 I tool disponibili al worker (CORE/tools.py). Tutti operano dentro `project/`.
@@ -44,7 +46,7 @@ Path sempre relativi a project_root (es. "CORE/worker.py", non "/home/...").
 - `diary_llm(...)` → str
 
 ## Errori comuni del worker
-- Scrivere `main.py` invece di `VENTOLA/hello_qt.py` → path sbagliato
+- Scrivere `main.py` invece di VENTOLA/hello_qt.py → path sbagliato
 - `write_file` su file protetto → usa `patch_code`
 - `write_file` con shrink sospetto → usa `patch_code` o modifica a mano
 - Ignorare il file target della task → LEGGI PRIMA (disciplina)
