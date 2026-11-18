@@ -50,29 +50,20 @@ medi, infine sottofondi e igiene.
 > tentativo, 0 = servito correction, NULL = task deterministico) +
 > `tools/first_try_report.py`; `verify_cycle.sh` stampa
 > `primo_colpo: X/Y` come passo 4/4.
+>
+> **✅ Completati in questa campagna** (fasi 1 dell'attacco):
+> - **[P1-1]** metrica "primo colpo %" (Cycle 85i) — `queue.db.first_try` +
+>   `tools/first_try_report.py` + verify_cycle 4/4.
+> - **[SLOT-1]** gate per-slot (Cycle 85j) — `CORE/slot_gate.py` +
+>   `tests/test_slot_pipeline.py`.
+> - **[SLOT-2]** assembler deterministico (Cycle 85j) — `CORE/slot_assembler.py`
+>   + marker `# @@slot` / `# @@imports`.
+> - **[P1-2]** gate import-check (Cycle 85j) — `CORE/import_check.py` +
+>   `CORE/tools.py` write/patch tracciamento + rifiuto done → retry ≤2.
+>
+> ### Fascia 1 — ★★★ Sblocca la misura + primo mattone SLOT
 
-### Fascia 1 — ★★★ Sblocca la misura + primo mattone SLOT
-
-1. [ ] **[SLOT-1] Gate per-slot** (nuovo, ~80 righe) — pyflakes/AST sul
-      SOLO frammento prima dell'assembly: simboli indefiniti o errori
-      → slot rifiutato con lista, correction loop su quello slot (≤3).
-      Criterio done: `gate_slot(fragment, refs)` in CORE + test
-      dedicato (frammento con simbolo inesistente rifiutato, frammento
-      valido accettato). Zero LLM.
-2. [ ] **[SLOT-2] Assembler deterministico** (~150 righe) — il pezzo
-      che oggi NON esiste: inserisce gli slot nel file per anchor,
-      gestisce import e formattazione. Criterio done: assembla 3
-      frammenti in un file `py_compile`-abile; test roundtrip; zero LLM.
-3. [ ] **[P1-2] Gate import-check — 0 allucinazioni API misurabili** —
-      pyflakes ha dimostrato di funzionare (12 undefined nel nostro
-      stesso repo, C85). Criterio done: write_file/patch_code eseguono
-      un check AST/pyflakes sui file Python scritti; simboli indefiniti
-      → done rifiutato con lista dei simboli (come il test-gate C78);
-      test dedicato in tests/test_toolset_gates.py.
-
-### Fascia 2 — ★★ Motore del miglioramento (dati + inference-time)
-
-4. [ ] **[Fase B] Corpus di triple verificate + curazione** — ogni
+1. [ ] **[Fase B] Corpus di triple verificate + curazione** — ogni
       sessione salva (prompt, output, verdetto gate) in
       `state/feedback_corpus/` (+ tool-trace). È il carburante di tutto
       il resto; parte subito perché è collezione passiva. Poi
@@ -80,33 +71,33 @@ medi, infine sottofondi e igiene.
       gate-verificati). Criterio done: schema JSONL + writer nel
       worker + contatore per-sessione; `tools/curate_corpus.py` +
       report qualità. Zero LLM.
-5. [ ] **[Fase D-15] Best-of-N con gate come giudice** — per task hard
+2. [ ] **[Fase D-15] Best-of-N con gate come giudice** — per task hard
       (GUI, architettura) e per slot hard: N=3 candidati in parallelo,
       il gate deterministico sceglie il migliore o rifiuta tutti.
       Criterio done: flag `best_of_n` in config + benchmark
       costo/qualità (3x token vs primo colpo %) in DOCS/BENCH.md.
-6. [ ] **[SLOT-4] Prompt per-slot + benchmark 3 task reali** — cambia
+3. [ ] **[SLOT-4] Prompt per-slot + benchmark 3 task reali** — cambia
       il prompt (non il motore): uno slot per chiamata, refs solo
       dello slot, output piccolo. ⚠ Richiede run LLM (ventole al max,
       limite 60°C, sessione corta). Criterio done: 3 task reali
       misurati con pass@1 per tipo di slot in DOCS/BENCH.md.
-7. [ ] **[Robustezza #3] Config: validazione fail-fast all'avvio** —
+4. [ ] **[Robustezza #3] Config: validazione fail-fast all'avvio** —
       verificato (`CORE/orchestrator.py:170`): toml invalido/chiave
       errata → warning e si girano i DEFAULT silenziosamente. Criterio
       done: schema check a boot (chiavi, tipi, range), errore chiaro +
       exit se invalido; test config corrotta.
-8. [ ] **[Robustezza #2] Backup pre-write nel worker** — verificato
+5. [ ] **[Robustezza #2] Backup pre-write nel worker** — verificato
       (0 snapshot in write_file/patch_code): se una patch corrompe un
       file, l'unica rete è git manuale. Criterio done: snapshot
       deterministico in `backups/<ts>/<relpath>` (retention max N
       sessioni) prima di ogni scrittura; restore documentato; test
       roundtrip.
-9. [ ] **[Fase A] Eval suite interna (mini-SWE-bench)** — i task reali
+6. [ ] **[Fase A] Eval suite interna (mini-SWE-bench)** — i task reali
       dei Cycle 70-85 diventano test-case con soluzione di riferimento;
       runner misura primo colpo % **per asse del radar** e **per
       granularità**. Criterio done: `evals/` con ≥12 casi + runner +
       report per famiglia. Dipende da: P1-1 (✅ Cycle 85i).
-10. [ ] **[SLOT-5] Eval per-slot pass@1** — runner che misura il
+7. [ ] **[SLOT-5] Eval per-slot pass@1** — runner che misura il
       primo-colpo **per tipo di slot** (import/function/handler/widget)
       e per dimensione output: è il numero che dice se SLOT funziona.
       Criterio done: tabella per-slot in DOCS/BENCH.md su ≥12 casi.
@@ -114,7 +105,7 @@ medi, infine sottofondi e igiene.
 
 ### Fascia 3 — ★ Chiudere i gap del sistema
 
-11. [ ] **[SLOT-3 / P2-3] Planner a slot v2 + scaffolding GUI** — il
+8. [ ] **[SLOT-3 / P2-3] Planner a slot v2 + scaffolding GUI** — il
       cambiamento più grande: da PLAN testuale a lista di SLOT
       (file, anchor, tipo, refs proprie, test proprio); 3-4 regole
       nuove dal decision tree (M8); template PyQt6 curati (finestra+
@@ -123,36 +114,36 @@ medi, infine sottofondi e igiene.
       Criterio done: planner produce slot + 3 template in
       GUI/refs/templates/ + skill + test snapshot + 1 task GUI reale
       chiuso al primo colpo con il template.
-12. [ ] **[Fase D-16] Sweep num_ctx + flash-attention** — 2048/3072/
+9. [ ] **[Fase D-16] Sweep num_ctx + flash-attention** — 2048/3072/
       4096 con `flash_attention_kv`: più contesto = meno dimenticanze
       (il bug requirements era conteso in parte per contesto corto).
       Criterio done: tabella qualità/tempo in DOCS/BENCH.md, soglia
       aggiornata se vince.
-13. [ ] **[P2-5] Fedeltà API: refs ai moduli interni** — refs per
+10. [ ] **[P2-5] Fedeltà API: refs ai moduli interni** — refs per
       orchestrator/ledger/scheduler (come toolset_api); script che
       valida che ogni simbolo citato nei refs esista davvero
       (deterministico). Criterio done: 3 refs nuovi + validatore +
       test.
-14. [ ] **[P2-6] Clarifier: estendere oltre GUI** — pattern per test
+11. [ ] **[P2-6] Clarifier: estendere oltre GUI** — pattern per test
       ("scrivi test per X": runner? marker?), persistenza (sqlite?
       json?), handler di sistema. Criterio done: 3 pattern nuovi + test.
-15. [ ] **[P2-4] Memoria/contesto: misurare l'impatto reale** — l'import
+12. [ ] **[P2-4] Memoria/contesto: misurare l'impatto reale** — l'import
       sistemato (C85) ha reso il contesto persistente funzionante per
       la prima volta; oggi è attivo ma non sappiamo se serve. Criterio
       done: A/B 10 task con/senza contesto → verdetto in DOCS/BENCH.md
       (mantieni, riduci o dismetti).
-16. [ ] **[Robustezza #1] Watchdog: backoff escalato + guardia
+13. [ ] **[Robustezza #1] Watchdog: backoff escalato + guardia
       crash-loop** — verificato (`SAFETY/watchdog.py:88-102`): riavvio
       fisso ogni 1s, senza escalation né contatore. Un poison crash =
       riavvio all'infinito con log spam. Criterio done: backoff
       1→2→4→…max 60s, reset del contatore dopo N secondi sani,
       allerta dopo 5 riavvii; test con crash simulato.
-17. [ ] **[Robustezza #4] CI GitHub Actions (zero LLM)** — verificato
+14. [ ] **[Robustezza #4] CI GitHub Actions (zero LLM)** — verificato
       (`.github/workflows` assente). Criterio done: workflow a ogni
       push → py_compile tutto-repo + pyflakes 0-undefined + test
       offscreen veloci (sottoinsieme, NON la suite 19min) su ubuntu +
       Python 3.11.
-18. [ ] **[Robustezza #10] Campagna Zero Warning: pyflakes 474 → 0** —
+15. [ ] **[Robustezza #10] Campagna Zero Warning: pyflakes 474 → 0** —
       regola nel goal (vedi header): codice pulito ed elegante.
       Baseline: 375 unused import + 39 variabili morte + 16
       redefinition + 44 altro. Criterio done: pyflakes 0 su
@@ -161,7 +152,7 @@ medi, infine sottofondi e igiene.
       famiglia GUI/CORE per sessione) + baseline pytest-warning
       misurata e ridotta con `-W error` dove possibile. GO/NO-GO
       onesto se i warning Qt non sono sopprimibili.
-19. [ ] **[Robustezza #7] security_scan.py in CI + verify_cycle** — lo
+16. [ ] **[Robustezza #7] security_scan.py in CI + verify_cycle** — lo
       scanner esiste (262 finding, 13 errori: 9 in GLM_SOLUZIONE_WEB)
       ma NON gira in nessuna pipeline. Criterio done: security_scan
       nel workflow CI e in verify_cycle.sh con baseline (errori
@@ -169,7 +160,7 @@ medi, infine sottofondi e igiene.
 
 ### Fascia 4 — ○ Sottofondi, training e igiene
 
-20. [ ] **[Fase C] Feasibility QLoRA 3b + GO/NO-GO onesto** — GPU 4GB
+17. [ ] **[Fase C] Feasibility QLoRA 3b + GO/NO-GO onesto** — GPU 4GB
       (1GB libera) = borderline: unload ollama → ~3GB liberi; 1 run
       piccolo (500 esempi, 1 epoca) di notte a macchina fredda.
       Vincolo duro: ventole al max + guardia ≥90°C. Criterio done:
@@ -178,49 +169,49 @@ medi, infine sottofondi e igiene.
       curato: successi + correction come hard-negatives (V-STaR),
       valutazione SOLO su eval suite Fase A; se non batte la baseline
       → NON si integra (lezione fast lane).
-21. [ ] **[Fase F] Retrieval di soluzioni passate** — TF-IDF/keyword su
+18. [ ] **[Fase F] Retrieval di soluzioni passate** — TF-IDF/keyword su
       task già chiusi (NO RAG neurale — verdetto Cycle 78).
       Criterio done: tool `retrieve_similar_task()` + A/B su 10 task.
-22. [ ] **[Fase E] Distill occasionale** — UN task hard risolto da
+19. [ ] **[Fase E] Distill occasionale** — UN task hard risolto da
       modello più grande (7b/14b, macchina fredda), soluzione
       gate-verificata → entra nel corpus Fase B: il 3b impara
       dall'esempio. Criterio done: `tools/distill_task.py` + ≥3 esempi
       nel corpus.
-23. [ ] **[Fase G] A/B automatico delle varianti prompt** — refs
+20. [ ] **[Fase G] A/B automatico delle varianti prompt** — refs
       on/off, posizione REFS, formato PLAN: promosso solo chi vince
       misurato. Criterio done: `tools/eval_prompt_variants.py` + 1
       esperimento chiuso con verdetto in DOCS/BENCH.md.
-24. [ ] **[Fase H] Timestral giudice di qualità (mai sovrano)** —
+21. [ ] **[Fase H] Timestral giudice di qualità (mai sovrano)** —
       quando il gate passa ma la qualità è dubbia, il decision model
       valuta; logga accordo/disaccordo. MAI override automatico: il
       gate resta l'unica autorità. Criterio done: giudice opzionale +
       report accordo gate↔giudice su 20 casi.
-25. [ ] **[P3-8] Modello più forte per le task GUI** — confronto
+22. [ ] **[P3-8] Modello più forte per le task GUI** — confronto
       qwen2.5-coder:7b/14b SOLO per il routing GUI (macchina fredda,
       ventole al max, sessione corta). Criterio done: tabella
       comparativa 3b vs 7b su 3 task GUI identici in DOCS/BENCH.md.
-26. [ ] **[P3-9] Leva termica cpupower** — cap di frequenza per run
+23. [ ] **[P3-9] Leva termica cpupower** — cap di frequenza per run
       lunghi; richiede sudo, documentare in README (sezione termica).
-27. [ ] **[P3-7] Decision tree v2 (residuo)** — 3-4 regole nuove
+24. [ ] **[P3-7] Decision tree v2 (residuo)** — 3-4 regole nuove
       derivate dai fallimenti (M8) NON coperte da SLOT-3 (architettura
       resta 1-2/4: limite onesto del 3b). Criterio done: regole in
       py-arch-decision + test + 1 task architetturale piccolo chiuso.
-28. [ ] **[Robustezza #5] Rotazione dei log** — verificato
+25. [ ] **[Robustezza #5] Rotazione dei log** — verificato
       (`CORE/orchestrator.py:93,102`): FileHandler piatti → crescita
       illimitata. Criterio done: RotatingFileHandler (10MB × 5) per
       .log e .jsonl + test smoke.
-29. [ ] **[Robustezza #6] requirements-lock.txt** — verificato
+26. [ ] **[Robustezza #6] requirements-lock.txt** — verificato
       (requirements.txt: solo `>=`): una reinstall futura può prendere
       versioni incompatibili. Criterio done: `pip freeze` dal venv →
       lock file + riga nel README.
-30. [ ] **[Robustezza #8] pytest-xdist per la suite (1134s)** —
+27. [ ] **[Robustezza #8] pytest-xdist per la suite (1134s)** —
       benchmark `pytest -n 2/4` offscreen; se i test Qt instabilitano
       → verdict NO-GO scritto (fail-open onesto).
-31. [ ] **[Robustezza #9] Verdetto GLM_SOLUZIONE_WEB** — 9 errori
+28. [ ] **[Robustezza #9] Verdetto GLM_SOLUZIONE_WEB** — 9 errori
       S010 in codice esperimento nel repo: decidere archivio o
       rimozione; oggi è superficie di audit rumorosa. Criterio done:
       directory spostata/taggata, scanner ripulito.
-32. [ ] **[Storico residuo] Igiene performance** — ridurre il prefill
+29. [ ] **[Storico residuo] Igiene performance** — ridurre il prefill
       del worker (comprimere descrizioni tool, ~30-50%/step); batch
       delle write_file con commit a fine task; caching KV via
       llama.cpp diretto (solo se il carico reale lo chiede). Nota:

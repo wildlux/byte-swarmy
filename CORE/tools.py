@@ -28,7 +28,7 @@ import subprocess
 import sys
 import uuid
 from pathlib import Path
-from typing import Callable, Optional, Sequence
+from typing import Optional, Sequence
 
 # Root del repo (tests/run_tests.py ecc.); indipendente da cwd.
 # Nota: il worker NON lavora qui — project_root (config) è il suo workspace.
@@ -52,9 +52,16 @@ from SAFETY.security import (
     validate_bash_command,
 )
 from CORE.ast_scanner import scanner as ast_scanner, detect_artifacts
+from CORE.import_check import blocking, check_path, format_issues
 from CORE.regex_controller import RegexController, DEFAULT_PATTERNS, validate_chars
 from CORE.runtime_verifier import RuntimeVerifier
 from CORE.tool_registry import TOOL_REGISTRY, register_tool, get_tool, list_tools
+
+# Re-export storici: tests/test_reuse.py importa questi nomi da CORE.tools.
+__all__ = [
+    "ToolSet", "PROTECTED_FILES", "PROTECTED_BRANCHES",
+    "TOOL_REGISTRY", "register_tool", "get_tool", "list_tools",
+]
 
 # Controllore regex riusabile: py_class / py_def sono già nei default
 _REGEX = RegexController(DEFAULT_PATTERNS)
@@ -135,6 +142,10 @@ class ToolSet:
             timeout_boot=int(sec.get("timeout_boot", 15)),
         )
 
+        # P1-2: file .py toccati nel task corrente → gate import-check
+        # (nomi indefiniti) eseguito a ogni scrittura e al `done`.
+        self.touched_python: dict[str, str] = {}
+
         # REGOLA 0 — la difesa è sempre attiva.
         # `security.enabled` esiste solo per retrocompatibilità: qualunque
         # tentativo di disattivarlo (config, test, task injection) viene
@@ -154,6 +165,53 @@ class ToolSet:
     def set_worker(self, worker: str) -> None:
         """Imposta l'id usato nei log di sicurezza (single-thread)."""
         self.worker = worker or "worker"
+
+    # ------------------------------------------------------------------
+    # P1-2 — gate import-check (nomi indefiniti = API allucinate)
+    # ------------------------------------------------------------------
+    def reset_touched(self) -> None:
+        """Azzera i file tracciati: chiamato a inizio task dal worker."""
+        self.touched_python.clear()
+
+    def _track_python(self, path: str) -> str:
+        """Registra un .py scritto e ritorna l'eventuale warning.
+
+        Non blocca la scrittura: a metà task un file può citare un modulo
+        che verrà creato dopo. Il blocco vero è sul `done` del worker
+        (come il test-gate C78); qui il feedback è immediato per poter
+        correggere subito.
+        """
+        if not str(path).endswith(".py"):
+            return ""
+        try:
+            full = safe_project_path(path, self.project_root)
+        except Exception:
+            return ""
+        self.touched_python[str(path)] = str(full)
+        issues = blocking(check_path(full))
+        if not issues:
+            return ""
+        self.log.warning(
+            f"import-check {path}: {len(issues)} nome/i indefinito/i")
+        return ("IMPORT-CHECK WARNING: nomi indefiniti (il `done` sarà "
+                "rifiutato finché restano):\n"
+                + format_issues(issues, limit=5))
+
+    def pending_import_issues(self) -> dict[str, list]:
+        """Ricalcola i nomi indefiniti sui .py toccati (solo esistenti).
+
+        Ritorna {path_relativo: [Issue, ...]} solo per i file che ancora
+        hanno errori bloccanti — quindi una patch successiva che li
+        corregge fa sparire il blocco.
+        """
+        pending: dict[str, list] = {}
+        for rel, full in self.touched_python.items():
+            if not Path(full).exists():
+                continue
+            issues = blocking(check_path(full))
+            if issues:
+                pending[rel] = issues
+        return pending
 
     def allowed_tools(self) -> set[str]:
         """Tool che il worker può realmente chiamare."""
@@ -379,7 +437,9 @@ class ToolSet:
                 self.log.warning(f"write_file runtime verify FAILED: {verify_msg}")
                 return verify_msg
             self.log.debug(f"wrote {len(content)} bytes -> {path}")
-            return f"OK: wrote {len(content)} bytes to {path}"
+            extra = self._track_python(path)
+            msg = f"OK: wrote {len(content)} bytes to {path}"
+            return f"{msg}\n{extra}" if extra else msg
         except Exception as e:
             try:
                 tmp.unlink(missing_ok=True)  # type: ignore[possibly-undefined]
@@ -776,7 +836,6 @@ class ToolSet:
             "list_files": "list_files(path='.', pattern='*') -> str: elenca file e cartelle (glob, es. '*.py')",
             "analyze_project": "analyze_project() -> str: restituisce la mappa di classi e funzioni del progetto",
             "find_references": "find_references(symbol) -> str: cerca tutte le occorrenze di una funzione/variabile",
-            "run_test_suite": "run_test_suite() -> str: esegue i test e restituisce il report degli errori",
             "lint_code": "lint_code(path) -> str: verifica errori di sintassi e stile in un file",
             "rename_symbol": "rename_symbol(old, new) -> str: rinomina un simbolo in tutto il progetto",
             "analyze_complexity": "analyze_complexity(path) -> str: stima la complessità di un file",
@@ -1165,7 +1224,7 @@ class ToolSet:
 
             content = full.read_text(encoding="utf-8", errors="replace")
             if old_text not in content:
-                return (f"ERROR: testo originale non trovato nel file. "
+                return ("ERROR: testo originale non trovato nel file. "
                         "Assicurati di copiare esattamente il blocco di codice.")
 
             new_content = content.replace(old_text, new_text, 1)
@@ -1196,9 +1255,9 @@ class ToolSet:
                     f'path="{self._q(path)}"',
                     "CRITICAL",
                 )
-                return (f"ERROR: patch rifiutata: contiene artefatti di escape. "
-                        f"NON usare patch_code per correggere: riscrivi l'intero "
-                        f"file pulito con write_file.")
+                return ("ERROR: patch rifiutata: contiene artefatti di escape. "
+                        "NON usare patch_code per correggere: riscrivi l'intero "
+                        "file pulito con write_file.")
 
             # Scrittura transazionale
             full.parent.mkdir(parents=True, exist_ok=True)
@@ -1206,7 +1265,9 @@ class ToolSet:
             tmp.write_text(new_content, encoding="utf-8")
             os.replace(tmp, full)
 
-            return f"OK: patch applicata a {path}"
+            extra = self._track_python(path)
+            msg = f"OK: patch applicata a {path}"
+            return f"{msg}\n{extra}" if extra else msg
         except Exception as e:
             return f"ERROR patching {path}: {e}"
 

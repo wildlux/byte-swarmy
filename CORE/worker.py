@@ -10,14 +10,11 @@ import ast
 import json
 import logging
 import re
-import time
 from collections import Counter
 from pathlib import Path
 from typing import Optional
 
-from CORE.constants import DEFAULT_NUM_CTX
-from CORE.correction import build_correction_prompt
-from CORE.last_good_config import last_good_config
+from CORE.import_check import format_report
 from CORE.memory import AgentMemory
 from CORE.ollama_client import ModelClient
 from CORE.persistent_memory import (
@@ -26,7 +23,7 @@ from CORE.persistent_memory import (
     update_project_context,
 )
 from CORE.planner import Planner
-from CORE.regex_controller import RegexController, DEFAULT_PATTERNS, json_block
+from CORE.regex_controller import RegexController, DEFAULT_PATTERNS
 from CORE.test_generator import TestGenerator
 from CORE.tools import ToolSet
 from SAFETY.security import log_security_event
@@ -415,6 +412,9 @@ class Worker:
         # P1-1: riparte da 1 a ogni task — nessun valore ereditato dal
         # task precedente se un percorso esce senza aggiornarlo.
         self.last_attempts = 1
+        # P1-2: i file .py toccati sono per-task (non ereditati).
+        if hasattr(self.tools, "reset_touched"):
+            self.tools.reset_touched()
         # 🆕 Fix: reset completo memoria per evitare eredità da task precedenti
         try:
             if hasattr(self.memory, 'events'):
@@ -461,8 +461,6 @@ class Worker:
                 "base_model": self.model_key,
             })
 
-        is_tdd_required = False  # TDD disabilitato
-        tdd_verified = True
 
         context = self.memory.build_context(max_tokens=800)
         prompt = self._build_initial_prompt(task, context, model_key=routed_key)
@@ -473,6 +471,7 @@ class Worker:
         # --- CIRCUIT BREAKER STATE ---
         repeated_actions = {}
         test_fail_retries = 0  # 🆕 Cycle 78: test results → feedback loop
+        import_fail_retries = 0  # P1-2: nomi indefiniti → feedback loop
 
         for step in range(self.MAX_STEPS):
             self.memory.heartbeat()
@@ -603,13 +602,40 @@ class Worker:
             self.log.info(f"[{self.agent_id}] thought: {action.get('thought', '')[:200]}")
 
             if action.get("done"):
-                # --- TDD VERIFICATION (disabilitato per modelli piccoli) ---
-                # TDD check disabilitato (opzionale): era troppo restrittivo per phi3:mini.
-                # Il worker può dichiarare done=true senza dover prima scrivere test falliti.
-                # L'auditor comunque verificherà la qualità.
-                if False:  # was: is_tdd_required and not tdd_verified
-                    pass  # no-op
+                # --- P1-2: IMPORT-CHECK (nomi indefiniti) ---
+                # Stesso contratto del test-gate C78: non si dichiara done
+                # con API allucinate. Due tentativi di correzione, poi
+                # done ammesso con warning (fail-open: il gate finale
+                # dell'auditor resta l'autorità).
+                pending = (
+                    self.tools.pending_import_issues()
+                    if hasattr(self.tools, "pending_import_issues") else {}
+                )
+                if pending:
+                    if import_fail_retries < 2:
+                        import_fail_retries += 1
+                        report = format_report(pending, limit=4)
+                        self.log.info(
+                            f"[{self.agent_id}] done=true rifiutato: "
+                            f"import-check ({len(pending)} file con nomi "
+                            f"indefiniti, retry {import_fail_retries}/2)")
+                        prompt = (
+                            "IMPORT CHECK FAILED — undefined names cannot "
+                            "be accepted.\n"
+                            f"{report}\n\n"
+                            "Fix them with write_file or patch_code (define "
+                            "or import the missing names), then declare "
+                            "done again. Do not invent APIs: use the names "
+                            "that exist in the refs.\n\n"
+                            "Next step (JSON only):"
+                        )
+                        continue
+                    self.log.warning(
+                        f"[{self.agent_id}] done con nomi indefiniti "
+                        f"residui (retry esauriti): {', '.join(pending)}")
 
+                # TDD gate disabilitato per i modelli piccoli: il worker può
+                # dichiarare done senza test falliti; l'auditor verifica.
                 # --- QUALITY CONTROL ---
                 # None = la suite non e mai stata eseguita in questo task.
                 # Si rifiuta il done solo se la suite e stata eseguita e non e passata.
@@ -661,8 +687,8 @@ class Worker:
                     self.log.info(f"[{self.agent_id}] task marked done (tests: {test_passed}).")
 
                 result = action.get("result", "(no result)")
-                # P1-1: i retry per test falliti contano come correction.
-                self.last_attempts = 1 + test_fail_retries
+                # P1-1: i retry per test/import contano come correction.
+                self.last_attempts = 1 + test_fail_retries + import_fail_retries
                 self.memory.add_event({"type": "task_done", "content": result[:200]})
                 # 🆕 Registra task completato nella memoria persistente
                 try:
@@ -758,10 +784,6 @@ class Worker:
                 "content": f"{tool_name}({args}) -> {tool_result[:200]}",
             })
             self.log.info(f"[{self.agent_id}] tool {tool_name}({args[:1] if args else ''}) -> {tool_result[:120]}")
-
-            # Track TDD progress
-            if tool_name == "run_test_suite" and "FAILED" in tool_result.upper():
-                tdd_verified = True
 
             # Aggiungi al prompt per il prossimo step
             if tool_result.startswith("ERROR:"):

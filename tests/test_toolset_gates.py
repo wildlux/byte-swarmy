@@ -168,5 +168,58 @@ class TestBasicGates(unittest.TestCase):
         self.assertTrue(res.startswith("ERROR"))
 
 
+class TestImportCheckGate(unittest.TestCase):
+    """P1-2: write_file/patch_code tracciano i .py e segnalano i nomi
+    indefiniti; il worker rifiuta il `done` finché restano."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="bswarm-import-"))
+        self.tools, self.project = _make_tools(self.tmp)
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_write_file_segnala_nome_indefinito(self):
+        res = self.tools.write_file(
+            "mod.py", "def f():\n    return ghost_api(1)\n")
+        self.assertTrue(res.startswith("OK:"))
+        self.assertIn("IMPORT-CHECK WARNING", res)
+        self.assertIn("ghost_api", res)
+        # il file è stato scritto (non bloccante a metà task)
+        self.assertTrue((self.project / "mod.py").exists())
+        pending = self.tools.pending_import_issues()
+        self.assertIn("mod.py", pending)
+
+    def test_patch_code_che_corregge_pulisce_il_pending(self):
+        self.tools.write_file(
+            "mod.py", "def f():\n    return ghost_api(1)\n")
+        self.assertIn("mod.py", self.tools.pending_import_issues())
+        res = self.tools.patch_code(
+            "mod.py", "ghost_api(1)", "len([1])")
+        self.assertTrue(res.startswith("OK:"))
+        self.assertNotIn("IMPORT-CHECK WARNING", res)
+        self.assertEqual(self.tools.pending_import_issues(), {})
+
+    def test_write_file_valido_nessun_warning(self):
+        res = self.tools.write_file("ok.py", "def f(x):\n    return x + 1\n")
+        self.assertTrue(res.startswith("OK:"))
+        self.assertNotIn("IMPORT-CHECK", res)
+        self.assertEqual(self.tools.pending_import_issues(), {})
+
+    def test_reset_touched(self):
+        self.tools.write_file(
+            "mod.py", "def f():\n    return ghost_api(1)\n")
+        self.assertTrue(self.tools.pending_import_issues())
+        self.tools.reset_touched()
+        self.assertEqual(self.tools.pending_import_issues(), {})
+
+    def test_non_py_non_tracciato(self):
+        res = self.tools.write_file("note.md", "ghost_api(1)\n")
+        self.assertTrue(res.startswith("OK:"))
+        self.assertNotIn("IMPORT-CHECK", res)
+        self.assertEqual(self.tools.touched_python, {})
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

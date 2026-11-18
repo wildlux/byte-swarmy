@@ -2071,3 +2071,39 @@ Primo item del piano riordinato per impatto: **senza misura il goal
   preesistenti di `CORE/task_queue.py` (2 import inutilizzati +
   variabile morta).
 - Test: 51 passed (nuovo file + queue/gatekeeper/orchestrator chiusura).
+
+## 🔧 Cycle 85j — SLOT-1 gate per-slot + SLOT-2 assembler + P1-2 import-check (2026-11-18)
+
+Estensione della Fascia 1: i mattoni deterministici dello SLOT.
+
+- **`CORE/slot_gate.py`** (nuovo, SLOT-1): `gate_slot(fragment, refs, kind)` →
+  `SlotVerdict(ok, kind, undefined, syntax)`. Backend: pyflakes via
+  `CORE/import_check.check_source` (collo di noti da `refs`, fallback AST
+  interno se pyflakes manca). Blocca per sintassi e per nomi indefiniti.
+- **`CORE/slot_assembler.py`** (nuovo, SLOT-2): `assemble_slots(base, slots)`
+  con marker `# @@slot: <name>` e `# @@imports`; sollevamento import +
+  dedupe; indentazione dal marker; validazione compilabile (compile exec);
+  `assemble_to_file`. Gestisce scheletri dove l'anchor e' l'unico membro
+  del blocco (stub `pass` per la parse).
+- **`CORE/import_check.py`** (nuovo): `check_source/check_path/format_report`,
+  backend pyflakes (v4: `Reporter.flake(syntaxError)` API) con fallback AST
+  di scope; `blocking()` filtra i soli kinds bloccanti.
+- **`CORE/tools.py`**: `ToolSet.touched_python` + `reset_touched()`,
+  `_track_python()` (su ogni write_file/patch_code su `.py`, warning
+  "IMPORT-CHECK WARNING" con le righe dei nomi indefiniti), `pending_import_issues()`.
+- **`CORE/worker.py`**: gate al `done` — su nomi indefiniti → correction
+  prompt (retry ≤2), poi done con warning; i retry contano nel calcolo P1-1
+  (`last_attempts`).
+- **`requirements.txt`**: aggiunto `pyflakes>=3.0` (gate runtime).
+- Tests: `tests/test_slot_pipeline.py` (gate/assembler/import-check,
+  fallback AST inclusa), `tests/test_toolset_gates.py` classe
+  `TestImportCheckGate` (5 test write/patch/reset/non-py).
+
+Verifiche: 49 passed nuovi + 86 (toolset/gate/reuse/fast-lane/refs/inject) +
+prima tranche. pyflakes sui file toccati: **0 warning**. Baseline
+pyflakes: 474 → **453** (rimossi task_queue 4, tools ~9, worker ~7 + nuovi
+gate/assembler a 0).
+
+**Prossima voce del piano** (Fase B — corpus di triple): da avviare subito
+colle regole già messe in piedi (P1-1/P1-2/SLOT/Zero Warning verdi).
+

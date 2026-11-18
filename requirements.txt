@@ -35,6 +35,11 @@ scapy>=2.5.0
 yara-python>=4.3.0
 
 # ============================================================
+# Lint / gate statici (usati da tools/verify_cycle.sh e dai gate)
+# ============================================================
+pyflakes>=3.0
+
+# ============================================================
 # Note
 # ============================================================
 # System tools (radare2, tshark, ghidra) must be installed separately:
