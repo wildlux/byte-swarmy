@@ -991,6 +991,38 @@ class Worker:
             from CORE.config_model import FastLaneConfig
             return FastLaneConfig()
 
+    def _best_of_n(self, task: dict, cfg) -> int:
+        """Best-of-N per questo task (Fase D-15).
+
+        Precedenza: campo `best_of` del task (se intero > 0) →
+        `orchestrator.best_of_n` del config → 1 (stato attuale).
+        """
+        try:
+            val = task.get("best_of")
+            if isinstance(val, int) and val > 0:
+                return val
+        except Exception:
+            pass
+        try:
+            from CORE.config_model import load_typed_config
+            cfg_all = load_typed_config()
+            n = getattr(cfg_all, "orchestrator", None)
+            if n is not None:
+                v = getattr(n, "best_of_n", None)
+                if isinstance(v, int) and v > 0:
+                    return v
+        except Exception:
+            pass
+        # fallback su config.toml grezzo
+        try:
+            import tomllib
+            raw = tomllib.load(open("CONFIG/config.toml", "rb"))
+            v = raw.get("orchestrator", {}).get("best_of_n", 1)
+            if isinstance(v, int) and v > 0:
+                return v
+        except Exception:
+            pass
+        return 1
     def _fast_lane_target(self, task: dict, cfg) -> Optional[str]:
         """Elegibilità alla corsia veloce: UN solo file target, testo breve.
 
@@ -1090,47 +1122,55 @@ class Worker:
         last_error = ""
         last_content = ""
         attempts = 0
+        # Fase D-15: best-of-N. 1 = stato attuale (singolo colpo). >1 genera
+        # N candidati per tentativo e sceglie il primo che passa il gate
+        # deterministico (write_file -> AST scanner + runtime verifier).
+        n = self._best_of_n(task, cfg)
         for attempt in range(max(1, int(cfg.max_attempts))):
-            attempts += 1
-            self.last_attempts = attempts
-            prompt = self._fast_lane_prompt(
-                rel_path, task, content_before,
-                error=last_error if attempt > 0 else "",
-            )
-            try:
-                raw = self.models.call(
-                    model_key=self.model_key,
-                    prompt=prompt,
-                    system="You are a coding assistant. Output only the new file content.",
-                    max_tokens=int(cfg.max_tokens),
+            for cand_idx in range(n):
+                attempts += 1
+                self.last_attempts = attempts
+                prompt = self._fast_lane_prompt(
+                    rel_path, task, content_before,
+                    error=last_error if (attempt > 0 or cand_idx > 0) else "",
                 )
-            except Exception as e:
-                last_error = f"chiamata LLM fallita: {e}"
+                try:
+                    raw = self.models.call(
+                        model_key=self.model_key,
+                        prompt=prompt,
+                        system="You are a coding assistant. Output only the new file content.",
+                        max_tokens=int(cfg.max_tokens),
+                    )
+                except Exception as e:
+                    last_error = f"chiamata LLM fallita: {e}"
+                    self.log.warning(
+                        f"[{self.agent_id}] fast lane attempt {attempt+1} "
+                        f"cand {cand_idx+1}/{n} errore: {e}")
+                    continue
+                content = self._strip_fences(raw)
+                if not content:
+                    last_error = "risposta vuota dal modello"
+                    continue
+                last_content = content
+                # Scrittura via ToolSet: eredita AST scanner, safe path,
+                # runtime verifier e rollback (difese deterministiche).
+                result = self.tools.write_file(rel_path, content)
+                if not str(result).startswith("ERROR"):
+                    self.last_code = content
+                    self.memory.add_event({
+                        "type": "task_end",
+                        "content": (f"fast lane: {rel_path} tentativi="
+                                    f"{attempts} model={self.model_key} "
+                                    f"best_of_n={n} cand={cand_idx+1}"),
+                    })
+                    preview = content[:160] + "..." if len(content) > 160 else content
+                    return (f"File scritto in corsia veloce: {rel_path} "
+                            f"(tentativi: {attempts}, best_of_n={n})\n{preview}")
+                last_error = str(result)
                 self.log.warning(
-                    f"[{self.agent_id}] fast lane attempt {attempt+1} errore: {e}")
-                continue
-            content = self._strip_fences(raw)
-            if not content:
-                last_error = "risposta vuota dal modello"
-                continue
-            last_content = content
-            # Scrittura via ToolSet: eredita AST scanner, safe path,
-            # runtime verifier e rollback (difese deterministiche).
-            result = self.tools.write_file(rel_path, content)
-            if not str(result).startswith("ERROR"):
-                self.last_code = content
-                self.memory.add_event({
-                    "type": "task_end",
-                    "content": (f"fast lane: {rel_path} tentativi="
-                                f"{attempts} model={self.model_key}"),
-                })
-                preview = content[:160] + "..." if len(content) > 160 else content
-                return (f"File scritto in corsia veloce: {rel_path} "
-                        f"(tentativi: {attempts})\n{preview}")
-            last_error = str(result)
-            self.log.warning(
-                f"[{self.agent_id}] fast lane attempt {attempt+1} rifiutato: "
-                f"{last_error[:200]}")
+                    f"[{self.agent_id}] fast lane attempt {attempt+1} "
+                    f"cand {cand_idx+1}/{n} rifiutato: "
+                    f"{last_error[:200]}")
 
         self.last_code = last_content
         self.memory.add_event({
