@@ -51,11 +51,22 @@ ACTOR_WEIGHTS = ("light", "medium", "heavy")
 # Mapping peso → modello consigliato (per ogni attore)
 # Unica fonte in CORE/constants.py (usata anche da hardware_detector
 # per il calcolo della capacità): qui solo alias per compatibilità.
-from CORE.constants import (  # noqa: E402
+from CORE.constants import (  # noqa: E402,F401
+    ACTOR_WEIGHT_DEFAULT_MODELS as WEIGHT_DEFAULT_MODELS,
     weight_default_model,
 )
 from CORE.gui_worker import BaseWorker  # noqa: E402
 from CORE import model_knowledge as _mk  # noqa: E402
+
+
+def _default_model_for(actor: str, weight: str) -> str:
+    """Wrapper sul mapping unico ACTOR_WEIGHT_DEFAULT_MODELS (H3).
+
+    Fonte: CORE/constants.py (usata anche da hardware_detector per la
+    capacità VRAM). Qui l'alias WEIGHT_DEFAULT_MODELS espone lo stesso
+    mapping al layer GUI.
+    """
+    return WEIGHT_DEFAULT_MODELS.get(actor, {}).get(weight, "qwen2.5:1.5b")
 
 
 def ollama_list_models(timeout: float = 3.0) -> list:

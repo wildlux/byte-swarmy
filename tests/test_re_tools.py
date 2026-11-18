@@ -13,7 +13,7 @@ ok = lambda m: print(f"  {GREEN}✓{RESET} {m}")
 fail = lambda m: print(f"  {RED}✗{RESET} {m}")
 warn = lambda m: print(f"  {YELLOW}⚠{RESET} {m}")
 
-def test_environment_check():
+def _test_environment_check():
     """check_re_environment() returns dict with all tools."""
     print("\n=== TEST 1: Environment check ===")
     try:
@@ -30,7 +30,7 @@ def test_environment_check():
         fail(f"check_re_environment failed: {e}")
         return False
 
-def test_tool_registry():
+def _test_tool_registry():
     """RE_TOOLS registry has expected tools."""
     print("\n=== TEST 2: Tool registry ===")
     try:
@@ -51,10 +51,10 @@ def test_tool_registry():
         ok("get_re_tool_descriptions() returns non-empty string")
         return True
     except Exception as e:
-        fail(f"test_tool_registry failed: {e}")
+        fail(f"_test_tool_registry failed: {e}")
         return False
 
-def test_call_unknown_tool():
+def _test_call_unknown_tool():
     """call_re_tool with unknown name returns ERROR."""
     print("\n=== TEST 3: Call unknown tool ===")
     try:
@@ -65,10 +65,10 @@ def test_call_unknown_tool():
         ok("Unknown tool returns ERROR with available list")
         return True
     except Exception as e:
-        fail(f"test_call_unknown_tool failed: {e}")
+        fail(f"_test_call_unknown_tool failed: {e}")
         return False
 
-def test_call_with_nonexistent_file():
+def _test_call_with_nonexistent_file():
     """Tools handle non-existent files gracefully."""
     print("\n=== TEST 4: Non-existent file handling ===")
     try:
@@ -80,10 +80,10 @@ def test_call_with_nonexistent_file():
         ok("binary_info on non-existent file returns ERROR")
         return True
     except Exception as e:
-        fail(f"test_call_with_nonexistent_file failed: {e}")
+        fail(f"_test_call_with_nonexistent_file failed: {e}")
         return False
 
-def test_binary_info_on_real_binary():
+def _test_binary_info_on_real_binary():
     """binary_info works on /bin/ls (if it exists)."""
     print("\n=== TEST 5: binary_info on /bin/ls ===")
     try:
@@ -110,10 +110,10 @@ def test_binary_info_on_real_binary():
         print(f"    Output preview: {result[:200]}...")
         return True
     except Exception as e:
-        fail(f"test_binary_info_on_real_binary failed: {e}")
+        fail(f"_test_binary_info_on_real_binary failed: {e}")
         return False
 
-def test_extract_strings():
+def _test_extract_strings():
     """extract_strings works on a small test binary."""
     print("\n=== TEST 6: extract_strings ===")
     try:
@@ -135,10 +135,10 @@ def test_extract_strings():
         print(f"    Output preview: {result[:200]}...")
         return True
     except Exception as e:
-        fail(f"test_extract_strings failed: {e}")
+        fail(f"_test_extract_strings failed: {e}")
         return False
 
-def test_disassemble_capstone():
+def _test_disassemble_capstone():
     """disassemble_capstone works (pure Python, no external deps)."""
     print("\n=== TEST 7: disassemble_capstone ===")
     try:
@@ -167,10 +167,10 @@ def test_disassemble_capstone():
         print(f"    Output preview: {result[:200]}...")
         return True
     except Exception as e:
-        fail(f"test_disassemble_capstone failed: {e}")
+        fail(f"_test_disassemble_capstone failed: {e}")
         return False
 
-def test_pcap_analysis():
+def _test_pcap_analysis():
     """analyze_pcap handles missing files and would work on real pcap."""
     print("\n=== TEST 8: pcap analysis (synthetic) ===")
     try:
@@ -206,10 +206,10 @@ def test_pcap_analysis():
 
         return True
     except Exception as e:
-        fail(f"test_pcap_analysis failed: {e}")
+        fail(f"_test_pcap_analysis failed: {e}")
         return False
 
-def test_tool_signatures_consistent():
+def _test_tool_signatures_consistent():
     """All tools have signature, desc, deps in registry."""
     print("\n=== TEST 9: Tool registry consistency ===")
     try:
@@ -225,7 +225,7 @@ def test_tool_signatures_consistent():
         ok(f"All {len(RE_TOOLS)} tools have consistent registry entries")
         return True
     except Exception as e:
-        fail(f"test_tool_signatures_consistent failed: {e}")
+        fail(f"_test_tool_signatures_consistent failed: {e}")
         return False
 
 def main():
@@ -234,15 +234,15 @@ def main():
     print("="*60)
 
     tests = [
-        ("Environment check", test_environment_check),
-        ("Tool registry", test_tool_registry),
-        ("Call unknown tool", test_call_unknown_tool),
-        ("Non-existent file handling", test_call_with_nonexistent_file),
-        ("binary_info on /bin/ls", test_binary_info_on_real_binary),
-        ("extract_strings", test_extract_strings),
-        ("disassemble_capstone", test_disassemble_capstone),
-        ("pcap analysis", test_pcap_analysis),
-        ("Tool registry consistency", test_tool_signatures_consistent),
+        ("Environment check", _test_environment_check),
+        ("Tool registry", _test_tool_registry),
+        ("Call unknown tool", _test_call_unknown_tool),
+        ("Non-existent file handling", _test_call_with_nonexistent_file),
+        ("binary_info on /bin/ls", _test_binary_info_on_real_binary),
+        ("extract_strings", _test_extract_strings),
+        ("disassemble_capstone", _test_disassemble_capstone),
+        ("pcap analysis", _test_pcap_analysis),
+        ("Tool registry consistency", _test_tool_signatures_consistent),
     ]
 
     results = []
