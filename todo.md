@@ -209,6 +209,35 @@ compute grezzo.
       worker). Criterio done: `pip freeze` dal venv funzionante →
       lock file + riga nel README ("reinstallare da qui").
 
+### Audit 360° sicurezza+performance (2026-11-18) — esito
+
+> Radiografia: 300 py · compileall 0 errori (fix TEST_GUI_QT_7) ·
+> 0 god-file >100KB · 2 marker debito · 0 segreti hardcoded.
+> Sicurezza: scanner proprio (tools/security_scan.py) + pannello GUI +
+> filtro comandi worker (SAFETY/security.py). Performance: keep_alive
+> config-driven, timeout su TUTTI i subprocess (sandbox incluso) e su
+> TUTTE le chiamate di rete, yaml.load unsafe = 0 usi.
+> Falsi positivi archiviati: S014 code_map (tuple hardcoded), S010
+> external_benchmark (bench-check con builtins vuoti, task locali =
+> mitigato by design).
+
+7. [ ] **security_scan.py in CI + verify_cycle** — lo scanner esiste
+      (262 finding, 13 errori: 9 in GLM_SOLUZIONE_WEB = esperimento)
+      ma NON gira in nessuna pipeline: i finding non sono sorvegliati
+      nel tempo. Criterio done: security_scan nel workflow CI e in
+      verify_cycle.sh con baseline (errori CORE/GUI attuali = 3, tutti
+      falsi positivi documentati) → new-error = fail.
+8. [ ] **pytest-xdist per la suite (1134s)** — la suite completa
+      costa ~19 min seriali. Criterio done: benchmark `pytest -n 2/4`
+      offscreen con la suite verde; se i test Qt instabilitano →
+      verdict NO-GO scritto (fail-open onesto).
+9. [ ] **Verdetto GLM_SOLUZIONE_WEB** — 9 errori S010 (exec/compile)
+      in codice esperimento ancora dentro il repo: decidere archivio
+      (tests/archiviati) o rimozione; oggi è superficie di audit
+      rumorosa. Criterio done: directory spostata o taggata, scanner
+      ripulito dei finding.
+
+
 
 ## Aperti
 

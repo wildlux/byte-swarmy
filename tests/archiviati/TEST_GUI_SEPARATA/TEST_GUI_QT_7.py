@@ -542,7 +542,7 @@ class ControlCenter(QMainWindow):
             self._editor_overlay.close()
             self._editor_overlay.deleteLater()
 
-        self._editor_overlay = FileEditorWidget(file_path, docked=False, self.centralWidget())
+        self._editor_overlay = FileEditorWidget(file_path, self.centralWidget(), docked=False)
         self._editor_overlay.closed.connect(self._close_overlay)
         self._editor_overlay.dock_requested.connect(lambda: self._dock_editor(file_path))
 
