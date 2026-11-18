@@ -19,6 +19,13 @@ c'è una roadmap viva: la scala verso il goal middle senior
 > Ogni item ha un criterio di done **misurabile**. Filosofia:
 > deterministico-first, una voce per sessione, mai generazioni monolitiche.
 >
+> **🏗️ Architettura a SLOT** (2026-11-18): l'architettura candidata per
+> rendere "ottimo" il 3b — il modello non genera più file interi
+> (0/4, C72) ma riempie **slot piccoli e verificati uno alla volta**
+> (planner deterministico → filler 3b → gate per-slot → assembler
+> deterministico → corpus → QLoRA). Piano completo e ordine di attacco:
+> [`DOCS/ARCHITETTURA_SLOT.md`](DOCS/ARCHITETTURA_SLOT.md).
+>
 > **⭐ Regola Zero Warning (2026-11-18, richiesta esplicita)**: il goal
 > non è solo "0 errori" — è **0 errori E 0 warning**. I warning non
 > sono decorativi: ogni unused import è costo di avvio, ogni variabile
