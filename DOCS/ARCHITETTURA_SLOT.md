@@ -89,7 +89,42 @@ TASK dichiarativo
 4. **QLoRA STaR sul corpus di slot** — solo dopo ≥100 slot verificati;
    GO/NO-GO onesto su GTX 1050 4GB (1GB libera), notte a macchina fredda.
 
+## Perché non prima? — retrospettiva onesta (2026-11-18)
+
+**Sì, in parte: mancavano i numeri giusti.** Avevamo UN numero
+aggregato (0/4 whole-file, C72) ma non il **gradiente** pass@1 ×
+granularità dell'output. Senza quel gradiente non si può *vedere* che
+la variabile libera è la dimensione del singolo output, non la
+capacità del modello: 0/4 a 300 righe può voler dire 60% a 40 righe —
+o anche no. Nessuno dei due numeri esisteva prima.
+
+**No, in parte: il numero c'era — e abbiamo risposto col fix più
+stretto.** Il verdetto C72 indicava già la granularità, ma ogni ciclo
+riparava l'ultimo fallimento osservato: skill → refs → clarifier →
+executor = **patch locali**. L'executor ha vinto 2s-vs-4-run sui
+cambi meccanici, un win visibile che ha ancorato la direzione.
+Il ripensamento architetturale arriva solo quando i patch smettono di
+spiegare i dati.
+
+**Il principio (da tenere):** *l'insight ha la granularità della
+misura*. Finché la metrica era "task passato sì/no", si poteva solo
+patchare. Con il radar per asse + la metrica primo colpo (P1-1) la
+domanda cambia da "il 3b fallisce?" a "**dove, in righe, esattamente
+fallisce?**" — e lì la risposta diventa ovvia.
+
+**Anche: l'architettura non era costruibile prima.** Assembler,
+corpus, retrieval, fine-tuning — SLOT si compone di 16 meccanismi già
+esistenti (sezione B di MIGLIORAMENTI). Le architetture diventano
+visibili quando i mattoni sono sul tavolo; prima erano costi senza
+mattoni.
+
+**Regola nuova derivata:** ogni benchmark nuovo DEVE spezzare la
+metrica per granularità (output-size, tipo di slot, asse del radar),
+mai solo aggregata. Messe in DOCS/BENCH.md alla prima eval.
+
 ## Tempistiche di scrittura (stime oneste, 2026-11-18)
+
+
 
 > 1 sessione ≈ 60-120 min di lavoro attivo + verifica + doc + commit.
 > "Scrittura pura" = solo digitare il codice; la regola del progetto è
