@@ -163,6 +163,52 @@ training, cluster multi-GPU — fuori dai vincoli hardware e termici.
 Il nostro "reinforcement" è già il correction loop: dati verificati >
 compute grezzo.
 
+---
+
+## 🔧 Robustezza del software (audit GapFinder, 2026-11-18)
+
+> Audit diverso dai P1-P3 e dalle Fasi A-H: non "rendere il sistema
+> più furbo" ma "rendere il software più affidabile". Ogni item parte
+> da un fatto verificato con grep/read sul codice, non da un'idea.
+> Quando si esegue, l'item forte va registrato anche nel debt ledger
+> (una voce per sessione).
+
+1. [ ] **Watchdog: backoff escalato + guardia crash-loop** —
+      verificato (`SAFETY/watchdog.py:88-102`): su crash riavvia con
+      `time.sleep(1)` fisso, senza escalation né contatore. Un crash
+      immediato ricorrente (poison crash) = riavvio ogni ~1s per
+      sempre, log spam. Criterio done: backoff esponenziale
+      1→2→4→…max 60s, reset del contatore dopo N secondi sani,
+      allerta dopo 5 riavvii consecutivi. Test: crash simulato.
+2. [ ] **Backup pre-write nel worker** — verificato (grep
+      `shutil.copy|.bak` in CORE/tools.py + CORE/worker.py: 0
+      risultati): write_file/patch_code NON fanno snapshot. Se una
+      patch corrompe un file, l'unica rete è il git manuale. Criterio
+      done: snapshot deterministico in `backups/<ts>/<relpath>`
+      (con retention: max N sessioni) prima di ogni scrittura;
+      restore documentato; test roundtrip.
+3. [ ] **Config: validazione fail-fast all'avvio** — verificato
+      (`CORE/orchestrator.py:170`): toml invalido/chiave errata →
+      warning e si girano i DEFAULT silenziosamente (config_model.py
+      esiste ma è usato solo dal worker per FastLaneConfig). Criterio
+      done: schema check a boot (chiavi richieste, tipi, range),
+      errore chiaro + exit se invalido; test config corrotta.
+4. [ ] **CI GitHub Actions (deterministica, zero LLM)** — verificato
+      (ls .github/workflows: assente). Criterio done: workflow che a
+      ogni push lancia py_compile tutto-repo + pyflakes 0-undefined +
+      test offscreen veloci (sottoinsieme, NON la suite 19min) su
+      ubuntu + Python 3.11.
+5. [ ] **Rotazione dei log** — verificato
+      (`CORE/orchestrator.py:93,102`): FileHandler piatti per .log e
+      .jsonl → crescita illimitata su mesi di sessioni. Criterio
+      done: RotatingFileHandler (es. 10MB × 5) per entrambi; test
+      smoke che il file non cresca oltre il limite.
+6. [ ] **requirements-lock.txt** — verificato (requirements.txt: solo
+      `>=`): una reinstall futura può prendere versioni
+      incompatibili (succeso passato: il requirements spurio del
+      worker). Criterio done: `pip freeze` dal venv funzionante →
+      lock file + riga nel README ("reinstallare da qui").
+
 
 ## Aperti
 
