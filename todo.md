@@ -176,6 +176,10 @@ medi, infine sottofondi e igiene.
 18. [ ] **[Fase F] Retrieval di soluzioni passate** — TF-IDF/keyword su
       task già chiusi (NO RAG neurale — verdetto Cycle 78).
       Criterio done: tool `retrieve_similar_task()` + A/B su 10 task.
+      > ✅ **Slice Fase F fatta** (campagna 85n): `CORE/retrieval.py`
+      > (TaskRetriever TF-IDF, build_from_pairs/queue_db/corpus) +
+      > `ToolSet.retrieve_similar_task()` + `tests/test_retrieval.py`
+      > (7 test). Resta: A/B su 10 task (richiede run LLM).
 19. [ ] **[Fase E] Distill occasionale** — UN task hard risolto da
       modello più grande (7b/14b, macchina fredda), soluzione
       gate-verificata → entra nel corpus Fase B: il 3b impara

@@ -294,6 +294,27 @@ class ToolSet:
             except Exception:
                 pass
 
+    def retrieve_similar_task(self, query: str, k: int = 3) -> str:
+        """Fase F: retrieval TF-IDF di task gia' chiusi con soluzione.
+
+        Costruisce l'indice dal corpus di feedback (output completi) e,
+        in fallback, da queue.db (result troncati). Ritorna i top-k
+        simili formattati per l'iniezione nel prompt. Zero LLM.
+        """
+        try:
+            from CORE import retrieval as _ret
+            state_dir = self.cfg["paths"].get("state_dir", "./state")
+            tasks_dir = self.cfg["paths"].get("tasks_dir", "./tasks")
+            r = _ret.build_from_corpus(state_dir)
+            if not r.tasks:
+                r = _ret.build_from_queue_db(tasks_dir=tasks_dir,
+                                            state_dir=state_dir)
+            results = r.retrieve(query, k=max(1, int(k)))
+            return r.format_results(results)
+        except Exception as e:
+            self.log.warning(f"retrieve_similar_task fallito: {e}")
+            return f"ERROR: retrieval fallito: {e}"
+
     def allowed_tools(self) -> set[str]:
         """Tool che il worker può realmente chiamare."""
         tools = {
@@ -305,7 +326,7 @@ class ToolSet:
             "extract_method",
             "git_commit", "git_diff", "git_status", "git_log",
             "git_branch", "git_merge", "git_pull", "git_push", "git_remote",
-            "run_test_suite", "list_refs", "list_tools", "diary_llm",
+            "run_test_suite", "list_refs", "list_tools", "diary_llm", "retrieve_similar_task",
         }
         try:
             from GUI.settings_store import get_usb_tools_enabled
