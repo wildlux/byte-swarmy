@@ -147,7 +147,7 @@ medi, infine sottofondi e igiene.
       push → py_compile tutto-repo + pyflakes 0-undefined + test
       offscreen veloci (sottoinsieme, NON la suite 19min) su ubuntu +
       Python 3.11.
-15. [ ] **[Robustezza #10] Campagna Zero Warning: pyflakes 474 → 0** —
+15. [x] **[Robustezza #10] Campagna Zero Warning: pyflakes 474 → 0** —
       regola nel goal (vedi header): codice pulito ed elegante.
       Baseline: 375 unused import + 39 variabili morte + 16
       redefinition + 44 altro. Criterio done: pyflakes 0 su
