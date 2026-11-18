@@ -136,7 +136,7 @@ medi, infine sottofondi e igiene.
       la prima volta; oggi è attivo ma non sappiamo se serve. Criterio
       done: A/B 10 task con/senza contesto → verdetto in DOCS/BENCH.md
       (mantieni, riduci o dismetti).
-13. [ ] **[Robustezza #1] Watchdog: backoff escalato + guardia
+13. [x] **[Robustezza #1] Watchdog: backoff escalato + guardia
       crash-loop** — verificato (`SAFETY/watchdog.py:88-102`): riavvio
       fisso ogni 1s, senza escalation né contatore. Un poison crash =
       riavvio all'infinito con log spam. Criterio done: backoff
