@@ -9,57 +9,37 @@ import os
 from pathlib import Path
 import json
 import time
+from GUI.file_editor_widget import FileEditorWidget  # noqa: E402
+from GUI.plancia_card import PlanciaCard  # noqa: E402
+from GUI.project_tab_bar import build_run_command  # noqa: E402
+from GUI.cicd_pipeline_panel import CICDPipelinePanel  # noqa: E402
+from GUI.clean_code_panel import CleanCodePanel  # noqa: E402
+from GUI.device_panel import DevicePanel  # noqa: E402
+
+# Re-export (usati da panels.py, file_manager.py, tests): pyflakes li
+# considera usati perché elencati qui.
+__all__ = [
+    "FileEditorWidget", "PlanciaCard", "build_run_command",
+    "CICDPipelinePanel", "CleanCodePanel", "DevicePanel",
+]
 
 BASE_DIR = Path(__file__).parent.parent.resolve()
 
 
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QFormLayout, QGridLayout, QStackedWidget, QPushButton, QLabel,
-    QLineEdit, QTextEdit, QPlainTextEdit, QFrame, QToolBar, QStatusBar,
-    QMenuBar, QDockWidget, QTabWidget, QTabBar, QScrollArea, QSplitter,
-    QCheckBox, QComboBox, QSpinBox, QSlider, QProgressBar, QGroupBox,
-    QRadioButton, QButtonGroup, QFileDialog, QMessageBox, QInputDialog,
-    QMenu, QToolButton, QStyle, QStyleFactory, QSpacerItem,
-    QSizePolicy, QAbstractItemView, QHeaderView, QListWidget,
-    QListWidgetItem, QTreeView, QWidgetAction, QGraphicsView,
-    QGraphicsScene, QGraphicsRectItem, QGraphicsTextItem,
-    QFileIconProvider,
+    QLabel, QFrame, QSplitter,
 )
 from PyQt6.QtGui import (
-    QColor, QCursor, QFont, QIcon, QPixmap, QPalette, QAction,
-    QBrush, QPainter, QPen, QDesktopServices,
-    QStandardItem, QStandardItemModel,
+    QIcon,
 )
 from PyQt6.QtCore import (
-    Qt, QPropertyAnimation, QEasingCurve, pyqtSignal, QDir, QTimer,
-    QUrl, QEvent, QItemSelectionModel, QModelIndex, QSize, QObject
+    Qt, QTimer,
 )
 
-from GUI.gui_backend import (
-    get_cpu_temp, get_gpu_temp, get_metrics, get_tasks, get_logs,
-    add_task_to_db, get_ram_pct, get_gpu_mem_pct, get_gpu_freq_mhz
-)
-from GUI.panels import (
-    wrap_in_panel_page,
-    build_actors_page,
-    build_cicd_page,
-    build_clean_code_page,
-    build_config_page,
-    build_scheduler_page,
-    build_plancia_cards,
-    build_tools_cards,
-)
 from GUI import settings_store
 from GUI.file_tree_drawer import FileTreeDrawer
 from GUI.center_area import CenterArea
-from GUI.task_queue import (
-    log_user_action as _log_user_action,
-    pause_task as _pause_task,
-    resume_single_task as _resume_single_task,
-    stop_task as _stop_task,
-    restart_task as _restart_task,
-)
 
 # ════════════════════════════════════════════════════════════════
 # ════════════════════════════════════════════════════════════════
@@ -324,16 +304,16 @@ if __name__ == "__main__":
     def _crash_excepthook(_exc_type, _exc_value, _exc_tb):
         _ts = _datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         _lines = [
-            f"═════════════════════════════════════════════════════════════════════════════════",
+            "═════════════════════════════════════════════════════════════════════════════════",
             f"CRASH RILEVATO alle {_ts}",
             f"Tipo eccezione: {_exc_type.__name__ if _exc_type else 'Sconosciuto'}",
             f"Messaggio: {_exc_value}",
-            f"",
-            f"Traceback:",
+            "",
+            "Traceback:",
         ]
         _lines.extend(_traceback.format_exception(_exc_type, _exc_value, _exc_tb))
         _lines.append(
-            f"═════════════════════════════════════════════════════════════════════════════════"
+            "═════════════════════════════════════════════════════════════════════════════════"
         )
         _lines.append("")
         try:
@@ -359,10 +339,8 @@ if __name__ == "__main__":
     except Exception as _e:      # la GUI parte comunque
         print(f"[remote-bridge] off: {_e}", file=sys.stderr)
     # Imposta icona finestra
-    import os
     icon_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'IMG', 'icona.ico')
     if os.path.exists(icon_path):
-        from PyQt6.QtGui import QIcon
         w.setWindowIcon(QIcon(icon_path))
         app.setWindowIcon(QIcon(icon_path))
         fixes_log = "Icona finestra impostata"

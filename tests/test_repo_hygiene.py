@@ -19,7 +19,6 @@ I test git vengono saltati se git non è disponibile.
 from __future__ import annotations
 
 import subprocess
-import sys
 import unittest
 from pathlib import Path
 

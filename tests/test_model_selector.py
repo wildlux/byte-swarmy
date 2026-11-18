@@ -45,7 +45,6 @@ from CORE.model_selector import (  # noqa: E402
     load_suite_evidence,
     _evidence_boost_for_model,
     score_model_for_role,
-    ROLE_DEFINITIONS,
 )
 
 

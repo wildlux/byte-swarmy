@@ -16,10 +16,9 @@ from pathlib import Path
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
-    QGroupBox, QSizePolicy, QPlainTextEdit, QScrollArea,
+    QGroupBox, QPlainTextEdit, QScrollArea,
 )
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
 
 from GUI.theme.theme import set_prop as _theme_prop
 from GUI.theme.theme import set_banner as _theme_banner
@@ -211,7 +210,7 @@ class HardwarePanel(QWidget):
     def _refresh_profile(self):
         """Rileva l'hardware e aggiorna la GUI."""
         try:
-            from CORE.hardware_detector import get_profile, STRATEGIES
+            from CORE.hardware_detector import get_profile
             # Forza refresh (utile se è stata collegata una GPU esterna)
             profile = get_profile(force_refresh=True)
 

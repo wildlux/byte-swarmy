@@ -9,7 +9,7 @@ import os
 
 from PyQt6.QtWidgets import (
     QFrame, QLabel, QVBoxLayout, QHBoxLayout, QPushButton,
-    QGridLayout, QScrollArea, QWidget,
+    QGridLayout, QWidget,
 )
 from PyQt6.QtGui import QPixmap, QColor, QPalette, QDesktopServices
 from PyQt6.QtCore import (

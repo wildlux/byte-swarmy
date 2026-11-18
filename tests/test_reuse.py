@@ -8,11 +8,7 @@ Copre:
 - CORE/tools.py (tool registry)
 - CORE/gui_worker.py (logica astratta, senza avvio thread reale)
 """
-import json
-import os
 import sys
-import tempfile
-from pathlib import Path
 
 import pytest
 
@@ -20,15 +16,15 @@ import pytest
 sys.path.insert(0, ".")
 
 from CORE.regex_controller import (  # noqa: E402
-    RegexController, compile_cached, number_after_label, last_number,
+    RegexController, number_after_label, last_number,
     json_block, fenced_code, sanitize_name, validate_chars, escape_literal,
     DEFAULT_PATTERNS,
 )
 from CORE.state_repository import (  # noqa: E402
-    StateRepository, load_json, save_json, default_repo,
+    StateRepository, load_json, save_json,
 )
 from CORE.config_model import (  # noqa: E402
-    load_typed_config, AppConfig, OllamaConfig, ModelsConfig,
+    load_typed_config, AppConfig,
 )
 from CORE.constants import OLLAMA_HOST
 from CORE.path_utils import (  # noqa: E402

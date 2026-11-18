@@ -37,7 +37,6 @@ from PyQt6.QtWidgets import (
     QPushButton, QToolButton, QWidget,
 )
 
-import os
 SOCKET_BASENAME = "byte-swarmy-remote"
 _CHUNK_LIMIT = 64 * 1024
 

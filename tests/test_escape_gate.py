@@ -1,6 +1,5 @@
 """Test per il gate anti-escape (todo 9c/M1) in CORE/tools.py."""
 import logging
-import os
 import tempfile
 import unittest
 from pathlib import Path

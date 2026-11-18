@@ -8,7 +8,6 @@ AST scanner, safe path e runtime verifier restano attivi.
 Nessun Ollama: ModelClient sostituito da un FakeClient.
 """
 
-import os
 import sys
 import tempfile
 import unittest

@@ -293,7 +293,6 @@ class OrchestratorMixin:
             # Trova l'indice della colonna PROCESSOR dall'header
             header = lines[0].upper()
             proc_idx = header.find("PROCESSOR")
-            name_idx = 0  # NAME è sempre la prima colonna
             if proc_idx < 0:
                 return {}  # formato inatteso
             running = {}

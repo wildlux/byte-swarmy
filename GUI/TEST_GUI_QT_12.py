@@ -14,12 +14,12 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QStackedWidget, QPushButton, QLabel, QLineEdit, QTextEdit,
     QFrame, QTreeView, QGridLayout, QTabBar, QHeaderView, QMenu,
-    QInputDialog, QMessageBox, QWidgetAction, QFileDialog,
-    QGraphicsView, QGraphicsScene, QGraphicsTextItem, QGraphicsRectItem,
+    QInputDialog, QMessageBox, QWidgetAction,
+    QGraphicsView, QGraphicsScene, QGraphicsRectItem,
     QScrollArea
 )
 from PyQt6.QtGui import (
-    QFont, QFileSystemModel, QCursor, QTextCursor, QAction,
+    QFileSystemModel, QCursor, QAction,
     QColor, QPen, QBrush, QPainter
 )
 from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, pyqtSignal, QDir, QTimer
@@ -99,7 +99,7 @@ class CreditsOverlay(QFrame):
             card_lay.setSpacing(12)
 
             icon_lbl = QLabel(icon)
-            icon_lbl.setStyleSheet(f"font-size: 22px;")
+            icon_lbl.setStyleSheet("font-size: 22px;")
             icon_lbl.setFixedWidth(32)
             card_lay.addWidget(icon_lbl)
 
@@ -458,9 +458,9 @@ class CategorizedLogViewer(QFrame):
             log_widget = QTextEdit()
             log_widget.setReadOnly(True)
             log_widget.setStyleSheet(
-                f"QTextEdit {{ background:#fafafa; color:#1a1a1a; border:none; "
-                f"font-family:'JetBrains Mono','Consolas',monospace; font-size:11px; "
-                f"padding:8px; }}"
+                "QTextEdit {{ background:#fafafa; color:#1a1a1a; border:none; "
+                "font-family:'JetBrains Mono','Consolas',monospace; font-size:11px; "
+                "padding:8px; }}"
             )
             sample = self._get_sample_log(cat, colors[cat])
             log_widget.setPlainText(sample)
@@ -524,9 +524,9 @@ class BackupCodeLogs(QFrame):
             log_widget = QTextEdit()
             log_widget.setReadOnly(True)
             log_widget.setStyleSheet(
-                f"QTextEdit {{ background:#fafafa; color:#1a1a1a; border:none; "
-                f"font-family:'JetBrains Mono','Consolas',monospace; font-size:11px; "
-                f"padding:8px; }}"
+                "QTextEdit {{ background:#fafafa; color:#1a1a1a; border:none; "
+                "font-family:'JetBrains Mono','Consolas',monospace; font-size:11px; "
+                "padding:8px; }}"
             )
             sample = self._get_sample_log(cat, colors[cat])
             log_widget.setPlainText(sample)

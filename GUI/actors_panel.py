@@ -14,16 +14,16 @@ Le impostazioni sono salvate in CONFIG/actors.json.
 """
 import json
 import os
+import subprocess
 import re
 from typing import Dict
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
-    QComboBox, QLineEdit, QSpinBox, QDoubleSpinBox, QGroupBox,
-    QFormLayout, QScrollArea, QCheckBox, QMessageBox, QSizePolicy,
+    QComboBox, QSpinBox, QDoubleSpinBox, QGroupBox,
+    QFormLayout, QScrollArea, QCheckBox, QMessageBox,
     QPlainTextEdit,
 )
-from PyQt6.QtCore import Qt, pyqtSignal
 
 # Path del file configurazione attori
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -52,7 +52,6 @@ ACTOR_WEIGHTS = ("light", "medium", "heavy")
 # Unica fonte in CORE/constants.py (usata anche da hardware_detector
 # per il calcolo della capacità): qui solo alias per compatibilità.
 from CORE.constants import (  # noqa: E402
-    ACTOR_WEIGHT_DEFAULT_MODELS as WEIGHT_DEFAULT_MODELS,
     weight_default_model,
 )
 from CORE.gui_worker import BaseWorker  # noqa: E402
@@ -63,7 +62,6 @@ def ollama_list_models(timeout: float = 3.0) -> list:
     """T2.4 — Modelli Ollama INSTALLATI reali (prima colonna di `ollama
     list`). Fallback a [] se `ollama` non esiste o fallisce — il chiamante
     usa OLLAMA_MODELS come lista di backup."""
-    import subprocess
     try:
         r = subprocess.run(["ollama", "list"],
                            capture_output=True, text=True, timeout=timeout)
@@ -899,7 +897,6 @@ class ActorsPanel(QWidget):
           - Pulsante "🔄 Aggiorna" per rieseguire il check
           - Pulsante "🦙 Apri cartella Ollama" (se trovato)
         """
-        import shutil, subprocess
 
         box = QGroupBox("🦙 Ollama — stato del runtime")
 
@@ -912,7 +909,6 @@ class ActorsPanel(QWidget):
         head.setSpacing(8)
 
         # Stato Ollama
-        ollama_path = shutil.which("ollama")
         self._ollama_status_label = QLabel()
         self._ollama_status_label.setStyleSheet(
             "font-size:11px; font-weight:bold; padding:6px 12px; border-radius:6px;"

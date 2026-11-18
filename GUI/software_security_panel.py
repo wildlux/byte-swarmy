@@ -222,7 +222,7 @@ class SoftwareSecurityPanel(QFrame):
             except OSError:
                 pass
         if bad_perms == 0:
-            self.output.appendPlainText(f"  ✓  Tutti i file hanno permessi corretti (no world-writable)")
+            self.output.appendPlainText("  ✓  Tutti i file hanno permessi corretti (no world-writable)")
         self.output.appendPlainText("")
 
         # ── 4. Riepilogo ───────────────────────────────────────────────

@@ -2,10 +2,8 @@
 # Verifica che tutti i tool RE siano installati e funzionanti
 
 import sys
-import os
-import tempfile
-import subprocess
 from pathlib import Path
+import os
 
 # Add CORE to path (assume test runs from project root)
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -64,7 +62,7 @@ def test_call_unknown_tool():
         result = call_re_tool("nonexistent_tool", ["/bin/ls"])
         assert "ERROR" in result
         assert "Available:" in result
-        ok(f"Unknown tool returns ERROR with available list")
+        ok("Unknown tool returns ERROR with available list")
         return True
     except Exception as e:
         fail(f"test_call_unknown_tool failed: {e}")
@@ -79,7 +77,7 @@ def test_call_with_nonexistent_file():
         result = call_re_tool("binary_info", [fake_path])
         assert "ERROR" in result
         assert "not found" in result.lower() or "no such file" in result.lower()
-        ok(f"binary_info on non-existent file returns ERROR")
+        ok("binary_info on non-existent file returns ERROR")
         return True
     except Exception as e:
         fail(f"test_call_with_nonexistent_file failed: {e}")
@@ -231,7 +229,6 @@ def test_tool_signatures_consistent():
         return False
 
 def main():
-    from pathlib import Path
     print("\n" + "="*60)
     print("  🐝 byte-swarmy RE tools — Test Suite")
     print("="*60)

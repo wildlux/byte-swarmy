@@ -6,8 +6,6 @@ gestione syntax error.
 """
 
 import pathlib
-import sys
-import tempfile
 from unittest.mock import MagicMock
 
 from CORE.test_generator import TestGenerator

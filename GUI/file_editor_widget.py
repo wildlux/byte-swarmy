@@ -52,7 +52,7 @@ class FileEditorWidget(QFrame):
 
         # ── Header: solo icona + nome file (i pulsanti stanno in basso) ──
         head = QHBoxLayout()
-        head.addWidget(QLabel(f"<b>📝</b>"))
+        head.addWidget(QLabel("<b>📝</b>"))
 
         # Nome file modificabile (QLineEdit invece di QLabel statico)
         self.file_name_edit = QLineEdit(os.path.basename(file_path))

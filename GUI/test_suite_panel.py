@@ -466,8 +466,8 @@ class TestSuitePanel(QWidget):
                                  "skipped": 0},
                       "duration_s": dur,
                       "detail": _output_tail(out) +
-                      f"\n[TIMEOUT] file bloccato oltre il budget; "
-                      f"processo terminato."}
+                      "\n[TIMEOUT] file bloccato oltre il budget; "
+                      "processo terminato."}
         elif self._stopping:
             record = {"file": name, "status": "SKIP",
                       "counts": {"passed": 0, "failed": 0, "errors": 0,
@@ -551,7 +551,7 @@ class TestSuitePanel(QWidget):
                   + (f"{'✅' if ok else '❌'} Suite completata in "
                      f"{dur:.1f}s — risultato salvato in {RESULTS_REL}."
                      if saved else
-                     f"⚠ Suite completata ma salvataggio JSON fallito."))
+                     "⚠ Suite completata ma salvataggio JSON fallito."))
         self.status_lbl.setText(
             "Completato — risultato salvato in state/test_suite/results.json."
             if saved else "Completato (salvataggio JSON fallito).")

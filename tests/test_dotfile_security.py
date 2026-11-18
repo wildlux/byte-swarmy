@@ -39,7 +39,6 @@ os.environ.setdefault(
     "BYTE_SWARM_SECURITY_LOG_DIR", tempfile.mkdtemp(prefix="bswarm-dot-")
 )
 
-from SAFETY import security  # noqa: E402
 from SAFETY.security import (  # noqa: E402
     SecurityError,
     is_sensitive_path,

@@ -16,11 +16,11 @@ from typing import Optional
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
-    QComboBox, QLineEdit, QMessageBox, QInputDialog, QScrollArea,
-    QSizePolicy, QGroupBox, QFormLayout, QCheckBox, QPlainTextEdit,
+    QComboBox, QLineEdit, QMessageBox, QScrollArea,
+    QGroupBox, QFormLayout, QPlainTextEdit,
     QProgressBar,
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QUrl, QThread, QObject, pyqtSignal as Signal
+from PyQt6.QtCore import Qt, pyqtSignal, QUrl, QObject
 from PyQt6.QtGui import QDesktopServices
 
 from GUI import settings_store
@@ -31,7 +31,6 @@ from GUI.hf_weights_worker import WeightsDownloadWorker, WeightspaceProveWorker
 from GUI.settings_sections import (
     DebugSection, HardwareSection, LanguageSection, ThemeSection,
 )
-from CORE.gui_worker import BaseWorker
 
 # ═══════════════════════════════════════════════════════════════
 class SettingsPanel(QWidget):
@@ -397,7 +396,6 @@ class SettingsPanel(QWidget):
         le ripetizioni/loop), seguendo l'idea del paper "Sparks of
         Weight-Space Programming" (MIT CSAIL, nov. 2026).
         """
-        from CORE import hf_weights as hw
 
         box = QGroupBox("🧬 Pesi da Hugging Face — ⚠️ SVILUPPO ESTREMAMENTE BETA")
 
@@ -776,7 +774,7 @@ class SettingsPanel(QWidget):
             self.audit_status.setText(
                 self.audit_status.text() + f"  |  Report: {html_path}"
             )
-        except Exception as e:
+        except Exception:
             # Non bloccare se la generazione HTML fallisce
             pass
 

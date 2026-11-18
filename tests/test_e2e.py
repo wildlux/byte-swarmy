@@ -12,7 +12,6 @@ Questo test richiede Ollama attivo e modelli scaricati.
 Saltato se Ollama non e disponibile.
 """
 import json
-import os
 import sqlite3
 import time
 import unittest
@@ -20,10 +19,6 @@ from pathlib import Path
 
 from CORE.constants import OLLAMA_HOST
 
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib
 
 
 class TestE2ETaskExecution(unittest.TestCase):

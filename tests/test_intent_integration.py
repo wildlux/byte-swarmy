@@ -13,7 +13,6 @@ Verifica:
 """
 
 import sys
-import os
 from pathlib import Path
 
 # Aggiungi la root del progetto al path

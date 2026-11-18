@@ -31,17 +31,16 @@ import subprocess
 from pathlib import Path
 
 from PyQt6.QtWidgets import (
-    QFrame, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QSplitter, QAbstractItemView, QTreeView, QListWidget, QListWidgetItem,
-    QHeaderView, QFileIconProvider, QMessageBox, QInputDialog, QMenu,
+    QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QSplitter, QAbstractItemView, QListWidget, QListWidgetItem,
+    QHeaderView, QMessageBox, QInputDialog, QMenu,
     QApplication,
 )
 from PyQt6.QtGui import (
-    QColor, QBrush, QFont, QIcon, QPixmap, QPalette,
-    QStandardItemModel, QStandardItem, QAction, QDesktopServices,
+    QAction, QDesktopServices,
 )
 from PyQt6.QtCore import (
-    Qt, pyqtSignal, QTimer, QSize as _QSize, QPropertyAnimation,
+    Qt, QTimer, QSize as _QSize, QPropertyAnimation,
     QEasingCurve, QModelIndex, QUrl, QProcess,
     QItemSelectionModel,
 )
@@ -52,7 +51,6 @@ from CORE.constants import (
     BTN_TRANSPARENT_STYLE,
     BTN_TRANSPARENT_DANGER_STYLE,
     BTN_TRANSPARENT_MEDIUM_STYLE,
-    BTN_TRANSPARENT_SMALL_STYLE,
 )
 from GUI.file_manager import FileSystemModel, CheckableTreeView
 from GUI.task_item_delegate import TaskItemDelegate
@@ -450,8 +448,7 @@ class FileTreeDrawer(QFrame):
         caller = frames[1] if len(frames) > 1 else None
         if caller:
             fn = caller.function
-            mod = inspect.getmodule(caller.frame)
-            modname = mod.__name__ if mod else "?"
+            inspect.getmodule(caller.frame)
             fname = os.path.basename(caller.filename)
             line = caller.lineno
             cls = None

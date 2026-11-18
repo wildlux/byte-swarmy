@@ -13,15 +13,14 @@ Cosa testiamo:
   generic_planner se pause_decision_model_too=True
   (I2: set_paused(True/False) verificato sul metodo reale)
 """
-import sys, os, json, tempfile, shutil
+import sys, os, json, tempfile
 from types import SimpleNamespace
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, call
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dataclasses import dataclass
 from typing import Optional
-from unittest.mock import MagicMock, patch
 
 
 # ============ A1: resume_temp da actors.json ============
@@ -287,7 +286,7 @@ def test_a4_pause_decision_model_too_default_true():
 
 def test_a4_actors_panel_save_persist_pause_dm():
     """A4: il campo pause_decision_model_too è salvato nel JSON."""
-    from GUI.actors_panel import DEFAULTS, save_actors, load_actors, ACTORS_FILE
+    from GUI.actors_panel import save_actors, load_actors, ACTORS_FILE
     # Salva un config di test
     test_actors = {
         "llm": {"model": "test", "temperature": 0.1, "num_ctx": 2048, "num_predict": 256},

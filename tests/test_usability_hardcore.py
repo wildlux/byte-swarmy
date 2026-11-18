@@ -17,11 +17,9 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import sqlite3
 import sys
 import tempfile
-import threading
 import time
 import unittest
 from pathlib import Path
@@ -30,7 +28,6 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from CORE.orchestrator import TaskQueue, Worker   # noqa: E402
-from CORE.constants import TaskStatus  # noqa: E402
 from CORE.scheduler_worker import SchedulerLogic  # noqa: E402
 from INTENT.router import IntentRouter, detect_lang  # noqa: E402
 from CORE.resilience import (                 # noqa: E402
@@ -101,7 +98,7 @@ class TestQueueLifecycle(unittest.TestCase):
     def test_retry_cooldown_delays_claim(self):
         tid = self.q.add({"title": "cooldown"})
         tid = [t["id"] for t in self.q.list_tasks()][0]
-        got = self.q.next_pending()
+        self.q.next_pending()
         self.q.fail_with_correction(tid, "err", "riprova",
                                     cooldown_sec=3600)
         self.assertIsNone(self.q.next_pending(),
@@ -169,7 +166,7 @@ class TestQueuePersistence(unittest.TestCase):
     def test_reopens_between_processes(self):
         tmp = Path(tempfile.mkdtemp(prefix="bswarm-pers-"))
         q1 = TaskQueue(tmp, logger)
-        tid = q1.add({"id": "per1", "title": "persisti"})
+        q1.add({"id": "per1", "title": "persisti"})
         del q1
         q2 = TaskQueue(tmp, logger)
         got = q2.next_pending()

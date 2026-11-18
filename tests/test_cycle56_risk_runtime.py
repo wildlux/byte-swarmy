@@ -7,12 +7,10 @@ Copre:
 """
 
 import pathlib
-import tempfile
 
 from SAFETY.risk_classifier import (
     classify,
     requires_human,
-    RISK_LOW,
     RISK_MEDIUM,
     RISK_HIGH,
     RISK_CRITICAL,
@@ -116,7 +114,7 @@ def test_verify_task_files_mixed(tmp_path):
     _write(tmp_path, "good_mod.py", "def ok():\n    return 1\n")
     bad = _write(tmp_path, "bad_mod.py", "def broken(:\n")
     v = _mk_verifier(tmp_path)
-    res = v.verify_task_files([str(good := tmp_path / "good_mod.py"),
+    res = v.verify_task_files([str(tmp_path / "good_mod.py"),
                                str(bad)])
     assert res.startswith("ERROR")
     assert "bad_mod.py" in res

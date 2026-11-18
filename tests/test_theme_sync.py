@@ -158,7 +158,7 @@ def test_theme_helpers_exist() -> None:
     assert hasattr(T, "set_banner")
     assert hasattr(T, "apply_theme")
     from PyQt6.QtWidgets import QApplication, QLabel
-    app = QApplication.instance() or QApplication([])
+    QApplication.instance() or QApplication([])
     lab = QLabel("x")
     for kind in ("info", "ok", "error", "warn", None):
         T.set_banner(lab, kind)

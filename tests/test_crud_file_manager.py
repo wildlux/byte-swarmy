@@ -17,7 +17,6 @@ import os
 import shutil
 import sys
 import tempfile
-from pathlib import Path
 
 import pytest
 
@@ -383,7 +382,7 @@ def test_task_scheduler_refresh_on_project_change():
         cc.show()
         app.processEvents()
 
-        drawer = cc.drawer
+        cc.drawer
         scheduler = cc.center.panel_pages.get("coda")
 
         # Progetto 1

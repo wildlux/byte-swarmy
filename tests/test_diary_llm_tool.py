@@ -4,7 +4,6 @@ Verifica la capability di scrittura del diario di bordo + sanitizzazione
 del task_id. Il tool persiste in `<state_dir>/diary/<task_id>.md`.
 """
 
-import pathlib
 
 from CORE.tools import ToolSet
 

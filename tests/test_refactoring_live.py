@@ -21,7 +21,6 @@ Tutti i test sono SENZA Ollama: usano il FakeClient di demo_m3.
 
 from __future__ import annotations
 
-import json
 import shutil
 import subprocess
 import sys

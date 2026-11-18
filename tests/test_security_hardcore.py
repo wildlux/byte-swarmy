@@ -20,7 +20,6 @@ import json
 import logging
 import os
 import random
-import string
 import sys
 import tempfile
 import threading
@@ -40,7 +39,6 @@ from SAFETY.security import (          # noqa: E402
     safe_project_path,
     validate_bash_command,
     is_sensitive_path,
-    normalize_bash_argv,
 )
 from CORE import sandbox               # noqa: E402
 from CORE.tools import ToolSet         # noqa: E402
@@ -48,7 +46,6 @@ from CORE import ast_scanner           # noqa: E402
 from CORE.ast_scanner import detect_artifacts  # noqa: E402
 from CORE.orchestrator import TaskQueue, Worker  # noqa: E402
 from CORE.memory import AgentMemory    # noqa: E402
-from CORE.constants import TaskStatus  # noqa: E402
 
 
 logger = logging.getLogger("hardcore-suite")

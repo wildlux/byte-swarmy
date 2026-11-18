@@ -157,12 +157,12 @@ class TestPageTour(unittest.TestCase):
 
     def test_every_page_renders(self):
         win = _window()
-        center = win.center
         shots_dir = None
         if os.environ.get("BSWARM_WORKFLOW_SHOTS", "").strip() == "1":
             shots_dir = ROOT / "EXPORT" / "workflow_shots"
             shots_dir.mkdir(parents=True, exist_ok=True)
 
+        center = win.center
         tour = [("plancia", 0, None)]
         tour += [(k, 1, center.panel_pages[k]) for k in center.panel_pages]
 
@@ -183,7 +183,6 @@ class TestPageTour(unittest.TestCase):
 
     def test_safe_buttons_click(self):
         win = _window()
-        center = win.center
         clicked = 0
         for b in _all_buttons(win):
             if b.objectName() in SAFE_CLICKS and b.isEnabled():

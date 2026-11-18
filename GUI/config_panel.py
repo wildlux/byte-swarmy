@@ -11,10 +11,9 @@ import urllib.request
 
 from PyQt6.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QWidget,
-    QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QGroupBox,
-    QFormLayout, QCheckBox, QLineEdit, QTextEdit, QMessageBox, QFileDialog,
+    QPushButton, QComboBox, QSpinBox, QDoubleSpinBox,
+    QFormLayout, QCheckBox, QMessageBox,
 )
-from PyQt6.QtCore import Qt
 
 from CORE.constants import DEFAULT_NUM_CTX, OLLAMA_HOST
 from GUI.collapsible_section import CollapsibleSection
@@ -322,10 +321,6 @@ class ConfigPanel(QFrame):
         new_values = self._collect_values()
         for path_key, value in new_values.items():
             self._set_nested(self._config, path_key, value)
-        try:
-            import tomllib
-        except ImportError:
-            import tomli as tomllib
         path = "CONFIG/config.toml"
         # Backup in backups/ (sede designata, gitignored): un .bak accanto
         # al config finisce nel repo (igiene).

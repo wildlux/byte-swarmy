@@ -12,9 +12,8 @@ from __future__ import annotations
 try:
     from PyQt6.QtWidgets import (
         QDialog, QVBoxLayout, QLabel, QRadioButton, QButtonGroup,
-        QPushButton, QLineEdit, QHBoxLayout, QScrollArea, QWidget,
+        QPushButton, QLineEdit, QHBoxLayout,
     )
-    from PyQt6.QtCore import Qt
     _QT_AVAILABLE = True
 except ImportError:
     _QT_AVAILABLE = False

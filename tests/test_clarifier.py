@@ -211,7 +211,6 @@ class TestClarificationDialogSmoke(unittest.TestCase):
 
     def test_import(self):
         try:
-            from GUI.clarification_dialog import ClarificationDialog, _QT_AVAILABLE
             self.assertTrue(True)
         except ImportError:
             self.skipTest("PyQt6 non disponibile")
@@ -232,7 +231,7 @@ class TestClarificationDialogSmoke(unittest.TestCase):
             from CORE.clarifier import Question
             if not _QT_AVAILABLE:
                 self.skipTest("PyQt6 non disponibile")
-            app = QApplication.instance() or QApplication([])
+            QApplication.instance() or QApplication([])
             qs = [Question(id="Q1", text="Test?", options=["a", "b"])]
             dlg = ClarificationDialog(qs)
             self.assertIsNotNone(dlg._dialog)

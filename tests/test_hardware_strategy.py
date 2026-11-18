@@ -8,7 +8,7 @@ Cosa testiamo:
 - H5: orchestrator._resolve_actor_target (CPU/GPU in base alla strategia)
 - H5: orchestrator._resolve_actor_model (modello da actors.json)
 """
-import sys, os, json, tempfile, shutil
+import sys, os
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -151,8 +151,7 @@ def test_h3_save_persists_weights():
     """H3: salvando ActorsPanel, i pesi sono scritti in actors.json."""
     _ensure_app()
 
-    from GUI.actors_panel import (ActorsPanel, load_actors, ACTORS_FILE,
-                                   save_actors)
+    from GUI.actors_panel import (ActorsPanel, load_actors, ACTORS_FILE)
     if os.path.exists(ACTORS_FILE):
         os.remove(ACTORS_FILE)
     panel = ActorsPanel()

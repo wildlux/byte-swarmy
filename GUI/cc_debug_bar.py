@@ -76,7 +76,7 @@ class DebugBarMixin:
         import inspect, os as _os
         lines = []
         cls = widget.__class__
-        lines.append(f"Widget sotto il mouse:")
+        lines.append("Widget sotto il mouse:")
         lines.append(f"  Classe: {cls.__name__}")
         mro = [c.__name__ for c in cls.__mro__]
         lines.append(f"  MRO: {' → '.join(mro)}")
@@ -102,7 +102,7 @@ class DebugBarMixin:
                 fname = _os.path.basename(frame.filename)
                 relevant.append(f"    {fname}:{frame.lineno} in {frame.function}")
             if relevant:
-                lines.append(f"  Stack chiamate (ultimi):")
+                lines.append("  Stack chiamate (ultimi):")
                 lines.extend(relevant)
         except Exception:
             pass

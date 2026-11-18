@@ -12,7 +12,6 @@ Vedi anche test_actors_panel.py per gli attori.
 
 from __future__ import annotations
 
-import importlib
 import json
 import os
 import sys

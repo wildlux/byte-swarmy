@@ -13,11 +13,11 @@ from typing import Dict, List
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
-    QComboBox, QLineEdit, QDateTimeEdit, QSpinBox, QGroupBox,
+    QComboBox, QLineEdit, QSpinBox, QGroupBox,
     QFormLayout, QScrollArea, QListWidget, QListWidgetItem, QMessageBox,
-    QCheckBox, QInputDialog,
+    QInputDialog,
 )
-from PyQt6.QtCore import Qt, QDateTime, pyqtSignal
+from PyQt6.QtCore import Qt, QDateTime
 
 from GUI.theme.theme import set_prop as _theme_prop
 from GUI.theme.theme import set_banner as _theme_banner

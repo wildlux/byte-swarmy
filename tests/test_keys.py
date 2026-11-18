@@ -30,7 +30,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from PyQt6.QtWidgets import QApplication  # noqa: E402
-from PyQt6.QtCore import QEvent, Qt as _Qt, QModelIndex  # noqa: E402
+from PyQt6.QtCore import QEvent, Qt as _Qt  # noqa: E402
 from PyQt6.QtGui import QKeyEvent  # noqa: E402
 from PyQt6.QtTest import QTest  # noqa: E402
 

@@ -18,9 +18,9 @@ from pathlib import Path
 from typing import Optional
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
-    QComboBox, QMessageBox, QScrollArea, QSizePolicy, QGroupBox,
-    QPlainTextEdit, QTreeWidget, QTreeWidgetItem, QHeaderView,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QComboBox, QMessageBox, QGroupBox,
+    QTreeWidget, QTreeWidgetItem, QHeaderView,
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 

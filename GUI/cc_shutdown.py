@@ -8,6 +8,7 @@ comportamento invariato (test in tests/test_close_orchestrator.py).
 from __future__ import annotations
 
 import os
+import signal
 
 from PyQt6.QtWidgets import QApplication, QCheckBox, QMessageBox
 
@@ -22,7 +23,6 @@ class ShutdownMixin:
         pid file stantio o un pid riutilizzato non fanno terminare processi
         innocenti. Ritorna (pid, alive); (None, False) se non attivo.
         """
-        import signal  # noqa: F401  (coerente con il resto del file)
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         pid_file = os.path.join(base, 'state', 'orchestrator.pid')
         try:
@@ -191,7 +191,7 @@ class ShutdownMixin:
                     "Termina e chiudi",
                     QMessageBox.ButtonRole.AcceptRole)
                 btn_stop.setDefault(True)
-                btn_keep = box.addButton(
+                box.addButton(
                     "Lascia attivo in background",
                     QMessageBox.ButtonRole.NoRole)
                 btn_cancel = box.addButton(

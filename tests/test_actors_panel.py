@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from PyQt6.QtWidgets import QApplication  # noqa: E402
+from PyQt6.QtWidgets import QApplication, QPushButton  # noqa: E402
 
 from GUI import actors_panel as ap  # noqa: E402
 
@@ -92,7 +92,6 @@ class TestParamReset(unittest.TestCase):
         cls.panel = ap.ActorsPanel()
 
     def _reset_buttons(self):
-        from PyQt6.QtWidgets import QPushButton
         return [b for b in self.panel.findChildren(QPushButton)
                 if "Ripristina" in b.text()]
 
@@ -101,7 +100,6 @@ class TestParamReset(unittest.TestCase):
                          "attesi reset per Worker e per Decision Model")
 
     def test_reset_restores_all_defaults(self):
-        from PyQt6.QtWidgets import QPushButton
         p = self.panel
         # Sporca i valori
         p.llm_temp.setValue(1.7); p.llm_ctx.setValue(16384)

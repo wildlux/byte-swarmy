@@ -11,7 +11,7 @@ Copre ExternalBenchmark con mock (nessuna dipendenza da Ollama reale):
 
 import json
 import pathlib
-import tempfile
+import shutil
 from unittest.mock import MagicMock
 
 from CORE.external_benchmark import ExternalBenchmark, BENCH_TASKS
@@ -87,7 +87,6 @@ def test_naked_task_success(tmp_path):
     # Copia il target nella sandbox usata da run_naked_task
     sandbox = tmp_path / "state" / "bench_sandbox_naked"
     sandbox.mkdir(parents=True)
-    import shutil
     shutil.copytree(eb.bench_target_dir, sandbox, dirs_exist_ok=True)
 
     res = eb.run_naked_task(task)
@@ -103,7 +102,6 @@ def test_naked_task_model_error(tmp_path):
                            log=_dummy_logger())
     sandbox = tmp_path / "state" / "bench_sandbox_naked"
     sandbox.mkdir(parents=True)
-    import shutil
     shutil.copytree(eb.bench_target_dir, sandbox, dirs_exist_ok=True)
 
     res = eb.run_naked_task(BENCH_TASKS[0])
@@ -145,7 +143,6 @@ def test_harness_task_first_try_success(tmp_path):
 
     sandbox = tmp_path / "state" / "bench_sandbox_harness"
     sandbox.mkdir(parents=True)
-    import shutil
     shutil.copytree(eb.bench_target_dir, sandbox, dirs_exist_ok=True)
 
     res = eb.run_harness_task(task, worker_factory)
@@ -192,7 +189,6 @@ def test_harness_task_correction_loop(tmp_path):
 
     sandbox = tmp_path / "state" / "bench_sandbox_harness"
     sandbox.mkdir(parents=True)
-    import shutil
     shutil.copytree(eb.bench_target_dir, sandbox, dirs_exist_ok=True)
 
     res = eb.run_harness_task(task, worker_factory, max_retries=3)
@@ -206,7 +202,6 @@ def test_harness_task_correction_loop(tmp_path):
 
 def test_run_all_no_factory(tmp_path):
     """Senza worker_factory, harness è skipped, naked esegue con mock."""
-    import shutil
 
     eb = ExternalBenchmark(tmp_path, models=_fake_model_client(
         "def parse_email(email: str) -> str:\n    return None\n",
@@ -287,7 +282,7 @@ def test_main_dry_run(monkeypatch, tmp_path):
         raise OSError("connessione rifiutata")
 
     monkeypatch.setattr(urllib.request, "urlopen", _fake_urlopen)
-    monkeypatch.setattr(sys := __import__("sys"), "argv",
+    monkeypatch.setattr(__import__("sys"), "argv",
                         ["external_benchmark", "--run", "--config",
                          "CONFIG/config.toml"])
 

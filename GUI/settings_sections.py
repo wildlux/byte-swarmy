@@ -28,7 +28,7 @@ class ThemeSection(QFrame):
 
     def __init__(self, on_theme_changed, parent=None):
         super().__init__(parent)
-        box = QGroupBox("🎨 Tema interfaccia")
+        QGroupBox("🎨 Tema interfaccia")
         self.setLayout(QFormLayout())
         layout = self.layout()
         layout.setSpacing(10)
@@ -78,7 +78,7 @@ class LanguageSection(QFrame):
 
     def __init__(self, on_lang_changed, parent=None):
         super().__init__(parent)
-        box = QGroupBox("🌐 Lingua")
+        QGroupBox("🌐 Lingua")
         self.setLayout(QFormLayout())
         layout = self.layout()
         layout.setSpacing(10)
@@ -110,7 +110,7 @@ class DebugSection(QFrame):
 
     def __init__(self, on_gui_debug_changed, parent=None):
         super().__init__(parent)
-        box = QGroupBox("🐛 Debug GUI")
+        QGroupBox("🐛 Debug GUI")
         self.setLayout(QFormLayout())
         layout = self.layout()
         layout.setSpacing(10)
@@ -157,7 +157,7 @@ class HardwareSection(QFrame):
 
     def __init__(self, on_hw_changed, parent=None):
         super().__init__(parent)
-        box = QGroupBox("⚡ Strategia Hardware")
+        QGroupBox("⚡ Strategia Hardware")
         self.setLayout(QFormLayout())
         layout = self.layout()
         layout.setSpacing(10)

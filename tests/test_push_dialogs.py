@@ -6,11 +6,10 @@ Testiamo:
 - _show_push_summary usa le icone giuste in base a success/errors
 - _confirm_push ritorna bool in base al pulsante scelto
 """
-import sys, os, json, shutil
+import sys, os
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import pytest
 from unittest.mock import patch, MagicMock
 from PyQt6.QtWidgets import QApplication, QMessageBox
 

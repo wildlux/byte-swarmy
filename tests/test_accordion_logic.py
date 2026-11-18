@@ -90,7 +90,7 @@ def test_initial_state_collapsed():
     for s in sections:
         s.set_expanded(False)
 
-    ca = CenterArea(sections)
+    CenterArea(sections)
 
     states = [s.is_expanded for s in sections]
     print(f"  Stato iniziale: {states}")
@@ -109,7 +109,7 @@ def test_accordion_single_expansion():
     ]
     for s in sections:
         s.set_expanded(False)
-    ca = CenterArea(sections)
+    CenterArea(sections)
 
     sections[0]._on_toggle()
     states = [s.is_expanded for s in sections]
@@ -129,7 +129,7 @@ def test_accordion_swap():
     ]
     for s in sections:
         s.set_expanded(False)
-    ca = CenterArea(sections)
+    CenterArea(sections)
 
     sections[0]._on_toggle()  # Navigatore
     sections[1]._on_toggle()  # Backup
@@ -150,7 +150,7 @@ def test_accordion_collapse_manual():
     ]
     for s in sections:
         s.set_expanded(False)
-    ca = CenterArea(sections)
+    CenterArea(sections)
 
     sections[2]._on_toggle()  # Log espansa
     sections[2]._on_toggle()  # Log collassata
@@ -171,7 +171,7 @@ def test_accordion_full_cycle():
     ]
     for s in sections:
         s.set_expanded(False)
-    ca = CenterArea(sections)
+    CenterArea(sections)
 
     for i in range(5):
         sections[i]._on_toggle()

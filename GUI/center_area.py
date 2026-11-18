@@ -5,16 +5,12 @@ Estratto da GUI/control_center.py per ridurre il monolite.
 
 from __future__ import annotations
 
-import os
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QStackedWidget, QScrollArea,
-    QLineEdit, QComboBox, QPushButton, QLabel, QFrame, QSizePolicy,
-    QMessageBox, QFileDialog, QInputDialog, QSplitter, QListWidget,
-    QListWidgetItem, QTextEdit, QPlainTextEdit, QCheckBox, QGroupBox,
-    QGridLayout, QScrollArea as _QScrollArea,
+    QPushButton, QLabel, QSizePolicy,
+    QTextEdit,
 )
-from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt, QEvent
 
 from GUI.collapsible_section import CollapsibleSection
@@ -553,16 +549,16 @@ if __name__ == "__main__":
     def _crash_excepthook(_exc_type, _exc_value, _exc_tb):
         _ts = _datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         _lines = [
-            f"═════════════════════════════════════════════════════════════════════════════════",
+            "═════════════════════════════════════════════════════════════════════════════════",
             f"CRASH RILEVATO alle {_ts}",
             f"Tipo eccezione: {_exc_type.__name__ if _exc_type else 'Sconosciuto'}",
             f"Messaggio: {_exc_value}",
-            f"",
-            f"Traceback:",
+            "",
+            "Traceback:",
         ]
         _lines.extend(_traceback.format_exception(_exc_type, _exc_value, _exc_tb))
         _lines.append(
-            f"═════════════════════════════════════════════════════════════════════════════════"
+            "═════════════════════════════════════════════════════════════════════════════════"
         )
         _lines.append("")
         try:
@@ -589,11 +585,11 @@ if __name__ == "__main__":
         start_button_bridge(w)
     except Exception as _e:      # la GUI parte comunque
         print(f"[remote-bridge] off: {_e}", file=sys.stderr)
-    # Imposta icona finestra
     import os
+    from PyQt6.QtGui import QIcon
+    # Imposta icona finestra
     icon_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'IMG', 'icona.ico')
     if os.path.exists(icon_path):
-        from PyQt6.QtGui import QIcon
         w.setWindowIcon(QIcon(icon_path))
         app.setWindowIcon(QIcon(icon_path))
         fixes_log = "Icona finestra impostata"

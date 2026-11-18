@@ -21,19 +21,17 @@ from __future__ import annotations
 
 import json
 import random
-import re
-import string
 import sys
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Any, Callable, List, Tuple
+from typing import Any, List
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from SAFETY.security import validate_bash_command, SecurityError
+from SAFETY.security import validate_bash_command
 from CORE.tools import ToolSet
 
 
@@ -475,7 +473,7 @@ class TestFuzzMCPParser(unittest.TestCase):
     """Fuzzing di MCPClient._parse_tool_result: nessun crash su payload malformati."""
 
     def setUp(self):
-        from CORE.mcp_client import MCPClient, McpServerConfig
+        from CORE.mcp_client import MCPClient
 
         self.client = MCPClient({})
         self.gen = FuzzGenerator(seed=42)

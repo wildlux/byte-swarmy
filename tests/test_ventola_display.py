@@ -46,7 +46,7 @@ class TestVentolaDisplay(unittest.TestCase):
     def test_tick_mostra_cpu_primario(self):
         """Il label primario deve contenere 'CPU' (non solo il numero)."""
         from PyQt6.QtWidgets import QApplication
-        app = QApplication.instance() or QApplication([])
+        QApplication.instance() or QApplication([])
         w = FanControl()
         w._tick()
         self.assertIn("CPU", w.temp.text())
@@ -54,7 +54,7 @@ class TestVentolaDisplay(unittest.TestCase):
 
     def test_tick_state_mostra_zona_calda(self):
         from PyQt6.QtWidgets import QApplication
-        app = QApplication.instance() or QApplication([])
+        QApplication.instance() or QApplication([])
         w = FanControl()
         w._tick()
         self.assertIn("zona più calda", w.state.text())

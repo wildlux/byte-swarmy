@@ -27,7 +27,6 @@ Versione: 1.1 — tolerant on filename, supports --test N
 """
 import sqlite3
 import time
-import os
 import sys
 import subprocess
 import ast
@@ -518,7 +517,7 @@ def main():
         return
 
     print(f"\n{'='*70}")
-    print(f"  🐝 TEST FUNZIONALI BYTE-SWARMY — QUALITÀ DEL CODICE PRODOTTO")
+    print("  🐝 TEST FUNZIONALI BYTE-SWARMY — QUALITÀ DEL CODICE PRODOTTO")
     print(f"{'='*70}\n")
 
     if not DB.exists():

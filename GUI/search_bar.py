@@ -128,7 +128,7 @@ class SearchBar(QWidget):
         else:
             self._current_match = -1
             self.count_lbl.setText(
-                f"<b style='color:#dc2626;'>0</b> risultati"
+                "<b style='color:#dc2626;'>0</b> risultati"
             )
 
     def _apply_highlights(self):
