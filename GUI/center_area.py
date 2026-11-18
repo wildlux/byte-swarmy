@@ -248,6 +248,12 @@ class CenterArea(QWidget):
         self.panel_pages["test"] = TestSuitePanel()
         self.detail_stack.addWidget(self.panel_pages["test"])
 
+        # Pannello "miglioramenti" → ImprovementsPanel (grafico dei
+        # miglioramenti, Cycle 85e: DOCS/grafici/miglioramenti.svg)
+        from GUI.improvements_panel import ImprovementsPanel
+        self.panel_pages["miglioramenti"] = ImprovementsPanel()
+        self.detail_stack.addWidget(self.panel_pages["miglioramenti"])
+
         self.main_stack.addWidget(self.detail_stack)
 
         root.addWidget(self.main_stack, stretch=1)

@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="792" viewBox="0 0 940 792">
-<rect width="940" height="792" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="1018" viewBox="0 0 940 1018">
+<rect width="940" height="1018" fill="#ffffff"/>
 <text x="20" y="38" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">byte-swarmy — Miglioramenti implementati (Cycle 70 → 85)</text>
 <text x="20" y="60" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#64748b">Generato deterministicamente da tools/gen_grafici.py — dati: DOCS/IMPLEMENTED.md</text>
 <text x="20" y="92" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">A. Audit robustezza Cycle 85 — 15 difetti corretti, per categoria</text>
@@ -84,5 +84,25 @@
 <text x="267" y="726" font-family="DejaVu Sans, sans-serif" font-size="11" fill="#64748b">Cycle 75 (v0.3.22)</text>
 <rect x="399" y="716" width="12" height="12" rx="2" fill="#2563eb"/>
 <text x="417" y="726" font-family="DejaVu Sans, sans-serif" font-size="11" fill="#64748b">Cycle 85 (v0.3.30)</text>
-<text x="20" y="752" font-family="DejaVu Sans, sans-serif" font-size="11" fill="#64748b">Nota: i "subtests" sono asserzioni per-elemento (subTest pytest) — non tracciati al Cycle 75.</text>
+<text x="20" y="766" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">D. Scala di seniorità del sistema — GOAL: almeno middle senior</text>
+<text x="20" y="786" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Il modello 3b non diventerà un senior; il SISTEMA (modello + meccanismi) sì — criteri misurabili in DOCS/MIGLIORAMENTI.md</text>
+<text x="20" y="818.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Junior — 3b nudo (baseline C72: 0/4 task GUI)</text>
+<rect x="309" y="800" width="451" height="26" rx="4" fill="#e2e8f0"/>
+<rect x="309" y="800" width="112" height="26" rx="4" fill="#94a3b8" fill-opacity="1.0"/>
+<text x="768" y="818.72" font-family="DejaVu Sans, sans-serif" font-size="11.5" font-weight="normal" fill="#0f172a">livello 1/4</text>
+<text x="20" y="858.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Junior+ — sistema v0.3.30 (meccanismi attivi)</text>
+<rect x="309" y="840" width="451" height="26" rx="4" fill="#e2e8f0"/>
+<rect x="309" y="840" width="225" height="26" rx="4" fill="#2563eb" fill-opacity="1.0"/>
+<text x="768" y="858.72" font-family="DejaVu Sans, sans-serif" font-size="11.5" font-weight="bold" fill="#2563eb">◀ siamo qui · 2/4</text>
+<text x="20" y="898.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Middle — ≥50% primo colpo, GUI ≥50%</text>
+<rect x="309" y="880" width="451" height="26" rx="4" fill="#e2e8f0"/>
+<rect x="309" y="880" width="338" height="26" rx="4" fill="#2563eb" fill-opacity="0.30"/>
+<rect x="309" y="880" width="338" height="26" rx="4" fill="none" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="6,4"/>
+<text x="768" y="898.72" font-family="DejaVu Sans, sans-serif" font-size="11.5" font-weight="normal" fill="#0f172a">target 3/4</text>
+<text x="20" y="938.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Middle Senior — GOAL ≥70%, 0 alluc. API</text>
+<rect x="309" y="920" width="451" height="26" rx="4" fill="#e2e8f0"/>
+<rect x="309" y="920" width="451" height="26" rx="4" fill="#16a34a" fill-opacity="0.30"/>
+<rect x="309" y="920" width="451" height="26" rx="4" fill="none" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="6,4"/>
+<text x="768" y="938.72" font-family="DejaVu Sans, sans-serif" font-size="11.5" font-weight="bold" fill="#166534">★ GOAL · 4/4</text>
+<text x="20" y="978" font-family="DejaVu Sans, sans-serif" font-size="11" fill="#64748b">Nota: i "subtests" sono asserzioni per-elemento (subTest pytest) — non tracciati al Cycle 75.</text>
 </svg>

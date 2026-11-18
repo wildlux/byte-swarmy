@@ -205,6 +205,70 @@ def grouped_section(rows, x0, x1, top, title, subtitle):
     return "\n".join(parts), ly + 26
 
 
+def ladder_section(items, x0, x1, top, title, subtitle):
+    """Scala di seniorità: 4 livelli, barre crescenti 1/4→4/4.
+
+    items: (label, level 1..4, state) con state in
+    {done, current, next, goal}.
+    """
+    parts = [f'<text x="{x0 - 285}" y="{top}" font-family="{FONT}" '
+             f'font-size="16" font-weight="bold" fill="#0f172a">'
+             f'{escape(title)}</text>']
+    if subtitle:
+        parts.append(f'<text x="{x0 - 285}" y="{top + 20}" '
+                     f'font-family="{FONT}" font-size="11.5" '
+                     f'fill="{C_GRAY}">{escape(subtitle)}</text>')
+
+    y = top + 34
+    bar_x0 = x0 + 4
+    usable = x1 - bar_x0 - 110  # spazio per l'etichetta di stato a destra
+    for label, level, state in items:
+        parts.append(f'<text x="{x0 - 285}" y="{y + BAR_H * 0.72}" '
+                     f'font-family="{FONT}" font-size="12.5" '
+                     f'fill="#334155">{escape(label)}</text>')
+        frac = level / 4
+        parts.append(f'<rect x="{bar_x0}" y="{y}" width="{usable}" '
+                     f'height="{BAR_H}" rx="4" fill="{C_LIGHT}"/>')
+        if state == "done":
+            fill, opacity, dash = "#94a3b8", "1.0", ""
+            right = "livello 1/4"
+        elif state == "current":
+            fill, opacity, dash = C_BLUE, "1.0", ""
+            right = "livello 2/4"
+        elif state == "next":
+            fill, opacity, dash = C_BLUE, "0.30", "6,4"
+            right = "target 3/4"
+        else:  # goal
+            fill, opacity, dash = C_GREEN, "0.30", "6,4"
+            right = "GOAL 4/4"
+        w = max(int(usable * frac), 3)
+        parts.append(f'<rect x="{bar_x0}" y="{y}" width="{w}" '
+                     f'height="{BAR_H}" rx="4" fill="{fill}" '
+                     f'fill-opacity="{opacity}"/>')
+        if dash:
+            parts.append(f'<rect x="{bar_x0}" y="{y}" width="{w}" '
+                         f'height="{BAR_H}" rx="4" fill="none" '
+                         f'stroke="{"#16a34a" if state == "goal" else C_BLUE}" '
+                         f'stroke-width="1.5" stroke-dasharray="{dash}"/>')
+        # etichetta di stato a destra
+        col = "#0f172a"
+        weight = "normal"
+        if state == "current":
+            right = "◀ siamo qui · 2/4"
+            col = C_BLUE
+            weight = "bold"
+        elif state == "goal":
+            right = "★ GOAL · 4/4"
+            col = "#166534"
+            weight = "bold"
+        parts.append(f'<text x="{bar_x0 + usable + 8}" '
+                     f'y="{y + BAR_H * 0.72}" font-family="{FONT}" '
+                     f'font-size="11.5" font-weight="{weight}" '
+                     f'fill="{col}">{escape(right)}</text>')
+        y += BAR_H + ROW_GAP
+    return "\n".join(parts), y + 8
+
+
 def build_svg() -> str:
     sections = []
 
@@ -244,6 +308,18 @@ def build_svg() -> str:
         "C. Crescita della suite di test (run completa)",
         "Durata: 387s (Cycle 75) → 1134s (Cycle 85): i gate ora eseguono "
         "veri comandi sandbox invece di morire su NameError")
+    sections.append(s)
+
+    y += 24
+    s, y = ladder_section(
+        [("Junior — 3b nudo (baseline C72: 0/4 task GUI)", 1, "done"),
+         ("Junior+ — sistema v0.3.30 (meccanismi attivi)", 2, "current"),
+         ("Middle — ≥50% primo colpo, GUI ≥50%", 3, "next"),
+         ("Middle Senior — GOAL ≥70%, 0 alluc. API", 4, "goal")],
+        x0 + 60, x1, y,
+        "D. Scala di seniorità del sistema — GOAL: almeno middle senior",
+        "Il modello 3b non diventerà un senior; il SISTEMA (modello + "
+        "meccanismi) sì — criteri misurabili in DOCS/MIGLIORAMENTI.md")
     sections.append(s)
 
     y += 10

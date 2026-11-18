@@ -162,6 +162,7 @@ def build_tools_cards(open_panel_callback, log_viewer, code_explorer, backup_log
     tools_grid.setRowStretch(0, 0)
     tools_grid.setRowStretch(1, 0)
     tools_grid.setRowStretch(2, 0)
+    tools_grid.setRowStretch(3, 0)
 
     tools_cards = {}
     tool_card_configs = [
@@ -194,6 +195,10 @@ def build_tools_cards(open_panel_callback, log_viewer, code_explorer, backup_log
          "Controllo ventole notebook HP via nbfc + pkexec (MAX/AUTO/OFF) — "
          "prerequisito dei run LLM (limite termico 60°C)",
          "Fan", "#0ea5e9", 2, 2),
+        ("miglioramenti", "📈 Miglioramenti",
+         "Grafico dei miglioramenti implementati: audit, meccanismi di "
+         "robustezza, crescita dei test",
+         "Docs", "#059669", 3, 0),
     ]
 
     for key, title, subtitle, badge, badge_color, row, col in tool_card_configs:

@@ -7,6 +7,29 @@
 
 ---
 
+## 🎯 Il Goal: sistema a livello Middle Senior
+
+Il modello (qwen2.5-coder:3b) **non diventerà un senior** — il verdetto
+del Cycle 72 è sperimentale e chiaro (4 run / 4 fallimenti su creazioni
+PyQt6). Il goal dichiarato è che il **SISTEMA** (modello + gate +
+executor deterministico + refs + clarifier + test) operi **almeno a
+livello middle senior, o quanto più vicino possibile**.
+
+Scala (grafico D, criteri misurabili):
+
+| Livello | Criterio | Stato |
+|---|---|---|
+| **Junior** — 1/4 | 3b nudo senza sistema: 0/4 task GUI, modifiche minime fallite, requirements sovrascritto | baseline (C72) |
+| **Junior+** — 2/4 | Sistema v0.3.30: 16 meccanismi attivi, executor deterministico per cambi meccanici, gate su tutto | **◀ siamo qui** |
+| **Middle** — 3/4 | ≥50% dei task chiusi al primo tentativo (senza correction), task GUI ≥50% | target intermedio |
+| **Middle Senior** — 4/4 | **≥70% al primo tentativo; task GUI ≥75%; 0 simboli API inesistenti nei file scritti (gate import-check); 0 violazioni gate** | ★ GOAL |
+
+Come si misura: la stessa suite (`verify_cycle.sh` + test di parità +
+benchmark di sessione). Ogni meccanismo della sezione B è un gradino
+verso il goal; il progresso è un numero, non un'impressione.
+
+---
+
 ## A. Audit robustezza Cycle 85 — i 15 difetti corretti, per categoria
 
 | Categoria | N. | Dettaglio |

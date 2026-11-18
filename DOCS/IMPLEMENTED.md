@@ -1968,3 +1968,20 @@ i gate ora eseguono veri comandi sandbox invece di morire su NameError).
 13. **test_functional_swarm: NON un flake** — passa da solo (7 passed,
     21:00: lento ma verde; EXIT=0). Da escludere dai run veloci, non
     dai run di verifica completi.
+
+## 📈 Cycle 85e — Grafico miglioramenti + GOAL middle senior + pannello GUI (2026-11-18)
+
+- **Grafico deterministico** (`tools/gen_grafici.py` →
+  `DOCS/grafici/miglioramenti.svg`, zero LLM, validazione XML): 4 sezioni —
+  (A) difetti audit per categoria, (B) meccanismi cumulativi 1→16,
+  (C) crescita suite test, **(D) scala di seniorità con il GOAL**.
+- **GOAL dichiarato**: sistema (modello + meccanismi) a livello
+  **middle senior** o quanto più vicino. Scala misurabile:
+  Junior (3b nudo, 0/4 GUI) → Junior+ (v0.3.30, siamo qui) →
+  Middle (≥50% primo colpo) → **Middle Senior (≥70% primo colpo,
+  GUI ≥75%, 0 allucinazioni API)**. In `DOCS/MIGLIORAMENTI.md` + README.
+- **Pannello GUI** `GUI/improvements_panel.py`: SVG dentro QScrollArea
+  con QSvgWidget, back_btn (parità), pulsante 🔄 Rigenera che esegue lo
+  script deterministico. Card "📈 Miglioramenti" in Plancia (riga 3).
+- Test: `tests/test_improvements_panel.py` (4: SVG valido, back_btn,
+  fallback file mancante, path assoluto) + parità 32 subtests verdi.

@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.3.30-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.3.31-blue">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-yellow">
   <img alt="Ollama" src="https://img.shields.io/badge/Ollama-required-orange">
@@ -31,7 +31,7 @@
 > con streaming token in tempo reale, selezione intelligente dei modelli e
 > ottimizzazione termica adattiva (Timestral LLM Tuner).
 
-**Versione:** 0.3.30 · **Licenza:** MIT · **Piattaforma:** Linux
+**Versione:** 0.3.31 · **Licenza:** MIT · **Piattaforma:** Linux
 
 ---
 
@@ -175,6 +175,8 @@ Il 3B da solo vale poco. Ma il **sistema** (skill + gate + routing + correction 
 - Un feedback loop che dice "hai sbagliato X, rifai" (correction)
 
 **Il valore vero è nel sistema, non nel modello.** E il sistema è onesto: non mente. `ok=true` solo se il codice gira E produce i marker attesi.
+
+**🎯 Goal dichiarato**: portare il **sistema** (modello + meccanismi) a livello **middle senior** — o quanto più vicino possibile. Criteri misurabili (≥70% task al primo tentativo, 0 allucinazioni API) e scala dei livelli: [`DOCS/MIGLIORAMENTI.md`](DOCS/MIGLIORAMENTI.md).
 
 ### Quanto lontano si può andare con questo approccio?
 
@@ -1093,7 +1095,7 @@ Rilasciato sotto licenza MIT. Vedi [LICENSE](LICENSE).
 
 ---
 
-**BYTE-SWARMY v0.3.30**
+**BYTE-SWARMY v0.3.31**
 
 ```
 /ˈbaɪt ˈswɔːrmi/  ·  "BYTE SWOR-mee"
