@@ -89,7 +89,32 @@ TASK dichiarativo
 4. **QLoRA STaR sul corpus di slot** — solo dopo ≥100 slot verificati;
    GO/NO-GO onesto su GTX 1050 4GB (1GB libera), notte a macchina fredda.
 
+## Tempistiche di scrittura (stime oneste, 2026-11-18)
+
+> 1 sessione ≈ 60-120 min di lavoro attivo + verifica + doc + commit.
+> "Scrittura pura" = solo digitare il codice; la regola del progetto è
+> che il codice SENZA test e senza parità non conta come fatto.
+
+| Componente | Righe stimate | Scrittura pura | Con test+verifica | Sessioni |
+|---|---|---|---|---|
+| Gate per-slot | ~80 | 30-40 min | ~1,5h | 1 |
+| Assembler | ~150 | 60-90 min | 2-3h | 1-2 |
+| Planner a slot (v2) | ~200-250 | 1,5-2h | 3-4h | 2 |
+| Prompt per-slot worker | ~50 | 20-30 min | **richiede run LLM reali** (ventole al max, stadiale) → 1 sessione con benchmark | 1 |
+| Eval per-slot pass@1 | ~100 | 45-60 min | dipende da P1-1 (metrica primo colpo) | 1 |
+
+**Totale architettura completa: ~6-7 sessioni.** MVP end-to-end sul
+solo tipo "function" (gate + assembler + planner minimo): **2-3
+sessioni**, con pass@1 misurato su 3 task reali al termine.
+
+Riferimenti misurati del progetto per calibrare: ciclo meccanico nel
+ledger (next→verifica→done) = **13,4s**; executor deterministico su
+cambi meccanici = **2s** (vs 4 run LLM falliti, C72); pannello GUI
+completo con card+test+parità (85e) = 1 sessione; suite completa =
+~19 min (non blocca la scrittura, blocca il "fatto").
+
 ## Limiti onesti (dove NON arriva)
+
 
 - L'asse **Architettura** del radar resta 2/4: un 3B non disegna
   architetture nuove — le DISCEDE il planner deterministico.
