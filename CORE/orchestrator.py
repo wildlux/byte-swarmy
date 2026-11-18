@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+import logging.handlers
 import os
 import signal
 import sys
@@ -93,7 +94,8 @@ def setup_logger(config) -> logging.Logger:
     logger.setLevel(level)
     logger.handlers.clear()
 
-    fh = logging.FileHandler(log_file)
+    fh = logging.handlers.RotatingFileHandler(
+        log_file, maxBytes=10 * 1024 * 1024, backupCount=5)
     fh.setFormatter(logging.Formatter(fmt))
     logger.addHandler(fh)
 
@@ -102,7 +104,8 @@ def setup_logger(config) -> logging.Logger:
     logger.addHandler(sh)
 
     # Structured JSONL Logger
-    jsonl_handler = logging.FileHandler(log_jsonl_file)
+    jsonl_handler = logging.handlers.RotatingFileHandler(
+        log_jsonl_file, maxBytes=10 * 1024 * 1024, backupCount=5)
     class JSONLFormatter(logging.Formatter):
         def format(self, record):
             log_record = {

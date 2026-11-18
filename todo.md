@@ -200,7 +200,7 @@ medi, infine sottofondi e igiene.
       derivate dai fallimenti (M8) NON coperte da SLOT-3 (architettura
       resta 1-2/4: limite onesto del 3b). Criterio done: regole in
       py-arch-decision + test + 1 task architetturale piccolo chiuso.
-25. [ ] **[Robustezza #5] Rotazione dei log** — verificato
+25. [x] **[Robustezza #5] Rotazione dei log** — verificato
       (`CORE/orchestrator.py:93,102`): FileHandler piatti → crescita
       illimitata. Criterio done: RotatingFileHandler (10MB × 5) per
       .log e .jsonl + test smoke.

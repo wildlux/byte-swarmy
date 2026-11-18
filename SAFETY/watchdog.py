@@ -10,6 +10,7 @@ import subprocess
 import time
 import sys
 import logging
+import logging.handlers
 from pathlib import Path
 
 # Configurazione minima
@@ -72,7 +73,8 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [WATCHDOG] %(levelname)s: %(message)s",
     handlers=[
-        logging.FileHandler(LOG_FILE),
+        logging.handlers.RotatingFileHandler(
+            LOG_FILE, maxBytes=10 * 1024 * 1024, backupCount=5),
         logging.StreamHandler(sys.stdout)
     ]
 )
