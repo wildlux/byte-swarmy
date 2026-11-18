@@ -200,7 +200,7 @@ medi, infine sottofondi e igiene.
       comparativa 3b vs 7b su 3 task GUI identici in DOCS/BENCH.md.
 23. [x] **[P3-9] Leva termica cpupower** — cap di frequenza per run
       lunghi; richiede sudo, documentare in README (sezione termica).
-24. [ ] **[P3-7] Decision tree v2 (residuo)** — 3-4 regole nuove
+24. [x] **[P3-7] Decision tree v2 (residuo)** — 3-4 regole nuove
       derivate dai fallimenti (M8) NON coperte da SLOT-3 (architettura
       resta 1-2/4: limite onesto del 3b). Criterio done: regole in
       py-arch-decision + test + 1 task architetturale piccolo chiuso.

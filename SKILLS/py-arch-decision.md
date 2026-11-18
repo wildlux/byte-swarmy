@@ -21,12 +21,16 @@ STEPS (follow in order):
 | 4 | thread, concorrenza, producer-consumer, lock | THREADING |
 | 5 | stato condiviso, CRUD, persistenza, dati | CLASS |
 | 6 | CLI, argomenti, flag, sottocomandi | ARGPARSE |
+| 7 | cache, memoize, lru, ottimizzazione, risultato riusabile | CACHE |
+| 8 | retry, backoff, resilienza, riprova, fault tolerance | RETRY |
+| 9 | validazione, input, schema, pydantic, controllo dati | VALIDATION |
 | fallback | nessuno dei precedenti | CLASS |
 
 TEMPLATE (keep every line that has no {{...}} exactly as-is):
 ```python
 # PATTERN_SCELTO={{ PATTERN DALLA TABELLA }}
 # TRADEOFF={{ MOTIVAZIONE IN 1 RIGA }}
+# (CACHE: functools.lru_cache; RETRY: backoff esponenziale; VALIDATION: schema check)
 
 
 def main():
