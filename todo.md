@@ -204,7 +204,7 @@ medi, infine sottofondi e igiene.
       (`CORE/orchestrator.py:93,102`): FileHandler piatti → crescita
       illimitata. Criterio done: RotatingFileHandler (10MB × 5) per
       .log e .jsonl + test smoke.
-26. [ ] **[Robustezza #6] requirements-lock.txt** — verificato
+26. [x] **[Robustezza #6] requirements-lock.txt** — verificato
       (requirements.txt: solo `>=`): una reinstall futura può prendere
       versioni incompatibili. Criterio done: `pip freeze` dal venv →
       lock file + riga nel README.

@@ -652,6 +652,11 @@ cd byte-swarmy
 - modelli Ollama necessari (chiede prima di scaricarli);
 - directory di lavoro: `state/`, `logs/`, `tasks/`, `project/`, `backups/`.
 
+Per un'installazione riproducibile (versioni esatte), è disponibile
+`requirements-lock.txt` generato con `pip freeze` dal venv di riferimento:
+`pip install -r requirements-lock.txt`. Regenerare il lock dopo ogni
+aggiornamento delle dipendenze.
+
 ---
 
 ### Avvio completo
