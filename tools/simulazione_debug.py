@@ -23,11 +23,10 @@ import json
 import os
 import socket
 import sys
-import tempfile
 import threading
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 SOCKET_PATH = f"/tmp/byte-swarmy-remote.{os.getuid()}.sock"
 CHUNK_LIMIT = 64 * 1024
@@ -274,7 +273,7 @@ def client_roundtrip(socket_path: str, cmd: dict, raw: bool = False) -> int:
         try:
             chunk = s.recv(4096)
         except socket.timeout:
-            print(f"❌ Nessuna risposta dalla GUI (timeout).", file=sys.stderr)
+            print("❌ Nessuna risposta dalla GUI (timeout).", file=sys.stderr)
             return 3
         if not chunk:
             print("❌ Connessione chiusa dalla GUI.", file=sys.stderr)
@@ -334,7 +333,6 @@ def run_client(socket_path: str, cmd: dict, raw: bool = False) -> int:
 
 
 def main():
-    demo = "--server" not in sys.argv and "--client" not in sys.argv
 
     if "--server" in sys.argv:
         srv = BridgeServer()
@@ -438,7 +436,7 @@ def main():
     # stampa solo primi 3 bottoni per non annegare
     resp["buttons"] = resp["buttons"][:3]
     print(json.dumps(resp, ensure_ascii=False, indent=2))
-    print(f"  \033[2m# (troncati a 3 pulsanti per la demo)\033[0m")
+    print("  \033[2m# (troncati a 3 pulsanti per la demo)\033[0m")
 
     # chiusura
     banner("12. CHIUSURA")

@@ -141,7 +141,6 @@ def step_section(points, x0, x1, top, title, subtitle, y_max):
         if i == 0:
             path.append(f"M {xx} {yy}")
         else:
-            px_prev = coords[i - 1][0]
             path.append(f"L {xx} {coords[i - 1][1]}")  # gradino orizzontale
             path.append(f"L {xx} {yy}")                # salita
     step_path = " ".join(path)

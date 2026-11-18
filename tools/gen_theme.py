@@ -125,16 +125,6 @@ PALETTES = {
         "ok": "#4ade80", "warn": "#fbbf24", "err": "#f87171",
         "handle": "#112211",
     },
-    "dracula": {
-        "window": "#282a36", "surface": "#44475a", "elevated": "#343746",
-        "pressed": "#21222c", "input": "#44475a", "alt": "#21222c",
-        "grid": "#44475a", "border": "#6272a4", "border_hover": "#bd93f9",
-        "text": "#f8f8f2", "bright": "#ffffff", "text_soft": "#e0e0e0",
-        "muted": "#6272a4", "faint": "#44475a",
-        "accent": "#bd93f9", "sel_bg": "#6272a4",
-        "ok": "#50fa7b", "warn": "#f1fa8c", "err": "#ff5555",
-        "handle": "#44475a",
-    },
 }
 
 

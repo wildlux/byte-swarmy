@@ -28,14 +28,12 @@ import argparse
 import json
 import os
 import sys
-import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from PyQt6.QtWidgets import QApplication, QWidget
 from PyQt6.QtGui import QImage
-from PyQt6.QtCore import QTimer, QSize
 
 # ---------------------------------------------------------------------------
 # Costanti
@@ -57,11 +55,7 @@ def _role_hint(widget: QWidget) -> str:
     """Ritorna un ruolo leggibile per l'LLM (best effort, senza QAccessible)."""
     cls = widget.__class__.__name__
     name = (widget.objectName() or "").strip()
-    text = ""
-    try:
-        text = widget.text().strip()
-    except Exception:
-        pass
+
     if cls == "QPushButton":
         return "button"
     if cls == "QLabel":
@@ -352,7 +346,7 @@ def _cli() -> int:
         write_image=not args.no_image,
         max_depth=args.max_depth,
     )
-    print(f"Diagnostica completata.")
+    print("Diagnostica completata.")
     for k, v in produced.items():
         print(f"  {k}: {v}")
     return 0

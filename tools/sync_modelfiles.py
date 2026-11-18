@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 import urllib.request
@@ -103,8 +102,8 @@ def generate_modelfile(model: dict) -> str:
         f"PARAMETER num_predict {p['num_predict']}",
         f"PARAMETER num_gpu {p['num_gpu']}",
         f"PARAMETER temperature {p['temperature']}",
-        f"PARAMETER num_batch 512",
-        f"PARAMETER num_thread 4",
+        "PARAMETER num_batch 512",
+        "PARAMETER num_thread 4",
     ]
     if no_think:
         lines.append('SYSTEM "/no_think"')

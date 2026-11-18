@@ -30,7 +30,6 @@ mostra la stima a priori (--eta-guess); dopo, usa la media reale.
 import argparse
 import glob
 import re
-import sys
 import time
 from datetime import datetime
 from pathlib import Path
