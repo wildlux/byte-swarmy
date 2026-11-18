@@ -231,6 +231,9 @@ keep_alive_sec = 900
 max_task_retries = 3
 retry_cooldown_sec = 30
 sticky_models = true
+# Fase D-15: best-of-N (1 = singolo colpo, disabilitato come oggi).
+# >1 attiva la generazione di N candidati con il gate come giudice.
+best_of_n = 1
 
 [gui]
 icon_text_position = "below"
