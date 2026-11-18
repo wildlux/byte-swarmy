@@ -13,7 +13,6 @@ Legge tutti i risultati da state/ e produce REPORT.md con:
 from __future__ import annotations
 
 import json
-import time
 from datetime import datetime
 from pathlib import Path
 
@@ -55,8 +54,8 @@ def build_report():
     lines.append("# 📊 REPORT — byte-swarmy Test Suite")
     lines.append("")
     lines.append(f"**Generato il**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    lines.append(f"**Macchina**: 4 GB RAM / 4 GB VRAM (Kubuntu/Ubuntu)")
-    lines.append(f"**Branch**: main")
+    lines.append("**Macchina**: 4 GB RAM / 4 GB VRAM (Kubuntu/Ubuntu)")
+    lines.append("**Branch**: main")
     lines.append("")
 
     # ── 1. Riepilogo modelli ──

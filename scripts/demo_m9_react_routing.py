@@ -29,7 +29,6 @@ from __future__ import annotations
 import shutil
 import sys
 import tempfile
-import time
 from pathlib import Path
 from types import SimpleNamespace
 

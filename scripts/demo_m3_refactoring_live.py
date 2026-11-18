@@ -39,7 +39,6 @@ import shutil
 import sys
 import time
 from pathlib import Path
-from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -328,7 +327,7 @@ def is_ollama_available() -> bool:
 
 
 def main() -> int:
-    print(f"M3 — Refactoring live su progetto vero")
+    print("M3 — Refactoring live su progetto vero")
     print(f"Python: {sys.version.split()[0]}")
 
     proj = Path(PROJ)

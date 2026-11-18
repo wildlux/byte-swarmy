@@ -69,10 +69,8 @@ def demo_m4_thermal() -> None:
 
     # Reindirizza il file di stato termico a un tempdir
     tmpdir = Path(tempfile.mkdtemp())
-    hist_file = tmpdir / "timestral_history.json"
     # ... ma il routing legge da "state/timestral_history.json" (path
     # relativo). Creiamo una dir state/ nel tmpdir e cambiamo cwd.
-    orig_cwd = Path.cwd()
     # Ci serve un cwd dove "state/timestral_history.json" possa esistere.
     # Patchiamo _latest_temps per usare il nostro file:
     orig_latest_temps = routing._latest_temps

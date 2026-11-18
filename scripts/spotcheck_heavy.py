@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -49,7 +48,6 @@ def main() -> int:
         if key in results and results[key].get("done"):
             continue
         t0 = time.monotonic()
-        started_at = datetime.now().isoformat()
         try:
             res = run_direct({"title": text}, PROJECT, model_key=model,
                              max_retries=3, enable_routing=False)

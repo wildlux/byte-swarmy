@@ -98,7 +98,6 @@ def main() -> int:
         dt = round(time.monotonic() - t0, 1)
         res["done"] = True
         res["secs"] = dt
-        res["started_at"] = started_at
         res["finished_at"] = datetime.now().isoformat()
         results[rid] = res
         out_path.write_text(
