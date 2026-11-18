@@ -146,6 +146,8 @@ def _output_tail(text: str, max_chars: int = 4000) -> str:
 class TestSuitePanel(QWidget):
     """Pannello "Test Suite": runner per-file con timeout + risultato JSON."""
 
+    __test__ = False  # classe di supporto GUI (non un test pytest)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("test_suite_panel")

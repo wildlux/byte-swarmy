@@ -135,7 +135,7 @@ def find_file_with_code(expected_name):
 
 # === TEST CASES ===
 
-def test_1_simple_function():
+def _test_1_simple_function():
     """Funzione add(a, b) -> a+b"""
     log("TEST 1: Funzione add(a, b) -> a+b")
     task_id = add_task(
@@ -178,7 +178,7 @@ def test_1_simple_function():
         return False
 
 
-def test_2_multiple_functions_error_handling():
+def _test_2_multiple_functions_error_handling():
     """multiply + divide con gestione zero"""
     log("TEST 2: multiply + divide (gestione divisione per zero)")
     task_id = add_task(
@@ -229,7 +229,7 @@ def test_2_multiple_functions_error_handling():
         return False
 
 
-def test_3_class_with_state():
+def _test_3_class_with_state():
     """Classe Counter con stato"""
     log("TEST 3: Classe Counter con stato interno")
     task_id = add_task(
@@ -285,7 +285,7 @@ def test_3_class_with_state():
         return False
 
 
-def test_4_algorithm_fibonacci():
+def _test_4_algorithm_fibonacci():
     """Fibonacci con casi edge"""
     log("TEST 4: Fibonacci iterativo/ricorsivo")
     task_id = add_task(
@@ -331,7 +331,7 @@ def test_4_algorithm_fibonacci():
         return False
 
 
-def test_5_script_with_file_io():
+def _test_5_script_with_file_io():
     """Script che esegue e scrive su file — versione tollerante: prova main.py come fallback"""
     log("TEST 5: Script con side effect (file I/O)")
     task_id = add_task(
@@ -396,7 +396,7 @@ def test_5_script_with_file_io():
             out.unlink()
 
 
-def test_6_list_manipulation():
+def _test_6_list_manipulation():
     """filter_even con vari casi"""
     log("TEST 6: filter_even su lista")
     task_id = add_task(
@@ -447,7 +447,7 @@ def test_6_list_manipulation():
         return False
 
 
-def test_7_string_manipulation():
+def _test_7_string_manipulation():
     """reverse_string con casi edge"""
     log("TEST 7: reverse_string con edge cases")
     task_id = add_task(
@@ -493,13 +493,13 @@ def test_7_string_manipulation():
 # === MAIN ===
 
 TESTS = [
-    ("Funzione semplice (add)", test_1_simple_function),
-    ("Multiple funzioni + error handling", test_2_multiple_functions_error_handling),
-    ("Classe con stato (Counter)", test_3_class_with_state),
-    ("Algoritmo (Fibonacci)", test_4_algorithm_fibonacci),
-    ("Script con file I/O", test_5_script_with_file_io),
-    ("List manipulation (filter_even)", test_6_list_manipulation),
-    ("String manipulation (reverse)", test_7_string_manipulation),
+    ("Funzione semplice (add)", _test_1_simple_function),
+    ("Multiple funzioni + error handling", _test_2_multiple_functions_error_handling),
+    ("Classe con stato (Counter)", _test_3_class_with_state),
+    ("Algoritmo (Fibonacci)", _test_4_algorithm_fibonacci),
+    ("Script con file I/O", _test_5_script_with_file_io),
+    ("List manipulation (filter_even)", _test_6_list_manipulation),
+    ("String manipulation (reverse)", _test_7_string_manipulation),
 ]
 
 

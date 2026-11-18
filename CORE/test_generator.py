@@ -32,6 +32,8 @@ _FUN_DEF = re.compile(r"^\s*def\s+([A-Za-z_]\w*)\s*\(", re.MULTILINE)
 class TestGenerator:
     """Genera ed esegue test di regressione per i nuovi percorsi scritti."""
 
+    __test__ = False  # classe di supporto (non un test pytest)
+
     def __init__(self, project_root, models, log):
         self.project_root = Path(project_root).resolve()
         self.models = models
