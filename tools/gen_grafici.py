@@ -269,6 +269,82 @@ def ladder_section(items, x0, x1, top, title, subtitle):
     return "\n".join(parts), y + 8
 
 
+def radar_section(axes, oggi, goal, cx, cy, R, top, title, subtitle):
+    """Grafico a ragnatela: capacità su 8 assi, oggi vs goal.
+
+    axes: etichette; oggi/goal: valori per asse (0..4).
+    """
+    import math
+    n = len(axes)
+    parts = [f'<text x="20" y="{top}" font-family="{FONT}" '
+             f'font-size="16" font-weight="bold" fill="#0f172a">'
+             f'{escape(title)}</text>']
+    if subtitle:
+        parts.append(f'<text x="20" y="{top + 20}" '
+                     f'font-family="{FONT}" font-size="11.5" '
+                     f'fill="{C_GRAY}">{escape(subtitle)}</text>')
+
+    def pt(k, v):
+        ang = math.radians(-90 + k * (360 / n))
+        r = R * v / 4
+        return cx + r * math.cos(ang), cy + r * math.sin(ang)
+
+    # anelli della ragnatela
+    for gv in range(1, 5):
+        ring = " ".join(
+            f"{px:.1f},{py:.1f}" for px, py in (pt(k, gv) for k in range(n)))
+        parts.append(f'<polygon points="{ring}" fill="none" '
+                     f'stroke="{C_LIGHT}" stroke-width="1"/>')
+    # raggi
+    for k in range(n):
+        px, py = pt(k, 4)
+        parts.append(f'<line x1="{cx}" y1="{cy}" x2="{px:.1f}" '
+                     f'y2="{py:.1f}" stroke="{C_LIGHT}" stroke-width="1"/>')
+        # etichetta asse
+        lx, ly = pt(k, 4.75)
+        anch = "middle"
+        if lx > cx + 10:
+            anch = "start"
+        elif lx < cx - 10:
+            anch = "end"
+        dy = 4 if abs(ly - cy) < R * 0.9 else (12 if ly < cy else 16)
+        parts.append(f'<text x="{lx:.1f}" y="{ly + dy:.1f}" '
+                     f'font-family="{FONT}" font-size="12" fill="#334155" '
+                     f'text-anchor="{anch}">{escape(axes[k])}</text>')
+
+    def poly(vals, fill, stroke, dash="", width="2", opacity="1"):
+        pts = " ".join(
+            f"{px:.1f},{py:.1f}" for px, py in
+            (pt(k, vals[k]) for k in range(n)))
+        extra = f' stroke-dasharray="{dash}"' if dash else ""
+        return (f'<polygon points="{pts}" fill="{fill}" '
+                f'fill-opacity="0.25" stroke="{stroke}" stroke-width="{width}"'
+                f'{extra} stroke-opacity="{opacity}"/>')
+
+    parts.append(poly(goal, C_GREEN, C_GREEN, dash="6,4"))
+    parts.append(poly(oggi, C_BLUE, C_BLUE, width="2.5"))
+    for k in range(n):
+        px, py = pt(k, oggi[k])
+        parts.append(f'<circle cx="{px:.1f}" cy="{py:.1f}" r="3.5" '
+                     f'fill="{C_BLUE}"/>')
+
+    # legenda
+    ly = cy + R + 52
+    parts.append(f'<rect x="{cx - 120}" y="{ly}" width="12" height="12" '
+                 f'rx="2" fill="{C_BLUE}" fill-opacity="0.25" '
+                 f'stroke="{C_BLUE}" stroke-width="2"/>')
+    parts.append(f'<text x="{cx - 102}" y="{ly + 10}" font-family="{FONT}" '
+                 f'font-size="11.5" fill="{C_GRAY}">oggi (v0.3.31)</text>')
+    parts.append(f'<rect x="{cx + 10}" y="{ly}" width="12" height="12" '
+                 f'rx="2" fill="{C_GREEN}" fill-opacity="0.25" '
+                 f'stroke="{C_GREEN}" stroke-width="2" '
+                 f'stroke-dasharray="6,4"/>')
+    parts.append(f'<text x="{cx + 28}" y="{ly + 10}" font-family="{FONT}" '
+                 f'font-size="11.5" fill="{C_GRAY}">'
+                 f'goal middle senior</text>')
+    return "\n".join(parts), ly + 30
+
+
 def build_svg() -> str:
     sections = []
 
@@ -320,6 +396,19 @@ def build_svg() -> str:
         "D. Scala di seniorità del sistema — GOAL: almeno middle senior",
         "Il modello 3b non diventerà un senior; il SISTEMA (modello + "
         "meccanismi) sì — criteri misurabili in DOCS/MIGLIORAMENTI.md")
+    sections.append(s)
+
+    y += 24
+    s, y = radar_section(
+        ["Task GUI (creazione)", "Modifiche minime", "Refactoring mecc.",
+         "Gate / verifica", "Fedeltà API", "Chiarimenti ambigui",
+         "Architettura", "Memoria / contesto"],
+        [1, 2, 3, 4, 2, 2, 1, 2],
+        [3, 3, 4, 4, 4, 3, 2, 4],
+        cx=W // 2, cy=y + 205, R=130, top=y,
+        title="E. Radar capacità — dove siamo deboli (→ todo.md)",
+        subtitle="Scala 0–4 per asse; i gap verso il poligono verde "
+                 "sono la roadmap prioritaria in todo.md")
     sections.append(s)
 
     y += 10

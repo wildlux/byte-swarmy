@@ -28,6 +28,19 @@ Come si misura: la stessa suite (`verify_cycle.sh` + test di parità +
 benchmark di sessione). Ogni meccanismo della sezione B è un gradino
 verso il goal; il progresso è un numero, non un'impressione.
 
+### Radar per asse (grafico E) — dove siamo deboli
+
+| Asse | Oggi | Goal | Gap → azione (todo.md) |
+|---|:-:|:-:|---|
+| Task GUI (creazione) | 1/4 | 3/4 | scaffolding deterministico (template) |
+| Modifiche minime | 2/4 | 3/4 | executor + disciplina già ok, misurare primo colpo |
+| Refactoring mecc. | 3/4 | 4/4 | estendere executor AST |
+| Gate / verifica | 4/4 | 4/4 | punto di forza del sistema |
+| Fedeltà API | 2/4 | 4/4 | gate import-check (0 allucinazioni misurabili) |
+| Chiarimenti ambigui | 2/4 | 3/4 | estendere pattern clarifier oltre GUI |
+| Architettura | 1/4 | 2/4 | decision tree v2 (limite onesto del 3b) |
+| Memoria / contesto | 2/4 | 4/4 | import sistemato (C85): ora misurare l'impatto |
+
 ---
 
 ## A. Audit robustezza Cycle 85 — i 15 difetti corretti, per categoria

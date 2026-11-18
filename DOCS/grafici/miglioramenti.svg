@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="1018" viewBox="0 0 940 1018">
-<rect width="940" height="1018" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="1459" viewBox="0 0 940 1459">
+<rect width="940" height="1459" fill="#ffffff"/>
 <text x="20" y="38" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">byte-swarmy — Miglioramenti implementati (Cycle 70 → 85)</text>
 <text x="20" y="60" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#64748b">Generato deterministicamente da tools/gen_grafici.py — dati: DOCS/IMPLEMENTED.md</text>
 <text x="20" y="92" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">A. Audit robustezza Cycle 85 — 15 difetti corretti, per categoria</text>
@@ -104,5 +104,41 @@
 <rect x="309" y="920" width="451" height="26" rx="4" fill="#16a34a" fill-opacity="0.30"/>
 <rect x="309" y="920" width="451" height="26" rx="4" fill="none" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="6,4"/>
 <text x="768" y="938.72" font-family="DejaVu Sans, sans-serif" font-size="11.5" font-weight="bold" fill="#166534">★ GOAL · 4/4</text>
-<text x="20" y="978" font-family="DejaVu Sans, sans-serif" font-size="11" fill="#64748b">Nota: i "subtests" sono asserzioni per-elemento (subTest pytest) — non tracciati al Cycle 75.</text>
+<text x="20" y="992" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">E. Radar capacità — dove siamo deboli (→ todo.md)</text>
+<text x="20" y="1012" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Scala 0–4 per asse; i gap verso il poligono verde sono la roadmap prioritaria in todo.md</text>
+<polygon points="470.0,1164.5 493.0,1174.0 502.5,1197.0 493.0,1220.0 470.0,1229.5 447.0,1220.0 437.5,1197.0 447.0,1174.0" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+<polygon points="470.0,1132.0 516.0,1151.0 535.0,1197.0 516.0,1243.0 470.0,1262.0 424.0,1243.0 405.0,1197.0 424.0,1151.0" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+<polygon points="470.0,1099.5 538.9,1128.1 567.5,1197.0 538.9,1265.9 470.0,1294.5 401.1,1265.9 372.5,1197.0 401.1,1128.1" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+<polygon points="470.0,1067.0 561.9,1105.1 600.0,1197.0 561.9,1288.9 470.0,1327.0 378.1,1288.9 340.0,1197.0 378.1,1105.1" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+<line x1="470" y1="1197" x2="470.0" y2="1067.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="470.0" y="1054.6" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="middle">Task GUI (creazione)</text>
+<line x1="470" y1="1197" x2="561.9" y2="1105.1" stroke="#e2e8f0" stroke-width="1"/>
+<text x="579.2" y="1091.8" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="start">Modifiche minime</text>
+<line x1="470" y1="1197" x2="600.0" y2="1197.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="624.4" y="1201.0" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="start">Refactoring mecc.</text>
+<line x1="470" y1="1197" x2="561.9" y2="1288.9" stroke="#e2e8f0" stroke-width="1"/>
+<text x="579.2" y="1310.2" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="start">Gate / verifica</text>
+<line x1="470" y1="1197" x2="470.0" y2="1327.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="470.0" y="1367.4" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="middle">Fedeltà API</text>
+<line x1="470" y1="1197" x2="378.1" y2="1288.9" stroke="#e2e8f0" stroke-width="1"/>
+<text x="360.8" y="1310.2" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="end">Chiarimenti ambigui</text>
+<line x1="470" y1="1197" x2="340.0" y2="1197.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="315.6" y="1201.0" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="end">Architettura</text>
+<line x1="470" y1="1197" x2="378.1" y2="1105.1" stroke="#e2e8f0" stroke-width="1"/>
+<text x="360.8" y="1091.8" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="end">Memoria / contesto</text>
+<polygon points="470.0,1099.5 538.9,1128.1 600.0,1197.0 561.9,1288.9 470.0,1327.0 401.1,1265.9 405.0,1197.0 378.1,1105.1" fill="#16a34a" fill-opacity="0.25" stroke="#16a34a" stroke-width="2" stroke-dasharray="6,4" stroke-opacity="1"/>
+<polygon points="470.0,1164.5 516.0,1151.0 567.5,1197.0 561.9,1288.9 470.0,1262.0 424.0,1243.0 437.5,1197.0 424.0,1151.0" fill="#2563eb" fill-opacity="0.25" stroke="#2563eb" stroke-width="2.5" stroke-opacity="1"/>
+<circle cx="470.0" cy="1164.5" r="3.5" fill="#2563eb"/>
+<circle cx="516.0" cy="1151.0" r="3.5" fill="#2563eb"/>
+<circle cx="567.5" cy="1197.0" r="3.5" fill="#2563eb"/>
+<circle cx="561.9" cy="1288.9" r="3.5" fill="#2563eb"/>
+<circle cx="470.0" cy="1262.0" r="3.5" fill="#2563eb"/>
+<circle cx="424.0" cy="1243.0" r="3.5" fill="#2563eb"/>
+<circle cx="437.5" cy="1197.0" r="3.5" fill="#2563eb"/>
+<circle cx="424.0" cy="1151.0" r="3.5" fill="#2563eb"/>
+<rect x="350" y="1379" width="12" height="12" rx="2" fill="#2563eb" fill-opacity="0.25" stroke="#2563eb" stroke-width="2"/>
+<text x="368" y="1389" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">oggi (v0.3.31)</text>
+<rect x="480" y="1379" width="12" height="12" rx="2" fill="#16a34a" fill-opacity="0.25" stroke="#16a34a" stroke-width="2" stroke-dasharray="6,4"/>
+<text x="498" y="1389" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">goal middle senior</text>
+<text x="20" y="1419" font-family="DejaVu Sans, sans-serif" font-size="11" fill="#64748b">Nota: i "subtests" sono asserzioni per-elemento (subTest pytest) — non tracciati al Cycle 75.</text>
 </svg>

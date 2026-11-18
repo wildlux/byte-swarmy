@@ -1985,3 +1985,17 @@ i gate ora eseguono veri comandi sandbox invece di morire su NameError).
   script deterministico. Card "📈 Miglioramenti" in Plancia (riga 3).
 - Test: `tests/test_improvements_panel.py` (4: SVG valido, back_btn,
   fallback file mancante, path assoluto) + parità 32 subtests verdi.
+
+## 🕸️ Cycle 85f — Radar capacità + roadmap middle senior in todo.md (2026-11-18)
+
+- **Grafico E — radar a ragnatela**: 8 assi di capacità (scala 0-4),
+  poligono blu = oggi v0.3.31, poligono verde tratteggiato = goal.
+  Punti di forza: Gate/verifica (4/4), Refactoring mecc. (3/4).
+  Gap: Task GUI (1/4), Architettura (1/4), Fedeltà API (2/4),
+  Memoria/contesto (2/4).
+- **todo.md torna vivo**: roadmap P1/P2/P3 con criteri di done
+  misurabili — P1: metrica "primo colpo %" + gate import-check;
+  P2: scaffolding GUI deterministico, A/B contesto persistente,
+  refs moduli interni, clarifier esteso; P3: decision tree v2,
+  confronto 7b/14b per GUI, leva cpupower.
+- Tabella radar-per-asse in DOCS/MIGLIORAMENTI.md.

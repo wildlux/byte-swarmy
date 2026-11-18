@@ -8,9 +8,66 @@
 > `DOCS/IMPLEMENTED.md` (Cycles 13–22). Report consolidato: `REPORT.md`.
 
 Stato: **tutto il piano approvato è completato** (le 85 voci del vecchio
-todo sono registrate in `DOCS/IMPLEMENTED.md`; qui restano solo i task aperti).
+todo sono registrate in `DOCS/IMPLEMENTED.md`). Da oggi (2026-11-18)
+c'è una roadmap viva: la scala verso il goal middle senior
+(`DOCS/MIGLIORAMENTI.md`, radar grafico E) — le priorità P1/P2/P3 qui sotto.
 
 ---
+
+## 🎯 Roadmap verso Middle Senior (dal radar, 2026-11-18)
+
+> Ogni item ha un criterio di done **misurabile**. Filosofia:
+> deterministico-first, una voce per sessione, mai generazioni monolitiche.
+
+### P1 — Prerequisiti del goal (misurare per governare)
+
+1. [ ] **Metrica "primo colpo %"** — il criterio del goal (≥70% primo
+      tentativo) oggi NON è misurato: prima la baseline, poi il goal.
+      Criterio done: ogni task-done registra se chiuso al primo colpo o
+      dopo correction (state/session_report); `verify_cycle.sh` stampa
+      `primo_colpo: X/Y`. Zero LLM (~30 righe in worker/orchestrator).
+2. [ ] **Gate import-check — 0 allucinazioni API misurabili** —
+      pyflakes ha dimostrato di funzionare (12 undefined nel nostro
+      stesso repo, C85). Criterio done: write_file/patch_code eseguono
+      un check AST/pyflakes sui file Python scritti; simboli indefiniti
+      → done rifiutato con lista dei simboli (come il test-gate C78);
+      test dedicato in tests/test_toolset_gates.py.
+
+### P2 — Chiudere i gap del radar (2/4 → 3-4/4)
+
+3. [ ] **Scaffolding GUI deterministico** (gap più grande: 1/4) —
+      template PyQt6 curati (finestra+layout+segnali+thread) che il
+      worker RIEMPIE invece di inventare; skill py-gui-scaffold che
+      punta al template. Criterio done: 3 template in GUI/refs/templates/
+      + skill + test snapshot + 1 task GUI reale chiuso al primo colpo
+      con il template.
+4. [ ] **Memoria/contesto: misurare l'impatto reale** — l'import
+      sistemato (C85) ha reso il contesto persistente funzionante per
+      la prima volta; oggi è attivo ma non sappiamo se serve. Criterio
+      done: A/B 10 task con/senza contesto iniettato → verdetto in
+      DOCS/BENCH.md (mantieni, riduci o dismetti).
+5. [ ] **Fedeltà API: espandere refs ai moduli interni** — refs per
+      orchestrator/ledger/scheduler (come toolset_api); script che
+      valida che ogni simbolo citato nei ref esista davvero
+      (deterministico, parte di gen_grafici.py o separato).
+6. [ ] **Clarifier: estendere oltre GUI** — pattern per test
+      ("scrivi test per X": runner? marker?), persistenza (sqlite? json?),
+      handler di sistema. Criterio done: 3 pattern nuovi + test.
+
+### P3 — Sottofondi
+
+7. [ ] **Decision tree v2 (architettura 1/4 — limite onesto del 3b)** —
+      3-4 regole nuove derivate dai fallimenti registrati (M8).
+      Criterio done: regole in py-arch-decision + test + 1 task
+      architetturale piccolo chiuso.
+8. [ ] **Modello più forte per le task GUI** — test comparativo
+      qwen2.5-coder:7b/14b SOLO per il routing GUI (macchina fredda,
+      ventole al max, sessione corta). Criterio done: tabella
+      comparativa 3b vs 7b su 3 task GUI identici in DOCS/BENCH.md.
+9. [ ] **Leva termica cpupower** (già proposta, mai implementata) —
+      cap di frequenza per run lunghi; richiede sudo, documentare come
+      prerequisito in README (sezione termica).
+
 
 ## Aperti
 
