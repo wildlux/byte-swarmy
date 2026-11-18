@@ -10,10 +10,12 @@ import ast
 import json
 import logging
 import re
+import time
 from collections import Counter
 from pathlib import Path
 from typing import Optional
 
+from CORE import feedback_corpus as feedback_corpus_module
 from CORE.import_check import format_report
 from CORE.memory import AgentMemory
 from CORE.ollama_client import ModelClient
@@ -689,6 +691,31 @@ class Worker:
                 result = action.get("result", "(no result)")
                 # P1-1: i retry per test/import contano come correction.
                 self.last_attempts = 1 + test_fail_retries + import_fail_retries
+                # Fase B: registra la tripla (prompt/output/verdetto) nel
+                # corpus di feedback. Collezione passiva, fail-open.
+                try:
+                    feedback_corpus_module.append_triple(
+                        feedback_corpus_module.Triple(
+                            task_id=str(task.get("id") or "?"),
+                            kind=str(task.get("type") or "code"),
+                            title=str(task.get("title") or ""),
+                            description=str(task.get("description") or ""),
+                            refs=tuple(
+                                ((task.get("context") or {}).get("refs") or ())
+                                if isinstance(task.get("context"), dict) else ()
+                            ),
+                            output=str(result or ""),
+                            verdict=("corrected"
+                                     if (import_fail_retries or test_fail_retries)
+                                     else "done"),
+                            first_try=(self.last_attempts <= 1),
+                            attempts=self.last_attempts,
+                            model=self.model_key,
+                            reason="",
+                            ts=time.time(),
+                        ))
+                except Exception:
+                    pass
                 self.memory.add_event({"type": "task_done", "content": result[:200]})
                 # 🆕 Registra task completato nella memoria persistente
                 try:

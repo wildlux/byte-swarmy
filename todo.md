@@ -71,6 +71,11 @@ medi, infine sottofondi e igiene.
       gate-verificati). Criterio done: schema JSONL + writer nel
       worker + contatore per-sessione; `tools/curate_corpus.py` +
       report qualità. Zero LLM.
+      > ✅ **Slice Fase B fatta** (campagna 85i–85k): `CORE/feedback_corpus.py`
+      > (Triple, append/load, dedup task-scopico, stats) + hook nel worker
+      > done-branch (verdict done/corrected → retry→corrected; first_try da
+      > `last_attempts`). Rimane: `tools/curate_corpus.py` + report qualità
+      > + curazione (SOLO gate-verificati).
 2. [ ] **[Fase D-15] Best-of-N con gate come giudice** — per task hard
       (GUI, architettura) e per slot hard: N=3 candidati in parallelo,
       il gate deterministico sceglie il migliore o rifiuta tutti.
