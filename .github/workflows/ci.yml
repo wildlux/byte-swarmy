@@ -1,0 +1,64 @@
+name: CI — byte-swarmy
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  static-and-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies (runtime + lint)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyflakes pytest
+
+      - name: py_compile (tutto il repo)
+        run: |
+          python -m compileall -q CORE GUI tools scripts SAFETY INTENT tests
+
+      - name: pyflakes — 0 nomi indefiniti (e 0 warning su CORE/)
+        run: |
+          set -e
+          # Fallisce se ci sono nomi indefiniti (allucinazioni API)
+          if python -m pyflakes CORE/ GUI/ tools/ scripts/ SAFETY/ INTENT/ tests/*.py 2>&1 | grep -i "undefined name"; then
+            echo "ERRORE: nomi indefiniti rilevati"
+            exit 1
+          fi
+          echo "OK: 0 nomi indefiniti"
+
+      - name: Test offscreen veloci (sottoinsieme)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python -m pytest \
+            tests/test_first_try.py \
+            tests/test_config_validation.py \
+            tests/test_watchdog.py \
+            tests/test_backup_pre_write.py \
+            tests/test_best_of.py \
+            tests/test_validate_refs.py \
+            tests/test_slot_pipeline.py \
+            tests/test_feedback_corpus.py \
+            tests/test_curate_corpus.py \
+            tests/test_clarifier.py \
+            -q -p no:cacheprovider --no-header
+
+      - name: Security scan (baseline)
+        run: |
+          python tools/security_scan.py --json > /tmp/scan.json || true
+          python - <<'PY'
+          import json
+          d = json.load(open("/tmp/scan.json"))
+          print("security_scan finding:", d.get("summary", d))
+          PY

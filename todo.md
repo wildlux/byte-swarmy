@@ -142,7 +142,7 @@ medi, infine sottofondi e igiene.
       riavvio all'infinito con log spam. Criterio done: backoff
       1→2→4→…max 60s, reset del contatore dopo N secondi sani,
       allerta dopo 5 riavvii; test con crash simulato.
-14. [ ] **[Robustezza #4] CI GitHub Actions (zero LLM)** — verificato
+14. [x] **[Robustezza #4] CI GitHub Actions (zero LLM)** — verificato
       (`.github/workflows` assente). Criterio done: workflow a ogni
       push → py_compile tutto-repo + pyflakes 0-undefined + test
       offscreen veloci (sottoinsieme, NON la suite 19min) su ubuntu +
