@@ -67,7 +67,14 @@ from CORE.task_queue import TaskQueue
 from CORE.planner import Planner
 from CORE.auditor import AuditWorker
 from CORE.generic_planner import GenericTaskPlanner
-from CORE.worker import Worker, suggest_escalation
+from CORE.worker import Worker, suggest_escalation, _looks_like_file_path
+
+# Re-export (usati da test/esterni): pyflakes li considera usati perché
+# elencati qui.
+__all__ = [
+    "Orchestrator", "TaskQueue", "Worker", "suggest_escalation",
+    "_looks_like_file_path", "load_config", "main", "setup_logger",
+]
 
 
 # ====================================================================
