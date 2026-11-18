@@ -63,7 +63,7 @@ medi, infine sottofondi e igiene.
 >
 > ### Fascia 1 — ★★★ Sblocca la misura + primo mattone SLOT
 
-1. [ ] **[Fase B] Corpus di triple verificate + curazione** — ogni
+1. [x] **[Fase B] Corpus di triple verificate + curazione** — ogni
       sessione salva (prompt, output, verdetto gate) in
       `state/feedback_corpus/` (+ tool-trace). È il carburante di tutto
       il resto; parte subito perché è collezione passiva. Poi
@@ -71,11 +71,10 @@ medi, infine sottofondi e igiene.
       gate-verificati). Criterio done: schema JSONL + writer nel
       worker + contatore per-sessione; `tools/curate_corpus.py` +
       report qualità. Zero LLM.
-      > ✅ **Slice Fase B fatta** (campagna 85i–85k): `CORE/feedback_corpus.py`
-      > (Triple, append/load, dedup task-scopico, stats) + hook nel worker
-      > done-branch (verdict done/corrected → retry→corrected; first_try da
-      > `last_attempts`). Rimane: `tools/curate_corpus.py` + report qualità
-      > + curazione (SOLO gate-verificati).
+      > ✅ **Fase B completata** (2026-11-18, campagne 85i–85k): corpus writer +
+      > Triple + dedup + stats (CORE/feedback_corpus.py, hook worker nel
+      > done-branch), curate CLI (tools/curate_corpus.py, filtro SOLO done).
+      > Rimasto solo il "contatore per-sessione" formale.
 2. [ ] **[Fase D-15] Best-of-N con gate come giudice** — per task hard
       (GUI, architettura) e per slot hard: N=3 candidati in parallelo,
       il gate deterministico sceglie il migliore o rifiuta tutti.
