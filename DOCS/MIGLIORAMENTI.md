@@ -1,0 +1,83 @@
+# 📈 Miglioramenti implementati — Cycle 70 → 85 (v0.3.18 → v0.3.30)
+
+![Grafico miglioramenti](grafici/miglioramenti.svg)
+
+> Rigenera il grafico con: `.venv/bin/python tools/gen_grafici.py`
+> (deterministico, zero LLM — stesso input → stesso SVG byte-per-byte)
+
+---
+
+## A. Audit robustezza Cycle 85 — i 15 difetti corretti, per categoria
+
+| Categoria | N. | Dettaglio |
+|---|---:|---|
+| **Funzionalità silent-dead** | 6 | persistent_memory mai importata (contesto nel prompt sempre vuoto), `run_test_suite` dead-on-arrival, path host nel sandbox (bandit/mypy/lint), combo modelli (`_ollama_installed` inesistente), `__main__` di center_area, `def embed` orfano |
+| **NameError mascherati** | 4 | `proj_name` (tooltip barra), `subprocess` (fallback sensors), `log` nel fallback tomli, doppio import + riga morta (`temps`) |
+| **Anti-allucinazione (ref/docs)** | 2 | cross-contamination ref Qt (pyside+QApplication → pyqt6.md), semantica errata `toolset_api.md` |
+| **Infra test / collection** | 2 | `tests/archiviati` (file troncato tracciato rompeva l'exit code), TestToolbarToggle auto-start nei test |
+| **Parità GUI (back_btn)** | 1 | DebtLedgerPanel e FanPanel senza via di ritorno alla Plancia |
+
+Commit: `4a1cb1a` (12 difetti) · `0bb4998` (parità GUI) · `72e1b71` (toolbar).
+
+---
+
+## B. I 16 meccanismi di robustezza e anti-allucinazione attivi
+
+| # | Meccanismo | Introdotto |
+|--:|---|---|
+| 1 | Regola di parità GUI (ogni funzione del ledger → controllo in Plancia) | v0.3.18 (C70) |
+| 2 | Runner v2 + fix keyword skill (anti-hijack) | v0.3.20 (C72) |
+| 3 | `verify_cycle.sh` — verifica end-to-end completa | v0.3.22 (C75) |
+| 4 | Hard cap wall-clock `--max-run-sec` + ventole prerequisito | v0.3.24 (C77) |
+| 5 | `PROTECTED_FILES` (requirements, config, .gitignore, ...) | v0.3.25 (C79) |
+| 6 | Guardia anti-shrink sospetto (≥500 byte → <20% bloccato) | v0.3.25 (C79) |
+| 7 | Suite gate toolset (14 test `test_toolset_gates.py`) | v0.3.25 (C79) |
+| 8 | `GUI/refs/` cheat sheet + tool `list_refs()` | v0.3.26 (C81) |
+| 9 | Iniezione condizionale refs nel prompt (soglia ≥2 keyword) | v0.3.26 (C82) |
+| 10 | Ref WM espliciti (tkinter, pyside6) + matching word-boundary | v0.3.27 (C83) |
+| 11 | Clarifier: GUI senza toolkit → domanda (ask-if-vague) | v0.3.28 (C84) |
+| 12 | Mutua esclusione famiglie Qt nei ref | v0.3.30 (C85) |
+| 13 | `conftest.py` root: collection ermetica (archiviati ignorati) | v0.3.30 (C85) |
+| 14 | `_sandbox_argv`: traduzione path host→sandbox (bandit/mypy/test) | v0.3.30 (C85) |
+| 15 | `run_test_suite` reale: test del progetto nel sandbox + fallback pytest | v0.3.30 (C85) |
+| 16 | Test toolbar ermetici (mai subprocess dai test) | v0.3.30 (C85c) |
+
+---
+
+## C. Crescita della suite di test (run completa)
+
+| Metrica | Cycle 75 (v0.3.22) | Cycle 85 (v0.3.30) |
+|---|---:|---:|
+| Test passati | 756 | **789** |
+| Subtests passati | non tracciati | **1050** |
+| Fallimenti | 3 (pre-esistenti) | **0** |
+| Durata run | 387 s | 1134 s |
+
+La durata è cresciuta **perché i gate ora eseguono veri comandi sandbox**
+invece di morire istantaneamente su NameError: più lento, ma finalmente
+reale. Nessun flake residuo: `test_functional_swarm` passa da solo
+(7 passed, 21 min — lento ma verde), `TestToolbarToggle` corretto.
+
+---
+
+## D. Versione per versione
+
+| Versione | Cycle | Cosa è stato implementato |
+|---|---|---|
+| v0.3.18 | 70 | Ledger integrato nella GUI, regola di parità |
+| v0.3.19 | 71 | Skill `project-radiography`, coda ledger per-progetto |
+| v0.3.20 | 72 | Root-cause skill-hijack provata + fix keywords, runner v2 |
+| v0.3.21 | 73 | Lezione UEFI, sweep MCP (57 conversioni bare except) |
+| v0.3.22 | 75 | `verify_cycle.sh` end-to-end, skill `debt-ledger` |
+| v0.3.24 | 77 | Ventole in Plancia, `--max-run-sec`, gate termica coretemp |
+| v0.3.25 | 79 | `PROTECTED_FILES`, shrink guard, test gate |
+| v0.3.26 | 81 | `GUI/refs/` + `list_refs()` |
+| v0.3.26+ | 82 | Iniezione condizionale cheat sheet nel prompt |
+| v0.3.27 | 83 | Ref WM espliciti (tkinter, pyside6) |
+| v0.3.28 | 84 | Clarifier ask-if-vague per GUI |
+| v0.3.30 | 85 | Audit robustezza: 15 difetti corretti, test ermetici |
+
+---
+
+*Documento e grafico generati dal Cycle 85 — aggiornare `tools/gen_grafici.py`
+e rigenerare quando si aggiungono nuovi meccanismi.*

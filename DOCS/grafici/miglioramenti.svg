@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="792" viewBox="0 0 940 792">
+<rect width="940" height="792" fill="#ffffff"/>
+<text x="20" y="38" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">byte-swarmy — Miglioramenti implementati (Cycle 70 → 85)</text>
+<text x="20" y="60" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#64748b">Generato deterministicamente da tools/gen_grafici.py — dati: DOCS/IMPLEMENTED.md</text>
+<text x="20" y="92" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">A. Audit robustezza Cycle 85 — 15 difetti corretti, per categoria</text>
+<text x="20" y="112" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Rilevati da pyflakes + pytest + smoke sandbox; tutti corretti e su GitHub (commit 4a1cb1a / 0bb4998 / 72e1b71)</text>
+<text x="20" y="144.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Funzionalità silent-dead</text>
+<rect x="249" y="126" width="621" height="26" rx="4" fill="#e2e8f0"/>
+<rect x="249" y="126" width="621" height="26" rx="4" fill="#dc2626"/>
+<text x="878" y="144.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">6</text>
+<text x="20" y="184.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">NameError mascherati</text>
+<rect x="249" y="166" width="621" height="26" rx="4" fill="#e2e8f0"/>
+<rect x="249" y="166" width="414" height="26" rx="4" fill="#f59e0b"/>
+<text x="671" y="184.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">4</text>
+<text x="20" y="224.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Anti-allucinazione (ref/docs)</text>
+<rect x="249" y="206" width="621" height="26" rx="4" fill="#e2e8f0"/>
+<rect x="249" y="206" width="207" height="26" rx="4" fill="#9333ea"/>
+<text x="464" y="224.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">2</text>
+<text x="20" y="264.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Infra test / collection</text>
+<rect x="249" y="246" width="621" height="26" rx="4" fill="#e2e8f0"/>
+<rect x="249" y="246" width="207" height="26" rx="4" fill="#2563eb"/>
+<text x="464" y="264.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">2</text>
+<text x="20" y="304.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Parità GUI (back_btn)</text>
+<rect x="249" y="286" width="621" height="26" rx="4" fill="#e2e8f0"/>
+<rect x="249" y="286" width="104" height="26" rx="4" fill="#16a34a"/>
+<text x="361" y="304.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">1</text>
+<text x="20" y="358" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">B. Meccanismi di robustezza e anti-allucinazione attivi (cumulativo)</text>
+<text x="20" y="378" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Elenco completo dei 16 meccanismi in DOCS/MIGLIORAMENTI.md</text>
+<line x1="245" y1="530" x2="870" y2="530" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="534" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">0</text>
+<line x1="245" y1="498" x2="870" y2="498" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="502" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">4</text>
+<line x1="245" y1="465" x2="870" y2="465" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="469" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">8</text>
+<line x1="245" y1="433" x2="870" y2="433" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="437" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">12</text>
+<line x1="245" y1="400" x2="870" y2="400" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="404" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">16</text>
+<path d="M 245 522 L 323 522 L 323 514 L 401 514 L 401 506 L 479 506 L 479 498 L 557 498 L 557 474 L 635 474 L 635 465 L 713 465 L 713 449 L 791 449 L 791 441 L 870 441 L 870 400" fill="none" stroke="#16a34a" stroke-width="2.5"/>
+<circle cx="245" cy="522" r="4" fill="#16a34a"/>
+<text x="245" y="512" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">1</text>
+<text x="245" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.18</text>
+<circle cx="323" cy="514" r="4" fill="#16a34a"/>
+<text x="323" y="504" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">2</text>
+<text x="323" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.20</text>
+<circle cx="401" cy="506" r="4" fill="#16a34a"/>
+<text x="401" y="496" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">3</text>
+<text x="401" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.22</text>
+<circle cx="479" cy="498" r="4" fill="#16a34a"/>
+<text x="479" y="488" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">4</text>
+<text x="479" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.24</text>
+<circle cx="557" cy="474" r="4" fill="#16a34a"/>
+<text x="557" y="464" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">7</text>
+<text x="557" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.25</text>
+<circle cx="635" cy="465" r="4" fill="#16a34a"/>
+<text x="635" y="455" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">8</text>
+<text x="635" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.26</text>
+<circle cx="713" cy="449" r="4" fill="#16a34a"/>
+<text x="713" y="439" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">10</text>
+<text x="713" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.27</text>
+<circle cx="791" cy="441" r="4" fill="#16a34a"/>
+<text x="791" y="431" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">11</text>
+<text x="791" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.28</text>
+<circle cx="870" cy="400" r="4" fill="#16a34a"/>
+<text x="870" y="390" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">16</text>
+<text x="870" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.30</text>
+<text x="20" y="594" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">C. Crescita della suite di test (run completa)</text>
+<text x="20" y="614" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Durata: 387s (Cycle 75) → 1134s (Cycle 85): i gate ora eseguono veri comandi sandbox invece di morire su NameError</text>
+<text x="20" y="649" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Test passati</text>
+<rect x="249" y="634" width="621" height="11" rx="3" fill="#e2e8f0"/>
+<rect x="249" y="634" width="447" height="11" rx="3" fill="#64748b"/>
+<text x="704" y="643" font-family="DejaVu Sans, sans-serif" font-size="10.5" font-weight="bold" fill="#0f172a">756</text>
+<rect x="249" y="648" width="621" height="11" rx="3" fill="#e2e8f0"/>
+<rect x="249" y="648" width="467" height="11" rx="3" fill="#2563eb"/>
+<text x="724" y="657" font-family="DejaVu Sans, sans-serif" font-size="10.5" font-weight="bold" fill="#0f172a">789</text>
+<text x="20" y="689" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Subtests passati</text>
+<rect x="249" y="674" width="621" height="11" rx="3" fill="#e2e8f0"/>
+<rect x="249" y="674" width="3" height="11" rx="3" fill="#64748b"/>
+<text x="260" y="683" font-family="DejaVu Sans, sans-serif" font-size="10.5" font-weight="bold" fill="#0f172a">0</text>
+<rect x="249" y="688" width="621" height="11" rx="3" fill="#e2e8f0"/>
+<rect x="249" y="688" width="621" height="11" rx="3" fill="#2563eb"/>
+<text x="878" y="697" font-family="DejaVu Sans, sans-serif" font-size="10.5" font-weight="bold" fill="#0f172a">1050</text>
+<rect x="249" y="716" width="12" height="12" rx="2" fill="#64748b"/>
+<text x="267" y="726" font-family="DejaVu Sans, sans-serif" font-size="11" fill="#64748b">Cycle 75 (v0.3.22)</text>
+<rect x="399" y="716" width="12" height="12" rx="2" fill="#2563eb"/>
+<text x="417" y="726" font-family="DejaVu Sans, sans-serif" font-size="11" fill="#64748b">Cycle 85 (v0.3.30)</text>
+<text x="20" y="752" font-family="DejaVu Sans, sans-serif" font-size="11" fill="#64748b">Nota: i "subtests" sono asserzioni per-elemento (subTest pytest) — non tracciati al Cycle 75.</text>
+</svg>
