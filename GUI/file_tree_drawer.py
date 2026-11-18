@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import os
 import json
-import re
 import time
 import shutil
 import sqlite3
@@ -506,7 +505,6 @@ class FileTreeDrawer(QFrame):
                 # (rinomina) annulla l'apertura per non aprire l'editor inutilmente.
                 self._pending_editor_path = path
                 if self._editor_open_timer is None:
-                    from PyQt6.QtCore import QTimer
                     self._editor_open_timer = QTimer(self)
                     self._editor_open_timer.setSingleShot(True)
                     self._editor_open_timer.timeout.connect(self._open_pending_editor)

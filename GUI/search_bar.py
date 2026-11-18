@@ -12,7 +12,6 @@ usare un approccio diverso (filter, non highlight).
 """
 from __future__ import annotations
 
-from typing import Optional
 
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QLineEdit, QPushButton, QLabel,

@@ -20,7 +20,6 @@ from PyQt6.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QPlainTextEdit,
     QMessageBox,
 )
-from PyQt6.QtCore import Qt
 
 from GUI.search_bar import SearchBar
 

@@ -21,7 +21,6 @@ from PyQt6.QtWidgets import (
     QFrame, QHBoxLayout, QVBoxLayout, QLabel, QPushButton,
     QListWidget, QListWidgetItem,
 )
-from PyQt6.QtGui import QColor
 
 from CORE.constants import (
     BTN_TRANSPARENT_STYLE,

@@ -141,7 +141,6 @@ class FileEditorWidget(QFrame):
 
     def _rename_file(self):
         """Rinomina il file aperto quando l'utente preme Invio sul nome."""
-        import shutil
 
         new_name = self.file_name_edit.text().strip()
         if not new_name or new_name == os.path.basename(self.file_path):

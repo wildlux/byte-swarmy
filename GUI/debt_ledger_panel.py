@@ -20,7 +20,6 @@ Ollama: la pianificazione del debito è lavoro freddo per definizione.
 Fail-open: senza DB (coda vuota) mostra lo stato e basta, mai crash.
 """
 
-import os
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor

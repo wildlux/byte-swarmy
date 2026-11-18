@@ -30,7 +30,6 @@ from PyQt6.QtWidgets import (
 )
 
 from GUI.theme.theme import set_prop as _theme_prop
-from GUI.theme.theme import set_banner as _theme_banner
 from GUI.theme.theme import token_color as _token_color
 
 from CORE.test_runner import TEST_CATEGORIES, list_categorie  # noqa: E402

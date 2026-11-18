@@ -18,7 +18,6 @@ import py_compile
 from PyQt6.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QPlainTextEdit,
 )
-from PyQt6.QtCore import Qt
 
 from GUI.search_bar import SearchBar
 
@@ -108,7 +107,7 @@ class IntegrityTestsPanel(QFrame):
         self.output.appendPlainText("════════════════════════════════════════════")
         self.output.appendPlainText("  🧪 TEST DI INTEGRITÀ DEL SOFTWARE")
         self.output.appendPlainText("═════════════════════════════════════════════\n")
-        import time, tempfile
+        import time
 
         base = self._base_dir()
         passed = 0

@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from PyQt6.QtCore import QObject, QByteArray
-from PyQt6.QtNetwork import QLocalServer, QLocalSocket
+from PyQt6.QtNetwork import QLocalServer
 from PyQt6.QtWidgets import (
     QPushButton, QToolButton, QWidget,
 )

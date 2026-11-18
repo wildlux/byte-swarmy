@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-import time
 
 from PyQt6.QtWidgets import (
     QFrame, QHBoxLayout, QVBoxLayout, QPushButton, QLabel,
@@ -16,7 +15,6 @@ from PyQt6.QtWidgets import (
 from PyQt6 import QtWidgets
 from PyQt6.QtCore import Qt
 
-from GUI import settings_store
 
 
 class DevicePanel(QFrame):
@@ -237,7 +235,7 @@ class DevicePanel(QFrame):
             Chiamanti come la pipeline CI/CD usano 'status' per NON
             mostrare "✓ Push completato" quando l'utente ha detto No.
         """
-        import time as _time, os as _os
+        import os as _os
         from GUI import settings_store as ss
 
         # 1) Leggi i remote configurati dall'utente nel SettingsPanel
@@ -503,7 +501,6 @@ class DevicePanel(QFrame):
         model_lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         model_lbl.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
         # Tronca con elipsis se troppo lungo, così non spinge i valori a destra
-        from PyQt6.QtCore import Qt as _Qt
         model_lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
         lay.addWidget(model_lbl)
 

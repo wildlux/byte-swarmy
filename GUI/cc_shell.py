@@ -13,7 +13,7 @@ import os
 from pathlib import Path
 
 from PyQt6 import QtWidgets
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QLineEdit, QMenu, QProgressBar,
@@ -154,7 +154,6 @@ class ShellMixin:
 
         # Barra di avanzamento completamento task (in basso a destra)
         try:
-            from PyQt6.QtWidgets import QProgressBar
             self._completion_bar = QProgressBar()
             self._completion_bar.setRange(0, 100)
             self._completion_bar.setValue(0)

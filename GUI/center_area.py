@@ -6,8 +6,6 @@ Estratto da GUI/control_center.py per ridurre il monolite.
 from __future__ import annotations
 
 import os
-import json
-import time
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QStackedWidget, QScrollArea,
@@ -16,20 +14,17 @@ from PyQt6.QtWidgets import (
     QListWidgetItem, QTextEdit, QPlainTextEdit, QCheckBox, QGroupBox,
     QGridLayout, QScrollArea as _QScrollArea,
 )
-from PyQt6.QtGui import QColor, QFont, QIcon, QPixmap, QPalette, QBrush
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QSize, QUrl, QEvent
+from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import Qt, QEvent
 
 from GUI.collapsible_section import CollapsibleSection
 from GUI.categorized_log_viewer import CategorizedLogViewer
-from GUI.plancia_card import PlanciaCard
 from GUI.code_explorer import CodeExplorer
 from GUI.backup_code_logs import BackupCodeLogs
 from GUI.integrity_tests_panel import IntegrityTestsPanel
 from GUI.software_security_panel import SoftwareSecurityPanel
 from GUI.panels import wrap_in_panel_page, build_plancia_cards, build_tools_cards, build_scheduler_page, build_actors_page, build_config_page, build_cicd_page, build_clean_code_page
-from GUI.theme.theme import set_prop as _set_prop, set_banner as _set_banner
 
-from CORE.constants import BTN_TRANSPARENT_STYLE, BTN_TRANSPARENT_DANGER_STYLE
 
 
 class CenterArea(QWidget):
@@ -346,7 +341,6 @@ class CenterArea(QWidget):
         # Scorciatoie globali (Backspace = Indietro alla Plancia,
         # "/" con campo vuoto = scrivi nel campo comando in basso).
         try:
-            import sys as _d
             from PyQt6.QtWidgets import QApplication
             if event.type() != QEvent.Type.KeyPress:
                 return False
@@ -547,7 +541,7 @@ class CenterArea(QWidget):
 if __name__ == "__main__":
     # ── Crash handler: salva traceback su logs/crash.log prima di terminare ──
     import sys  # noqa: E402  (richiesto dal __main__: launch diretto)
-    import os as _os, traceback as _traceback
+    import traceback as _traceback
     from datetime import datetime as _datetime
     from pathlib import Path as _Path
 

@@ -10,9 +10,8 @@ from __future__ import annotations
 
 import ast
 import os
-from typing import Optional
 
-from PyQt6.QtCore import Qt, pyqtSignal, QPointF
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QBrush, QColor, QPen, QPainter
 from PyQt6.QtWidgets import (
     QFrame, QGraphicsRectItem, QGraphicsScene, QGraphicsView,

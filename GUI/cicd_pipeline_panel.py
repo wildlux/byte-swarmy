@@ -16,7 +16,6 @@ from PyQt6.QtWidgets import (
     QWidget, QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QPlainTextEdit,
     QGroupBox, QScrollArea,
 )
-from PyQt6.QtCore import Qt
 
 from GUI.search_bar import SearchBar
 from GUI.theme.theme import set_banner as _set_banner

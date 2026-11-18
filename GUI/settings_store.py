@@ -9,11 +9,10 @@ Salva in ``CONFIG/settings.json``:
 - detect_gpu_at_startup: se True (default), rileva GPU all'avvio e
   sceglie il default intelligente (gpu+cpu se GPU, cpu_only altrimenti)
 """
-import json
 import os
 import shutil
 import subprocess
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from CORE.state_repository import load_json, save_json
 

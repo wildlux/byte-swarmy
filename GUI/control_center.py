@@ -7,16 +7,11 @@ PyQt6, single-file
 import sys
 import os
 from pathlib import Path
-import random
-import subprocess
-import ast
-import re
 import json
 import time
 
 BASE_DIR = Path(__file__).parent.parent.resolve()
 
-from CORE.constants import OLLAMA_HOST, DEFAULT_NUM_CTX, BTN_TRANSPARENT_STYLE, BTN_TRANSPARENT_DANGER_STYLE, BTN_TRANSPARENT_MEDIUM_STYLE, BTN_TRANSPARENT_SMALL_STYLE
 
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -31,7 +26,6 @@ from PyQt6.QtWidgets import (
     QGraphicsScene, QGraphicsRectItem, QGraphicsTextItem,
     QFileIconProvider,
 )
-from PyQt6 import QtWidgets
 from PyQt6.QtGui import (
     QColor, QCursor, QFont, QIcon, QPixmap, QPalette, QAction,
     QBrush, QPainter, QPen, QDesktopServices,
@@ -46,8 +40,6 @@ from GUI.gui_backend import (
     get_cpu_temp, get_gpu_temp, get_metrics, get_tasks, get_logs,
     add_task_to_db, get_ram_pct, get_gpu_mem_pct, get_gpu_freq_mhz
 )
-from INTENT.metrics import estimate_kv_cache_mb
-from GUI.file_manager import FileSystemModel, CheckableTreeView
 from GUI.panels import (
     wrap_in_panel_page,
     build_actors_page,
@@ -59,24 +51,6 @@ from GUI.panels import (
     build_tools_cards,
 )
 from GUI import settings_store
-from GUI.settings_panel import SettingsPanel
-from GUI.actors_panel import ActorsPanel
-from GUI.task_scheduler_panel import TaskSchedulerPanel
-from GUI.task_item_row import TaskItemRow
-from GUI.credits_overlay import CreditsOverlay
-from GUI.device_panel import DevicePanel
-from GUI.collapsible_section import CollapsibleSection
-from GUI.plancia_card import PlanciaCard
-from GUI.categorized_log_viewer import CategorizedLogViewer
-from GUI.backup_code_logs import BackupCodeLogs
-from GUI.code_explorer import CodeExplorer, CodeNode
-from GUI.file_editor_widget import FileEditorWidget
-from GUI.config_panel import ConfigPanel
-from GUI.integrity_tests_panel import IntegrityTestsPanel
-from GUI.software_security_panel import SoftwareSecurityPanel
-from GUI.cicd_pipeline_panel import CICDPipelinePanel
-from GUI.clean_code_panel import CleanCodePanel
-from GUI.project_tab_bar import ProjectTabBar, _is_junk_project_path, build_run_command
 from GUI.file_tree_drawer import FileTreeDrawer
 from GUI.center_area import CenterArea
 from GUI.task_queue import (
@@ -128,7 +102,7 @@ def _click_log(area: str, pulsante: str, progetto: str = "",
 # invariato: i metodi restano sullo stesso oggetto ControlCenter). ──────
 from GUI.cc_shell import ShellMixin
 from GUI.cc_orchestrator import OrchestratorMixin
-from GUI.cc_zoom import ZoomMixin, _ZoomEventFilter, _zoom_scale_css
+from GUI.cc_zoom import ZoomMixin, _ZoomEventFilter
 from GUI.cc_editor_overlay import EditorOverlayMixin
 from GUI.cc_debug_bar import DebugBarMixin
 from GUI.cc_shutdown import ShutdownMixin
@@ -338,7 +312,7 @@ class ControlCenter(
 
 if __name__ == "__main__":
     # ── Crash handler: salva traceback su logs/crash.log prima di terminare ──
-    import os as _os, traceback as _traceback
+    import traceback as _traceback
     from datetime import datetime as _datetime
     from pathlib import Path as _Path
 

@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from typing import Callable, Optional
 
-from PyQt6.QtCore import Qt as _Qt, QPoint, QModelIndex
-from PyQt6.QtGui import QAction, QColor
+from PyQt6.QtCore import Qt as _Qt, QPoint
+from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QMenu
 
 

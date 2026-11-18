@@ -6,7 +6,6 @@ Estratto da GUI/control_center.py per ridurre il monolite.
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 from PyQt6.QtWidgets import (
     QFrame, QLabel, QVBoxLayout, QHBoxLayout, QPushButton,

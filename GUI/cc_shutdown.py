@@ -57,7 +57,7 @@ class ShutdownMixin:
         riserva → attesa → rimozione pid file. Ritorna True se il
         processo non è più in esecuzione (o non stava girando).
         """
-        import signal, time
+        import time
         pid, alive = self._orchestrator_pid()
         if pid is None or not alive:
             return True

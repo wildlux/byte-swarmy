@@ -14,8 +14,6 @@ GUI può mostrarlo senza rilanciare ogni volta.
 from __future__ import annotations
 
 import os
-import subprocess
-import sys
 from pathlib import Path
 from typing import Optional
 
@@ -28,7 +26,7 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 from GUI.theme.theme import set_prop as _theme_prop
 from GUI.theme.theme import set_banner as _theme_banner
-from PyQt6.QtGui import QDesktopServices, QColor, QFont
+from PyQt6.QtGui import QDesktopServices, QColor
 
 # pyqtSignal è anche esportato come Signal per compatibilità
 Signal = pyqtSignal

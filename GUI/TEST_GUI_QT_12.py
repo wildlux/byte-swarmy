@@ -8,7 +8,6 @@ from GUI.gui_backend import get_cpu_temp, get_gpu_temp, get_metrics, get_tasks, 
 
 import sys
 import os
-import random
 import subprocess
 import ast
 from PyQt6.QtWidgets import (

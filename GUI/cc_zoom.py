@@ -62,7 +62,6 @@ class ZoomMixin:
     def keyPressEvent(self, event):
         """Intercetta scorciatoie da tastiera per zoom e altre azioni."""
         from PyQt6.QtCore import Qt
-        from PyQt6.QtGui import QKeySequence
         key = event.key()
         mods = event.modifiers()
         if mods & Qt.KeyboardModifier.ControlModifier:
