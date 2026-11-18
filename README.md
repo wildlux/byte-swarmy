@@ -659,6 +659,34 @@ aggiornamento delle dipendenze.
 
 ---
 
+### Gestione termica (leva cpupower — P3-9)
+
+Il limite termico duro del progetto è **60 °C** (ventole al max come
+prerequisito di ogni run LLM; QLoRA solo a macchina fredda). Per i run
+lunghi è possibile limitare la frequenza della CPU con `cpupower`:
+
+```bash
+# Cap temporaneo (es. 2.0 GHz) per un run lungo
+sudo cpupower frequency-set -u 2000MHz
+
+# Ripristino al massimo
+sudo cpupower frequency-set -u 3500MHz   # adatta al tuo CPU
+```
+
+Verifica lo stato attuale:
+
+```bash
+cpupower frequency-info | grep -i "current\|max"
+```
+
+`cpupower` richiede `linux-cpupower` (Debian/Ubuntu:
+`sudo apt install linux-cpupower`) e privilegi root. Non è automatizzato
+dal watchdog: è una leva manuale, documentata qui, da usare solo quando il
+run è lungo e si vuole margine termico.
+
+Il watchdog (`SAFETY/watchdog.py`) gestisce già il backoff escalato
+(1→2→4→…→60s) su crash consecutivi e l'allerta dopo 5 riavvii.
+
 ### Avvio completo
 
 ```bash

@@ -198,7 +198,7 @@ medi, infine sottofondi e igiene.
       qwen2.5-coder:7b/14b SOLO per il routing GUI (macchina fredda,
       ventole al max, sessione corta). Criterio done: tabella
       comparativa 3b vs 7b su 3 task GUI identici in DOCS/BENCH.md.
-23. [ ] **[P3-9] Leva termica cpupower** — cap di frequenza per run
+23. [x] **[P3-9] Leva termica cpupower** — cap di frequenza per run
       lunghi; richiede sudo, documentare in README (sezione termica).
 24. [ ] **[P3-7] Decision tree v2 (residuo)** — 3-4 regole nuove
       derivate dai fallimenti (M8) NON coperte da SLOT-3 (architettura
