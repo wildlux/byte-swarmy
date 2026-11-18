@@ -101,6 +101,9 @@ medi, infine sottofondi e igiene.
       runner misura primo colpo % **per asse del radar** e **per
       granularità**. Criterio done: `evals/` con ≥12 casi + runner +
       report per famiglia. Dipende da: P1-1 (✅ Cycle 85i).
+      > ✅ **Slice Fase A fatta** (campagna 85n): `evals/cases.json`
+      > (13 casi, 8 assi, 3 granularità) + `tools/run_eval.py` (dry-run
+      > valida e riassume per asse/granularità; --live richiede LLM).
 7. [ ] **[SLOT-5] Eval per-slot pass@1** — runner che misura il
       primo-colpo **per tipo di slot** (import/function/handler/widget)
       e per dimensione output: è il numero che dice se SLOT funziona.

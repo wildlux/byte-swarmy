@@ -1,0 +1,119 @@
+[
+  {
+    "id": "eval-gui-01",
+    "title": "Crea finestra PyQt6 con pulsante e label",
+    "description": "Crea un file GUI/hello_qt.py con una finestra PyQt6 contenente un pulsante e una label. Il pulsante stampa un messaggio quando cliccato.",
+    "axis": "Task GUI (creazione)",
+    "granularity": "medium",
+    "refs": ["pyqt6"],
+    "expected_marker": "QApplication"
+  },
+  {
+    "id": "eval-gui-02",
+    "title": "Widget con layout verticale e segnali",
+    "description": "Crea un widget PyQt6 con QVBoxLayout, un QLineEdit e un QPushButton che aggiorna una QLabel.",
+    "axis": "Task GUI (creazione)",
+    "granularity": "medium",
+    "refs": ["pyqt6"],
+    "expected_marker": "QVBoxLayout"
+  },
+  {
+    "id": "eval-minimal-01",
+    "title": "Funzione che somma due numeri",
+    "description": "Scrivi una funzione add(a, b) che restituisce la somma. File: utils/math.py",
+    "axis": "Modifiche minime",
+    "granularity": "small",
+    "refs": [],
+    "expected_marker": "def add"
+  },
+  {
+    "id": "eval-minimal-02",
+    "title": "Patch: aggiungi docstring a funzione esistente",
+    "description": "Aggiungi una docstring alla funzione greet in utils/greet.py.",
+    "axis": "Modifiche minime",
+    "granularity": "small",
+    "refs": [],
+    "expected_marker": "def greet"
+  },
+  {
+    "id": "eval-refactor-01",
+    "title": "Estrai metodo da funzione lunga",
+    "description": "Refactor: estrai la logica di validazione in una funzione separata validate_input.",
+    "axis": "Refactoring mecc.",
+    "granularity": "medium",
+    "refs": [],
+    "expected_marker": "def validate_input"
+  },
+  {
+    "id": "eval-gate-01",
+    "title": "Scrivi file con import inesistente (deve fallire gate)",
+    "description": "Crea un file che importa un modulo inesistente 'foo_bar_baz' e lo usa.",
+    "axis": "Gate / verifica",
+    "granularity": "small",
+    "refs": [],
+    "expected_fail": true
+  },
+  {
+    "id": "eval-api-01",
+    "title": "Usa TaskQueue.add correttamente",
+    "description": "Scrivi codice che usa TaskQueue per aggiungere un task alla coda.",
+    "axis": "Fedeltà API",
+    "granularity": "medium",
+    "refs": ["orchestrator_api", "ledger_api"],
+    "expected_marker": "TaskQueue"
+  },
+  {
+    "id": "eval-api-02",
+    "title": "Usa debt ledger add e next",
+    "description": "Scrivi codice che aggiunge un item al debt ledger e prende il prossimo.",
+    "axis": "Fedeltà API",
+    "granularity": "medium",
+    "refs": ["ledger_api"],
+    "expected_marker": "add"
+  },
+  {
+    "id": "eval-clarify-01",
+    "title": "Task ambiguo GUI senza toolkit",
+    "description": "Crea un'interfaccia grafica per gestire i task.",
+    "axis": "Chiarimenti ambigui",
+    "granularity": "large",
+    "refs": [],
+    "expected_clarify": true
+  },
+  {
+    "id": "eval-arch-01",
+    "title": "Refactoring architetturale single file",
+    "description": "Refactorizza il modulo per usare il pattern CLASS con stato condiviso.",
+    "axis": "Architettura",
+    "granularity": "medium",
+    "refs": [],
+    "expected_marker": "class "
+  },
+  {
+    "id": "eval-memory-01",
+    "title": "Task con contesto persistente",
+    "description": "Modifica il file usando il contesto del progetto esistente.",
+    "axis": "Memoria / contesto",
+    "granularity": "medium",
+    "refs": [],
+    "expected_marker": "def "
+  },
+  {
+    "id": "eval-gui-03",
+    "title": "Finestra con segnali e slot",
+    "description": "Crea una finestra PyQt6 con segnali custom e slot collegati.",
+    "axis": "Task GUI (creazione)",
+    "granularity": "large",
+    "refs": ["pyqt6"],
+    "expected_marker": "pyqtSignal"
+  },
+  {
+    "id": "eval-slot-01",
+    "title": "Riempi uno slot function in un template",
+    "description": "Dato un template con # @@slot: greet, riempi lo slot con una funzione greet.",
+    "axis": "Architettura",
+    "granularity": "small",
+    "refs": [],
+    "expected_marker": "def greet"
+  }
+]
