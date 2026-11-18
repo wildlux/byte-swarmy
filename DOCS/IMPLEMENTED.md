@@ -2015,3 +2015,22 @@ i gate ora eseguono veri comandi sandbox invece di morire su NameError).
   (Fase A dipende da P1-1). Sezione "Cosa NON facciamo": PPO/RL
   infrastrutturale, reward-model training, cluster multi-GPU — fuori
   dai vincoli hardware/termici; il nostro "RL" è il correction loop.
+
+## 🎯 Cycle 85h — todo.md riordinato per impatto + item SLOT (2026-11-18)
+
+- **todo.md** ora inizia dal piano ordinato **dalle voci più impattanti**
+  (criterio: impatto sul goal ÷ costo, ★★★→○):
+  Fascia 1 (sblocca misura + primo mattone SLOT): P1-1 metrica primo
+  colpo, SLOT-1 gate per-slot, SLOT-2 assembler, P1-2 gate import-check;
+  Fascia 2 (motore): Fase B corpus, Fase D-15 best-of-N, SLOT-4 prompt
+  per-slot, Robustezza #3/#2, Fase A eval, SLOT-5 eval per-slot;
+  Fascia 3 (gap sistema): SLOT-3/P2-3 planner+scaffolding, D-16 num_ctx,
+  P2-5 refs, P2-6 clarifier, P2-4 A/B, Rob #1/#4/#10/#7;
+  Fascia 4 (sottofondi/igiene): Fase C/F/E/G/H, P3-7/8/9, Rob #5/6/8/9,
+  igiene performance residua.
+- **5 item SLOT aggiunti** (dal doc ARCHITETTURA_SLOT.md che non li
+  aveva ancora in coda): gate per-slot, assembler, prompt per-slot,
+  eval per-slot, planner+scaffolding. ID originali preservati
+  ([P1-1], [Fase A], [Robustezza #N]) per non rompere i riferimenti.
+- Storico (sezioni completate) conservato integralmente sotto
+  "📜 Storico recente".
