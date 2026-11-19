@@ -239,10 +239,23 @@ compute grezzo.
 
 > Sessione di test conclusa con run finale pulita (888 passed / 0 failed /
 > 0 warning / EXIT=0, 1031 s). Prossima fase: benchmark LLM + slot.
+>
+> **⏸️ Profilazione interrotta su richiesta (2026-11-19, 582/887 test in
+> 230,87 s)** — il costo è concentrato in pochi test:
+> `test_e2e.py` 3 test = **147 s** (75,02 + 42,02 + 30,03),
+> `test_crud_file_manager.py` 31,9 s (15,25 + 8,40 + 8,31),
+> `test_keys.py` 16,3 s, `test_routing.py` 15,2 s,
+> setup `test_monthly_audit.py` 3,6 s. Gli altri 2.377 test sono
+> < 0,005 s. Log: `/tmp/opencode/pytest_durations.log`.
+>
+> **Piano di domani (2026-11-20)**: (a) completare la profilazione con
+> `--durations=0` sull'intera suite, (b) introdurre marker `slow` +
+> profilo **fast ≤ 3 min** (default) mantenendo il profilo **full** per
+> tutti i test, (c) eseguire **tutti** i test (full) con Zero Warning.
 
 1. [ ] (Domani) Suite completa finale di regressione: `pytest --ignore=project
-      -q -p no:cacheprovider --durations=15` (regola operativa) → conferma
-      finale Zero Warning + exit 0.
+      -q -p no:cacheprovider --durations=0` (regola operativa) → conferma
+      finale Zero Warning + exit 0; usare i dati per il profilo fast ≤3 min.
 2. [ ] (Domani) Fase D-16 — sweep num_ctx 2048/3072/4096 con flash_attention_kv
       (run LLM, ventole al max, ≤60 °C).
 3. [ ] (Domani) SLOT-4 — prompt per-slot + benchmark 3 task reali.
