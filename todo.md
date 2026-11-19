@@ -235,6 +235,22 @@ compute grezzo.
 
 ---
 
+## 📅 Piano post-test (2026-11-19 → domani)
+
+> Sessione di test conclusa con run finale pulita (888 passed / 0 failed /
+> 0 warning / EXIT=0, 1031 s). Prossima fase: benchmark LLM + slot.
+
+1. [ ] (Domani) Suite completa finale di regressione: `pytest --ignore=project
+      -q -p no:cacheprovider --durations=15` (regola operativa) → conferma
+      finale Zero Warning + exit 0.
+2. [ ] (Domani) Fase D-16 — sweep num_ctx 2048/3072/4096 con flash_attention_kv
+      (run LLM, ventole al max, ≤60 °C).
+3. [ ] (Domani) SLOT-4 — prompt per-slot + benchmark 3 task reali.
+4. [ ] (Domani) P2-4 — A/B memoria/contesto (10 task, run LLM).
+5. [ ] (Domani) Fase C — feasibility QLoRA 3b (notte, GPU 4GB, macchina fredda).
+
+---
+
 ## 📜 Storico recente (completati — dettagli conservati)
 
 ### 📅 Domani (2026-11-17) — ordine di esecuzione concordato
