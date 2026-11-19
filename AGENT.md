@@ -254,8 +254,8 @@ The worker can call any of these tools through the sandboxed `ToolSet`:
 - **Mensile**: `tests/test_monthly_audit.py` + `AuditGate` per porte esposte, codice morto, import banditi, reverse proxy (ngrok, cloudflared, ssh -R, docker -p).
 
 ### Checklist pre-commit / pre-release
-- [ ] `py_compile` su tutti i file modificati
-- [ ] `pytest tests/ -q` passa
+- [x] `py_compile` su tutti i file modificati
+- [x] `pytest tests/ -q` passa (ultima run: 888 passed, 0 failed, 0 warning, EXIT=0)
 - [ ] Nessun segreto in chiaro in `CONFIG/` o `logs/`
 - [ ] `safe_project_path` usato per ogni path da input utente
 - [ ] Nessuna chiamata `curl`/`wget`/`ssh`/`sudo` in `run_bash` allowlist
@@ -330,7 +330,9 @@ diversità si può aggiungere un modello di un'altra famiglia
 ## 🧪 Testing
 
 The suite grows over time — never trust hardcoded counts, run it:
-- pytest (unit + integration): `.venv/bin/python -m pytest tests/ -q`
+- pytest (unit + integration): `.venv/bin/python -m pytest tests/ -q --durations=15`
+  (regola operativa: ogni run completo registra i 15 test più lenti con i loro
+  tempi; il report `--durations` è obbligatorio per le sessioni di benchmark)
 - unittest legacy: `.venv/bin/python -m unittest discover -s tests -q`
 - E2E live (`tests/test_e2e.py`) auto-skips if `state/pause.flag`
   exists or the orchestrator pid is stale; they are not failures.

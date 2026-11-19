@@ -127,3 +127,19 @@ reale. Nessun flake residuo: `test_functional_swarm` passa da solo
 
 *Documento e grafico generati dal Cycle 85k — aggiornare `tools/gen_grafici.py`
 e rigenerare quando si aggiungono nuovi meccanismi.*
+
+---
+
+## ✅ Stato finale verificato — Cycle 85n (2026-11-19)
+
+- **Suite pytest completa**: `888 passed, 1 xfailed, 1055 subtests passed, 0
+  failed, 0 warning, EXIT=0` (1031 s) — run finale **pulita** (nessun segfault,
+  nessun fallito, nessun warning).
+- **pyflakes**: 0 warning su CORE/GUI/tools/scripts/SAFETY/INTENT/tests
+  (baseline 474 → 0).
+- **Regola Zero Warning**: raggiunta (errori + warning = 0).
+- **Grafico miglioramenti**: rigenerato deterministico (`tools/gen_grafici.py`).
+
+Prossimi gradini verso Middle Senior (todo.md): Fase D-16, SLOT-3/4/5, P2-4,
+Fase C/E/G/H, P3-8 — tutti richiedono run LLM (ventole al max, ≤60 °C) o GPU
+notturna.

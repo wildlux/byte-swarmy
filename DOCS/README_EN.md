@@ -9,14 +9,14 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.3.1-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.3.32-blue">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-yellow">
   <img alt="Ollama" src="https://img.shields.io/badge/Ollama-required-orange">
   <img alt="RAM" src="https://img.shields.io/badge/RAM-4%20GB%20min-red">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Linux-lightgrey">
   <img alt="Cloud" src="https://img.shields.io/badge/cloud-NOT%20needed-success">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-71%20pass-brightgreen">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-888%20passed-brightgreen">
 </p>
 
 <p align="center">
@@ -30,7 +30,7 @@
 > documentation tasks under a deterministic orchestrator, with real-time token
 > streaming and intelligent model selection.
 
-**Version:** 0.3.1 · **License:** MIT · **Platform:** Linux
+**Version:** 0.3.32 · **License:** MIT · **Platform:** Linux
 
 ---
 
