@@ -251,6 +251,19 @@ compute grezzo.
 
 ---
 
+## 🧪 Tabella dei run di test (2026-11-19)
+
+| Run | Log | Avvio | Fine (eff.) | Durata | Risultato | Chiusura |
+|---|---|---|---|---|---|---|
+| 1 | `/tmp/opencode/pytest_full_run.log` | 00:12:34 | 00:29:52 | 0:17:18 | 261 passed, 3 skipped, **9 warn**, 6 sub — `INT` (SIGINT) | chiusa (parziale) |
+| 2 | `/tmp/opencode/pytest_full_run2.log` | 00:31:44 | 00:47:45 | 0:16:01 | 896 passed, **1 failed**, 1 xfailed, **10 warn** — `EXIT=139` (segfault post-summary) | chiusa (con fallito) |
+| 3 | `/tmp/opencode/pytest_full_run3.log` | 00:50:35 | 01:07:46 | 0:17:11 | **888 passed**, 1 xfailed, **1055 sub**, **0 failed, 0 warn** — `EXIT=0` | ✅ **CHIUSA** |
+
+**Chiusura finale**: run3 ✅ — suite verde, Zero Warning, exit 0. Fix post-run2
+(`_test_*`, `__test__=False`, alias HW3) applicati e ri-verificati in run3.
+
+---
+
 ## 📜 Storico recente (completati — dettagli conservati)
 
 ### 📅 Domani (2026-11-17) — ordine di esecuzione concordato
