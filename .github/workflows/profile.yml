@@ -50,8 +50,7 @@ jobs:
           echo "EXIT=$code" >> pytest_profile.log
           echo "--- ultime righe ---"
           tail -80 pytest_profile.log
-          # Il job non fallisce per test rossi: qui raccogliamo i tempi.
-          exit 0
+          exit $code
 
       - name: Upload report
         if: always()
