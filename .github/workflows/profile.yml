@@ -1,0 +1,62 @@
+name: Profile — suite completa (durations)
+
+# Profilazione manuale della suite completa su runner GitHub.
+# Perché: misurare i tempi senza scaldare la macchina locale.
+# I live e2e vengono saltati con state/pause.flag (niente Ollama/orchestratore
+# nei runner hosted). Il log con --durations=0 è pubblicato come artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      filter:
+        description: "Filtro -k opzionale (es. 'test_slot or test_security')"
+        required: false
+        default: ""
+
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyflakes pytest
+
+      - name: Pausa live e2e (niente LLM/orchestratore nei runner)
+        run: |
+          mkdir -p state
+          touch state/pause.flag
+
+      - name: Profilazione completa (--durations=0)
+        env:
+          QT_QPA_PLATFORM: offscreen
+          PYTHONUNBUFFERED: "1"
+        run: |
+          set +e
+          FILTER="${{ github.event.inputs.filter }}"
+          EXTRA=""
+          if [ -n "$FILTER" ]; then EXTRA="-k $FILTER"; fi
+          timeout 3300 python -m pytest tests/ -q -p no:cacheprovider \
+            --durations=0 $EXTRA > pytest_profile.log 2>&1
+          code=$?
+          echo "EXIT=$code" >> pytest_profile.log
+          echo "--- ultime righe ---"
+          tail -80 pytest_profile.log
+          # Il job non fallisce per test rossi: qui raccogliamo i tempi.
+          exit 0
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-profile
+          path: pytest_profile.log
+          retention-days: 14

@@ -253,6 +253,19 @@ compute grezzo.
 > profilo **fast ≤ 3 min** (default) mantenendo il profilo **full** per
 > tutti i test, (c) eseguire **tutti** i test (full) con Zero Warning.
 
+### 🔥 Incidente termico 2026-11-20 — stop ai run locali
+> Durante la profilazione il BIOS ha eseguito un **thermal shutdown a
+> 90 °C** (`System Temperature (90D)`). `nbfc` riportava `Target 100`
+> ma `Current Fan Speed 0.00`: il raffreddamento non smaltisce calore
+> (polvere/ventola). **Nessun test, LLM o benchmark locale** finché la
+> ventola non è verificata (test BIOS F2 → Fan) e pulita/riparata.
+>
+> **Profilazione e suite full passano su GitHub Actions**:
+> `.github/workflows/profile.yml` (`workflow_dispatch`, log
+> `--durations=0` come artifact, live e2e saltati con `pause.flag`).
+> Dopo la riparazione: CPU ≤ 60 °C (non 65) e LLM/GPU ≤ 60 °C con
+> ventole al massimo.
+
 1. [ ] (Domani) Suite completa finale di regressione: `pytest --ignore=project
       -q -p no:cacheprovider --durations=0` (regola operativa) → conferma
       finale Zero Warning + exit 0; usare i dati per il profilo fast ≤3 min.
