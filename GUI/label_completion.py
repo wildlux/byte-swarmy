@@ -24,6 +24,34 @@ class LabelMentionCompleter(QCompleter):
         self._model = QStandardItemModel(self)
         self.setModel(self._model)
         self._refresh_model()
+        # Menu contestuale (tasto destro) sul popup per cambiare colore.
+        popup = self.popup()
+        popup.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        popup.customContextMenuRequested.connect(self._on_context_menu)
+
+    def _on_context_menu(self, pos) -> None:
+        """Menu tasto destro: cambia colore dell'etichetta selezionata."""
+        from PyQt6.QtWidgets import QMenu, QColorDialog
+        from CORE import labels as L
+        popup = self.popup()
+        index = popup.indexAt(pos)
+        if not index.isValid():
+            return
+        name = str(index.data(Qt.ItemDataRole.UserRole) or "")
+        if not name:
+            return
+        menu = QMenu(popup)
+        act_color = menu.addAction("🎨 Cambia colore")
+        act_remove = menu.addAction("🗑️ Rimuovi etichetta")
+        chosen = menu.exec(popup.mapToGlobal(pos))
+        if chosen == act_color:
+            picked = QColorDialog.getColor()
+            if picked.isValid():
+                L.set_color(name, picked.name())
+                self._refresh_model()
+        elif chosen == act_remove:
+            L.remove_label(name)
+            self._refresh_model()
 
     def _refresh_model(self) -> None:
         """Ricarica il modello con le etichette correnti."""

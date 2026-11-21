@@ -407,6 +407,14 @@ class SettingsPanel(QWidget):
             container.setLayout(row)
             self._labels_container.addWidget(container)
 
+        if not L.list_labels():
+            hint = QLabel(
+                "Nessuna etichetta registrata. Digita #nome nel campo comando "
+                "per crearne una, oppure aggiungine una qui sopra.")
+            hint.setWordWrap(True)
+            _theme_prop(hint, "role", "muted")
+            self._labels_container.addWidget(hint)
+
     def _on_change_label_color(self, name: str) -> None:
         from CORE import labels as L
         from PyQt6.QtWidgets import QColorDialog
