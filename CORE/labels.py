@@ -92,6 +92,7 @@ def get_or_create_label(name: str) -> dict:
 
 def list_labels() -> list[dict]:
     """Elenca tutte le etichette registrate (nome + colore)."""
+    ensure_default_labels()
     data = _load()
     out = []
     for name, color in data.items():
@@ -99,6 +100,38 @@ def list_labels() -> list[dict]:
             out.append({"name": name, "color": color})
     # Aggiunge i colori noti non ancora registrati? No: solo registrati.
     return sorted(out, key=lambda x: x["name"].lower())
+
+
+DEFAULT_LABELS = {
+    "GUI": "#2563eb",
+    "Finestra": "#2563eb",
+    "Bottoni": "#16a34a",
+    "Schede": "#9333ea",
+    "Refactoring": "#f59e0b",
+    "Codice morto": "#dc2626",
+    "Test": "#0891b2",
+    "Documentazione": "#64748b",
+    "Bug": "#dc2626",
+    "Feature": "#16a34a",
+    "Performance": "#f59e0b",
+    "Sicurezza": "#b91c1c",
+    # Tipologie di programmazione
+    "programmazione gui": "#2563eb",
+    "programmazione CLI": "#16a34a",
+    "script": "#f59e0b",
+    "freecad script": "#9333ea",
+    "blender script": "#dc2626",
+}
+
+
+def ensure_default_labels() -> None:
+    """Crea le etichette di default se il registro è vuoto."""
+    data = _load()
+    if data:
+        return
+    for name, color in DEFAULT_LABELS.items():
+        data[name] = color
+    _save(data)
 
 
 def parse_labels(text: str) -> list[str]:
@@ -118,9 +151,11 @@ def parse_labels(text: str) -> list[str]:
     return out
 
 
-def remove_label(name: str) -> None:
-    """Rimuove un'etichetta dal registro."""
+def set_color(name: str, color: str) -> None:
+    """Imposta/aggiorna il colore di un'etichetta."""
+    name = (name or "").strip()
+    if not name:
+        return
     data = _load()
-    if name in data:
-        del data[name]
-        _save(data)
+    data[name] = color
+    _save(data)

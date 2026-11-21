@@ -192,29 +192,60 @@ class SettingsPanel(QWidget):
         # 2. Match sul titolo della QGroupBox
         if query in section.title().lower():
             return True
-        # 3. Match su tutto il testo contenuto nei child widget
+        haystack = self._build_search_haystack(name, section)
+        # Match su query intera o su ogni parola (dinamico)
+        if query in haystack:
+            return True
+        for word in query.split():
+            if word and word in haystack:
+                return True
+        return False
+
+    def _build_search_haystack(self, name: str, section: QGroupBox) -> str:
+        """Costruisce l'indice testuale dinamico di una sezione."""
         haystack_parts: list[str] = [name.lower(), section.title().lower()]
-        from PyQt6.QtWidgets import QLabel, QPushButton, QLineEdit, QComboBox, QCheckBox
+        from PyQt6.QtWidgets import (
+            QLabel, QPushButton, QLineEdit, QComboBox, QCheckBox,
+            QRadioButton, QSpinBox, QDoubleSpinBox, QTextEdit,
+            QPlainTextEdit, QTabBar, QAbstractItemView,
+        )
         for child in section.findChildren(QObject):
-            # Cerca in tutti i widget che hanno proprietà testuali
-            if isinstance(child, QLabel):
-                haystack_parts.append(child.text().lower())
-            elif isinstance(child, QPushButton):
-                haystack_parts.append(child.text().lower())
-                tip = child.toolTip()
-                if tip:
-                    haystack_parts.append(tip.lower())
-            elif isinstance(child, QLineEdit):
-                ph = child.placeholderText()
-                if ph:
-                    haystack_parts.append(ph.lower())
-            elif isinstance(child, QComboBox):
+            text = None
+            if hasattr(child, "text") and callable(child.text):
+                try:
+                    text = child.text()
+                except Exception:
+                    text = None
+            if text:
+                haystack_parts.append(str(text).lower())
+            for attr in ("toolTip", "placeholderText", "statusTip",
+                         "whatsThis", "accessibleName", "objectName"):
+                getter = getattr(child, attr, None)
+                if callable(getter):
+                    try:
+                        val = getter()
+                    except Exception:
+                        val = None
+                    if val:
+                        haystack_parts.append(str(val).lower())
+            if isinstance(child, QComboBox):
                 for i in range(child.count()):
                     haystack_parts.append(child.itemText(i).lower())
-            elif isinstance(child, QCheckBox):
-                haystack_parts.append(child.text().lower())
-        haystack = " ".join(haystack_parts)
-        return query in haystack
+            if isinstance(child, QAbstractItemView):
+                model = child.model()
+                if model is not None:
+                    try:
+                        for row in range(model.rowCount()):
+                            idx = model.index(row, 0)
+                            val = model.data(idx)
+                            if val:
+                                haystack_parts.append(str(val).lower())
+                    except Exception:
+                        pass
+            if isinstance(child, QTabBar):
+                for i in range(child.count()):
+                    haystack_parts.append(child.tabText(i).lower())
+        return " ".join(haystack_parts)
 
     def _clear_search(self):
         """Cancella la ricerca e mostra tutte le sezioni."""
