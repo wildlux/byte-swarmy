@@ -67,5 +67,7 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: pytest-profile
-          path: pytest_profile.log
+          path: |
+            pytest_profile.log
+            collect.log
           retention-days: 14
