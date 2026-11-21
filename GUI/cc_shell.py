@@ -258,6 +258,16 @@ class ShellMixin:
         except Exception as e:
             print(f"skill completion init fallito: {e}")
 
+        # Autocompletamento etichette con trigger "#": mostra tutte le
+        # etichette registrate con il loro colore.
+        try:
+            from GUI.label_completion import LabelMentionCompleter
+            self.label_completer = LabelMentionCompleter(self.cmd_input)
+            self.label_completer.activated[QModelIndex].connect(
+                self._on_label_mention_activated)
+        except Exception as e:
+            print(f"label completion init fallito: {e}")
+
         send = QPushButton("Invia")
         send.setObjectName("primary_btn")
         send.setMinimumHeight(34)
@@ -269,32 +279,53 @@ class ShellMixin:
         return bar
 
     def _on_cmd_text_changed(self, text: str) -> None:
-        """Mostra il completer skill quando l'utente digita '@'."""
-        if not hasattr(self, "skill_completer"):
-            return
+        """Mostra il completer skill ('@') o etichette ('#')."""
         cursor = self.cmd_input.cursorPosition()
-        idx = text.rfind("@", 0, cursor)
-        if idx == -1:
-            self.skill_completer.popup().hide()
+        at_idx = text.rfind("@", 0, cursor)
+        hash_idx = text.rfind("#", 0, cursor)
+        trigger_idx = max(at_idx, hash_idx)
+        trigger_char = "@" if at_idx >= hash_idx else "#"
+        if trigger_idx == -1:
+            if hasattr(self, "skill_completer"):
+                self.skill_completer.popup().hide()
+            if hasattr(self, "label_completer"):
+                self.label_completer.popup().hide()
             return
-        after = text[idx + 1:cursor]
+        after = text[trigger_idx + 1:cursor]
         if " " in after or "\n" in after:
-            self.skill_completer.popup().hide()
+            if hasattr(self, "skill_completer"):
+                self.skill_completer.popup().hide()
+            if hasattr(self, "label_completer"):
+                self.label_completer.popup().hide()
             return
-        self.skill_completer.setCompletionPrefix(after)
-        cr = self.cmd_input.cursorRect()
-        self.skill_completer.complete(cr)
+        if trigger_char == "@" and hasattr(self, "skill_completer"):
+            self.cmd_input.setCompleter(self.skill_completer)
+            self.skill_completer.setCompletionPrefix(after)
+            cr = self.cmd_input.cursorRect()
+            self.skill_completer.complete(cr)
+        elif trigger_char == "#" and hasattr(self, "label_completer"):
+            self.cmd_input.setCompleter(self.label_completer)
+            self.label_completer.setCompletionPrefix(after)
+            cr = self.cmd_input.cursorRect()
+            self.label_completer.complete(cr)
 
-    def _on_skill_mention_activated(self, index: QModelIndex) -> None:
-        """Aggiunge uno spazio dopo il nome della skill inserito dal completer."""
+    def _on_skill_mention_activated(self, index) -> None:
+        """Aggiunge uno spazio dopo il nome della skill inserito."""
         if not hasattr(self, "skill_completer"):
             return
-        # Il completer ha già inserito il nome (EditRole); aggiungo spazio.
         text = self.cmd_input.text()
-        cursor = self.cmd_input.cursorPosition()
-        if cursor < len(text) or not text.endswith(" "):
+        if not text.endswith(" "):
             self.cmd_input.setText(text + " ")
-            self.cmd_input.setCursorPosition(len(self.cmd_input.text()))
+        self.cmd_input.setCursorPosition(len(self.cmd_input.text()))
+
+    def _on_label_mention_activated(self, index) -> None:
+        """Aggiunge uno spazio dopo il nome dell'etichetta inserito."""
+        if not hasattr(self, "label_completer"):
+            return
+        text = self.cmd_input.text()
+        if not text.endswith(" "):
+            self.cmd_input.setText(text + " ")
+        self.cmd_input.setCursorPosition(len(self.cmd_input.text()))
 
     def _show_credits(self):
         """Mostra l'overlay dei ringraziamenti."""
