@@ -277,6 +277,25 @@ compute grezzo.
 
 ---
 
+## 🐳 Test isolati — avvio separato (Docker)
+
+> Aggiunto 2026-11-21 — richiesta utente: sezione dedicata ai test con
+> avvio separato (es. Docker), **nessun test eseguito** (manca spazio
+> sul PC locale).
+
+### Contenuto
+- Obiettivo: esecuzione della suite di test in ambiente isolato
+  (container Docker) per avvii separati dalla sessione GUI/orchestratore.
+- Vincoli: `state/pause.flag` per live e2e; mai `--project .`;
+  `QT_QPA_PLATFORM=offscreen`.
+
+### Azioni
+- [ ] (prossima) Sviluppare compose/docker per la suite — STOP: spazio
+      disco PC insufficiente, nessun run previsto adesso.
+- [ ] (prossima) Documentare comandi container (pytest, lint, pyflakes).
+
+---
+
 ## 🧪 Tabella dei run di test (2026-11-19)
 
 | Run | Log | Avvio | Fine (eff.) | Durata | Risultato | Chiusura |
