@@ -267,13 +267,15 @@ class CenterArea(QWidget):
             if key == "coda":
                 self.panel_pages["coda"].refresh()
 
-    def _on_global_search(self, text: str):
+    def _on_global_search(self, text=None):
         """Filtra le card (plancia + strumenti) in base al testo cercato.
 
-        Non nasconde nulla: tutte le card restano visibili per preservare
-        la memoria visiva. Quelle che matchano vengono evidenziate
-        (bordo accent + sfondo leggero), le altre restano in opacità ridotta.
+        Può essere chiamato sia da QLineEdit.textChanged (str) sia da
+        QComboBox.currentIndexChanged (int): in quest'ultimo caso si usa il
+        testo corrente del campo ricerca.
         """
+        if not isinstance(text, str):
+            text = self.global_search.text() if hasattr(self, "global_search") else ""
         query = text.strip().lower()
         category = self.search_category.currentText() if hasattr(self, "search_category") else "Tutte le categorie"
         all_cards = list(self.cards.items()) + list(self.tools_cards.items())

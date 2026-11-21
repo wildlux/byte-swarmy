@@ -321,6 +321,27 @@ compute grezzo.
 
 ---
 
+## 🧠 Tool hallucination — tool inventati nel ReAct
+
+> Aggiunto 2026-11-21 — problema utente: il modello ha inventato un tool
+> (`check_directory`) non presente nella lista disponibile, causando
+> `ERROR: unknown tool 'check_directory'`. Il task è comunque stato
+> completato via fallback.
+
+### Root cause
+- Il loop ReAct non valida i nomi tool prima della chiamata.
+- Il modello piccolo allucina tool plausibili ma non esistenti.
+- Nessun gate che rifiuti/riproponga il tool corretto.
+
+### Fix proposto
+- [ ] (prossima) Validare il nome tool contro la lista disponibile prima
+      dell'esecuzione; se sconosciuto, chiedere al modello di riprovare
+      con un tool valido (correction prompt).
+- [ ] (prossima) Iniettare la lista tool nel prompt del ReAct (già
+      presente? verificare).
+
+---
+
 ## 🧪 Tabella dei run di test (2026-11-19)
 |---|---|---|---|---|---|---|
 | 1 | `/tmp/opencode/pytest_full_run.log` | 00:12:34 | 00:29:52 | 0:17:18 | 261 passed, 3 skipped, **9 warn**, 6 sub — `INT` (SIGINT) | chiusa (parziale) |
