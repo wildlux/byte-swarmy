@@ -920,6 +920,54 @@ class Worker:
                 f"[{self.agent_id}] routing fail-open: {e}")
             return (self.model_key, "", "")
 
+    def _make_clarify_ask_fn(self):
+        """Costruisce un ask_fn per il clarifier (fail-open).
+
+        - Se stdin è un tty → input() (CLI).
+        - Altrimenti (GUI/headless) → scrive le domande su
+          state/clarification.txt e attende state/clarification_answer.txt
+          (timeout 30 s, polling 1 s). Se non arriva risposta, restituisce
+          "" (fail-open: procede senza chiarimento).
+        """
+        import sys as _sys
+
+        if _sys.stdin is not None and getattr(_sys.stdin, "isatty", lambda: False)():
+            def _cli(text):
+                try:
+                    return input(text)
+                except (EOFError, KeyboardInterrupt):
+                    return ""
+            return _cli
+
+        def _file(text):
+            try:
+                p = Path("state")
+                p.mkdir(parents=True, exist_ok=True)
+                (p / "clarification.txt").write_text(
+                    text, encoding="utf-8")
+                ans_path = p / "clarification_answer.txt"
+                for _ in range(30):
+                    if ans_path.exists():
+                        ans = ans_path.read_text(encoding="utf-8").strip()
+                        try:
+                            ans_path.unlink(missing_ok=True)
+                        except Exception:
+                            pass
+                        try:
+                            (p / "clarification.txt").unlink(missing_ok=True)
+                        except Exception:
+                            pass
+                        return ans
+                    time.sleep(1)
+                try:
+                    (p / "clarification.txt").unlink(missing_ok=True)
+                except Exception:
+                    pass
+                return ""
+            except Exception:
+                return ""
+        return _file
+
     def _execute_direct(self, task: dict) -> str:
         """Generazione DIRETTA per modelli senza tool (CORE.skill_executor).
 
@@ -946,7 +994,9 @@ class Worker:
             pass
 
         res = run_direct(task, project_root, model_key=self.model_key,
-                         client=self.models, max_retries=3)
+                         client=self.models, max_retries=3,
+                         clarify=True,
+                         ask_fn=self._make_clarify_ask_fn())
         self.last_attempts = int(res.get("attempts") or 1)
         self.last_code = str(res.get("code") or "")
         # 🆕 Fase 7: la decisione di routing visibile nei log/memoria

@@ -311,11 +311,13 @@ compute grezzo.
 - `GUI/clarification_dialog.py` esiste ma non è usato da nessuno.
 
 ### Fix proposto
-- [ ] (prossima) Aggiungere pattern "vague software creation" al clarifier ✅ (fatto 2026-11-21).
-- [ ] (prossima) Collegare `clarify=True` in `_execute_direct` con `ask_fn`:
-      GUI → `show_clarification` (dialog su thread principale), CLI → `input()`,
-      headless → log + `state/clarification.txt` (fail-open).
-- [ ] (prossima) Aggiungere regola AGENT.md #10 "Clarify Before Acting" ✅ (fatto 2026-11-21).
+- [x] (fatto 2026-11-21) Aggiungere pattern "vague software creation" al clarifier.
+- [x] (fatto 2026-11-21) Collegare `clarify=True` in `_execute_direct` con `ask_fn`:
+      GUI/headless fallback (input() se tty, altrimenti
+      state/clarification.txt con timeout 30 s, fail-open).
+- [x] (fatto 2026-11-21) Aggiungere regola AGENT.md #10 "Clarify Before Acting".
+- [ ] (prossima) Integrazione GUI dialog completa (show_clarification su
+      thread principale via Qt signal/slot) — richiede spazio disco per test.
 
 ---
 
