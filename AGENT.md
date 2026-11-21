@@ -211,6 +211,9 @@ The worker can call any of these tools through the sandboxed `ToolSet`:
 8. **Streaming Transparency**: tokens are streamed to
    `state/streaming.txt` so the user can see the agent thinking in real
    time; the GUI Live Activity Panel polls every 300 ms.
+9. **Response Format — Tables**: when a response reports status,
+   comparisons, or options, prefer a Markdown table for readability;
+   use prose for pure narrative. User preference registered 2026-11-21.
 
 ## 🔒 Sicurezza — Threat Model e Procedure
 
