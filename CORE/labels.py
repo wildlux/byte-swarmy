@@ -125,13 +125,15 @@ DEFAULT_LABELS = {
 
 
 def ensure_default_labels() -> None:
-    """Crea le etichette di default se il registro è vuoto."""
+    """Crea le etichette di default mancanti (non sovrascrive quelle esistenti)."""
     data = _load()
-    if data:
-        return
+    changed = False
     for name, color in DEFAULT_LABELS.items():
-        data[name] = color
-    _save(data)
+        if name not in data:
+            data[name] = color
+            changed = True
+    if changed:
+        _save(data)
 
 
 def parse_labels(text: str) -> list[str]:
@@ -159,3 +161,26 @@ def set_color(name: str, color: str) -> None:
     data = _load()
     data[name] = color
     _save(data)
+
+
+def remove_label(name: str) -> None:
+    """Rimuove un'etichetta dal registro."""
+    data = _load()
+    if name in data:
+        del data[name]
+        _save(data)
+
+
+def rename_label(old: str, new: str) -> bool:
+    """Rinomina un'etichetta (preserva il colore)."""
+    old = (old or "").strip()
+    new = (new or "").strip()
+    if not old or not new or old == new:
+        return False
+    data = _load()
+    if old not in data:
+        return False
+    color = data.pop(old)
+    data[new] = color
+    _save(data)
+    return True

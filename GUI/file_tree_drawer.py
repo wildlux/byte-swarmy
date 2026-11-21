@@ -1551,7 +1551,16 @@ class FileTreeDrawer(QFrame):
                 act_new = label_menu.addAction("➕ Nuova etichetta...")
                 act_new.triggered.connect(
                     lambda: self._new_task_label(task_id))
-                act_clear = label_menu.addAction("🧹 Rimuovi tutte")
+                act_rename = label_menu.addAction("✏️ Rinomina etichetta...")
+                act_rename.triggered.connect(
+                    lambda: self._rename_task_label(task_id))
+                act_color = label_menu.addAction("🎨 Cambia colore etichetta...")
+                act_color.triggered.connect(
+                    lambda: self._change_task_label_color(task_id))
+                act_remove = label_menu.addAction("🗑️ Elimina etichetta...")
+                act_remove.triggered.connect(
+                    lambda: self._remove_task_label(task_id))
+                act_clear = label_menu.addAction("🧹 Rimuovi tutte dal task")
                 act_clear.triggered.connect(
                     lambda: self._clear_task_labels(task_id))
             except Exception:
@@ -2087,6 +2096,96 @@ class FileTreeDrawer(QFrame):
         """Ricarica la lista task (alias per _refresh)."""
         try:
             self._force_refresh_tasks()
+        except Exception:
+            pass
+
+    def _rename_task_label(self, task_id: str) -> None:
+        """Rinomina un'etichetta esistente."""
+        try:
+            from PyQt6.QtWidgets import QInputDialog
+            from CORE import labels as L
+            labels_list = [l["name"] for l in L.list_labels()]
+            if not labels_list:
+                return
+            old, ok = QInputDialog.getItem(
+                self, "Rinomina etichetta", "Etichetta da rinominare:",
+                labels_list, 0, False)
+            if not (ok and old):
+                return
+            new, ok2 = QInputDialog.getText(
+                self, "Rinomina etichetta", "Nuovo nome:", text=old)
+            if not (ok2 and new.strip() and new.strip() != old):
+                return
+            L.rename_label(old, new.strip())
+            # Aggiorna i task che usavano il vecchio nome
+            from GUI.task_queue import load_tasks, update_task_labels
+            project_path = self.main_win.get_current_project_path() if getattr(self, "main_win", None) else None
+            tasks = load_tasks(project_path)
+            for t in tasks:
+                tlabels = t.get("labels") or []
+                if isinstance(tlabels, str):
+                    import json as _j
+                    try:
+                        tlabels = _j.loads(tlabels)
+                    except Exception:
+                        tlabels = []
+                if old in tlabels:
+                    new_labels = [new.strip() if l == old else l for l in tlabels]
+                    update_task_labels(t.get("id"), new_labels, project_path)
+            self._refresh_task_list()
+        except Exception:
+            pass
+
+    def _change_task_label_color(self, task_id: str) -> None:
+        """Cambia il colore di un'etichetta esistente."""
+        try:
+            from PyQt6.QtWidgets import QInputDialog, QColorDialog
+            from CORE import labels as L
+            labels_list = [l["name"] for l in L.list_labels()]
+            if not labels_list:
+                return
+            name, ok = QInputDialog.getItem(
+                self, "Cambia colore", "Etichetta:", labels_list, 0, False)
+            if not (ok and name):
+                return
+            picked = QColorDialog.getColor()
+            if not picked.isValid():
+                return
+            L.set_color(name, picked.name())
+            self._refresh_task_list()
+        except Exception:
+            pass
+
+    def _remove_task_label(self, task_id: str) -> None:
+        """Rimuove un'etichetta dal registro (e dai task)."""
+        try:
+            from PyQt6.QtWidgets import QInputDialog
+            from CORE import labels as L
+            labels_list = [l["name"] for l in L.list_labels()]
+            if not labels_list:
+                return
+            name, ok = QInputDialog.getItem(
+                self, "Elimina etichetta", "Etichetta da eliminare:",
+                labels_list, 0, False)
+            if not (ok and name):
+                return
+            L.remove_label(name)
+            # Rimuove dai task
+            from GUI.task_queue import load_tasks, update_task_labels
+            project_path = self.main_win.get_current_project_path() if getattr(self, "main_win", None) else None
+            tasks = load_tasks(project_path)
+            for t in tasks:
+                tlabels = t.get("labels") or []
+                if isinstance(tlabels, str):
+                    import json as _j
+                    try:
+                        tlabels = _j.loads(tlabels)
+                    except Exception:
+                        tlabels = []
+                if name in tlabels:
+                    new_labels = [l for l in tlabels if l != name]
+                    update_task_labels(t.get("id"), new_labels, project_path)
+            self._refresh_task_list()
         except Exception:
             pass
 

@@ -449,12 +449,16 @@ class TaskSchedulerPanel(QWidget):
             act = label_menu.addAction(f"{mark}{lab['name']}  {lab['color']}")
             act.setData(lab["name"])
         act_new = label_menu.addAction("➕ Nuova etichetta...")
-        act_clear = label_menu.addAction("🧹 Rimuovi tutte")
+        act_rename = label_menu.addAction("✏️ Rinomina etichetta...")
+        act_color = label_menu.addAction("🎨 Cambia colore etichetta...")
+        act_remove = label_menu.addAction("🗑️ Elimina etichetta...")
+        act_clear = label_menu.addAction("🧹 Rimuovi tutte dal task")
 
         chosen = menu.exec(self.task_list_widget.mapToGlobal(pos))
         self._handle_context_choice(
             chosen, task, task_id, project_path, labels, all_labels,
-            act_edit, act_del, act_new, act_clear)
+            act_edit, act_del, act_new, act_rename, act_color, act_remove,
+            act_clear)
 
     def _task_labels(self, task: dict) -> list:
         """Estrae la lista di etichette da un task (robusto a JSON string)."""
@@ -469,7 +473,8 @@ class TaskSchedulerPanel(QWidget):
 
     def _handle_context_choice(self, chosen, task, task_id, project_path,
                               labels, all_labels, act_edit, act_del,
-                              act_new, act_clear) -> None:
+                              act_new, act_rename, act_color, act_remove,
+                              act_clear) -> None:
         """Gestisce la scelta del menu contestuale (flat, no nesting profondo)."""
         from PyQt6.QtWidgets import QInputDialog
         from CORE import labels as L
@@ -493,13 +498,22 @@ class TaskSchedulerPanel(QWidget):
                 update_task_labels(task_id, new_labels, project_path)
                 self._refresh_list()
             return
+        if chosen is act_rename:
+            self._handle_rename_label(project_path, all_labels)
+            return
+        if chosen is act_color:
+            self._handle_change_label_color(all_labels)
+            return
+        if chosen is act_remove:
+            self._handle_remove_label(all_labels, project_path)
+            return
         if chosen is act_clear:
             update_task_labels(task_id, [], project_path)
             self._refresh_list()
             return
-        # Etichetta esistente: toggle
         if chosen is None:
             return
+        # Etichetta esistente: toggle
         name = chosen.data()
         if name is None:
             return
@@ -509,6 +523,79 @@ class TaskSchedulerPanel(QWidget):
             new_labels = list(labels) + [name]
             L.get_or_create_label(name)
         update_task_labels(task_id, new_labels, project_path)
+        self._refresh_list()
+
+    def _handle_rename_label(self, project_path, all_labels) -> None:
+        from PyQt6.QtWidgets import QInputDialog
+        from CORE import labels as L
+        from GUI.task_queue import update_task_labels, load_tasks
+        labels_list = [l["name"] for l in all_labels]
+        if not labels_list:
+            return
+        old, ok = QInputDialog.getItem(
+            self, "Rinomina etichetta", "Etichetta da rinominare:",
+            labels_list, 0, False)
+        if not (ok and old):
+            return
+        new, ok2 = QInputDialog.getText(
+            self, "Rinomina etichetta", "Nuovo nome:", text=old)
+        if not (ok2 and new.strip() and new.strip() != old):
+            return
+        L.rename_label(old, new.strip())
+        tasks = load_tasks(project_path)
+        for t in tasks:
+            tlabels = t.get("labels") or []
+            if isinstance(tlabels, str):
+                import json as _j
+                try:
+                    tlabels = _j.loads(tlabels)
+                except Exception:
+                    tlabels = []
+            if old in tlabels:
+                nl = [new.strip() if l == old else l for l in tlabels]
+                update_task_labels(t.get("id"), nl, project_path)
+        self._refresh_list()
+
+    def _handle_change_label_color(self, all_labels) -> None:
+        from PyQt6.QtWidgets import QInputDialog, QColorDialog
+        from CORE import labels as L
+        labels_list = [l["name"] for l in all_labels]
+        if not labels_list:
+            return
+        name, ok = QInputDialog.getItem(
+            self, "Cambia colore", "Etichetta:", labels_list, 0, False)
+        if not (ok and name):
+            return
+        picked = QColorDialog.getColor()
+        if picked.isValid():
+            L.set_color(name, picked.name())
+            self._refresh_list()
+
+    def _handle_remove_label(self, project_path, all_labels) -> None:
+        from PyQt6.QtWidgets import QInputDialog
+        from CORE import labels as L
+        from GUI.task_queue import update_task_labels, load_tasks
+        labels_list = [l["name"] for l in all_labels]
+        if not labels_list:
+            return
+        name, ok = QInputDialog.getItem(
+            self, "Elimina etichetta", "Etichetta da eliminare:",
+            labels_list, 0, False)
+        if not (ok and name):
+            return
+        L.remove_label(name)
+        tasks = load_tasks(project_path)
+        for t in tasks:
+            tlabels = t.get("labels") or []
+            if isinstance(tlabels, str):
+                import json as _j
+                try:
+                    tlabels = _j.loads(tlabels)
+                except Exception:
+                    tlabels = []
+            if name in tlabels:
+                nl = [l for l in tlabels if l != name]
+                update_task_labels(t.get("id"), nl, project_path)
         self._refresh_list()
 
     def _start_edit_task(self, task: dict = None,
