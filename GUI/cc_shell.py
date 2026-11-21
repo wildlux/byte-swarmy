@@ -13,7 +13,7 @@ import os
 from pathlib import Path
 
 from PyQt6 import QtWidgets
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QModelIndex
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QLineEdit, QMenu, QProgressBar,
@@ -246,6 +246,18 @@ class ShellMixin:
         self.cmd_input.setPlaceholderText("Comando o prompt (premi Invia; validazione pre-flight automatica)")
         lay.addWidget(self.cmd_input)
 
+        # Autocompletamento skill con trigger "@": mostra tutte le skill
+        # operative con stato abilitato/disabilitato.
+        try:
+            from GUI.skill_completion import SkillMentionCompleter
+            self.skill_completer = SkillMentionCompleter(self.cmd_input)
+            self.cmd_input.setCompleter(self.skill_completer)
+            self.cmd_input.textChanged.connect(self._on_cmd_text_changed)
+            self.skill_completer.activated[QModelIndex].connect(
+                self._on_skill_mention_activated)
+        except Exception as e:
+            print(f"skill completion init fallito: {e}")
+
         send = QPushButton("Invia")
         send.setObjectName("primary_btn")
         send.setMinimumHeight(34)
@@ -255,6 +267,34 @@ class ShellMixin:
         self.cmd_input.returnPressed.connect(self._send_command)
         lay.addWidget(send)
         return bar
+
+    def _on_cmd_text_changed(self, text: str) -> None:
+        """Mostra il completer skill quando l'utente digita '@'."""
+        if not hasattr(self, "skill_completer"):
+            return
+        cursor = self.cmd_input.cursorPosition()
+        idx = text.rfind("@", 0, cursor)
+        if idx == -1:
+            self.skill_completer.popup().hide()
+            return
+        after = text[idx + 1:cursor]
+        if " " in after or "\n" in after:
+            self.skill_completer.popup().hide()
+            return
+        self.skill_completer.setCompletionPrefix(after)
+        cr = self.cmd_input.cursorRect()
+        self.skill_completer.complete(cr)
+
+    def _on_skill_mention_activated(self, index: QModelIndex) -> None:
+        """Aggiunge uno spazio dopo il nome della skill inserito dal completer."""
+        if not hasattr(self, "skill_completer"):
+            return
+        # Il completer ha già inserito il nome (EditRole); aggiungo spazio.
+        text = self.cmd_input.text()
+        cursor = self.cmd_input.cursorPosition()
+        if cursor < len(text) or not text.endswith(" "):
+            self.cmd_input.setText(text + " ")
+            self.cmd_input.setCursorPosition(len(self.cmd_input.text()))
 
     def _show_credits(self):
         """Mostra l'overlay dei ringraziamenti."""
