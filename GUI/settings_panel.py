@@ -136,6 +136,7 @@ class SettingsPanel(QWidget):
         _add_section("git", self._build_git_section())
         _add_section("audit", self._build_audit_section())
         _add_section("pesi huggingface", self._build_weightspace_section())
+        _add_section("etichette", self._build_labels_section())
 
         # Le sezioni riempiono lo spazio disponibile (niente stretch finale
         # che lasciava area vuota): l'audit_output usa il posto in più.
@@ -314,6 +315,106 @@ class SettingsPanel(QWidget):
         outer.addLayout(self.git_list_container)
 
         return box
+
+    def _build_labels_section(self) -> QFrame:
+        """Sezione per gestire le etichette (tag) e i loro colori."""
+        from CORE import labels as L
+        from PyQt6.QtWidgets import QColorDialog, QPushButton, QLabel, QHBoxLayout, QWidget
+
+        box = QGroupBox("🏷️ Etichette — colori")
+
+        outer = QVBoxLayout(box)
+        outer.setSpacing(8)
+        outer.setContentsMargins(14, 14, 14, 14)
+
+        expl = QLabel(
+            "Gestisci qui le etichette (tag) usate nei task. Ogni etichetta ha "
+            "un nome e un colore. Il colore viene scelto da questa sezione; "
+            "se il nome corrisponde a un colore noto (es. 'Arancione') viene "
+            "usato quel colore, altrimenti un colore deterministico."
+        )
+        expl.setWordWrap(True)
+        expl.setStyleSheet("font-size:11px;")
+        _theme_prop(expl, "role", "muted")
+        outer.addWidget(expl)
+
+        # Form per aggiungere una nuova etichetta
+        form_row = QHBoxLayout()
+        form_row.setSpacing(8)
+        self._label_name_edit = QLineEdit()
+        self._label_name_edit.setPlaceholderText("Nome etichetta (es. unione_merge)")
+        form_row.addWidget(self._label_name_edit, stretch=1)
+        add_btn = QPushButton("➕ Aggiungi")
+        add_btn.clicked.connect(self._on_add_label)
+        form_row.addWidget(add_btn)
+        outer.addLayout(form_row)
+
+        # Lista etichette esistenti
+        outer.addWidget(QLabel("<b>Etichette registrate:</b>"))
+        self._labels_container = QVBoxLayout()
+        self._labels_container.setSpacing(4)
+        outer.addLayout(self._labels_container)
+        self._refresh_labels_list()
+
+        return box
+
+    def _on_add_label(self) -> None:
+        from CORE import labels as L
+        from PyQt6.QtWidgets import QColorDialog
+        name = self._label_name_edit.text().strip()
+        if not name:
+            return
+        from CORE.labels import COLOR_NAMES
+        color = COLOR_NAMES.get(name.lower())
+        if color is None:
+            picked = QColorDialog.getColor()
+            if not picked.isValid():
+                return
+            color = picked.name()
+        L.get_or_create_label(name)
+        L.set_color(name, color)
+        self._label_name_edit.clear()
+        self._refresh_labels_list()
+
+    def _refresh_labels_list(self) -> None:
+        from CORE import labels as L
+        from PyQt6.QtWidgets import QColorDialog, QPushButton, QLabel, QHBoxLayout, QWidget
+        while self._labels_container.count():
+            item = self._labels_container.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.deleteLater()
+        for lab in L.list_labels():
+            row = QHBoxLayout()
+            row.setSpacing(8)
+            swatch = QLabel("  ")
+            swatch.setFixedWidth(24)
+            swatch.setStyleSheet(
+                f"background:{lab['color']}; border:1px solid #555; "
+                f"border-radius:4px;")
+            row.addWidget(swatch)
+            name_lbl = QLabel(lab["name"])
+            name_lbl.setStyleSheet("font-size:12px;")
+            row.addWidget(name_lbl, stretch=1)
+            color_lbl = QLabel(lab["color"])
+            _theme_prop(color_lbl, "role", "muted")
+            row.addWidget(color_lbl)
+            btn = QPushButton("🎨 Cambia colore")
+            btn.clicked.connect(
+                lambda _=False, n=lab["name"]: self._on_change_label_color(n))
+            row.addWidget(btn)
+            container = QWidget()
+            container.setLayout(row)
+            self._labels_container.addWidget(container)
+
+    def _on_change_label_color(self, name: str) -> None:
+        from CORE import labels as L
+        from PyQt6.QtWidgets import QColorDialog
+        picked = QColorDialog.getColor()
+        if not picked.isValid():
+            return
+        L.set_color(name, picked.name())
+        self._refresh_labels_list()
 
     def _build_audit_section(self) -> QFrame:
         """Sezione per eseguire l'audit mensile del software.
