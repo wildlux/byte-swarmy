@@ -35,6 +35,16 @@ jobs:
           mkdir -p state
           touch state/pause.flag
 
+      - name: Diagnostica collezione (--collect-only)
+        run: |
+          set +e
+          timeout 300 python -m pytest tests/ --collect-only -q -p no:cacheprovider > collect.log 2>&1
+          code=$?
+          echo "EXIT=$code" >> collect.log
+          echo "--- ultime righe ---"
+          tail -60 collect.log
+          exit $code
+
       - name: Profilazione completa (--durations=0)
         env:
           QT_QPA_PLATFORM: offscreen
