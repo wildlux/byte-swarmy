@@ -1525,6 +1525,40 @@ class FileTreeDrawer(QFrame):
 
             menu.addSeparator()
 
+            # Sottomenu etichette
+            label_menu = menu.addMenu("🏷️ Etichetta")
+            try:
+                from CORE import labels as L
+                from GUI.task_queue import update_task_labels, load_tasks
+                pp = (self.main_win.get_current_project_path()
+                      if getattr(self, "main_win", None) else None)
+                tasks = load_tasks(pp)
+                task = next((t for t in tasks if t.get("id") == task_id), None)
+                labels = task.get("labels", []) if task else []
+                if isinstance(labels, str):
+                    import json as _j
+                    try:
+                        labels = _j.loads(labels)
+                    except Exception:
+                        labels = []
+                all_labels = L.list_labels()
+                for lab in all_labels:
+                    mark = "✓ " if lab["name"] in labels else "   "
+                    act = label_menu.addAction(f"{mark}{lab['name']}  {lab['color']}")
+                    act.triggered.connect(
+                        lambda _=False, n=lab["name"], tid=task_id:
+                        self._toggle_task_label(tid, n))
+                act_new = label_menu.addAction("➕ Nuova etichetta...")
+                act_new.triggered.connect(
+                    lambda: self._new_task_label(task_id))
+                act_clear = label_menu.addAction("🧹 Rimuovi tutte")
+                act_clear.triggered.connect(
+                    lambda: self._clear_task_labels(task_id))
+            except Exception:
+                pass
+
+            menu.addSeparator()
+
             act_delete = QAction("🗑 Elimina task", self)
             act_delete.triggered.connect(
                 lambda: self._delete_task_with_refresh(task_id, item))
@@ -1973,6 +2007,88 @@ class FileTreeDrawer(QFrame):
                     parent._refresh_task_list()
         except Exception as e:
             print(f"Errore delete: {e}")
+
+    def _toggle_task_label(self, task_id: str, label_name: str) -> None:
+        """Aggiunge/rimuove un'etichetta da un task."""
+        try:
+            from GUI.task_queue import load_tasks, update_task_labels
+            from CORE import labels as L
+            project_path = (
+            self.main_win.get_current_project_path()
+            if getattr(self, "main_win", None) else None)
+            tasks = load_tasks(project_path)
+            task = next((t for t in tasks if t.get("id") == task_id), None)
+            if not task:
+                return
+            labels = task.get("labels") or []
+            if isinstance(labels, str):
+                import json as _j
+                try:
+                    labels = _j.loads(labels)
+                except Exception:
+                    labels = []
+            labels = list(labels)
+            if label_name in labels:
+                labels = [l for l in labels if l != label_name]
+            else:
+                labels.append(label_name)
+                L.get_or_create_label(label_name)
+            update_task_labels(task_id, labels, project_path)
+            self._refresh_task_list()
+        except Exception:
+            pass
+
+    def _new_task_label(self, task_id: str) -> None:
+        """Crea una nuova etichetta e la assegna al task."""
+        try:
+            from PyQt6.QtWidgets import QInputDialog
+            name, ok = QInputDialog.getText(
+                self, "Nuova etichetta", "Nome etichetta:")
+            if not (ok and name.strip()):
+                return
+            from CORE import labels as L
+            from GUI.task_queue import update_task_labels, load_tasks
+            L.get_or_create_label(name.strip())
+            project_path = (
+            self.main_win.get_current_project_path()
+            if getattr(self, "main_win", None) else None)
+            tasks = load_tasks(project_path)
+            task = next((t for t in tasks if t.get("id") == task_id), None)
+            if not task:
+                return
+            labels = task.get("labels") or []
+            if isinstance(labels, str):
+                import json as _j
+                try:
+                    labels = _j.loads(labels)
+                except Exception:
+                    labels = []
+            labels = list(labels)
+            if name.strip() not in labels:
+                labels.append(name.strip())
+            update_task_labels(task_id, labels, project_path)
+            self._refresh_task_list()
+        except Exception:
+            pass
+
+    def _clear_task_labels(self, task_id: str) -> None:
+        """Rimuove tutte le etichette da un task."""
+        try:
+            from GUI.task_queue import update_task_labels
+            project_path = (
+            self.main_win.get_current_project_path()
+            if getattr(self, "main_win", None) else None)
+            update_task_labels(task_id, [], project_path)
+            self._refresh_task_list()
+        except Exception:
+            pass
+
+    def _refresh_task_list(self) -> None:
+        """Ricarica la lista task (alias per _refresh)."""
+        try:
+            self._force_refresh_tasks()
+        except Exception:
+            pass
 
     def _copy_task_id(self, task_id):
         """Copia l'ID del task negli appunti."""

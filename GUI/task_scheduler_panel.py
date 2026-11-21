@@ -433,28 +433,83 @@ class TaskSchedulerPanel(QWidget):
             task = None
         if not task:
             return
-        from PyQt6.QtWidgets import QMenu
+        from PyQt6.QtWidgets import QMenu, QInputDialog
+        from CORE import labels as L
+        from GUI.task_queue import update_task_labels, load_tasks
         menu = QMenu(self)
         act_edit = menu.addAction("✏️ Modifica")
         act_del = menu.addAction("🗑️ Elimina")
+
+        # Sottomenu etichette (popolato da helper per ridurre nesting)
+        label_menu = menu.addMenu("🏷️ Etichetta")
+        labels = self._task_labels(task)
+        all_labels = L.list_labels()
+        for lab in all_labels:
+            mark = "✓ " if lab["name"] in labels else "   "
+            act = label_menu.addAction(f"{mark}{lab['name']}  {lab['color']}")
+            act.setData(lab["name"])
+        act_new = label_menu.addAction("➕ Nuova etichetta...")
+        act_clear = label_menu.addAction("🧹 Rimuovi tutte")
+
         chosen = menu.exec(self.task_list_widget.mapToGlobal(pos))
+        self._handle_context_choice(
+            chosen, task, task_id, project_path, labels, all_labels,
+            act_edit, act_del, act_new, act_clear)
+
+    def _task_labels(self, task: dict) -> list:
+        """Estrae la lista di etichette da un task (robusto a JSON string)."""
+        labels = task.get("labels") or []
+        if isinstance(labels, str):
+            try:
+                import json as _j
+                labels = _j.loads(labels)
+            except Exception:
+                labels = []
+        return list(labels)
+
+    def _handle_context_choice(self, chosen, task, task_id, project_path,
+                              labels, all_labels, act_edit, act_del,
+                              act_new, act_clear) -> None:
+        """Gestisce la scelta del menu contestuale (flat, no nesting profondo)."""
+        from PyQt6.QtWidgets import QInputDialog
+        from CORE import labels as L
+        from GUI.task_queue import update_task_labels
+
         if chosen is act_edit:
             self._start_edit_task(task, project_path)
-        elif chosen is act_del:
-            self.task_list_widget.setCurrentRow(row)
-            self._on_del_task()
-        if row >= len(tasks):
             return
-        from PyQt6.QtWidgets import QMenu
-        menu = QMenu(self)
-        act_edit = menu.addAction("✏️ Modifica")
-        act_del = menu.addAction("🗑️ Elimina")
-        chosen = menu.exec(self.task_list_widget.mapToGlobal(pos))
-        if chosen is act_edit:
-            self._start_edit_task(row)
-        elif chosen is act_del:
-            self.task_list_widget.setCurrentRow(row)
+        if chosen is act_del:
+            self.task_list_widget.setCurrentRow(
+                self.task_list_widget.currentRow())
             self._on_del_task()
+            return
+        if chosen is act_new:
+            name, ok = QInputDialog.getText(
+                self, "Nuova etichetta", "Nome etichetta:")
+            if ok and name.strip():
+                info = L.get_or_create_label(name.strip())
+                new_labels = list(labels) + [info["name"]]
+                new_labels = list(dict.fromkeys(new_labels))
+                update_task_labels(task_id, new_labels, project_path)
+                self._refresh_list()
+            return
+        if chosen is act_clear:
+            update_task_labels(task_id, [], project_path)
+            self._refresh_list()
+            return
+        # Etichetta esistente: toggle
+        if chosen is None:
+            return
+        name = chosen.data()
+        if name is None:
+            return
+        if name in labels:
+            new_labels = [l for l in labels if l != name]
+        else:
+            new_labels = list(labels) + [name]
+            L.get_or_create_label(name)
+        update_task_labels(task_id, new_labels, project_path)
+        self._refresh_list()
 
     def _start_edit_task(self, task: dict = None,
                          project_path: str | None = None):
@@ -543,10 +598,18 @@ class TaskSchedulerPanel(QWidget):
         }
         for i, t in enumerate(tasks):
             icon = status_icon.get(t.get("status", ""), "•")
+            labels = t.get("labels") or []
+            if isinstance(labels, str):
+                try:
+                    import json as _j
+                    labels = _j.loads(labels)
+                except Exception:
+                    labels = []
+            label_txt = ("  [" + ", ".join(f"#{l}" for l in labels) + "]") if labels else ""
             text = (
                 f"{icon} [{i+1}] {str(t.get('id',''))[:12]} — "
                 f"{t.get('title', '?')} — {t.get('status', '?')} "
-                f"— tipo: {t.get('type', '?')}"
+                f"— tipo: {t.get('type', '?')}{label_txt}"
             )
             item = QListWidgetItem(text)
             item.setData(Qt.ItemDataRole.UserRole, t.get("id", ""))
