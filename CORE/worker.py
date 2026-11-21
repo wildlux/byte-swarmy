@@ -1711,6 +1711,10 @@ class Worker:
                 return self.tools.read_document(args[0])
             elif name == "list_refs":
                 return self.tools.list_refs()
+            elif name == "api_lookup":
+                return self.tools.api_lookup(
+                    args[0] if args else "",
+                    args[1] if len(args) > 1 else "")
             elif name == "write_file":
                 return self.tools.write_file(args[0], args[1])
             elif name == "patch_code":

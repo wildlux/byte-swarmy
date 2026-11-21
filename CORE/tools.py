@@ -327,6 +327,7 @@ class ToolSet:
             "git_commit", "git_diff", "git_status", "git_log",
             "git_branch", "git_merge", "git_pull", "git_push", "git_remote",
             "run_test_suite", "list_refs", "list_tools", "diary_llm", "retrieve_similar_task",
+            "api_lookup",
         }
         try:
             from GUI.settings_store import get_usb_tools_enabled
@@ -428,6 +429,51 @@ class ToolSet:
             return "Nessun ref disponibile."
         return "REFS DISPONIBILI (leggi con read_file):\n" + "\n".join(
             "  - GUI/refs/%s" % f for f in files)
+
+    # ----- api_lookup: introspezione runtime di un pacchetto installato -----
+    def api_lookup(self, module: str, symbol: str = "") -> str:
+        """Introspezione runtime di un pacchetto installato (anti-allucinazione).
+
+        Restituisce la firma + docstring di `symbol` in `module`, oppure
+        l'elenco dei simbodo pubblici se `symbol` è vuoto. Funziona per
+        qualsiasi pacchetto installato, incluse API nuove. Fail-open.
+        """
+        import importlib
+        import inspect
+
+        if not isinstance(module, str) or not module.strip():
+            return "ERROR: module richiesto (es. 'json', 'pathlib')."
+        try:
+            mod = importlib.import_module(module.strip())
+        except Exception as e:
+            return f"ERROR: impossibile importare '{module}': {e}"
+
+        if not symbol or not str(symbol).strip():
+            # Elenco simbodo pubblici
+            names = [n for n in dir(mod) if not n.startswith("_")]
+            return ("SIMBODI PUBBLICI di %s (%d):\n" % (module, len(names)) +
+                    ", ".join(names[:80]) +
+                    ("\n... (troncato)" if len(names) > 80 else ""))
+
+        sym = str(symbol).strip()
+        # Supporta "module.sub" o "Class.method"
+        obj = mod
+        for part in sym.split("."):
+            if not hasattr(obj, part):
+                return ("ERROR: simbodo '%s' non trovato in '%s'. "
+                        "Usa api_lookup('%s') per l'elenco." % (sym, module, module))
+            obj = getattr(obj, part)
+
+        lines = [f"{module}.{sym}"]
+        try:
+            sig = inspect.signature(obj)
+            lines.append(f"  firma: {sym}{sig}")
+        except (TypeError, ValueError):
+            lines.append("  firma: (non disponibile)")
+        doc = inspect.getdoc(obj)
+        if doc:
+            lines.append("  doc: " + doc.splitlines()[0][:200])
+        return "\n".join(lines)
 
     # ----- 2. write_file (transazionale: tmp nella stessa dir, poi rename) -----
     def write_file(self, path: str, content: str) -> str:
@@ -932,6 +978,7 @@ class ToolSet:
             "read_file": "read_file(path) -> str: legge un file dentro project/",
             "read_document": "read_document(path) -> str: legge un documento (.txt/.md/.py/.pdf via pdftotext) e restituisce il testo estratto (troncato)",
             "list_refs": "list_refs() -> str: elenca i cheat sheet disponibili in GUI/refs/ (PyQt6, ToolSet API, debt ledger). Leggili con read_file per ridurre allucinazioni.",
+            "api_lookup": "api_lookup(module, symbol='') -> str: introspezione per API nuove.",
             "read_file_slice": "read_file_slice(path, start_line, end_line) -> str: legge max 200 righe di un file grande (righe 1-based)",
             "write_file": "write_file(path, content) -> str: scrive atomicamente in project/",
             "patch_code": "patch_code(path, old_text, new_text) -> str: sostituisce una porzione di testo in un file",
