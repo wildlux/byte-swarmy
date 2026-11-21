@@ -110,6 +110,10 @@ _AMBIGUITY_PATTERNS: list[tuple[re.Pattern, str, list[str]]] = [
     (re.compile(r"\b(file\s+(json|yaml|toml|csv|ini)|configurazione\s+file|config\s+file)\b", re.I),
      "Quale formato per i file di configurazione?",
      ["TOML (config.toml)", "JSON", "YAML", "INI"]),
+    # 🆕 Vague software creation: l'utente non specifica lingua/framework/scopo
+    (re.compile(r"\b(crea|creami|fammi|realizza|sviluppa|scrivi)\s+(un\s+)?(software|app|programma|tool|applicazione|script)\b", re.I),
+     "Il task è vago — quale linguaggio/framework vuoi usare?",
+     ["Python", "JavaScript/TypeScript", "Go", "Rust", "Altro (specifica)"]),
 ]
 
 

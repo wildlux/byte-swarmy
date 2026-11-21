@@ -214,6 +214,10 @@ The worker can call any of these tools through the sandboxed `ToolSet`:
 9. **Response Format — Tables**: when a response reports status,
    comparisons, or options, prefer a Markdown table for readability;
    use prose for pure narrative. User preference registered 2026-11-21.
+10. **Clarify Before Acting**: if the user's request is vague (missing
+    language, framework, purpose, or scope), STOP and ask clarifying
+    questions (via action-planner) before any processing. Never assume
+    defaults silently. Registered 2026-11-21.
 
 ## 🔒 Sicurezza — Threat Model e Procedure
 
