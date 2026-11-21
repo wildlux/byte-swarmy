@@ -57,6 +57,11 @@ class CenterArea(QWidget):
         self.log_viewer = CategorizedLogViewer()
         self.logs_section.add_widget(self.log_viewer)
 
+        self.chat_section = CollapsibleSection("Chat - Test modelli", icon="💬")
+        from GUI.chat_panel import ChatPanel
+        self.chat_panel = ChatPanel()
+        self.chat_section.add_widget(self.chat_panel)
+
         self.plancia_section = CollapsibleSection("Plancia di controllo", icon="✈️")
 
         # ── Barra di ricerca globale (filtra le 10 card) ─────────────
@@ -155,6 +160,7 @@ class CenterArea(QWidget):
         self.plancia_section.add_widget(tools_container)
 
         main_lay.addWidget(self.plancia_section)
+        main_lay.addWidget(self.chat_section)
 
         main_scroll.setWidget(main_widget)
         self.main_stack.addWidget(main_scroll)
