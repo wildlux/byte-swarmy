@@ -258,6 +258,42 @@ class CenterArea(QWidget):
 
         root.addWidget(self.main_stack, stretch=1)
 
+        # ── Polling chiarimento (Fase 9): se il worker scrive
+        # state/clarification.txt, mostra un dialog di input e scrive la
+        # risposta in state/clarification_answer.txt (il worker la legge).
+        try:
+            from PyQt6.QtCore import QTimer as _QTimer
+            from PyQt6.QtWidgets import QInputDialog as _QInputDialog
+            self._clar_timer = _QTimer(self)
+            self._clar_timer.setInterval(1000)
+
+            def _poll_clarification():
+                try:
+                    p = Path("state") / "clarification.txt"
+                    if not p.exists():
+                        return
+                    text = p.read_text(encoding="utf-8")
+                    if not text.strip():
+                        return
+                    ans, ok = _QInputDialog.getText(
+                        self.main_win, "Chiarimento task",
+                        "Il worker ha bisogno di chiarimenti:\n\n" + text +
+                        "\n\nRisposta (es. 1,2,1):")
+                    ans_path = Path("state") / "clarification_answer.txt"
+                    ans_path.parent.mkdir(parents=True, exist_ok=True)
+                    ans_path.write_text(ans if ok else "", encoding="utf-8")
+                    try:
+                        p.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+
+            self._clar_timer.timeout.connect(_poll_clarification)
+            self._clar_timer.start()
+        except Exception:
+            pass
+
     def open_panel(self, key):
         if key in self.panel_pages:
             self.main_stack.setCurrentIndex(1)
