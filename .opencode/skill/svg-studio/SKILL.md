@@ -18,12 +18,21 @@ Flusso: **progettazione → generazione SVG → validazione → export/compat**.
 3. Validare: XML ben formato, viewBox, percorsi/chiusure, dimensioni.
 4. Esportare/compatibilità: Inkscape/Krita aprono SVG; conversioni a PNG/PDF se serve.
 
-## 3. Quality gates
+## 3. Tipi di diagramma supportati
+
+- **Box + freccia**: `rect` + `marker` arrow tra due box.
+- **Box + linea**: `rect` + `line` (senza marker) tra due box.
+- **Misto**: più box connessi da connessioni **freccia** e/o **linea** (straight
+  line), sia singole sia combinate.
+- Coordinamento: sorgente/destinazione come anchor (`x1/y1/x2/y2` per linee,
+  `cx/cy` o punti di ancoraggio per marker).
+
+## 4. Quality gates
 - SVG ben formato (nessun tag non chiuso).
 - viewBox dichiarato.
 - Testo leggibile, scale coerenti.
 
-## 4. Comandi chiave
+## 5. Comandi chiave
 ```bash
 inkscape /tmp/diagram.svg --export-type=png --export-filename=/tmp/diagram.png
 python - <<'PY'
