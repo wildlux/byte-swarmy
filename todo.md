@@ -356,8 +356,9 @@ diventare un **panic a runtime**. Serve un gate rigoroso.
 ### Strati di mitigazione (proposti)
 - [x] (fatto 2026-11-22) **Refs version-pinned**: tool `tools/extract_kernel_refs.py` estrae prototipi dagli header kernel (os.walk followlinks). Skill `linux-kernel-refs` creata.
 - [x] (fatto 2026-11-22) **Skill `linux-kernel-refs`**: creata e registrata.
-- [ ] (prossima) **API whitelist**: lista deterministica di simbodi kernel
-      consentiti per versione; il gate rifiuta codice con simbodi non in lista.
+- [x] (fatto 2026-11-22) **API whitelist**: lista deterministica di simbodi kernel
+      consentiti per versione; gate pre-compile via `CORE/kernel_api_whitelist.py`
+      + `tools/gen_kernel_whitelist.py`.
 - [x] (fatto 2026-11-22) **Gate compile**: `make` + `checkpatch.pl` + `sparse`
       aggiunti alla skill `static-analyzer`.
 - [ ] (prossima) **Scaffold deterministico (SLOT)**: il planner genera lo

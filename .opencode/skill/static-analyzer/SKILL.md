@@ -31,3 +31,9 @@ make -C /lib/modules/$(uname -r)/build M=$(pwd) modules
 scripts/checkpatch.pl --file driver.c
 make C=1 CF="-D__CHECK_ENDIAN__"
 ```
+
+Whitelist API (pre-compile):
+```bash
+.venv/bin/python tools/gen_kernel_whitelist.py --subsystem i2c
+.venv/bin/python -c "from CORE.kernel_api_whitelist import check_source; print(check_source(open('driver.c').read()))"
+```
