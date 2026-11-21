@@ -342,6 +342,38 @@ compute grezzo.
 
 ---
 
+## 🐧 Linux Driver — mitigazione rischio allucinazione API kernel
+
+> Aggiunto 2026-11-22 — risposta alla domanda "possiamo risolvere il rischio
+> allucinazione (API kernel inesistenti → kernel panic)?".
+
+### Problema
+Il modello 3b può allucinare nomi/firme di API kernel. In user-space un
+simbodo inesistente è un errore di compilazione; in kernel space può
+diventare un **panic a runtime**. Serve un gate rigoroso.
+
+### Strati di mitigazione (proposti)
+- [ ] (prossima) **Refs version-pinned**: estrarre firme/struct dagli header
+      del kernel target in `CORE/refs/linux_kernel_<ver>.md` (come
+      `GUI/refs/`), iniettati nel prompt. Tool: `tools/extract_kernel_refs.py`
+      (deterministico, zero LLM).
+- [ ] (prossima) **Skill `linux-kernel-refs`**: estrae API da header kernel
+      target e genera ref markdown.
+- [ ] (prossima) **API whitelist**: lista deterministica di simbodi kernel
+      consentiti per versione; il gate rifiuta codice con simbodi non in lista.
+- [ ] (prossima) **Gate compile**: `make` + `checkpatch.pl` + `sparse` (già
+      in `static-analyzer` skill, da estendere per driver).
+- [ ] (prossima) **Scaffold deterministico (SLOT)**: il planner genera lo
+      scheletro (probe/remove, file_operations, Makefile); il modello 3b
+      riempie solo piccoli slot (read/write/ioctl).
+
+### Limiti residui
+- API inline/static: catturate solo parzialmente da checkpatch/sparse.
+- Race condition / IRQ: gate statici non bastano → test in QEMU (runtime).
+- Device tree binding: validazione con `dtc` separatamente.
+
+---
+
 ## 🧪 Tabella dei run di test (2026-11-19)
 |---|---|---|---|---|---|---|
 | 1 | `/tmp/opencode/pytest_full_run.log` | 00:12:34 | 00:29:52 | 0:17:18 | 261 passed, 3 skipped, **9 warn**, 6 sub — `INT` (SIGINT) | chiusa (parziale) |
