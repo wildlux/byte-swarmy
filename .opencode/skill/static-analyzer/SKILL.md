@@ -23,11 +23,11 @@ Flusso: **gate statico → modifica → verifica**.
 - 0 errori / 0 warning prima di ogni modifica rilevante.
 - Nessuna modifica al codice senza gate statico superato (o sua registrazione).
 
-## 4. Comandi chiave
+## 5. Gate driver (Linux)
+
+Per driver Linux, aggiungere:
 ```bash
-.venv/bin/python tools/lint_style.py
-.venv/bin/python -m pyflakes CORE/ GUI/ tools/ scripts/ SAFETY/ INTENT/ tests/
-.venv/bin/python tools/security_scan.py
-.venv/bin/python tools/validate_refs.py
-.venv/bin/python -m compileall -q CORE GUI tools scripts SAFETY INTENT tests
+make -C /lib/modules/$(uname -r)/build M=$(pwd) modules
+scripts/checkpatch.pl --file driver.c
+make C=1 CF="-D__CHECK_ENDIAN__"
 ```

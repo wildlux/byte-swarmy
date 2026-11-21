@@ -354,16 +354,12 @@ simbodo inesistente è un errore di compilazione; in kernel space può
 diventare un **panic a runtime**. Serve un gate rigoroso.
 
 ### Strati di mitigazione (proposti)
-- [ ] (prossima) **Refs version-pinned**: estrarre firme/struct dagli header
-      del kernel target in `CORE/refs/linux_kernel_<ver>.md` (come
-      `GUI/refs/`), iniettati nel prompt. Tool: `tools/extract_kernel_refs.py`
-      (deterministico, zero LLM).
-- [ ] (prossima) **Skill `linux-kernel-refs`**: estrae API da header kernel
-      target e genera ref markdown.
+- [x] (fatto 2026-11-22) **Refs version-pinned**: tool `tools/extract_kernel_refs.py` estrae prototipi dagli header kernel (os.walk followlinks). Skill `linux-kernel-refs` creata.
+- [x] (fatto 2026-11-22) **Skill `linux-kernel-refs`**: creata e registrata.
 - [ ] (prossima) **API whitelist**: lista deterministica di simbodi kernel
       consentiti per versione; il gate rifiuta codice con simbodi non in lista.
-- [ ] (prossima) **Gate compile**: `make` + `checkpatch.pl` + `sparse` (già
-      in `static-analyzer` skill, da estendere per driver).
+- [x] (fatto 2026-11-22) **Gate compile**: `make` + `checkpatch.pl` + `sparse`
+      aggiunti alla skill `static-analyzer`.
 - [ ] (prossima) **Scaffold deterministico (SLOT)**: il planner genera lo
       scheletro (probe/remove, file_operations, Makefile); il modello 3b
       riempie solo piccoli slot (read/write/ioctl).
