@@ -443,10 +443,13 @@ class TaskSchedulerPanel(QWidget):
         # Sottomenu etichette (popolato da helper per ridurre nesting)
         label_menu = menu.addMenu("🏷️ Etichetta")
         labels = self._task_labels(task)
+        from GUI.label_swatch import make_swatch
         all_labels = L.list_labels()
         for lab in all_labels:
             mark = "✓ " if lab["name"] in labels else "   "
-            act = label_menu.addAction(f"{mark}{lab['name']}  {lab['color']}")
+            act = label_menu.addAction(
+                make_swatch(lab["color"]),
+                f"{mark}{lab['name']}  {lab['color']}")
             act.setData(lab["name"])
         act_new = label_menu.addAction("➕ Nuova etichetta...")
         act_rename = label_menu.addAction("✏️ Rinomina etichetta...")

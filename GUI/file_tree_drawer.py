@@ -1534,17 +1534,22 @@ class FileTreeDrawer(QFrame):
                       if getattr(self, "main_win", None) else None)
                 tasks = load_tasks(pp)
                 task = next((t for t in tasks if t.get("id") == task_id), None)
-                labels = task.get("labels", []) if task else []
+                # NB: la colonna labels può essere NULL → .get() restituisce
+                # None (non il default []), quindi va normalizzata con "or []".
+                labels = (task.get("labels") or []) if task else []
                 if isinstance(labels, str):
                     import json as _j
                     try:
-                        labels = _j.loads(labels)
+                        labels = _j.loads(labels) or []
                     except Exception:
                         labels = []
+                from GUI.label_swatch import make_swatch
                 all_labels = L.list_labels()
                 for lab in all_labels:
                     mark = "✓ " if lab["name"] in labels else "   "
-                    act = label_menu.addAction(f"{mark}{lab['name']}  {lab['color']}")
+                    act = label_menu.addAction(
+                        make_swatch(lab["color"]),
+                        f"{mark}{lab['name']}  {lab['color']}")
                     act.triggered.connect(
                         lambda _=False, n=lab["name"], tid=task_id:
                         self._toggle_task_label(tid, n))
@@ -1563,8 +1568,9 @@ class FileTreeDrawer(QFrame):
                 act_clear = label_menu.addAction("🧹 Rimuovi tutte dal task")
                 act_clear.triggered.connect(
                     lambda: self._clear_task_labels(task_id))
-            except Exception:
-                pass
+            except Exception as e:
+                # Un errore qui svuoterebbe il sottomenu: rendilo visibile.
+                print(f"Errore sottomenu etichette: {e}")
 
             menu.addSeparator()
 
