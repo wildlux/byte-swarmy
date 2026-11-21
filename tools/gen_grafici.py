@@ -414,6 +414,15 @@ def build_svg() -> str:
                  "sono la roadmap prioritaria in todo.md")
     sections.append(s)
 
+    y += 24
+    s, y = hbar_section(
+        [("Skill operative attive", 16, C_BLUE)],
+        x0, x1, y,
+        "F. Skill operative attive — famiglia di skill del sistema",
+        "Aggiunte recenti: git-expert, date-counts, qr-code, freecad, "
+        "blender, skill-lister; + pannello Plancia Skill (GUI)")
+    sections.append(s)
+
     y += 10
     sections.append(
         f'<text x="20" y="{y}" font-family="{FONT}" font-size="11" '
