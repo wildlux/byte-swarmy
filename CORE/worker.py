@@ -847,11 +847,26 @@ class Worker:
 
             # Aggiungi al prompt per il prossimo step
             if tool_result.startswith("ERROR:"):
+                # Se il tool è sconosciuto, includi la lista tool nel prompt
+                # per aiutare il modello a recuperare (anti-allucinazione).
+                extra = ""
+                if "unknown tool" in tool_result.lower():
+                    try:
+                        tools_list = self.tools.list_tools()
+                        if isinstance(tools_list, dict):
+                            tools_list = list(tools_list.keys())
+                        elif not isinstance(tools_list, list):
+                            tools_list = list(tools_list)
+                        extra = ("\nAvailable tools: " + ", ".join(str(t) for t in tools_list) +
+                                 "\nUse ONLY these tool names.\n")
+                    except Exception:
+                        extra = ""
                 prompt = (
                     f"Last action: {tool_name}({args})\n"
                     f"Result: ❌ {tool_result[:300]}\n\n"
                     "The previous tool call failed. Analyze the error and try a different approach. "
-                    "Do not repeat the same failing command.\n\n"
+                    "Do not repeat the same failing command.\n"
+                    f"{extra}\n"
                     "Next step (JSON only):"
                 )
             else:
