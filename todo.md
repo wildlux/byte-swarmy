@@ -334,9 +334,10 @@ compute grezzo.
 - Nessun gate che rifiuti/riproponga il tool corretto.
 
 ### Fix proposto
-- [ ] (prossima) Validare il nome tool contro la lista disponibile prima
-      dell'esecuzione; se sconosciuto, chiedere al modello di riprovare
-      con un tool valido (correction prompt).
+- [x] (fatto 2026-11-22) Validare il nome tool contro la lista disponibile
+      prima dell'esecuzione; se sconosciuto, chiedere al modello di riprovare
+      con un tool valido — iniettando la lista tool nel prompt di correzione
+      (commit b4a17ca).
 - [ ] (prossima) Iniettare la lista tool nel prompt del ReAct (già
       presente? verificare).
 
