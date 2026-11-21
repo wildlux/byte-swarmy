@@ -78,6 +78,12 @@ def build_clean_code_page():
     return CleanCodePanel()
 
 
+def build_skills_page():
+    """Costruisce il pannello Skill → SkillsPanel (elenco skill operative)."""
+    from GUI.skills_panel import SkillsPanel
+    return SkillsPanel()
+
+
 def build_config_page(theme_changed_callback, gui_debug_changed_callback):
     """Costruisce il pannello Impostazioni interattivo."""
     from GUI.settings_panel import SettingsPanel
@@ -129,6 +135,10 @@ def build_plancia_cards(open_panel_callback):
         ("test", "🧪 Test Suite",
          "Esegue la suite di test: runner per-file con timeout, esito salvato",
          "Tests", "#ea580c", 1, 2),
+        ("skills", "🎓 Skill",
+         "Le skill operative del sistema: ricerca, report, calcoli, SQL, "
+         "diagrammi SVG — tutte mostrate nella Plancia",
+         "Skills", "#db2777", 2, 0),
     ]
 
     for key, title, subtitle, badge, badge_color, row, col in card_configs:
@@ -221,6 +231,7 @@ __all__ = [
     "build_cicd_page",
     "build_clean_code_page",
     "build_config_page",
+    "build_skills_page",
     "build_scheduler_page",
     "build_plancia_cards",
     "build_tools_cards",

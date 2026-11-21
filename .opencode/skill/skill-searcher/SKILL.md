@@ -31,3 +31,13 @@ Flusso: **query → indice → ranking → risultato**.
 ls /home/wildlux/Desktop/byte-swarmy/.opencode/skill/*/SKILL.md
 grep -l "descrizione" /home/wildlux/Desktop/byte-swarmy/.opencode/skill/*/SKILL.md
 ```
+
+## 6. Display — elenco completo per la Plancia di comando
+
+- Il searcher espone l'**elenco completo** delle skill (mode `all`) per la UI
+  (Plancia di comando / Control Center): `name`, `description`, path.
+- L'utente chiede (chat o GUI): "mostrami tutte le skill" → il searcher
+  restituisce la lista; la Plancia deve renderizzarla nel pannello dedicato.
+- Il pannello della Plancia legge le SKILL.md dal filesystem (zero LLM) e
+  mostra nome + descrizione; il searcher resta l'indicizzatore per task→skill.
+- Nessuna skill scelta senza corrispondenza rilevante.

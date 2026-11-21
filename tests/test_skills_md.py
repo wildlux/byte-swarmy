@@ -48,6 +48,16 @@ class TestSkillsMd(unittest.TestCase):
             text = f.read_text(encoding="utf-8")
             self.assertIn("## ", text, f"{f}: nessun heading di sezione")
 
+    def test_list_skills_restituisce_skill_bene_formate(self):
+        from GUI import skills_panel as GSP
+        skills = GSP.list_skills()
+        self.assertTrue(
+            skills, "nessuna skill scoperta da GUI.skills_panel.list_skills",
+        )
+        for sk in skills:
+            self.assertIn("name", sk, f"skill senza name: {sk}")
+            self.assertIn("description", sk, f"skill senza description: {sk}")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -19,7 +19,11 @@ from GUI.code_explorer import CodeExplorer
 from GUI.backup_code_logs import BackupCodeLogs
 from GUI.integrity_tests_panel import IntegrityTestsPanel
 from GUI.software_security_panel import SoftwareSecurityPanel
-from GUI.panels import wrap_in_panel_page, build_plancia_cards, build_tools_cards, build_scheduler_page, build_actors_page, build_config_page, build_cicd_page, build_clean_code_page
+from GUI.panels import (
+    wrap_in_panel_page, build_plancia_cards, build_tools_cards,
+    build_scheduler_page, build_actors_page, build_config_page,
+    build_cicd_page, build_clean_code_page, build_skills_page,
+)
 
 
 
@@ -244,6 +248,11 @@ class CenterArea(QWidget):
         from GUI.improvements_panel import ImprovementsPanel
         self.panel_pages["miglioramenti"] = ImprovementsPanel()
         self.detail_stack.addWidget(self.panel_pages["miglioramenti"])
+
+        # Pannello "skills" → SkillsPanel (elenco di tutte le skill
+        # operative del repo, lette da file: zero LLM, deterministico)
+        self.panel_pages["skills"] = build_skills_page()
+        self.detail_stack.addWidget(self.panel_pages["skills"])
 
         self.main_stack.addWidget(self.detail_stack)
 
