@@ -49,7 +49,8 @@ class TaskQueue:
                     completed_at REAL,
                     started_at REAL,
                     reason TEXT,
-                    project_path TEXT
+                    project_path TEXT,
+                    labels TEXT
                 )
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_status ON tasks(status)")
@@ -68,6 +69,9 @@ class TaskQueue:
             conn.execute("ALTER TABLE tasks ADD COLUMN retry_after REAL")
         if "project_path" not in cols:
             conn.execute("ALTER TABLE tasks ADD COLUMN project_path TEXT")
+        # 🆕 Etichette (tag) per task: lista JSON di nomi.
+        if "labels" not in cols:
+            conn.execute("ALTER TABLE tasks ADD COLUMN labels TEXT")
         # 🆕 P1-1: metrica "primo colpo %". NULL = task deterministico
         # (swarm/execute) o mai valutato; 1 = chiuso al primo tentativo;
         # 0 = servito retry/correction/fallback.
@@ -91,12 +95,13 @@ class TaskQueue:
 
         with self._get_conn() as conn:
             conn.execute(
-                "INSERT OR IGNORE INTO tasks (id, title, description, context, status, attempts, created_at, parent, type, source, project_path) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT OR IGNORE INTO tasks (id, title, description, context, status, attempts, created_at, parent, type, source, project_path, labels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     task["id"], task.get("title", ""), task.get("description", ""),
                     task.get("context", ""), task["status"], task["attempts"],
                     task["created_at"], task["parent"], task.get("type", "code"),
-                    task.get("source", "manual"), task.get("project_path") or task.get("project")
+                    task.get("source", "manual"), task.get("project_path") or task.get("project"),
+                    json.dumps(task.get("labels") or [])
                 )
             )
             conn.commit()
@@ -190,6 +195,14 @@ class TaskQueue:
             ).fetchone()
             conn.commit()
             return dict(res) if res else None
+
+    def update_labels(self, task_id: str, labels: list) -> None:
+        """Aggiorna le etichette di un task."""
+        with self._get_conn() as conn:
+            conn.execute(
+                "UPDATE tasks SET labels = ? WHERE id = ?",
+                (json.dumps(labels or []), task_id))
+            conn.commit()
 
     def mark_done(self, task_id: str, result: str,
                   first_try: Optional[bool] = None) -> None:

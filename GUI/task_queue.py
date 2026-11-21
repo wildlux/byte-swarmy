@@ -155,8 +155,20 @@ def save_tasks(tasks: list, project_path: Optional[str] = None) -> None:
 
 def add_task(title: str, description: str = "", context: str = "",
              task_type: str = "code",
-             project_path: Optional[str] = None) -> dict:
-    """Aggiunge un task alla coda SQLite (condivisa con l'orchestrator)."""
+             project_path: Optional[str] = None,
+             labels: Optional[list] = None) -> dict:
+    """Aggiunge un task alla coda SQLite (condivisa con l'orchestrator).
+
+    Le etichette (#Nome) vengono estratte dal titolo se non passate esplicitamente.
+    """
+    from CORE.labels import parse_labels, get_or_create_label
+    if labels is None:
+        labels = parse_labels(title)
+    # Registra ogni etichetta (crea se nuova) e normalizza il nome
+    norm_labels = []
+    for lab in labels:
+        info = get_or_create_label(lab)
+        norm_labels.append(info["name"])
     task = {
         "id": f"task-{int(time.time()*1000)}-{_queue().tasks_count()}",
         "title": title,
@@ -169,6 +181,7 @@ def add_task(title: str, description: str = "", context: str = "",
         "source": "gui",
         "type": task_type,
         "project_path": project_path,
+        "labels": norm_labels,
     }
     try:
         _queue().add(task)
@@ -177,7 +190,13 @@ def add_task(title: str, description: str = "", context: str = "",
     return task
 
 
-def delete_task(task_id: str, project_path: Optional[str] = None) -> None:
+def update_task_labels(task_id: str, labels: list,
+                      project_path: Optional[str] = None) -> None:
+    """Aggiorna le etichette di un task."""
+    try:
+        _queue().update_labels(task_id, labels)
+    except Exception as e:
+        print(f"WARNING: label update failed: {e}")
     """Elimina il task per id (id univoci globali: lo scope è ignorato)."""
     try:
         _queue().delete_by_id(task_id)
