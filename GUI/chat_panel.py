@@ -13,6 +13,7 @@ Il nome REALE del modello è salvato in ``currentData``.
 import json
 import subprocess
 import time
+import urllib.error
 import urllib.request
 
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
@@ -101,6 +102,14 @@ class _ChatWorker(QThread):
             content = body.get("message", {}).get("content", "").strip()
             elapsed = time.time() - t0
             self.finished.emit(content, elapsed)
+        except urllib.error.HTTPError as e:
+            # Mostra il messaggio del server (es. 402 crediti, 410 ritirato).
+            try:
+                raw = e.read().decode("utf-8", "replace")
+                detail = json.loads(raw).get("error", raw)
+            except Exception:
+                detail = str(e)
+            self.error.emit(f"HTTP {e.code}: {detail}")
         except Exception as e:
             self.error.emit(str(e))
 
