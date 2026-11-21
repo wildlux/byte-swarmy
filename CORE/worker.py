@@ -427,6 +427,39 @@ class Worker:
                 self.memory.reset_short_term()
         except Exception:
             pass
+        # 🆕 Q6 — Chiarimento interattivo (Fase 9): se il task è ambiguo,
+        # rileva le domande e arricchisce il task con le risposte (se
+        # disponibili), PRIMA di scegliere il percorso di esecuzione
+        # (direct / ReAct / fast-lane). Copre TUTTI i percorsi, non solo
+        # la modalità diretta. Fail-open: se non c'è ask_fn utilizzabile o
+        # il rilevamento fallisce, il task procede normalmente.
+        try:
+            from CORE.clarifier import detect_ambiguity
+            _qs = detect_ambiguity(
+                str(task.get("title", "")),
+                str(task.get("description", "")))
+            if _qs:
+                _ask_fn = self._make_clarify_ask_fn()
+                if _ask_fn is not None:
+                    from CORE.clarifier import clarify_loop
+                    _result = clarify_loop(
+                        str(task.get("title", "")),
+                        str(task.get("description", "")),
+                        ask_fn=_ask_fn)
+                    task = dict(task)
+                    task["title"] = _result.enriched_title
+                    task["description"] = _result.enriched_description
+                    if not _result.is_clear:
+                        self.log.info(
+                            "[clarifier] task ambiguo non chiarito (%d domande): %s",
+                            len(_qs), [q.id for q in _qs])
+                else:
+                    self.log.info(
+                        "[clarifier] task ambiguo, %d domande non risolte: %s",
+                        len(_qs), [q.id for q in _qs])
+        except Exception as _e:
+            self.log.debug("[clarifier] fail-open: %s", _e)
+
         self.memory.add_event({
             "type": "task_start",
             "content": f"{task.get('title', '')}: {task.get('description', '')[:200]}",
@@ -994,9 +1027,7 @@ class Worker:
             pass
 
         res = run_direct(task, project_root, model_key=self.model_key,
-                         client=self.models, max_retries=3,
-                         clarify=True,
-                         ask_fn=self._make_clarify_ask_fn())
+                         client=self.models, max_retries=3)
         self.last_attempts = int(res.get("attempts") or 1)
         self.last_code = str(res.get("code") or "")
         # 🆕 Fase 7: la decisione di routing visibile nei log/memoria
