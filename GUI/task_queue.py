@@ -197,6 +197,9 @@ def update_task_labels(task_id: str, labels: list,
         _queue().update_labels(task_id, labels)
     except Exception as e:
         print(f"WARNING: label update failed: {e}")
+
+
+def delete_task(task_id: str, project_path: Optional[str] = None) -> None:
     """Elimina il task per id (id univoci globali: lo scope è ignorato)."""
     try:
         _queue().delete_by_id(task_id)
