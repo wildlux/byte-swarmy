@@ -55,8 +55,9 @@ class LabelMentionCompleter(QCompleter):
             ("#64748b", "Grigio"),
         ]
         for hex_color, color_name in quick_colors:
-            act = color_menu.addAction(f"● {color_name}  {hex_color}")
-            from PyQt6.QtGui import QColor
+            from GUI.label_swatch import make_swatch
+            act = color_menu.addAction(
+                make_swatch(hex_color), f"● {color_name}  {hex_color}")
             act.setData(hex_color)
         act_remove = menu.addAction("🗑️ Rimuovi etichetta")
         chosen = menu.exec(popup.mapToGlobal(pos))
@@ -78,12 +79,14 @@ class LabelMentionCompleter(QCompleter):
     def _refresh_model(self) -> None:
         """Ricarica il modello con le etichette correnti."""
         self._model.clear()
+        from GUI.label_swatch import make_swatch
         for lab in L.list_labels():
             item = QStandardItem(lab["name"])
             item.setData(lab["name"], Qt.ItemDataRole.UserRole)
             item.setData(lab["name"], Qt.ItemDataRole.EditRole)
             item.setToolTip(f"Colore: {lab['color']}")
             item.setForeground(QColor(lab["color"]))
+            item.setIcon(make_swatch(lab["color"]))
             self._model.appendRow(item)
 
     def refresh(self) -> None:
