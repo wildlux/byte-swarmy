@@ -296,9 +296,30 @@ compute grezzo.
 
 ---
 
-## 🧪 Tabella dei run di test (2026-11-19)
+## 🧠 Clarifier — wiring del planning (da implementare)
 
-| Run | Log | Avvio | Fine (eff.) | Durata | Risultato | Chiusura |
+> Aggiunto 2026-11-21 — problema utente: richieste vaghe (es.
+> "creami un software che mi faccia il conteggio delle parole") non
+> fermano il flusso per chiedere chiarimenti. Il clarifier esiste
+> (`CORE/clarifier.py`) ma è opt-in (`clarify=False`) e non è collegato
+> al path di default (orchestrator → worker → `_execute_direct`).
+
+### Root cause
+- `detect_ambiguity` è chiamato solo se `clarify=True` (default False).
+- Il default path non passa `clarify` né un `ask_fn`.
+- `action-planner` è advisory (LLM-driven), non un gate deterministico.
+- `GUI/clarification_dialog.py` esiste ma non è usato da nessuno.
+
+### Fix proposto
+- [ ] (prossima) Aggiungere pattern "vague software creation" al clarifier ✅ (fatto 2026-11-21).
+- [ ] (prossima) Collegare `clarify=True` in `_execute_direct` con `ask_fn`:
+      GUI → `show_clarification` (dialog su thread principale), CLI → `input()`,
+      headless → log + `state/clarification.txt` (fail-open).
+- [ ] (prossima) Aggiungere regola AGENT.md #10 "Clarify Before Acting" ✅ (fatto 2026-11-21).
+
+---
+
+## 🧪 Tabella dei run di test (2026-11-19)
 |---|---|---|---|---|---|---|
 | 1 | `/tmp/opencode/pytest_full_run.log` | 00:12:34 | 00:29:52 | 0:17:18 | 261 passed, 3 skipped, **9 warn**, 6 sub — `INT` (SIGINT) | chiusa (parziale) |
 | 2 | `/tmp/opencode/pytest_full_run2.log` | 00:31:44 | 00:47:45 | 0:16:01 | 896 passed, **1 failed**, 1 xfailed, **10 warn** — `EXIT=139` (segfault post-summary) | chiusa (con fallito) |
