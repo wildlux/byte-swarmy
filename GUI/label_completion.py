@@ -41,7 +41,23 @@ class LabelMentionCompleter(QCompleter):
         if not name:
             return
         menu = QMenu(popup)
-        act_color = menu.addAction("🎨 Cambia colore")
+        act_color = menu.addAction("🎨 Cambia colore (dialog)")
+        # Sottomenu colori rapidi
+        color_menu = menu.addMenu("🎨 Colori rapidi")
+        quick_colors = [
+            ("#2563eb", "Blu"),
+            ("#16a34a", "Verde"),
+            ("#f59e0b", "Arancione"),
+            ("#9333ea", "Viola"),
+            ("#dc2626", "Rosso"),
+            ("#0891b2", "Ciano"),
+            ("#ec4899", "Rosa"),
+            ("#64748b", "Grigio"),
+        ]
+        for hex_color, color_name in quick_colors:
+            act = color_menu.addAction(f"● {color_name}  {hex_color}")
+            from PyQt6.QtGui import QColor
+            act.setData(hex_color)
         act_remove = menu.addAction("🗑️ Rimuovi etichetta")
         chosen = menu.exec(popup.mapToGlobal(pos))
         if chosen == act_color:
@@ -52,6 +68,12 @@ class LabelMentionCompleter(QCompleter):
         elif chosen == act_remove:
             L.remove_label(name)
             self._refresh_model()
+        else:
+            # Controlla se è un colore rapido
+            chosen_color = chosen.data() if chosen is not None else None
+            if chosen_color and isinstance(chosen_color, str) and chosen_color.startswith("#"):
+                L.set_color(name, chosen_color)
+                self._refresh_model()
 
     def _refresh_model(self) -> None:
         """Ricarica il modello con le etichette correnti."""
