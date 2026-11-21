@@ -1,13 +1,12 @@
 """
 GUI/chat_panel.py — Pannello Chat per testare i modelli (trasparente e veloce).
 
-Permette di inviare un prompt a un modello Ollama e vedere la risposta,
-con trasparenza: modello usato, prompt inviato, risposta ricevuta, tempi.
-
-I nomi nel combo seguono la stessa impostazione del pannello Modelli:
-icona di collocazione (📌 locale / 🌍 cloud / ⬇ scaricabile), tag di
-capacità (💻 coding, 🧠 ragionamento, …) e nota d'uso tra parentesi.
-Il nome REALE del modello è salvato in ``currentData``.
+Sorgenti:
+- **Ollama** (locale/cloud): stessi nomi decorati del pannello Modelli
+  (📌 locale / 🌍 cloud / ⬇ scaricabile, tag 💻 coding, 🧠 ragionamento…).
+- **Provider cloud gratuiti** (Groq / Google AI Studio / OpenRouter): API
+  OpenAI-compatibile, solo per test manuali. La chiave si salva con 🔑 in
+  ``state/cloud_api.json`` (0600, gitignored).
 """
 
 import json
@@ -18,9 +17,13 @@ import urllib.request
 
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (
-    QComboBox, QHBoxLayout, QLabel, QLineEdit, QPushButton,
+    QComboBox, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QPushButton,
     QTextEdit, QVBoxLayout, QWidget,
 )
+
+from CORE import cloud_client as cc
+
+SOURCE_OLLAMA = "ollama"
 
 
 def _list_ollama_models() -> list[str]:
@@ -68,9 +71,16 @@ def _model_tooltip(name: str) -> str:
         return name
 
 
+def _source_choices() -> list[tuple[str, str]]:
+    out = [("🖥️ Ollama (locale/cloud)", SOURCE_OLLAMA)]
+    for key, info in cc.PROVIDERS.items():
+        out.append((f"{info['icon']} {info['label']} (gratis)", key))
+    return out
+
+
 class _ChatWorker(QThread):
     """Thread per la chiamata Ollama (non blocca la GUI)."""
-    finished = pyqtSignal(str, float)  # (response, elapsed_sec)
+    finished = pyqtSignal(str, float)
     error = pyqtSignal(str)
 
     def __init__(self, model: str, prompt: str, system: str = ""):
@@ -100,92 +110,175 @@ class _ChatWorker(QThread):
             with urllib.request.urlopen(req, timeout=120) as resp:
                 body = json.loads(resp.read().decode("utf-8"))
             content = body.get("message", {}).get("content", "").strip()
-            elapsed = time.time() - t0
-            self.finished.emit(content, elapsed)
+            self.finished.emit(content, time.time() - t0)
         except urllib.error.HTTPError as e:
-            # Mostra il messaggio del server (es. 402 crediti, 410 ritirato).
-            try:
-                raw = e.read().decode("utf-8", "replace")
-                detail = json.loads(raw).get("error", raw)
-            except Exception:
-                detail = str(e)
-            self.error.emit(f"HTTP {e.code}: {detail}")
+            self.error.emit(_http_error_text(e))
         except Exception as e:
             self.error.emit(str(e))
 
 
+class _CloudChatWorker(QThread):
+    """Thread per la chiamata a un provider cloud gratuito."""
+    finished = pyqtSignal(str, float)
+    error = pyqtSignal(str)
+
+    def __init__(self, provider: str, model: str, prompt: str,
+                 system: str = ""):
+        super().__init__()
+        self.provider = provider
+        self.model = model
+        self.prompt = prompt
+        self.system = system
+
+    def run(self):
+        try:
+            messages = []
+            if self.system:
+                messages.append({"role": "system", "content": self.system})
+            messages.append({"role": "user", "content": self.prompt})
+            res = cc.chat(self.provider, self.model, messages)
+            self.finished.emit(res["content"], res["elapsed"])
+        except Exception as e:
+            self.error.emit(str(e))
+
+
+class _ModelsWorker(QThread):
+    """Carica in background l'elenco modelli di un provider cloud."""
+    done = pyqtSignal(str, list)
+    failed = pyqtSignal(str, str)
+
+    def __init__(self, provider: str):
+        super().__init__()
+        self.provider = provider
+
+    def run(self):
+        try:
+            self.done.emit(self.provider, cc.list_models(self.provider))
+        except Exception as e:
+            self.failed.emit(self.provider, str(e))
+
+
+def _http_error_text(e: urllib.error.HTTPError) -> str:
+    """Estrae il messaggio 'error' dal body JSON di Ollama."""
+    try:
+        raw = e.read().decode("utf-8", "replace")
+        detail = json.loads(raw).get("error", raw)
+    except Exception:
+        detail = str(e)
+    return f"HTTP {e.code}: {detail}"
+
+
 class ChatPanel(QWidget):
-    """Pannello Chat: testa i modelli in modo trasparente e veloce."""
+    """Pannello Chat: testa modelli Ollama o provider cloud gratuiti."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("chat_panel")
         self._worker = None
+        self._models_worker = None
         self._build_ui()
 
     def _build_ui(self):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(8, 8, 8, 8)
         outer.setSpacing(8)
-
-        # Riga modello + azioni
-        model_row = QHBoxLayout()
-        model_row.setSpacing(8)
-        model_row.addWidget(QLabel("Modello:"))
-        self.model_combo = QComboBox()
-        self.model_combo.currentIndexChanged.connect(self._update_model_info)
-        model_row.addWidget(self.model_combo, stretch=1)
-        self.clear_btn = QPushButton("🧹 Pulisci")
-        self.clear_btn.clicked.connect(self._clear)
-        model_row.addWidget(self.clear_btn)
-        outer.addLayout(model_row)
-
-        # Riga info modello (stessa impostazione del pannello Modelli)
+        self._build_source_row(outer)
+        self._build_model_row(outer)
         self.model_info = QLabel("")
         self.model_info.setObjectName("chat_model_info")
         self.model_info.setWordWrap(True)
         outer.addWidget(self.model_info)
+        self._build_chat_area(outer)
+        self._reload_models()
 
-        self._fill_models()
+    def _build_source_row(self, outer):
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        row.addWidget(QLabel("Sorgente:"))
+        self.source_combo = QComboBox()
+        for label, key in _source_choices():
+            self.source_combo.addItem(label, key)
+        self.source_combo.currentIndexChanged.connect(self._on_source_changed)
+        row.addWidget(self.source_combo, stretch=1)
+        self.key_btn = QPushButton("🔑 Chiave")
+        self.key_btn.clicked.connect(self._set_key)
+        row.addWidget(self.key_btn)
+        self.refresh_btn = QPushButton("🔄")
+        self.refresh_btn.setToolTip("Ricarica l'elenco modelli")
+        self.refresh_btn.clicked.connect(self._reload_models)
+        row.addWidget(self.refresh_btn)
+        outer.addLayout(row)
 
-        # System prompt (opzionale)
+    def _build_model_row(self, outer):
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        row.addWidget(QLabel("Modello:"))
+        self.model_combo = QComboBox()
+        self.model_combo.currentIndexChanged.connect(self._update_model_info)
+        row.addWidget(self.model_combo, stretch=1)
+        self.clear_btn = QPushButton("🧹 Pulisci")
+        self.clear_btn.clicked.connect(self._clear)
+        row.addWidget(self.clear_btn)
+        outer.addLayout(row)
+
+    def _build_chat_area(self, outer):
         self.system_input = QLineEdit()
         self.system_input.setPlaceholderText("System prompt (opzionale)")
         outer.addWidget(self.system_input)
-
-        # Area output (trasparente: mostra prompt + risposta + tempi)
         self.output = QTextEdit()
         self.output.setReadOnly(True)
         self.output.setPlaceholderText("La conversazione apparirà qui...")
         outer.addWidget(self.output, stretch=1)
-
-        # Riga input + invio
-        input_row = QHBoxLayout()
-        input_row.setSpacing(8)
+        row = QHBoxLayout()
+        row.setSpacing(8)
         self.input_field = QLineEdit()
         self.input_field.setPlaceholderText(
             "Scrivi un prompt e premi Invia (o Enter)")
         self.input_field.returnPressed.connect(self._send)
-        input_row.addWidget(self.input_field, stretch=1)
+        row.addWidget(self.input_field, stretch=1)
         self.send_btn = QPushButton("📤 Invia")
         self.send_btn.setObjectName("primary_btn")
         self.send_btn.clicked.connect(self._send)
-        input_row.addWidget(self.send_btn)
-        outer.addLayout(input_row)
+        row.addWidget(self.send_btn)
+        outer.addLayout(row)
 
-    def _fill_models(self) -> None:
-        """Popola il combo con etichette decorate (icone + tag), come Modelli."""
+    # ── sorgente / modelli ───────────────────────────────────────────
+
+    def _provider(self) -> str:
+        return self.source_combo.currentData() or SOURCE_OLLAMA
+
+    def _on_source_changed(self, _index: int) -> None:
+        self.key_btn.setEnabled(self._provider() != SOURCE_OLLAMA)
+        self._reload_models()
+
+    def _reload_models(self) -> None:
+        """Ricarica il combo modelli per la sorgente selezionata."""
+        provider = self._provider()
+        self.key_btn.setEnabled(provider != SOURCE_OLLAMA)
+        self.model_combo.blockSignals(True)
         self.model_combo.clear()
+        self.model_combo.blockSignals(False)
+        if provider == SOURCE_OLLAMA:
+            self._fill_ollama_models()
+        elif not cc.has_api_key(provider):
+            info = cc.provider_info(provider)
+            self.model_combo.addItem(
+                f"(serve chiave — ottienila su {info['signup']})", "")
+        else:
+            self.model_combo.addItem("⏳ carico modelli...", "")
+            worker = _ModelsWorker(provider)
+            worker.done.connect(self._on_models_loaded)
+            worker.failed.connect(self._on_models_failed)
+            self._models_worker = worker
+            worker.start()
+        self._update_model_info()
+
+    def _fill_ollama_models(self) -> None:
         try:
-            from GUI.actors_panel import (
-                OLLAMA_MODELS, sorted_model_choices)
+            from GUI.actors_panel import OLLAMA_MODELS, sorted_model_choices
         except Exception:
-            models = _list_ollama_models()
-            for name in models:
+            for name in _list_ollama_models():
                 self.model_combo.addItem(name, name)
-            if not models:
-                self.model_combo.addItem(
-                    "(nessun modello — ollama list)", "")
             return
         models = _list_ollama_models() or OLLAMA_MODELS
         for label, name in sorted_model_choices(models):
@@ -193,23 +286,69 @@ class ChatPanel(QWidget):
             idx = self.model_combo.count() - 1
             self.model_combo.setItemData(
                 idx, _model_tooltip(name), Qt.ItemDataRole.ToolTipRole)
-        if not models:
-            self.model_combo.addItem("(nessun modello — ollama list)", "")
+
+    def _on_models_loaded(self, provider: str, models: list) -> None:
+        if provider != self._provider():
+            return  # risposta di una sorgente precedente
+        self.model_combo.clear()
+        for name in models:
+            self.model_combo.addItem(name, name)
+            idx = self.model_combo.count() - 1
+            self.model_combo.setItemData(
+                idx, f"{name}\ntier gratuito", Qt.ItemDataRole.ToolTipRole)
+        default = cc.pick_default_model(provider, models)
+        if default:
+            pos = self.model_combo.findData(default)
+            if pos >= 0:
+                self.model_combo.setCurrentIndex(pos)
         self._update_model_info()
 
+    def _on_models_failed(self, provider: str, err: str) -> None:
+        if provider != self._provider():
+            return
+        self.model_combo.clear()
+        self.model_combo.addItem("(errore — vedi sotto)", "")
+        self.model_info.setText(f"❌ {err}")
+
     def _update_model_info(self) -> None:
-        """Mostra la riga informativa del modello selezionato."""
+        provider = self._provider()
         name = self.model_combo.currentData()
         if not name:
             self.model_info.setText("")
             return
-        self.model_info.setText(_model_tooltip(name))
+        if provider == SOURCE_OLLAMA:
+            self.model_info.setText(_model_tooltip(name))
+            return
+        info = cc.provider_info(provider)
+        key_state = "chiave ok" if cc.has_api_key(provider) else "no chiave"
+        self.model_info.setText(
+            f"{info['icon']} {info['label']} · tier gratuito · "
+            f"{key_state} · modello: {name}")
+
+    def _set_key(self) -> None:
+        provider = self._provider()
+        if provider == SOURCE_OLLAMA:
+            return
+        info = cc.provider_info(provider)
+        key, ok = QInputDialog.getText(
+            self, f"Chiave API — {info['label']}",
+            f"Incolla la chiave API (gratis da {info['signup']}):",
+            QLineEdit.EchoMode.Password)
+        if ok and key.strip():
+            cc.save_api_key(provider, key.strip())
+            self.output.append(
+                f"🔑 Chiave salvata per {info['label']} "
+                f"(state/cloud_api.json, 0600).")
+            self._reload_models()
+
+    # ── invio ────────────────────────────────────────────────────────
 
     def _send(self):
         prompt = self.input_field.text().strip()
         if not prompt:
             return
-        model = self.model_combo.currentData() or self.model_combo.currentText()
+        provider = self._provider()
+        model = self.model_combo.currentData()
         if not model:
             self.output.append("⚠️ Nessun modello disponibile.")
             return
@@ -218,12 +357,15 @@ class ChatPanel(QWidget):
         self.input_field.clear()
         self.output.append(f"\n👤 [{label}] {prompt}")
         self.output.append("⏳ Generazione in corso...")
-
-        self._worker = _ChatWorker(
-            model, prompt, self.system_input.text().strip())
-        self._worker.finished.connect(self._on_finished)
-        self._worker.error.connect(self._on_error)
-        self._worker.start()
+        system = self.system_input.text().strip()
+        if provider == SOURCE_OLLAMA:
+            worker = _ChatWorker(model, prompt, system)
+        else:
+            worker = _CloudChatWorker(provider, model, prompt, system)
+        worker.finished.connect(self._on_finished)
+        worker.error.connect(self._on_error)
+        self._worker = worker
+        worker.start()
 
     def _on_finished(self, response: str, elapsed: float):
         self.send_btn.setEnabled(True)
@@ -240,4 +382,4 @@ class ChatPanel(QWidget):
 
     def refresh_models(self) -> None:
         """Ricarica l'elenco modelli (utile dopo un 'ollama pull')."""
-        self._fill_models()
+        self._reload_models()
