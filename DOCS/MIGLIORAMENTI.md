@@ -1,4 +1,4 @@
-# 📈 Miglioramenti implementati — Cycle 70 → 86 (v0.3.18 → v0.3.34)
+# 📈 Miglioramenti implementati — Cycle 70 → 93 (v0.3.18 → v0.3.34)
 
 ![Grafico miglioramenti](grafici/miglioramenti.svg)
 
@@ -39,7 +39,7 @@ verso il goal; il progresso è un numero, non un'impressione.
 | Fedeltà API | 3/4 | 4/4 | gate import-check (0 allucinazioni misurabili) + refs interni |
 | Chiarimenti ambigui | 3/4 | 4/4 | clarifier esteso (3 pattern nuovi) |
 | Architettura | 2/4 | 3/4 | SLOT: gate + assembler pronti, planner v2 (SLOT-3) |
-| Memoria / contesto | 2/4 | 4/4 | import sistemato (C85): ora misurare l'impatto (P2-4) |
+| Memoria / contesto | 3/4 | 4/4 | A2–A3 triple con `reason` + `corrected`, A4 retrieval chiamabile, C2 report (copertura 100%): loop misurabile; impatto live resta 🔒 termico (C3) |
 
 ---
 
@@ -194,13 +194,12 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 | Coerenza docs (C1) | MAX_STEPS=10 e baseline security=7 unica in `AGENT.md`/`SPECIFICATIONS`/`verify_cycle.sh`; `GUI/IMPLEMENTED.md` ridotto a stub; symlink `state→data/state` dichiarato | 4 test di coerenza, zero codice runtime toccato |
 | Report self-improvement (C2) | `tools/self_improvement_report.py`: corpus/verdetti/first-try, gate skill, override invalidi, copertura retrieval; snapshot rigenerabile in `DOCS/SELF_IMPROVEMENT_REPORT.md` | 6 test + 6 subtest, zero LLM |
 | Prompt lint (D1) | `tools/prompt_lint.py`: misura struttura del prompt reale (regole, tool, frasi, lingua, 1 azione/turno, tono); snapshot `DOCS/PROMPT_LINT_REPORT.md`. Ipotesi: struttura sì, tono no | 6 test, zero LLM; A/B live resta 🔒 termico |
-| Prompts per modelli piccoli (D1, pianificato) | Struttura "bambino" (una azione per turno, poche scelte, formato esplicito) e istruzioni in inglese; il tono offensivo è escluso. Misura offline in `tools/prompt_lint.py` | 🔒 A/B live dopo verifica ventola |
 
 ---
 
-*Documento e grafico generati dal Cycle 86, allineati al codice il 2026-11-22 —
-aggiornare `tools/gen_grafici.py` e rigenerare quando si aggiungono nuovi
-meccanismi.*
+*Documento e grafico aggiornati al Cycle 93 il 2026-11-22 (asse Memoria →
+3/4): rigenerare con `.venv/bin/python tools/gen_grafici.py` quando cambiano
+i meccanismi o i valori del radar in `tools/gen_grafici.py`.*
 
 ---
 

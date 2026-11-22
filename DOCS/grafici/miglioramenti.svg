@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="1911" viewBox="0 0 940 1911">
 <rect width="940" height="1911" fill="#ffffff"/>
-<text x="20" y="38" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">byte-swarmy — Miglioramenti implementati (Cycle 70 → 86 — Nov 2026)</text>
+<text x="20" y="38" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">byte-swarmy — Miglioramenti implementati (Cycle 70 → 93 — Nov 2026)</text>
 <text x="20" y="60" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#64748b">Generato deterministicamente da tools/gen_grafici.py — dati: DOCS/IMPLEMENTED.md</text>
 <text x="20" y="92" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">A. Audit robustezza Cycle 85 — 15 difetti corretti, per categoria</text>
 <text x="20" y="112" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Rilevati da pyflakes + pytest + smoke sandbox; tutti corretti e su GitHub (commit 4a1cb1a / 0bb4998 / 72e1b71)</text>
@@ -130,7 +130,7 @@
 <line x1="470" y1="1197" x2="378.1" y2="1105.1" stroke="#e2e8f0" stroke-width="1"/>
 <text x="360.8" y="1091.8" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="end">Memoria / contesto</text>
 <polygon points="470.0,1099.5 538.9,1128.1 600.0,1197.0 561.9,1288.9 470.0,1327.0 401.1,1265.9 405.0,1197.0 378.1,1105.1" fill="#16a34a" fill-opacity="0.25" stroke="#16a34a" stroke-width="2" stroke-dasharray="6,4" stroke-opacity="1"/>
-<polygon points="470.0,1164.5 538.9,1128.1 567.5,1197.0 561.9,1288.9 470.0,1294.5 401.1,1265.9 405.0,1197.0 424.0,1151.0" fill="#2563eb" fill-opacity="0.25" stroke="#2563eb" stroke-width="2.5" stroke-opacity="1"/>
+<polygon points="470.0,1164.5 538.9,1128.1 567.5,1197.0 561.9,1288.9 470.0,1294.5 401.1,1265.9 405.0,1197.0 401.1,1128.1" fill="#2563eb" fill-opacity="0.25" stroke="#2563eb" stroke-width="2.5" stroke-opacity="1"/>
 <circle cx="470.0" cy="1164.5" r="3.5" fill="#2563eb"/>
 <circle cx="538.9" cy="1128.1" r="3.5" fill="#2563eb"/>
 <circle cx="567.5" cy="1197.0" r="3.5" fill="#2563eb"/>
@@ -138,9 +138,9 @@
 <circle cx="470.0" cy="1294.5" r="3.5" fill="#2563eb"/>
 <circle cx="401.1" cy="1265.9" r="3.5" fill="#2563eb"/>
 <circle cx="405.0" cy="1197.0" r="3.5" fill="#2563eb"/>
-<circle cx="424.0" cy="1151.0" r="3.5" fill="#2563eb"/>
+<circle cx="401.1" cy="1128.1" r="3.5" fill="#2563eb"/>
 <rect x="350" y="1379" width="12" height="12" rx="2" fill="#2563eb" fill-opacity="0.25" stroke="#2563eb" stroke-width="2"/>
-<text x="368" y="1389" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">oggi (v0.3.32+)</text>
+<text x="368" y="1389" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">oggi (Cycle 93)</text>
 <rect x="480" y="1379" width="12" height="12" rx="2" fill="#16a34a" fill-opacity="0.25" stroke="#16a34a" stroke-width="2" stroke-dasharray="6,4"/>
 <text x="498" y="1389" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">goal middle senior</text>
 <text x="20" y="1433" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">F. Skill operative attive — famiglia di skill del sistema</text>
@@ -154,27 +154,27 @@
 <text x="20" y="1591.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Tool selezionabili in Chat</text>
 <rect x="249" y="1573" width="621" height="26" rx="4" fill="#e2e8f0"/>
 <rect x="249" y="1573" width="621" height="26" rx="4" fill="#2563eb"/>
-<text x="878" y="1591.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">32</text>
+<text x="878" y="1591.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">36</text>
 <text x="20" y="1631.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Skill attivabili in Chat</text>
 <rect x="249" y="1613" width="621" height="26" rx="4" fill="#e2e8f0"/>
-<rect x="249" y="1613" width="485" height="26" rx="4" fill="#9333ea"/>
-<text x="742" y="1631.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">25</text>
+<rect x="249" y="1613" width="431" height="26" rx="4" fill="#9333ea"/>
+<text x="688" y="1631.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">25</text>
 <text x="20" y="1671.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Skill con auto-keyword</text>
 <rect x="249" y="1653" width="621" height="26" rx="4" fill="#e2e8f0"/>
-<rect x="249" y="1653" width="485" height="26" rx="4" fill="#16a34a"/>
-<text x="742" y="1671.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">25</text>
+<rect x="249" y="1653" width="431" height="26" rx="4" fill="#16a34a"/>
+<text x="688" y="1671.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">25</text>
 <text x="20" y="1711.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Tool con auto-keyword</text>
 <rect x="249" y="1693" width="621" height="26" rx="4" fill="#e2e8f0"/>
 <rect x="249" y="1693" width="621" height="26" rx="4" fill="#16a34a"/>
-<text x="878" y="1711.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">32</text>
+<text x="878" y="1711.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">36</text>
 <text x="20" y="1751.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Etichette default</text>
 <rect x="249" y="1733" width="621" height="26" rx="4" fill="#e2e8f0"/>
-<rect x="249" y="1733" width="330" height="26" rx="4" fill="#16a34a"/>
-<text x="587" y="1751.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">17</text>
+<rect x="249" y="1733" width="293" height="26" rx="4" fill="#16a34a"/>
+<text x="550" y="1751.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">17</text>
 <text x="20" y="1791.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Provider cloud gratuiti</text>
 <rect x="249" y="1773" width="621" height="26" rx="4" fill="#e2e8f0"/>
-<rect x="249" y="1773" width="58" height="26" rx="4" fill="#f59e0b"/>
-<text x="315" y="1791.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">3</text>
+<rect x="249" y="1773" width="52" height="26" rx="4" fill="#f59e0b"/>
+<text x="309" y="1791.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">3</text>
 <text x="20" y="1831.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">File senza docstring (goal 0)</text>
 <rect x="249" y="1813" width="621" height="26" rx="4" fill="#e2e8f0"/>
 <rect x="249" y="1813" width="3" height="26" rx="4" fill="#dc2626"/>

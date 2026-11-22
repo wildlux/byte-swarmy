@@ -2228,3 +2228,18 @@ l'inglese aiuta il codice ma non va imposto a ogni testo utente. A/B live
 resta 🔒 bloccato termicamente: qui si misura la struttura, non la qualità
 delle risposte.
 
+---
+
+## Cycle 94 (2026-11-22) — Radar capacità aggiornato
+
+| Modifica | Dettaglio |
+|---|---|
+| `tools/gen_grafici.py` | Asse **Memoria / contesto** 2/4 → 3/4 (A2–A3 triple con `reason`, A4 retrieval chiamabile, C2 report con copertura 100%); etichette Cycle 86 → 93 e legenda "oggi (Cycle 93)" |
+| `DOCS/grafici/miglioramenti.svg` | Rigenerato deterministico (sha256 stabile su due run): poligono blu aggiornato, conteggi dinamici tool 32 → 36 |
+| `DOCS/MIGLIORAMENTI.md` | Tabella radar per asse e intestazione allineate; rimossa riga obsoleta "D1 pianificato" |
+
+Verifiche: `tests/test_improvements_panel.py` 4 test offscreen, SVG valido;
+`git diff --check` OK. Nessun LLM. Il residuo non-inglese del prompt e gli
+assi invariati restano misurati in `DOCS/PROMPT_LINT_REPORT.md` e nella
+tabella radar.
+
