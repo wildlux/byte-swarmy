@@ -5,11 +5,11 @@
 #
 # Dipendenze specializzate (stesso contenuto, per installazione mirata):
 #   GUI/requirements_gui.txt          — solo GUI Qt6 + MCP + Timestral
-#   REVERSE_ENGEREENING_TOOLS/requirements_re.txt — solo reverse engineering
+#   TOOLS/REVERSE_ENGINEERING/requirements_re.txt — solo reverse engineering
 #
 # Per installazione mirata:
 #   pip install -r GUI/requirements_gui.txt
-#   pip install -r REVERSE_ENGEREENING_TOOLS/requirements_re.txt
+#   pip install -r TOOLS/REVERSE_ENGINEERING/requirements_re.txt
 
 # ============================================================
 # GUI (PyQt6 + MCP + intent router + Timestral)
@@ -43,7 +43,7 @@ pyflakes>=3.0
 # Note
 # ============================================================
 # System tools (radare2, tshark, ghidra) must be installed separately:
-#   scripts/setup/re_tools.sh  (or REVERSE_ENGEREENING_TOOLS/setup_re_tools.sh)
+#   scripts/setup/re_tools.sh  (or TOOLS/REVERSE_ENGINEERING/setup_re_tools.sh)
 # Timestral (thermal_manager.py) uses only /proc and /sys (Linux stdlib).
 # tomli/tomllib already in stdlib on Python 3.11+.
 # mcp 2.x changes API (FastMCP->MCPServer): pin <2 (CORE/mcp_client.py

@@ -1,5 +1,10 @@
 # Reverse Engineering Tools per byte-swarmy
 
+> **📍 Posizione (2026-11-22)**: questa cartella è `TOOLS/REVERSE_ENGINEERING/`
+> (vecchio nome `REVERSE_ENGEREENING_TOOLS/`, refuso corretto). Lo script di
+> setup canonico resta `scripts/setup/re_tools.sh`; la copia qui presente è
+> autonoma e risolve la root del progetto con `../..`.
+
 Modulo Python che integra **Ghidra**, **Wireshark/tshark**, **radare2** e **capstone** nel swarm, esponendoli come tool per il worker.
 
 ## 📦 File generati

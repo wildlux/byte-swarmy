@@ -218,6 +218,11 @@ The worker can call any of these tools through the sandboxed `ToolSet`:
     language, framework, purpose, or scope), STOP and ask clarifying
     questions (via action-planner) before any processing. Never assume
     defaults silently. Registered 2026-11-21.
+11. **Folder Convention — Same Folders, Always**: top-level containers are
+    UPPERCASE (`CORE/`, `GUI/`, `CONFIG/`, `TOOLS/`, `SAFETY/`, `INTENT/`);
+    one folder per category, no misspellings, no duplicates. Put new tools
+    in the existing category folder instead of creating another one.
+    Registered 2026-11-22.
 
 ## 🔒 Sicurezza — Threat Model e Procedure
 

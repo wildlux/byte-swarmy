@@ -1044,9 +1044,16 @@ byte-swarmy/
 ├── SECURITY.md / IMPLEMENTED.md / SPECIFICATIONS.md / AGENT.md / todo.md
 ├── BYTE-SWARMY.desktop      # KDE menu entry
 ├── requirements.txt         # Dipendenze complete (GUI + RE)
-├── REVERSE_ENGEREENING_TOOLS/requirements_re.txt
+├── TOOLS/                   # Strumenti ordinati per categoria (maiuscolo)
+│   └── REVERSE_ENGINEERING/ # Setup RE: requirements_re.txt + setup_re_tools.sh
 └── GUI/requirements_gui.txt
 ```
+
+**Regola delle cartelle**: i contenitori di primo livello sono sempre in
+MAIUSCOLO (`CORE/`, `GUI/`, `CONFIG/`, `TOOLS/`, `SAFETY/`, `INTENT/`) e ogni
+categoria ha **una sola** cartella, senza refusi né duplicati. Un nuovo strumento
+va nella cartella di categoria esistente, non in una nuova. La stessa regola è
+in `AGENT.md` (#11) così vale anche per gli agenti.
 
 ---
 

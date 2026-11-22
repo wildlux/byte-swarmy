@@ -5,6 +5,7 @@
 #
 # These are PYTHON bindings. System tools (Ghidra, radare2, tshark) must be
 # installed separately via scripts/setup/re_tools.sh
+# (copia autonoma in TOOLS/REVERSE_ENGINEERING/setup_re_tools.sh)
 #
 # After install, verify with:
 #   python3 CORE/re_tools.py --check
@@ -53,4 +54,4 @@ yara-python>=4.3.0       # YARA rules engine for binary pattern matching
 #   Extract to /opt/ghidra
 #   Add /opt/ghidra/support to PATH (contains analyzeHeadless)
 #
-# See scripts/setup/re_tools.sh for automated setup
+# See scripts/setup/re_tools.sh (or TOOLS/REVERSE_ENGINEERING/setup_re_tools.sh)

@@ -13,6 +13,24 @@ todo è **ordinato per impatto**: prima ciò che sblocca la misura e chiude
 i gap più grandi del radar, poi il motore del miglioramento, poi i gap
 medi, infine sottofondi e igiene.
 
+## 🗂️ Sessione 2026-11-22 — riordino cartelle e commenti (pianificata)
+
+Regola condivisa: **stessi cartelle, sempre** — nomi maiuscoli per i contenitori
+di primo livello (`CORE/`, `GUI/`, `CONFIG/`, `TOOLS/`), una sola cartella per
+categoria, nessun refuso nei nomi.
+
+| # | Task (atomico, verificabile) | Stato |
+|---|---|---|
+| 1 | Spostare `REVERSE_ENGEREENING_TOOLS/` → `TOOLS/REVERSE_ENGINEERING/`, aggiornare i riferimenti | [x] |
+| 2 | Commentare i 3 file spostati + docstring di modulo ai 3 `__init__.py` vuoti | [x] |
+| 3 | Regola "stesse cartelle" in `AGENT.md` (#11) e nella struttura del README | [x] |
+| 4 | Gate deterministici: `compileall`, `lint_style`, `bash -n`, `git diff --check`, security scan | [x] |
+
+> Eseguito il 2026-11-22: `git mv` con rilevamento rename, 14 riferimenti
+> aggiornati, 3 file spostati commentati, 3 docstring di modulo aggiunte
+> (`CORE/`, `GUI/`, `tools/`). Nota: `$ROOT` nella copia di setup ora risolve
+> correttamente a `../..` dalla nuova posizione.
+
 ---
 
 ## 🎯 Piano d'attacco — dalle voci più impattanti (2026-11-18)

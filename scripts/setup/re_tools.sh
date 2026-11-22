@@ -178,16 +178,16 @@ fi
 
 # === 5. Pip packages ===
 echo "=== Installazione pip packages ==="
-if [ -f "$ROOT/REVERSE_ENGEREENING_TOOLS/requirements_re.txt" ]; then
-    info "Installo REVERSE_ENGEREENING_TOOLS/requirements_re.txt..."
+if [ -f "$ROOT/TOOLS/REVERSE_ENGINEERING/requirements_re.txt" ]; then
+    info "Installo TOOLS/REVERSE_ENGINEERING/requirements_re.txt..."
     if [ -f "$ROOT/.venv/bin/pip" ]; then
-        "$ROOT/.venv/bin/pip" install -r "$ROOT/REVERSE_ENGEREENING_TOOLS/requirements_re.txt"
+        "$ROOT/.venv/bin/pip" install -r "$ROOT/TOOLS/REVERSE_ENGINEERING/requirements_re.txt"
     else
-        pip install -r "$ROOT/REVERSE_ENGEREENING_TOOLS/requirements_re.txt"
+        pip install -r "$ROOT/TOOLS/REVERSE_ENGINEERING/requirements_re.txt"
     fi
     ok "Pip packages installati"
 else
-    warn "REVERSE_ENGEREENING_TOOLS/requirements_re.txt non trovato in $ROOT"
+    warn "TOOLS/REVERSE_ENGINEERING/requirements_re.txt non trovato in $ROOT"
     warn "Installalo manualmente: pip install capstone r2pipe pyshark pefile lief scapy yara-python"
 fi
 echo ""

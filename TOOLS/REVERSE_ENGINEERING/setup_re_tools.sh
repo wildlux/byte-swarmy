@@ -8,10 +8,12 @@
 #   - Ghidra (download + symlink, NON apt)
 #   - yara (per yara-python)
 #
-# Usage:
-#   ./scripts/setup/re_tools.sh           # installa tutto
-#   ./scripts/setup/re_tools.sh --check   # solo verifica ambiente
-#   ./scripts/setup/re_tools.sh --no-ghidra  # salta Ghidra (richiede Java 17+)
+# Usage (percorso canonico):
+#   ./scripts/setup/re_tools.sh                    # installa tutto
+#   ./scripts/setup/re_tools.sh --check            # solo verifica ambiente
+#   ./scripts/setup/re_tools.sh --no-ghidra        # salta Ghidra (Java 17+)
+# Copia autonoma nella cartella riordinata:
+#   ./TOOLS/REVERSE_ENGINEERING/setup_re_tools.sh  # stessa logica, $ROOT = ../..
 #
 # Requisiti:
 #   - Ubuntu/Debian (usa apt)
@@ -27,7 +29,9 @@ fail() { echo -e "${RED}✗${RESET} $1"; }
 warn() { echo -e "${YELLOW}⚠${RESET} $1"; }
 info() { echo -e "${BLUE}ℹ${RESET} $1"; }
 
-# Risolvi root progetto
+# Risolvi la root del progetto in modo indipendente dalla cartella di partenza:
+#   scripts/setup/             -> ../.. = root
+#   TOOLS/REVERSE_ENGINEERING/ -> ../.. = root (percorso dopo il riordino)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$ROOT"
@@ -192,16 +196,16 @@ fi
 
 # === 5. Pip packages ===
 echo "=== Installazione pip packages ==="
-if [ -f "$ROOT/REVERSE_ENGEREENING_TOOLS/requirements_re.txt" ]; then
-    info "Installo REVERSE_ENGEREENING_TOOLS/requirements_re.txt..."
+if [ -f "$ROOT/TOOLS/REVERSE_ENGINEERING/requirements_re.txt" ]; then
+    info "Installo TOOLS/REVERSE_ENGINEERING/requirements_re.txt..."
     if [ -f "$ROOT/.venv/bin/pip" ]; then
-        "$ROOT/.venv/bin/pip" install -r "$ROOT/REVERSE_ENGEREENING_TOOLS/requirements_re.txt"
+        "$ROOT/.venv/bin/pip" install -r "$ROOT/TOOLS/REVERSE_ENGINEERING/requirements_re.txt"
     else
-        pip install -r "$ROOT/REVERSE_ENGEREENING_TOOLS/requirements_re.txt"
+        pip install -r "$ROOT/TOOLS/REVERSE_ENGINEERING/requirements_re.txt"
     fi
     ok "Pip packages installati"
 else
-    warn "REVERSE_ENGEREENING_TOOLS/requirements_re.txt non trovato in $ROOT"
+    warn "TOOLS/REVERSE_ENGINEERING/requirements_re.txt non trovato in $ROOT"
     warn "Installalo manualmente: pip install capstone r2pipe pyshark pefile lief scapy yara-python"
 fi
 echo ""
