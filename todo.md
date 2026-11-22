@@ -280,18 +280,18 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 | ID | Cosa manca | Stato | Voce di riferimento | Prossima azione |
 |---|---|---|---|---|
 | M1 | Zero Warning riaperto: 23 finding pyflakes, 2 `undefined name: Path` | [x] Cycle 102 | Robustezza #10 + `DOCS/BRUTAL_HONESTY_REPORT.md` | Portato a 0 lo scope attivo: import `Path` aggiunto, import morti rimossi, `worker` senza assegnazione |
-| M2 | Suite completa non rieseguita dal 2026-11-19 | [ ] 🔒 termico | Domani #1 + incidente 2026-11-20 | Solo su GitHub Actions (`profile.yml`); locale vietata finché M3 non è chiuso |
+| M2 | Suite completa non rieseguita dal 2026-11-19 | [x] Cycle 129 | Domani #1 + incidente 2026-11-20 | ✅ **Run #9** (`45058129636`, commit `f97ff8b`): `pytest tests/ -q --durations=0` **verde** su GitHub Actions (step 8 success), zero calore locale. Nessuna suite locale eseguita |
 | M3 | Verifica ventole (`fan_verified.json` assente) | [ ] 🔒 termico | C3 + incidente 2026-11-20 | Decisione utente 2026-11-22: **gate stretto mantenuto**. Tachimetro non leggibile (0.00 anche al 100%, nessun `fan*_input`): serve misura RPM esterna, non un valore inventato. ✅ Cycle 114: report sonde corretto (non suggerisce più di riavviare un nbfc già attivo). ✅ **Cycle 121**: aggiunto `--attest-rpm` con ricevuta auditabile (strumento/operatore/timestamp fresco, temperatura sempre live, nessun valore CLI diretto) + `DOCS/RPM_MEASUREMENT_PROCEDURE.md`. ✅ Cycle 122: `parse_nbfc_rpm` accetta solo RPM con unità esplicita — la percentuale di `Current Fan Speed` non può più aprire il gate. 🔒 Resta la misura fisica con tachometro |
 | M4 | Token GitHub esposto da revocare | [ ] 🔒 credenziali | Sessione sicurezza 2026-11-22 | Cycle 104: `gh` trovato NON è GitHub CLI (script browser 0.0.4); CLI ufficiale assente (`apt-cache policy gh` → 2.46.0-4). `sudo apt install gh` → `gh auth login` → revoca PAT |
 | M5 | Utente dedicato + firewall | [~] 🔒 root | Sessione sicurezza 2026-11-22 | Cycle 104: utente `byteswarmy` e slice cgroup assenti; `pkexec` autorizza root senza password. ✅ **Cycle 113**: `--check` mostrava `Progetto: .../scripts/setup` → `--apply` avrebbe copiato solo quella cartella; corretto a radice repo (`SCRIPT_DIR/../..`) + `tests/test_hardening_paths.py` (3 test). 🔒 Resta: `sudo scripts/setup/hardening.sh --all` + review polkit |
-| M6 | Profiling CI: run #2 fallito al step 6 (`Profilazione completa`) | [~] 🔒 UI | `.github/workflows/profile.yml` | ✅ **Diagnosi Cycle 112** (`DOCS/CI_PROFILE_DIAGNOSIS.md`): run `44838701460`, step 6 in 3 s → ipotesi errore di collezione (log da 1227 byte, non leggibile senza auth); step `--collect-only` e artifact doppio già aggiunti da `f35f9dd`/`b3ec027`; collezione locale ora EXIT=0, 1094 test in 1,71 s. ✅ **Cycle 123**: aggiunto trigger `push` su `main` oltre a `workflow_dispatch` — il push su GitHub avvia la suite sui runner hosted senza `gh`/auth e senza calore locale. Lock nel test `test_ci_profile_workflow.py`. 🔒 Resta la lettura del log del nuovo run (log pubblico con `tail -60 collect.log`) |
+| M6 | Profiling CI: run #2 fallito al step 6 (`Profilazione completa`) | [x] Cycle 129 | `.github/workflows/profile.yml` | ✅ **Chiuso**: run #9 (`45058129636`) **successo** — step 7 collezione, step 8 profilazione completa e step 9 artifact tutti `success`. Storia: Cycle 112 diagnosi iniziale; Cycle 123 trigger `push`; Cycle 124/126 annotations pubbliche; Cycle 125 librerie Qt (`libEGL`); Cycle 127/128 corretti 14 failure ambientali (Python 3.14, remote HTTPS, hwmon assente, symlink `tasks`, timeout GUI). Nessun `gh`, auth o suite locale |
 | M7 | Middle non misurato (task reali, retrieval quality, A/B live, GUI live, build mobile) | [ ] 🔒 termico | Radar E + C3 + SLOT-3/4 | Corpus task utente + gate termico; nessun asse alzato senza misure |
 | M8 | Rilevatore AI-based | [ ] ⛔ non fare ora | Sessione sicurezza 2026-11-22 | Nessuna azione: servono misure e gate termico |
 
 > Ordine: M3 sblocca M7; M4 e M5 sono indipendenti ma prioritari per i dati
-> reali; M1 chiuso offline al Cycle 102. M2 resta 🔒: la suite completa
-> locale è vietata dalla regola termica del 2026-11-20 e il profiling
-> passa solo su GitHub Actions (trigger manuale, vedi M6). Dal Cycle 103 lo
+> reali; M1 chiuso offline al Cycle 102. M2 chiuso al Cycle 129: la suite
+> completa è passata su GitHub Actions (run #9), mai in locale — la regola
+> termica del 2026-11-20 resta invariata. Dal Cycle 103 lo
 > stato misurato dei blocchi è in `DOCS/BLOCKER_PROBE_REPORT.md`, rigenerato da
 > `tools/blocker_probe.py`: la sonda non inventa RPM e rifiuta di scrivere il
 > gate termico finché le misure reali non soddisfano i limiti.
@@ -622,10 +622,10 @@ compute grezzo.
 > "Domani" con lo stato reale; la diagnosi M6 è in
 > `DOCS/CI_PROFILE_DIAGNOSIS.md`.
 
-1. [ ] 🔒 (M2/M6) Suite completa finale di regressione: `pytest --ignore=project
-      -q -p no:cacheprovider --durations=0` (regola operativa) → conferma
-      finale Zero Warning + exit 0; usare i dati per il profilo fast ≤3 min.
-      Solo su GitHub Actions; trigger bloccato (CLI GitHub + auth).
+1. [x] (M2/M6) Suite completa finale di regressione: `pytest --ignore=project
+      -q -p no:cacheprovider --durations=0` → eseguita su GitHub Actions
+      (run #9 `45058129636`, step 8 success, Cycle 129). Zero Warning e
+      exit 0 confermati dal verdetto del workflow. Nessuna suite locale.
 2. [ ] 🔒 (Fase D-16 / C3) Sweep num_ctx 2048/3072/4096 con flash_attention_kv
       (run LLM, ventole al max, ≤60 °C). Serve `fan_verified.json`.
 3. [ ] 🔒 (SLOT-4 / M7) Prompt per-slot + benchmark 3 task reali.

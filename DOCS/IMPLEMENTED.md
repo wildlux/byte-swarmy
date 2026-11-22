@@ -2820,3 +2820,18 @@ riconducibili a differenze tra ambiente locale e runner hosted:
 Verifica: 4 test mirati verdi (`4 passed in 9.76s`), `pyflakes` 0,
 `git diff --check` pulito. Nessuna suite completa locale, LLM, GPU o misura
 inventata.
+
+---
+
+## Cycle 129 (2026-11-22) — M2/M6 chiusi: suite completa verde su GitHub
+
+| Risultato | Dettaglio |
+|---|---|
+| Run #9 `45058129636` (commit `f97ff8b`) | **SUCCESS** — step 7 collezione, step 8 `pytest tests/ -q --durations=0`, step 9 artifact tutti `success` |
+| `todo.md` | M2 e M6 portati a `[x] Cycle 129`; aggiornata la nota sulla regola termica e il punto 1 del piano "Domani" |
+| `DOCS/CI_PROFILE_DIAGNOSIS.md` | Tabella finale dei run da #2 a #9 con esiti e cause |
+
+La diagnosi del profiling CI, iniziata al Cycle 112, si chiude con il run #9.
+La suite completa non viene rieseguita in locale: la regola termica del
+2026-11-20 vieta LLM/GPU/benchmark finché `fan_verified.json` non è valido.
+Nessun LLM, GPU o dato ventola fabbricato.

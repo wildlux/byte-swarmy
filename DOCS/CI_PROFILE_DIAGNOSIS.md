@@ -141,3 +141,25 @@ Il run #8 (`45055387426`, commit `11377e5`) è fallito nello step 8 con
 Verifica locale: i 4 test passano (`4 passed in 9.76s`), incluso il caso
 HTTPS del remote simulato con ripristino automatico. Nessuna suite completa
 locale, LLM, GPU o misura inventata.
+
+## Esito finale Cycle 129 — run #9: suite completa verde
+
+| Run | Commit | Collezione | Profilazione completa | Verdetto |
+|---|---|---|---|---|
+| #2 | `f35f9dd` | — | ❌ failure (3 s) | diagnosi iniziale |
+| #4 | `576b0e7` | ❌ `ImportError: libEGL.so.1` | non raggiunta | librerie Qt mancanti |
+| #5/#6 | `b47482a`/`a78a24c` | ✅ success | ❌ exit 1 (28 min) | test falliti, log privato |
+| #7 | `91bc272` | ✅ success | ❌ 10 failure | prime annotations pubbliche |
+| #8 | `11377e5` | ✅ success | ❌ 4 failure | failure ambientali residui |
+| **#9** | **`f97ff8b`** | ✅ **success** | ✅ **success** | **✅ SUCCESS** |
+
+Il run #9 (`45058129636`) ha completato con successo tutti gli step rilevanti:
+`Diagnostica collezione (--collect-only)`, `Profilazione completa
+(--durations=0)` e `Upload report`. L'unica annotation residua è un avviso
+informativo sulla deprecazione di Node.js 20 per `actions/upload-artifact@v5`,
+non un failure.
+
+**Conseguenza**: M2 (suite completa non rieseguita dal 2026-11-19) e M6
+(profiling CI) sono chiusi in `todo.md` al Cycle 129. La regola termica del
+2026-11-20 resta invariata: la suite è stata eseguita solo sui runner hosted,
+mai in locale; nessun LLM, GPU o misuraventola è stata avviata.
