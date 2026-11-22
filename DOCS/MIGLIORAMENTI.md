@@ -126,6 +126,7 @@ reale. Nessun flake residuo: `test_functional_swarm` passa da solo
 | v0.3.34 | 86 | Auto-skill + **auto-tool** per parole chiave; fix 403 Groq (User-Agent Cloudflare); test cloud live (11 modelli, 0,78 s) |
 | v0.3.34 | 86 | Dotfile `.editorconfig`, `.gitattributes`, `.env.example` (variabili cloud documentate, `.env` gitignored) |
 | v0.3.34 | 86 | Riordino `TOOLS/REVERSE_ENGINEERING/` (refuso corretto, 14 riferimenti), regola cartelle in `AGENT.md` #11 + README, 0 file senza docstring in `CORE/GUI/tools` |
+| v0.3.34 | 86 | Fix dialog **Dettagli task** (`QWidget` non importato): la finestra si apre di nuovo; errori e task mancanti ora avvisano invece di fallire in silenzio; 4 test di regressione offscreen |
 
 ---
 
@@ -161,6 +162,7 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 | Regola delle cartelle | contenitori di primo livello in MAIUSCOLO, una cartella per categoria, nessun refuso o duplicato — `AGENT.md` guardrail #11 e README |
 | Riordino tool RE | `REVERSE_ENGEREENING_TOOLS/` → `TOOLS/REVERSE_ENGINEERING/`; 14 riferimenti aggiornati, `$ROOT` nella copia di setup corretto |
 | Docstring di modulo | 0 file senza docstring in `CORE/GUI/tools` (completati i 3 `__init__.py` vuoti) |
+| Dettagli task | dialog ripristinato (`QWidget` importato); errori/task assenti mostrano un avviso; `tests/test_task_details_dialog.py` (4 test offscreen) |
 
 ### Sicurezza dei segreti
 

@@ -1712,7 +1712,7 @@ class FileTreeDrawer(QFrame):
         """
         try:
             from PyQt6.QtWidgets import (
-                QDialog, QFormLayout, QTextEdit, QPlainTextEdit,
+                QDialog, QFormLayout, QTextEdit, QPlainTextEdit, QWidget,
             )
 
             task = None
@@ -1745,6 +1745,8 @@ class FileTreeDrawer(QFrame):
                 con.close()
 
             if not task:
+                QMessageBox.warning(
+                    self, "Dettagli task", f"Task {task_id} non trovato.")
                 return
 
             dlg = QDialog(self)
@@ -2019,6 +2021,14 @@ class FileTreeDrawer(QFrame):
             dlg.exec()
         except Exception as e:
             print(f"Errore show details: {e}")
+            # Il dialog non deve mai fallire in silenzio: l'utente deve
+            # vedere perche' la finestra non si apre (issue 2026-11-22).
+            try:
+                QMessageBox.warning(
+                    self, "Dettagli task",
+                    f"Impossibile aprire i dettagli: {e}")
+            except Exception:
+                pass
 
     def _restart_task_with_refresh(self, task_id, item):
         """Riavvia un task e aggiorna la lista."""
