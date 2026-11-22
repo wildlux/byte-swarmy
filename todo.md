@@ -160,7 +160,7 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 | B2 | Skill proposer: auto-approvazione solo con gate verde, altrimenti bozza | [x] |
 | B3 | Validatore deterministico degli override auto-skill/auto-tool | [x] |
 | C1 | Allineare docs al codice (MAX_STEPS, baseline security, duplicati, symlink `state`) | [x] |
-| C2 | `tools/self_improvement_report.py`: report misure del loop, zero LLM | [ ] |
+| C2 | `tools/self_improvement_report.py`: report misure del loop, zero LLM | [x] |
 | C3 | A/B memoria, eval per-slot, sweep `num_ctx`, distillazione, giudice | [ ] 🔒 termico |
 | D1 | `tools/prompt_lint.py`: misura offline del prompt effettivo (istruzioni, tool esposti, lunghezza frasi, quota token non-inglesi, "1 azione per turno"). Verifica l'ipotesi "LLM piccoli = bambini, istruzioni in inglese": struttura sì, tono no; A/B live resta 🔒 termico | [ ] |
 
@@ -168,8 +168,9 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 > 82 test di regressione verdi (110 subtests). B1 chiuso in Cycle 88:
 > 8 test best-of + 55 regressioni verdi; B2 in Cycle 89: 14 test proposer
 > + 22 regressioni; B3 in Cycle 90: 10 test guard + 26 regressioni;
-> C1 in Cycle 91: 4 test di coerenza docs. Registro:
-> [`DOCS/IMPLEMENTED.md`](DOCS/IMPLEMENTED.md). C2/D1 restano pending;
+> C1 in Cycle 91: 4 test di coerenza docs; C2 in Cycle 92: 6 test report
+> + 6 subtest. Registro:
+> [`DOCS/IMPLEMENTED.md`](DOCS/IMPLEMENTED.md). D1 resta pending;
 > C3 resta 🔒 bloccato finché la ventola non è verificata (≤60 °C, ventole al max).
 
 ---

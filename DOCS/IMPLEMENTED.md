@@ -2195,3 +2195,18 @@ dichiarazione symlink con controllo condizionale del target). `bash -n
 tools/verify_cycle.sh` OK, `git diff --check` OK. Nessun codice runtime
 modificato.
 
+---
+
+## Cycle 92 (2026-11-22) — C2: report misurabile del loop
+
+| Modifica | Dettaglio |
+|---|---|
+| `tools/self_improvement_report.py` (nuovo) | `collect(state_dir)` legge solo `state/`: triple corpus + verdetti, first-try/correction rate, proposte skill per stato, gate verdi/rossi, override non conformi, copertura retrieval. Fail-open su file rotti. `markdown()` e `--json`; `--state-dir`/`--out` per test isolati |
+| `DOCS/SELF_IMPROVEMENT_REPORT.md` (generato) | Primo snapshot reale: 72 triple / 24 uniche / 20 task, first-try 0.958, correzioni 0.042, 2 proposte pending, 0 gate rossi, 0 override invalidi, copertura retrieval 100% |
+
+Verifiche: `tests/test_self_improvement_report.py` 6 test + 6 subtest con
+state finto in tmp (verdetti, first-try, copertura parziale, gate/proposte,
+override invalidi, fail-open, markdown). Nessun LLM, rete o GPU: il report è
+il quadro deterministico che rende verificabile il miglioramento, non una
+nuova euristica. Snapshot rigenerabile con un comando.
+

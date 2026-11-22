@@ -7,7 +7,7 @@
 > aggiunge un secondo meccanismo di apprendimento.
 >
 > **Stato aggiornato 2026-11-22: Onda 1 (A1–A4) in Cycle 87, B1 in Cycle 88,
-> B2 in Cycle 89, B3 in Cycle 90, C1 in Cycle 91.** C2 e D1 restano pianificati; C3 è 🔒 bloccato termicamente. Il piano
+> B2 in Cycle 89, B3 in Cycle 90, C1 in Cycle 91, C2 in Cycle 92.** D1 resta pianificato; C3 è 🔒 bloccato termicamente. Il piano
 > agenti/subagenti è una voce separata in `todo.md` (chiusa in Cycle 86).
 > Nessun run LLM, nessuna rete, nessun benchmark: dopo lo shutdown termico del
 > 2026-11-20 la ventola non è ancora verificata (≤60 °C, ventole al max).
