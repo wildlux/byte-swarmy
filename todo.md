@@ -102,14 +102,15 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 
 | # | Task (atomico, verificabile) | Stato |
 |---|---|---|
-| 1 | Creare `tests/test_regex_inventory.py`: raccoglie le regex del software da `CORE/regex_controller.py` (`DEFAULT_PATTERNS`) e dai `re.compile(...)` / pattern usati da `re.search/findall` nei moduli `CORE/`, `GUI/`, `tools/` | [ ] |
-| 2 | Gate deterministico: ogni pattern compila con `re.compile`, nessun pattern vuoto o duplicato; stampa l'inventario (file · nome/variabile · pattern · flag) con `pytest -s` così le regex sono **vedibili** | [ ] |
-| 3 | Riportare conteggio e eventuali pattern sospetti (backtracking/ambigui) in `DOCS/`; aggiornare `todo.md` con l'esito | [ ] |
-| 4 | Gate leggeri: `compileall`, `tools/lint_style.py`, test mirato, `git diff --check` | [ ] |
+| 1 | Creare `tests/test_regex_inventory.py`: raccoglie le regex del software da `CORE/regex_controller.py` (`DEFAULT_PATTERNS`) e dai `re.compile(...)` / pattern usati da `re.search/findall` nei moduli `CORE/`, `GUI/`, `tools/` | [x] |
+| 2 | Gate deterministico: ogni pattern compila con `re.compile`, nessun pattern vuoto o duplicato; stampa l'inventario (file · nome/variabile · pattern · flag) con `pytest -s` così le regex sono **vedibili** | [x] |
+| 3 | Riportare conteggio e eventuali pattern sospetti (backtracking/ambigui) in `DOCS/`; aggiornare `todo.md` con l'esito | [x] |
+| 4 | Gate leggeri: `compileall`, `tools/lint_style.py`, test mirato, `git diff --check` | [x] |
 
-> Criterio di done: `pytest tests/test_regex_inventory.py -q -s` verde, inventario
-> completo stampato, zero pattern invalidi. Nessuna regex viene riscritta dal
-> test: eventuali correzioni sono una sessione separata e documentata.
+> Eseguito il 2026-11-22: 4 test offline verdi, 24 pattern nel registro, 130
+> usages, 148 file scansionati, 0 invalidi, 0 duplicati. Report:
+> [`DOCS/REGEX_INVENTORY.md`](DOCS/REGEX_INVENTORY.md). Nessuna regex riscritta
+> dal test: eventuali correzioni restano una sessione separata e documentata.
 
 ## 🤖 Sessione 2026-11-22 — agenti e subagenti nel tool (pianificata)
 
