@@ -2543,3 +2543,17 @@ struttura già presente, non simulano risultati di modello.
 Verifiche: 5 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning.
 **Nessun run CI avviato e nessun log privato scaricato**: la diagnosi usa solo
 metadati pubblici e la collezione locale, che non esegue test.
+
+---
+
+## Cycle 113 (2026-11-22) — M5: corretto il percorso di copia di hardening.sh
+
+| Modifica | Dettaglio |
+|---|---|
+| `scripts/setup/hardening.sh` | Bug reale trovato con `--check` (read-only): `PROJECT_DIR` puntava a `scripts/setup/`, quindi `--apply` avrebbe copiato solo quella cartella in `/home/byteswarmy/byte-swarmy/` (niente codice, `avvia.sh` o requirements). Ora `SCRIPT_DIR/../..` → radice del repo, allineato al pattern già usato da `re_tools.sh` |
+| `tests/test_hardening_paths.py` (nuovo) | 3 test offline: `--check` riporta esattamente la radice del repo, la riga rsync usa `"$PROJECT_DIR"/ "$TARGET_DIR"/`, tutti gli script in `scripts/setup/` passano `bash -n`. Solo lettura e diagnostica, zero root/utenti/firewall |
+| `todo.md` | M5 e voce hardening portate a `[~]`/`aggiornate`: rimossa solo la causa del guasto; resta 🔒 l'esecuzione come root (`sudo ... --all` + review polkit) |
+
+Verifiche: 3 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning,
+`bash -n` OK. **Nessuna modifica al sistema**: non sono stati creati utenti,
+slice o regole firewall, e non è stato usato `pkexec`.

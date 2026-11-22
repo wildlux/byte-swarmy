@@ -26,7 +26,10 @@
 
 set -euo pipefail
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Dopo il riordino delle cartelle lo script è in scripts/setup/: il progetto
+# da copiare con --apply è la radice del repo (due livelli sopra), non SCRIPT_DIR.
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 TARGET_USER="${TARGET_USER:-byteswarmy}"
 TARGET_HOME="/home/${TARGET_USER}"
 TARGET_DIR="${TARGET_HOME}/byte-swarmy"
