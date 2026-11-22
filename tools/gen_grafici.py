@@ -8,7 +8,13 @@ Dati hard-coded dalla storia del progetto (DOCS/IMPLEMENTED.md):
 
 Rigenera con:  .venv/bin/python tools/gen_grafici.py
 Deterministico: stesso input → stesso SVG byte-per-byte (nessun timestamp).
+
+Dal Cycle 94 ciclo e conteggio meccanismi NON sono più hard-coded: sono
+letti da DOCS/IMPLEMENTED.md e DOCS/MIGLIORAMENTI.md, così il pulsante
+"🔄 Rigenera" nella GUI mostra davvero un cambiamento quando i documenti
+cambiano. I valori del radar restano giudizi espliciti (non derivabili).
 """
+import re
 from pathlib import Path
 import sys
 from xml.sax.saxutils import escape
@@ -84,6 +90,31 @@ def missing_docstring_count() -> int:
                 count += 1
     return count
 
+
+def latest_cycle() -> int:
+    """Cycle più alto registrato in DOCS/IMPLEMENTED.md (fail-open: 0)."""
+    text = (ROOT / "DOCS" / "IMPLEMENTED.md").read_text(encoding="utf-8")
+    cycles = [int(n) for n in re.findall(
+        r"(?im)^#{1,3}\s*Cycle\s+(\d+)", text)]
+    return max(cycles) if cycles else 0
+
+
+def mechanism_count() -> int:
+    """Meccanismi attivi: tabella B + novità in DOCS/MIGLIORAMENTI.md."""
+    text = (ROOT / "DOCS" / "MIGLIORAMENTI.md").read_text(encoding="utf-8")
+    try:
+        section_b = text.split("## B. ", 1)[1].split("\n---\n", 1)[0]
+        recent = text.split("### Novità 2026-11-22", 1)[1].split(
+            "\n---\n", 1)[0]
+    except IndexError:
+        return 0
+    numbered = sum(1 for line in section_b.splitlines()
+                   if re.match(r"^\|\s*\d+\s*\|", line))
+    rows = [line for line in recent.splitlines() if line.startswith("|")]
+    # header + separator row
+    return numbered + max(0, len(rows) - 2)
+
+
 W = 940
 MARGIN_L = 245          # spazio etichette barre orizzontali
 MARGIN_R = 70
@@ -111,7 +142,8 @@ CHART_A = [
 ]
 
 # ── Dati Chart B: meccanismi cumulativi per versione ─────────────────
-# (lista completa dei 16 meccanismi in DOCS/MIGLIORAMENTI.md)
+# Storico fino a v0.3.31+; il punto finale è calcolato da mechanism_count()
+# (lista completa in DOCS/MIGLIORAMENTI.md).
 CHART_B = [
     ("v0.3.18", 1),   # 70: regola parita' GUI
     ("v0.3.20", 2),   # 72: runner v2 + fix keywords skill
@@ -128,6 +160,8 @@ CHART_B = [
                       #      best-of-N, watchdog backoff, clarifier +3,
                       #      refs interni, validate_refs, Zero Warning
 ]
+# Cycle 87-93: inventario regex, subagent, A1-A4, B1-B3, C1-C2, D1.
+MECHANISMS = mechanism_count()
 
 # ── Dati Chart C: suite di test ──────────────────────────────────────
 CHART_C = [
@@ -406,7 +440,8 @@ def radar_section(axes, oggi, goal, cx, cy, R, top, title, subtitle):
                  f'rx="2" fill="{C_BLUE}" fill-opacity="0.25" '
                  f'stroke="{C_BLUE}" stroke-width="2"/>')
     parts.append(f'<text x="{cx - 102}" y="{ly + 10}" font-family="{FONT}" '
-                 f'font-size="11.5" fill="{C_GRAY}">oggi (Cycle 93)</text>')
+                 f'font-size="11.5" fill="{C_GRAY}">'
+                 f'oggi (Cycle {latest_cycle()})</text>')
     parts.append(f'<rect x="{cx + 10}" y="{ly}" width="12" height="12" '
                  f'rx="2" fill="{C_GREEN}" fill-opacity="0.25" '
                  f'stroke="{C_GREEN}" stroke-width="2" '
@@ -424,7 +459,7 @@ def build_svg() -> str:
     sections.append(
         f'<text x="20" y="38" font-family="{FONT}" font-size="20" '
         f'font-weight="bold" fill="#0f172a">byte-swarmy — Miglioramenti '
-        f'implementati (Cycle 70 → 93 — Nov 2026)</text>')
+        f'implementati (Cycle 70 → {latest_cycle()} — Nov 2026)</text>')
     sections.append(
         f'<text x="20" y="60" font-family="{FONT}" font-size="12" '
         f'fill="{C_GRAY}">Generato deterministicamente da '
@@ -443,11 +478,12 @@ def build_svg() -> str:
 
     y += 24
     s, y = step_section(
-        CHART_B, x0, x1, y,
+        CHART_B[:-1] + [("v0.3.34+", MECHANISMS)], x0, x1, y,
         "B. Meccanismi di robustezza e anti-allucinazione attivi "
         "(cumulativo)",
-        "Elenco completo dei 26 meccanismi in DOCS/MIGLIORAMENTI.md",
-        y_max=16)
+        f"Elenco completo dei {MECHANISMS} meccanismi in "
+        "DOCS/MIGLIORAMENTI.md",
+        y_max=max(16, MECHANISMS))
     sections.append(s)
 
     y += 24

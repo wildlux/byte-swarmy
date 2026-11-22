@@ -2243,3 +2243,24 @@ Verifiche: `tests/test_improvements_panel.py` 4 test offscreen, SVG valido;
 assi invariati restano misurati in `DOCS/PROMPT_LINT_REPORT.md` e nella
 tabella radar.
 
+---
+
+## Cycle 95 (2026-11-22) — pulsante "Rigenera" finalmente efficace e onesto
+
+| Modifica | Dettaglio |
+|---|---|
+| `tools/gen_grafici.py` | `latest_cycle()` legge l'ultimo `## Cycle N` da `DOCS/IMPLEMENTED.md`; `mechanism_count()` conta le righe della tabella B + novità in `DOCS/MIGLIORAMENTI.md` (37). Titolo, legenda radar e punto finale di Chart B sono calcolati, non scritti a mano; `y_max` adattato |
+| `GUI/improvements_panel.py` | Dopo il click lo status mostra `✅ SVG aggiornato` oppure `✅ SVG identico (nessun dato cambiato)`, con orario e byte scritti; errori di exit/timeout visibili invece di essere inghiottiti |
+| `DOCS/grafici/miglioramenti.svg` | Rigenerato: Cycle 70 → 95, 37 meccanismi, legenda "oggi (Cycle 95)" |
+
+Causa del sintomo segnalato: il pulsante **partiva davvero** (mtime cambiava,
+exit 0), ma i dati erano hard-coded e lo status veniva sovrascritto dal solo
+percorso file: l'SVG era byte-identico e l'utente non vedeva nulla. Ora un
+cambio nei documenti produce un SVG diverso e il pulsante lo dichiara.
+
+Verifiche: `tests/test_improvements_panel.py` 6 test offscreen (click con
+subprocess mockato: identico/errore) + `tests/test_gen_grafici_data.py`
+3 test (valori derivati, presenti nell'SVG, determinismo). Riproduzione
+reale: `prima: DOCS/grafici/miglioramenti.svg (940×1911)` →
+`dopo: ✅ SVG identico (nessun dato cambiato) · 13:37:58 · 21228 byte`.
+

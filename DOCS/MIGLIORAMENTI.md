@@ -1,4 +1,4 @@
-# 📈 Miglioramenti implementati — Cycle 70 → 93 (v0.3.18 → v0.3.34)
+# 📈 Miglioramenti implementati — Cycle 70 → 95 (v0.3.18 → v0.3.34)
 
 ![Grafico miglioramenti](grafici/miglioramenti.svg)
 
@@ -20,7 +20,7 @@ Scala (grafico D, criteri misurabili):
 | Livello | Criterio | Stato |
 |---|---|---|
 | **Junior** — 1/4 | 3b nudo senza sistema: 0/4 task GUI, modifiche minime fallite, requirements sovrascritto | baseline (C72) |
-| **Junior+** — 2/4 | Sistema v0.3.34: 26 meccanismi attivi, gate per-slot + assembler + import-check, Zero Warning (0 pyflakes), corpus feedback, best-of-N, auto-skill/auto-tool, cartelle ordinate | **◀ siamo qui** |
+| **Junior+** — 2/4 | Sistema v0.3.34: 37 meccanismi attivi, gate per-slot + assembler + import-check, Zero Warning (0 pyflakes), corpus feedback, best-of-N configurabile, auto-skill/auto-tool validati, self-improvement misurabile | **◀ siamo qui** |
 | **Middle** — 3/4 | ≥50% dei task chiusi al primo tentativo (senza correction), task GUI ≥50% | target intermedio |
 | **Middle Senior** — 4/4 | **≥70% al primo tentativo; task GUI ≥75%; 0 simboli API inesistenti nei file scritti (gate import-check); 0 violazioni gate; 0 warning (pyflakes + pytest — regola Zero Warning) ✅ raggiunto (474 → 0)** | ★ GOAL |
 
@@ -57,7 +57,7 @@ Commit: `4a1cb1a` (12 difetti) · `0bb4998` (parità GUI) · `72e1b71` (toolbar)
 
 ---
 
-## B. I 26 meccanismi di robustezza e anti-allucinazione attivi
+## B. I 37 meccanismi di robustezza e anti-allucinazione attivi
 
 | # | Meccanismo | Introdotto |
 |--:|---|---|
@@ -197,9 +197,10 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 
 ---
 
-*Documento e grafico aggiornati al Cycle 93 il 2026-11-22 (asse Memoria →
-3/4): rigenerare con `.venv/bin/python tools/gen_grafici.py` quando cambiano
-i meccanismi o i valori del radar in `tools/gen_grafici.py`.*
+*Documento aggiornato al Cycle 95 il 2026-11-22: il grafico legge ciclo e
+conteggio meccanismi dai documenti, quindi basta premere 🔄 Rigenera nella
+Plancia (oppure `.venv/bin/python tools/gen_grafici.py`). I valori del radar
+restano giudizi espliciti in `tools/gen_grafici.py`.*
 
 ---
 

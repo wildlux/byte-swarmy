@@ -82,23 +82,49 @@ class ImprovementsPanel(QWidget):
 
     # ------------------------------------------------------------------
     def _regenerate(self) -> None:
-        """Rigenera l'SVG con lo script deterministico (fail-open)."""
+        """Rigenera l'SVG con lo script deterministico e mostra l'esito.
+
+        Prima del Cycle 94 il pulsante sembrava non fare nulla: lo script
+        girava, ma i dati erano hard-coded e lo status veniva subito
+        sovrascritto dal solo percorso file. Ora riportiamo se il contenuto
+        è cambiato, quanti byte sono stati scritti e un eventuale errore.
+        """
+        import hashlib
         import subprocess
         import sys
+        import time
+
         root = self._svg_path.parents[2]
         script = root / "tools" / "gen_grafici.py"
+        before = (self._svg_path.read_bytes()
+                  if self._svg_path.exists() else b"")
         try:
             proc = subprocess.run(
                 [sys.executable, str(script)],
                 capture_output=True, text=True, timeout=30, cwd=str(root),
             )
-            if proc.returncode == 0:
-                self._load_svg()  # ricarica dopo la rigenerazione
-            else:
-                self._status.setText(
-                    f"⚠ errore: {proc.stderr.strip()[:120]}")
         except Exception as e:
             self._status.setText(f"⚠ errore: {e}")
+            return
+
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout or "").strip()[:120]
+            self._status.setText(
+                f"⚠ errore (exit {proc.returncode}): {detail}")
+            return
+
+        after = (self._svg_path.read_bytes()
+                 if self._svg_path.exists() else b"")
+        if not after:
+            self._status.setText("⚠ errore: SVG non scritto")
+            return
+        changed = (hashlib.sha256(after).digest()
+                   != hashlib.sha256(before).digest())
+        self._load_svg()  # ricarica dopo la rigenerazione
+        message = ("✅ SVG aggiornato" if changed
+                   else "✅ SVG identico (nessun dato cambiato)")
+        self._status.setText(
+            f"{message} · {time.strftime('%H:%M:%S')} · {len(after)} byte")
 
     def _back_to_main(self):
         """Torna alla plancia di controllo (walk-up sul parent tree)."""
