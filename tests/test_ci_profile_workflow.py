@@ -20,7 +20,7 @@ def _text() -> str:
 def test_workflow_presente_e_manuale():
     text = _text()
     assert "workflow_dispatch" in text
-    assert "python-version: \"3.11\"" in text
+    assert "python-version: \"3.14\"" in text
     assert "runs-on: ubuntu-latest" in text
 
 

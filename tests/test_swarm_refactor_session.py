@@ -6,6 +6,7 @@ wait_cold senza attesa se già freddo. Nessun LLM: test veloci.
 """
 
 import sys
+import time
 import unittest
 from pathlib import Path
 
@@ -46,9 +47,16 @@ class TestTemp(unittest.TestCase):
 
     def test_wait_cold_se_gia_freddo_non_attende(self):
         # Soglia irrealisticamente alta: sempre "freddo", zero attesa.
+        t0 = time.monotonic()
         ok, temp = wait_cold(threshold=150.0, max_wait=1)
+        elapsed = time.monotonic() - t0
         self.assertTrue(ok)
-        self.assertGreater(temp, 0.0)
+        # Su GitHub Actions non c'è hwmon: read_max_temp() ritorna 0.0.
+        # Verificare che sia una temperatura plausibile e che non ci sia
+        # stata attesa, senza pretendere un sensore sulla macchina CI.
+        self.assertGreaterEqual(temp, 0.0)
+        self.assertLess(temp, 150.0)
+        self.assertLess(elapsed, 0.5)
 
     def test_wait_cold_mai_sopra_soglia_di_default(self):
         """La soglia di default resta sotto il limite 60°C."""

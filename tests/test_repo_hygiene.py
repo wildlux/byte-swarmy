@@ -165,7 +165,9 @@ class TestGitTrackedRuntime(unittest.TestCase):
             self.skipTest("git non disponibile")
         keep_dirs = {p.rsplit("/", 1)[0] for p in tracked
                      if p.endswith(".gitkeep")}
-        extra = keep_dirs - {"tasks", "project"}
+        # `tasks/` è un symlink a `data/tasks/`: il file tracciato vive
+        # nella destinazione reale, non nel nome del link.
+        extra = keep_dirs - {"tasks", "data/tasks", "project"}
         self.assertFalse(extra,
                          f".gitkeep in dir inattese: {sorted(extra)}")
 

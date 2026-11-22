@@ -112,7 +112,8 @@ class _FakeModelClientRefactoring:
                        max_tokens=1024, options_override=None):
         if self._step >= len(self._sequence):
             yield ('{"thought":"done","action":"none","args":[],'
-                   '"done":true,"result":"mock: sequenza terminata"}')
+                   '"done":true,'
+                   '"result":"mock refactoring: sequenza terminata"}')
             return
         action = self._sequence[self._step]
         self._step += 1

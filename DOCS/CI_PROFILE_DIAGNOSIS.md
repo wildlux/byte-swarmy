@@ -107,3 +107,21 @@ test falliti senza `gh`, auth o download dell'artifact.
 Nota operativa: le ripetute chiamate all'API GitHub anonima hanno esaurito il
 limite di 60 richieste/ora. Il monitor del run #7 usa solo le pagine HTML
 pubbliche di GitHub, che non consumano quella quota.
+
+## Aggiornamento Cycle 127 — run #7: 10 test falliti, diagnosi completata
+
+Il run #7 (`45051444788`, commit `91bc272`) è fallito nello step 8 come i
+precedenti, ma le nuove annotations hanno finalmente pubblicato i nomi:
+
+| Test fallito | Causa | Correzione |
+|---|---|---|
+| `test_api_fidelity_eval.py` (4 test) | Ref `csv`/`json` generati con Python 3.14; CI usava 3.11, dove `csv.reader/writer` non sono introspettabili e mancano `QUOTE_NOTNULL`/`QUOTE_STRINGS` | `python-version: "3.14"` in `profile.yml` (allineamento all'ambiente di sviluppo) |
+| `test_config_gates.py::test_remote_github_senza_token` | `checkout@v5` configura remote HTTPS, il test esigeva SSH | Accettare HTTPS **e** SSH; resta il divieto di token |
+| `test_remote_bridge.py::test_socket_path_resolution` | `/run/user/1000` non esiste sul runner → fallback `/tmp` | Usare `tempfile.TemporaryDirectory()` come `XDG_RUNTIME_DIR`; inoltre `BRIDGE_NAME` è un alias del path, non il basename → usare `SOCKET_BASENAME` |
+| `test_repo_hygiene.py::test_tasks_gitkeep_exists` | `tasks` è symlink a `data/tasks`; `data/` è gitignored, quindi `.gitkeep` non era tracciato | `git add -f data/tasks/.gitkeep` |
+| `test_repo_hygiene.py::test_gitkeep_only_in_expected_dirs` | Il file tracciato è `data/tasks/.gitkeep`, non `tasks/.gitkeep` | Aggiunta `data/tasks` alle cartelle attese |
+| `test_swarm_refactor_session.py::test_wait_cold_se_gia_freddo_non_attende` | Runner senza hwmon: `read_max_temp()` = 0.0 | Verificare temperatura ≥0 e attesa <0,5 s invece di `> 0.0` |
+| `test_refactoring_live.py::test_result_include_message_di_successo` | Il mock emette un result generico quando la sequenza finisce | Messaggio del mock include `refactoring`; la sequenza reale resta invariata |
+
+Verifica locale mirata dopo le correzioni: 56 test passati su 58, poi i 2
+residui corretti e riverificati (2 passed). Nessuna suite completa locale.

@@ -43,8 +43,10 @@ def test_gate_termico_attivo_e_num_ctx_allineati():
 
 def test_remote_github_senza_token():
     url = _git("remote", "get-url", "origin")
-    assert url.startswith("git@github.com:")
-    for marker in ("https://", "ghp_", "github_pat_", "x-access-token"):
+    # checkout azionale → HTTPS; sviluppo locale → SSH. La regola di
+    # sicurezza è "nessun token", non la forma del remote.
+    assert url.startswith(("git@github.com:", "https://github.com/"))
+    for marker in ("ghp_", "github_pat_", "x-access-token"):
         assert marker not in url
     assert url.endswith("wildlux/byte-swarmy.git")
 

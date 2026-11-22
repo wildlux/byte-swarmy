@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -156,22 +157,25 @@ def test_slug():
 
 def test_socket_path_resolution(monkeypatch):
     """Verifica la risoluzione deterministica del path del socket."""
-    from GUI.remote_bridge import _socket_path, BRIDGE_NAME
+    from GUI.remote_bridge import _socket_path, SOCKET_BASENAME
 
     # 1. env override vince su tutto
     monkeypatch.setenv("BYTE_SWARMY_REMOTE_SOCKET", "/custom/path.sock")
     assert _socket_path() == "/custom/path.sock"
 
-    # 2. XDG_RUNTIME_DIR scrivibile → tmpfs per-user
+    # 2. XDG_RUNTIME_DIR scrivibile → tmpfs per-user. Su GitHub Actions
+    # /run/user/<uid> non esiste: usare una dir temporanea reale evita il
+    # fallback /tmp e rende il test indipendente dalla macchina.
     monkeypatch.delenv("BYTE_SWARMY_REMOTE_SOCKET", raising=False)
-    monkeypatch.setenv("XDG_RUNTIME_DIR", "/run/user/1000")
-    assert _socket_path() == "/run/user/1000/byte-swarmy-remote.sock"
+    with tempfile.TemporaryDirectory() as xdg:
+        monkeypatch.setenv("XDG_RUNTIME_DIR", xdg)
+        assert _socket_path() == str(Path(xdg) / f"{SOCKET_BASENAME}.sock")
 
-    # 3. basename custom
-    assert _socket_path("altro") == "/run/user/1000/altro.sock"
+        # 3. basename custom
+        assert _socket_path("altro") == str(Path(xdg) / "altro.sock")
 
     # 4. fallback /tmp se XDG non è scrivibile
     monkeypatch.setenv("XDG_RUNTIME_DIR", "/nonexistent/xyz")
     p = _socket_path()
     assert p.startswith("/tmp/") and p.endswith(".sock")
-    assert str(os.getuid()) in p or BRIDGE_NAME in p
+    assert str(os.getuid()) in p or SOCKET_BASENAME in p

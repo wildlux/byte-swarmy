@@ -38,7 +38,10 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          # Cycle 127: allineato all'ambiente di sviluppo (3.14). Con 3.11
+          # i ref API generati su 3.14 (csv.reader/writer con firma) non
+          # validationo: 4 test E2 fallivano per differenza stdlib.
+          python-version: "3.14"
 
       - name: Librerie di sistema per Qt headless (libEGL)
         run: |
