@@ -136,8 +136,8 @@ def test_worker_inietta_registry_senza_llm(tmp_path):
     cfg = _config(tmp_path)
     (tmp_path / "project").mkdir(exist_ok=True)
     tools = ToolSet(cfg, _LOG)
-    worker = Worker("padre", "worker_coder", tools, SimpleNamespace(),
-                    _MODELS, _LOG)
+    Worker("padre", "worker_coder", tools, SimpleNamespace(),
+           _MODELS, _LOG)
     assert tools.subagents is not None
     out = tools.spawn_subagent("worker_coder", "analizza x")
     assert out.startswith("OK")

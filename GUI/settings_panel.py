@@ -204,11 +204,7 @@ class SettingsPanel(QWidget):
     def _build_search_haystack(self, name: str, section: QGroupBox) -> str:
         """Costruisce l'indice testuale dinamico di una sezione."""
         haystack_parts: list[str] = [name.lower(), section.title().lower()]
-        from PyQt6.QtWidgets import (
-            QLabel, QPushButton, QLineEdit, QComboBox, QCheckBox,
-            QRadioButton, QSpinBox, QDoubleSpinBox, QTextEdit,
-            QPlainTextEdit, QTabBar, QAbstractItemView,
-        )
+        from PyQt6.QtWidgets import QComboBox, QTabBar, QAbstractItemView
         for child in section.findChildren(QObject):
             text = None
             if hasattr(child, "text") and callable(child.text):
@@ -349,8 +345,7 @@ class SettingsPanel(QWidget):
 
     def _build_labels_section(self) -> QFrame:
         """Sezione per gestire le etichette (tag) e i loro colori."""
-        from CORE import labels as L
-        from PyQt6.QtWidgets import QColorDialog, QPushButton, QLabel, QHBoxLayout, QWidget
+        from PyQt6.QtWidgets import QPushButton, QLabel, QHBoxLayout
 
         box = QGroupBox("🏷️ Etichette — colori")
 
@@ -409,7 +404,7 @@ class SettingsPanel(QWidget):
 
     def _refresh_labels_list(self) -> None:
         from CORE import labels as L
-        from PyQt6.QtWidgets import QColorDialog, QPushButton, QLabel, QHBoxLayout, QWidget
+        from PyQt6.QtWidgets import QPushButton, QLabel, QHBoxLayout
         while self._labels_container.count():
             item = self._labels_container.takeAt(0)
             w = item.widget()

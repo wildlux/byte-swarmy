@@ -279,17 +279,19 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 
 | ID | Cosa manca | Stato | Voce di riferimento | Prossima azione |
 |---|---|---|---|---|
-| M1 | Zero Warning riaperto: 23 finding pyflakes, 2 `undefined name: Path` | [ ] | Robustezza #10 + `DOCS/BRUTAL_HONESTY_REPORT.md` | Portare a 0 lo scope attivo; prima `GUI/center_area.py:278,288` |
-| M2 | Suite completa non rieseguita dal 2026-11-19 | [ ] | Domani #1 | `pytest --ignore=project -q -p no:cacheprovider --durations=0` |
-| M3 | Verifica ventole (`fan_verified.json` assente) | [ ] 🔒 termico | C3 + incidente termico 2026-11-20 | Misurare `fan_rpm > 0`, `temp_c <= 60` |
+| M1 | Zero Warning riaperto: 23 finding pyflakes, 2 `undefined name: Path` | [x] Cycle 102 | Robustezza #10 + `DOCS/BRUTAL_HONESTY_REPORT.md` | Portato a 0 lo scope attivo: import `Path` aggiunto, import morti rimossi, `worker` senza assegnazione |
+| M2 | Suite completa non rieseguita dal 2026-11-19 | [ ] 🔒 termico | Domani #1 + incidente 2026-11-20 | Solo su GitHub Actions (`profile.yml`); locale vietata finché M3 non è chiuso |
+| M3 | Verifica ventole (`fan_verified.json` assente) | [ ] 🔒 termico | C3 + incidente 2026-11-20 | `sensors`: CPU 53 °C, `pwm1` N/A; servizio `nbfc` down. Misurare `fan_rpm > 0`, `temp_c <= 60` |
 | M4 | Token GitHub esposto da revocare | [ ] 🔒 credenziali | Sessione sicurezza 2026-11-22 | Login GitHub → revoca PAT → aggiorna `~/.git-credentials` |
 | M5 | Utente dedicato + firewall | [ ] 🔒 root | Sessione sicurezza 2026-11-22 | `sudo scripts/setup/hardening.sh --all` |
-| M6 | Profiling CI: run #2 fallito al step 6 | [ ] 🔒 UI | `.github/workflows/profile.yml` | Trigger manuale su GitHub Actions, artifact `--durations=0` |
+| M6 | Profiling CI: run #2 fallito al step 6 (`Profilazione completa`) | [ ] 🔒 UI | `.github/workflows/profile.yml` | Trigger manuale su GitHub Actions, artifact `--durations=0` |
 | M7 | Middle non misurato (task reali, retrieval quality, A/B live, GUI live, build mobile) | [ ] 🔒 termico | Radar E + C3 + SLOT-3/4 | Corpus task utente + gate termico; nessun asse alzato senza misure |
 | M8 | Rilevatore AI-based | [ ] ⛔ non fare ora | Sessione sicurezza 2026-11-22 | Nessuna azione: servono misure e gate termico |
 
 > Ordine: M3 sblocca M7; M4 e M5 sono indipendenti ma prioritari per i dati
-> reali; M1 e M2 sono verificabili offline e non richiedono il gate termico.
+> reali; M1 chiuso offline al Cycle 102. M2 resta 🔒: la suite completa
+> locale è vietata dalla regola termica del 2026-11-20 e il profiling
+> passa solo su GitHub Actions (trigger manuale, vedi M6).
 
 ---
 
@@ -437,8 +439,9 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
       famiglia GUI/CORE per sessione) + baseline pytest-warning
       misurata e ridotta con `-W error` dove possibile. GO/NO-GO
       onesto se i warning Qt non sono sopprimibili.
-      ⚠️ Cycle 100: pyflakes oggi 23 finding sul codice attivo (no
-      `tests/archiviati`) — vedi `DOCS/BRUTAL_HONESTY_REPORT.md`.
+      ⚠️ Cycle 100: pyflakes riaperto con 23 finding sul codice attivo
+      (no `tests/archiviati`); Cycle 102: richiuso a 0 finding — vedi
+      `DOCS/BRUTAL_HONESTY_REPORT.md`.
 16. [x] **[Robustezza #7] security_scan.py in CI + verify_cycle** — lo
       scanner esiste (baseline storica 262 finding / 13 errori, di cui
       9 in GLM_SOLUZIONE_WEB; baseline UNICA aggiornata il 2026-11-22:

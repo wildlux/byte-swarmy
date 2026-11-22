@@ -16,9 +16,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
 )
 
-from GUI.skill_completion import (
-    list_skills_with_status, set_skill_enabled,
-)
+from GUI.skill_completion import set_skill_enabled
 from GUI.theme.theme import set_prop as _theme_prop
 
 

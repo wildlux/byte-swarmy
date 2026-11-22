@@ -8,7 +8,7 @@ Scopo: dire cosa è **veramente verificabile** nei report e nei documenti di `DO
 
 | Affermazione | Verdetto | Evidenza |
 |---|---|---|
-| Zero Warning (pyflakes) | ❌ FAIL | 23 finding di pyflakes; undefined: GUI/center_area.py:278:25: undefined name 'Path'; GUI/center_area.py:288:32: undefined name 'Path' |
+| Zero Warning (pyflakes) | ✅ PASS | 0 finding di pyflakes |
 | best-of-N 'attivo (fast lane)' | ⚠️ DISABILITATO | `fast_lane.enabled=false`, `best_of_n=1` |
 | First-try 0.958 come task reali | ⚠️ FIXTURE INTERNE | 72 triple, 24 uniche, 20 task distinti; 0.950 sugli unici |
 | Copertura retrieval 100% | ⚠️ DEFINIZIONE RISTRETTA | 20/20: solo presenza di testo indicizzabile, non qualità del retrieval |

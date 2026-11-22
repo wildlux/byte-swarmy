@@ -98,7 +98,7 @@ def has_api_key(provider: str) -> bool:
 
 
 def _headers(provider: str) -> dict:
-    info = provider_info(provider)
+    provider_info(provider)  # valida il provider (KeyError se sconosciuto)
     headers = {
         "Authorization": f"Bearer {get_api_key(provider)}",
         "Content-Type": "application/json",

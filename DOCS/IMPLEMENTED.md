@@ -2372,3 +2372,22 @@ non presenti) e task live 🔒 bloccato termicamente: serve
 Mobile resta 2/4; 3/4 richiede build reale + task live. Nessun LLM, rete,
 GPU, emulatore o `app.exec()`.
 
+---
+
+## Cycle 102 (2026-11-22) — M1: Zero Warning richiuso (23 → 0 finding)
+
+| Modifica | Dettaglio |
+|---|---|
+| `GUI/center_area.py` | Aggiunto `from pathlib import Path`: eliminati i 2 `undefined name` alle righe 278/288 (pole `state/clarification*.txt`). Sblocca anche il gate `pyflakes — 0 nomi indefiniti` di `.github/workflows/ci.yml` |
+| `CORE/cloud_client.py` | `_headers()` chiama `provider_info(provider)` senza assegnazione inutilizzata: la validazione `KeyError` resta, il finding sparisce |
+| `CORE/labels.py`, `GUI/file_tree_drawer.py`, `GUI/task_scheduler_panel.py`, `GUI/skills_panel.py`, `GUI/settings_panel.py` | Rimossi 19 import morti (Qt widget, `Optional`, `update_task_labels`, `list_skills_with_status` duplicato). Nessun comportamento cambiato |
+| `tests/test_subagent.py` | `Worker(...)` chiamato senza assegnare `worker`: preservato l'effetto collaterale (registry iniettato) che il test verifica |
+| `DOCS/BRUTAL_HONESTY_REPORT.md` | Rigenerato: `Zero Warning (pyflakes)` passa da ❌ FAIL (23) a ✅ PASS (0). Nessun verdetto scritto a mano |
+| `DOCS/MIGLIORAMENTI.md`, `todo.md` | Storia onesta aggiornata: 474 → 0 (Cycle 85), riaperto a 23 (Cycle 100), richiuso a 0 (Cycle 102) |
+
+Verifiche: `pyflakes` 0 su `CORE GUI tools SAFETY tests` (esclusi `tests/archiviati`),
+`compileall` OK, `lint_style` 0 errori (warning baseline pre-esistenti),
+92 test mirati + 6 subtests verdi, `git diff --check` pulito. **Nessun asse
+del radar toccato** e nessun LLM/rete/GPU. La suite completa resta 🔒 bloccata
+dalla regola termica del 2026-11-20.
+

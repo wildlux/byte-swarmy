@@ -1,4 +1,4 @@
-# 📈 Miglioramenti implementati — Cycle 70 → 101 (v0.3.18 → v0.3.34)
+# 📈 Miglioramenti implementati — Cycle 70 → 102 (v0.3.18 → v0.3.34)
 
 ![Grafico miglioramenti](grafici/miglioramenti.svg)
 
@@ -52,7 +52,7 @@ verso il goal; il progresso è un numero, non un'impressione.
 
 | Voce | Correzione applicata |
 |---|---|
-| Zero Warning | **Non diciamo più “0 pyflakes raggiunto”**: il run3 2026-11-19 aveva 0 pytest warning, ma pyflakes oggi è in rosso. Campagna riaperta, conteggio nel report. |
+| Zero Warning | **Storia onesta**: il run3 2026-11-19 ebbe 0 pytest warning; al Cycle 100 pyflakes era riaperto con 23 finding. Ora (Cycle 102) è **0 finding sul codice attivo**, verdetto ✅ nel [report deterministico](BRUTAL_HONESTY_REPORT.md). |
 | First-try 0.958 | Il numero è su **fixture interne** (test/adversarial/regressioni), non task utente. Il task GUI live resta non misurato. |
 | Copertura retrieval 100% | Significa solo “testo indicizzabile presente”, non qualità del retrieval. |
 | Best-of-N | Configurabile, ma `fast_lane.enabled=false` e `best_of_n=1`: **non attivo a runtime**. |
@@ -105,7 +105,7 @@ Commit: `4a1cb1a` (12 difetti) · `0bb4998` (parità GUI) · `72e1b71` (toolbar)
 | 23 | Watchdog backoff escalato + guardia crash-loop | v0.3.32 (C85l) |
 | 24 | Refs interni (orchestrator/ledger/scheduler) + validate_refs.py | v0.3.32 (C85l) |
 | 25 | Clarifier esteso (test runner, handler sistema, formato config) | v0.3.32 (C85l) |
-| 26 | Zero Warning (Cycle 85): pyflakes 474 → 0 **all'epoca**; oggi riaperto — vedi [Brutal honesty](BRUTAL_HONESTY_REPORT.md) | v0.3.32 (C85m) |
+| 26 | Zero Warning (Cycle 85): pyflakes 474 → 0 **all'epoca**; riaperto al Cycle 100 (23 finding), richiuso al Cycle 102 (0 finding) — vedi [Brutal honesty](BRUTAL_HONESTY_REPORT.md) | v0.3.32 (C85m) |
 
 ---
 
@@ -221,7 +221,7 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 
 ---
 
-*Documento aggiornato al Cycle 101 il 2026-11-22: il grafico legge ciclo e
+*Documento aggiornato al Cycle 102 il 2026-11-22: il grafico legge ciclo e
 conteggio meccanismi dai documenti, quindi basta premere 🔄 Rigenera nella
 Plancia (oppure `.venv/bin/python tools/gen_grafici.py`). I valori del radar
 restano giudizi espliciti in `tools/gen_grafici.py`.*

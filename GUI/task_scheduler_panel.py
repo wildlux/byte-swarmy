@@ -433,9 +433,8 @@ class TaskSchedulerPanel(QWidget):
             task = None
         if not task:
             return
-        from PyQt6.QtWidgets import QMenu, QInputDialog
+        from PyQt6.QtWidgets import QMenu
         from CORE import labels as L
-        from GUI.task_queue import update_task_labels, load_tasks
         menu = QMenu(self)
         act_edit = menu.addAction("✏️ Modifica")
         act_del = menu.addAction("🗑️ Elimina")

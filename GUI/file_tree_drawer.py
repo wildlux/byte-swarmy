@@ -1566,7 +1566,7 @@ class FileTreeDrawer(QFrame):
             label_menu = menu.addMenu("🏷️ Etichetta")
             try:
                 from CORE import labels as L
-                from GUI.task_queue import update_task_labels, load_tasks
+                from GUI.task_queue import load_tasks
                 pp = (self.main_win.get_current_project_path()
                       if getattr(self, "main_win", None) else None)
                 tasks = load_tasks(pp)

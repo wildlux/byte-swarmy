@@ -16,7 +16,6 @@ import hashlib
 import json
 import re
 from pathlib import Path
-from typing import Optional
 
 BASE_DIR = Path(__file__).parent.parent.resolve()
 LABELS_FILE = BASE_DIR / "state" / "labels.json"
