@@ -394,11 +394,19 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
       > copertura 8 assi/3 granularità, validazione casi corrotti e
       > dry-run JSON deterministico. 🔒 Resta `--live` (pass@1): serve
       > run LLM con gate termico, non eseguito.
-7. [ ] **[SLOT-5] Eval per-slot pass@1** — runner che misura il
+7. [~] **[SLOT-5] Eval per-slot pass@1** — runner che misura il
       primo-colpo **per tipo di slot** (import/function/handler/widget)
       e per dimensione output: è il numero che dice se SLOT funziona.
       Criterio done: tabella per-slot in DOCS/BENCH.md su ≥12 casi.
       Dipende da: P1-1 (✅ Cycle 85i), Fase A.
+      > ✅ **Slice SLOT-5 fatta (Cycle 117)**: `tools/eval_by_slot.py`
+      > classifica gli 11 casi con marker per tipo di slot e dimensione
+      > output; `DOCS/SLOT5_EVAL_REPORT.md` + `tests/test_eval_by_slot.py`
+      > (9 test). Un file `--results` è accettato come LIVE solo con
+      > `source: "live"` **e** evidenza `fan_rpm > 0`, `temp_c ≤ 60`:
+      > surrogati rifiutati con exit 2. 🔒 Restano i 12+ casi reali con
+      > modello e ventole verificate: il dry-run è simulazione esplicita
+      > e non chiude la voce.
 
 ### Fascia 3 — ★ Chiudere i gap del sistema
 

@@ -458,3 +458,22 @@ reale sui 10 task, non il dry-run.
 Il solver del dry-run assegna l'HINT per hash del `case_id`: serve solo a
 esercitare le diramazioni della regola, **non** è una misura di qualità. Nessun
 prompt viene promosso finché non arriva un esperimento reale con gate termico.
+
+---
+
+## Eval per-slot (SLOT-5) — Cycle 117, reporter pronto (2026-11-22)
+
+| Parametro | Valore |
+|---|---|
+| Strumento | `tools/eval_by_slot.py` + `tests/test_eval_by_slot.py` (9 test) |
+| Casi classificati | 11 con `expected_marker`; 2 casi gate/chiarimento esclusi (pass@1 non applicabile) |
+| Tipi slot | `function`, `method`, `handler`, `widget`, `import`, `class`, `statement` |
+| Dimensioni | small 0-40, medium 41-120, large 121+ righe |
+| Accettazione risultati live | Richiede `source: "live"` **e** `fan_rpm > 0`, `temp_c ≤ 60`; altrimenti exit 2 |
+| Esito dry-run | tabelle per slot e per dimensione da hash del `case_id` — **simulazione, non misura** |
+| Report | `DOCS/SLOT5_EVAL_REPORT.md` (rigenerato dal tool) |
+| Criterio done | 🔒 incompleto: servono 12+ casi reali con modello e ventole verificate |
+
+Il reporter rifiuta `case_id` sconosciuti/duplicati, `slot_kind` non ammessi e
+qualsiasi `source` diverso da `live`/`simulation`. Nessun asse del radar viene
+alzato: SLOT-5 resta `[~]` finché la tabella non contiene dati misurati.

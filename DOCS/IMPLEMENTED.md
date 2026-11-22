@@ -2597,3 +2597,18 @@ rigenerato. **Nessuna attività LLM, CI o termica avviata.**
 Verifiche: 9 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning.
 **Nessun LLM, rete o GPU**: il solver è finto per costruzione e il report
 dichiara che il risultato non è un esperimento reale.
+
+---
+
+## Cycle 117 (2026-11-22) — SLOT-5: reporter per-slot con gate sull'evidenza
+
+| Modifica | Dettaglio |
+|---|---|
+| `tools/eval_by_slot.py` (nuovo) | Classifica gli 11 casi con `expected_marker` in 7 tipi di slot e 3 fasce di dimensione output; genera la tabella pass@1. `--results` accetta un file solo con `source: "live"` e thermal `fan_rpm > 0`, `temp_c ≤ 60`: altrimenti exit 2. Rifiuta case_id sconosciuti/duplicati e slot_kind non ammessi. Dry-run con risultati sintetici etichettati SIMULAZIONE |
+| `tests/test_eval_by_slot.py` (nuovo) | 9 test offline: classificazione, bucket, aggregazione, determinismo, rifiuto di 4 surrogate termiche, validazione record, CLI JSON e blocco live, onestà del report, assenza di client LLM |
+| `DOCS/SLOT5_EVAL_REPORT.md` (nuovo) | Generato dal tool: 11 casi, tabelle per slot e dimensione, dichiarazione esplicita che non è una misura e non chiude SLOT-5 |
+| `DOCS/BENCH.md`, `todo.md` | Sezione SLOT-5 e stato `[~]`; restano 12+ casi reali da misurare |
+
+Verifiche: 9 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning.
+**Nessun LLM, rete o GPU**: il live richiede evidenza termica verificata e un
+file di risultati esterno, non generato qui.

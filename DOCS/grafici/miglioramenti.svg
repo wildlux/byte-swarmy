@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="1911" viewBox="0 0 940 1911">
 <rect width="940" height="1911" fill="#ffffff"/>
-<text x="20" y="38" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">byte-swarmy — Miglioramenti implementati (Cycle 70 → 116 — Nov 2026)</text>
+<text x="20" y="38" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">byte-swarmy — Miglioramenti implementati (Cycle 70 → 117 — Nov 2026)</text>
 <text x="20" y="60" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#64748b">Generato deterministicamente da tools/gen_grafici.py — dati: DOCS/IMPLEMENTED.md</text>
 <text x="20" y="92" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">A. Audit robustezza Cycle 85 — 15 difetti corretti, per categoria</text>
 <text x="20" y="112" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Rilevati da pyflakes + pytest + smoke sandbox; tutti corretti e su GitHub (commit 4a1cb1a / 0bb4998 / 72e1b71)</text>
@@ -155,7 +155,7 @@
 <circle cx="406.0" cy="1185.7" r="3.5" fill="#2563eb"/>
 <circle cx="407.3" cy="1122.3" r="3.5" fill="#2563eb"/>
 <rect x="350" y="1379" width="12" height="12" rx="2" fill="#2563eb" fill-opacity="0.25" stroke="#2563eb" stroke-width="2"/>
-<text x="368" y="1389" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">oggi (Cycle 116)</text>
+<text x="368" y="1389" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">oggi (Cycle 117)</text>
 <rect x="480" y="1379" width="12" height="12" rx="2" fill="#16a34a" fill-opacity="0.25" stroke="#16a34a" stroke-width="2" stroke-dasharray="6,4"/>
 <text x="498" y="1389" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">goal middle senior</text>
 <text x="20" y="1433" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">F. Skill operative attive — famiglia di skill del sistema</text>
