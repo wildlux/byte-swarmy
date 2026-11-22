@@ -823,6 +823,7 @@ Le vecchie "7 tab" (Coda Task, Modelli, MCP Servers, Logs, Timestral, Config, Te
 - **Etichette con colore**: pallini colorati nel menu contestuale, nelle impostazioni, nel completer `#` e nel sotto-menu colori rapidi; rinomina/elimina/colore per ogni etichetta.
 - **Rinomina etichetta**: pulsante **✏️ Rinomina** aggiunto accanto a **🎨 Cambia colore** e **🗑️ Elimina** in Impostazioni e nel menu contestuale del completer `#`; il vecchio nome viene aggiornato anche nei task.
 - **Plancia — sezione "Skill"**: pannello per vedere e attivare/disattivare le skill del repo (`.opencode/skill/`), con stato persistito in `state/skills_enabled.json`.
+- **Codice morto**: skill `.opencode/skill/codice-morto/` + tool `find_dead_code(path='.')` (AST deterministico, **solo report**); i candidati vanno verificati con `find_references` prima di qualsiasi rimozione.
 
 ### 💬 Chat — banco di prova modelli (locale + cloud)
 

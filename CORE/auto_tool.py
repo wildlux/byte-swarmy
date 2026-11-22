@@ -55,6 +55,8 @@ TOOL_KEYWORDS: dict[str, list[str]] = {
                            "analyze complexity"],
     "get_call_graph": ["grafo delle chiamate", "call graph", "chi chiama",
                        "catena di chiamate"],
+    "find_dead_code": ["codice morto", "dead code", "funzioni non usate",
+                       "codice inutilizzato", "import inutilizzati"],
     "extract_method": ["estrae metodo", "estrai funzione", "refactor blocco",
                        "extract method"],
     "run_bash": ["esegui comando", "comando bash", "comando shell",

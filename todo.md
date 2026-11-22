@@ -31,6 +31,26 @@ categoria, nessun refuso nei nomi.
 > (`CORE/`, `GUI/`, `tools/`). Nota: `$ROOT` nella copia di setup ora risolve
 > correttamente a `../..` dalla nuova posizione.
 
+## 🗂️ Sessione 2026-11-22 — skill e tool "codice morto" (pianificata)
+
+Decisione: **report-only, mai cancellazione automatica**. Detector AST in
+modulo dedicato, riutilizzabile da tool e future analisi.
+
+| # | Task (atomico, verificabile) | Stato |
+|---|---|---|
+| 1 | Registrare lo spostamento `TEST_LLM_CONFIGURAZIONE/` → `tests/TEST_LLM_CONFIGURAZIONE/` | [x] |
+| 2 | `CORE/dead_code.py`: scan AST di funzioni/classi/import non referenziati, senza effetti collaterali | [x] |
+| 3 | Tool `find_dead_code(path='.')` in `CORE/tools.py` + worker (firma, mapping, dispatch) + `allowed_tools()` + auto-tool keyword | [x] |
+| 4 | Skill `.opencode/skill/codice-morto/SKILL.md` + keyword auto-skill | [x] |
+| 5 | Test deterministico offline: detector, tool, skill, keyword | [x] |
+| 6 | Docs (README IT/EN + MIGLIORAMENTI) e gate deterministici | [x] |
+
+> Eseguito il 2026-11-22: detector AST report-only (esclude entry point, hook
+> Qt/`visit_*`, decoratori, `__init__.py` e `TYPE_CHECKING`); tool registrato in
+> 5 punti (firma, allowlist, prompt/mapping/dispatch worker, auto-tool) e skill
+> agente con auto-skill. `tests/test_dead_code.py`: 7 test offline. Nessuna
+> rimozione automatica: il report va verificato con `find_references`.
+
 ---
 
 ## 🎯 Piano d'attacco — dalle voci più impattanti (2026-11-18)

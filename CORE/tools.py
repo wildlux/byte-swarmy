@@ -79,6 +79,7 @@ TOOL_SIGNATURES = {
     "rename_symbol": "rename_symbol(old, new) -> str: rinomina un simbolo in tutto il progetto",
     "analyze_complexity": "analyze_complexity(path) -> str: stima la complessità di un file",
     "get_call_graph": "get_call_graph(symbol) -> str: mappa chi chiama la funzione/classe",
+    "find_dead_code": "find_dead_code(path='.') -> str: report SOLO LETTURA di funzioni/classi/import non referenziati (non cancella nulla)",
     "extract_method": "extract_method(path, old_block, name, body) -> str: estrae un blocco in una nuova funzione",
     "run_bash": "run_bash(cmd) -> str: UN comando semplice, senza pipe/redirect",
     "git_commit": "git_commit(message) -> str: snapshot git locale",
@@ -359,7 +360,7 @@ class ToolSet:
             "run_bash", "search",
             "analyze_project", "find_references", "lint_code",
             "rename_symbol", "analyze_complexity", "get_call_graph",
-            "extract_method",
+            "find_dead_code", "extract_method",
             "git_commit", "git_diff", "git_status", "git_log",
             "git_branch", "git_merge", "git_pull", "git_push", "git_remote",
             "run_test_suite", "list_refs", "list_tools", "diary_llm", "retrieve_similar_task",
@@ -1101,6 +1102,24 @@ class ToolSet:
         # In questo caso, find_references è già l'implementazione di base
         # ma lo specializziamo per mostrare chiaramente la relazione "chi chiama"
         return self.find_references(symbol)
+
+    # ----- 21b. find_dead_code (report-only) -----
+    def find_dead_code(self, path: str = ".") -> str:
+        """Report di funzioni/classi/import non referenziati: NON modifica file.
+
+        Analisi AST deterministico. L'utente deve verificare i candidati con
+        ``find_references`` prima di qualsiasi rimozione (hook e dynamic
+        dispatch possono dare falsi positivi).
+        """
+        try:
+            from CORE.dead_code import format_report, scan
+            target = path if isinstance(path, str) and path.strip() else "."
+            full = safe_project_path(target, self.project_root)
+            findings = scan(full)
+            label = target if target != "." else "."
+            return format_report(findings, label)
+        except Exception as e:
+            return f"ERROR: ricerca codice morto fallita: {e}"
 
     # ----- 22. extract_method -----
     def extract_method(self, path: str, old_block: str, new_method_name: str, new_method_body: str) -> str:

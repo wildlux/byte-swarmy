@@ -377,6 +377,10 @@ The env var takes **priority** over any token saved in `CONFIG/settings.json`; `
 
 **Chat History**: accessible from Tools → Chat History, shows the last 20 completed tasks.
 
+**Dead code**: the `codice-morto` skill (`.opencode/skill/codice-morto/`) and the
+`find_dead_code(path='.')` tool provide a deterministic AST **report only** —
+they never delete anything. Verify each candidate with `find_references` first.
+
 ### 💬 Chat — model test bench (local + cloud)
 
 The Dashboard has a collapsible **💬 Chat - Test models** section: compare models

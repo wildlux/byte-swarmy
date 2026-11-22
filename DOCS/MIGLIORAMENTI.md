@@ -128,6 +128,7 @@ reale. Nessun flake residuo: `test_functional_swarm` passa da solo
 | v0.3.34 | 86 | Riordino `TOOLS/REVERSE_ENGINEERING/` (refuso corretto, 14 riferimenti), regola cartelle in `AGENT.md` #11 + README, 0 file senza docstring in `CORE/GUI/tools` |
 | v0.3.34 | 86 | Fix dialog **Dettagli task** (`QWidget` non importato): la finestra si apre di nuovo; errori e task mancanti ora avvisano invece di fallire in silenzio; 4 test di regressione offscreen |
 | v0.3.34 | 86 | Fix eliminazione etichette (tombstone default) e ordinamento Archivio (header `sectionsClickable`): 5 test offscreen, logica delete unificata |
+| v0.3.34 | 86 | Skill `codice-morto` + tool `find_dead_code` (AST deterministico, report-only): registrato in firme/allowlist/dispatch/auto-tool, 7 test dedicati |
 
 ---
 

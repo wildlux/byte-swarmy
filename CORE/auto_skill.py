@@ -48,6 +48,10 @@ KEYWORDS: dict[str, list[str]] = {
         "blender", "bpy", "mesh", "modello 3d", "gltf", "obj", "stl",
         "rendering", "scena 3d",
     ],
+    "codice-morto": [
+        "codice morto", "dead code", "codice inutilizzato", "funzioni non usate",
+        "import inutilizzati", "rimuovi codice morto", "pulizia codebase",
+    ],
     "current-time": [
         "che ore sono", "che ora e", "ora corrente", "data di oggi",
         "data odierna", "current time", "utc", "fuso orario", "giorno attuale",

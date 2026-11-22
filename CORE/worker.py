@@ -134,6 +134,7 @@ class Worker:
         "  list=list_files(path,pattern)      search=search(pattern,glob)\n"
         "  analyze=analyze_project()          refs=find_references(symbol)\n"
         "  complex=analyze_complexity(path)   graph=get_call_graph(symbol)\n"
+        "  dead=find_dead_code(path)  # report only, NON cancella\n"
         "  extract=extract_method(path,s,e,name,body)\n"
         "  rename=rename_symbol(old,new)\n"
         "  bash=run_bash(cmd)                 test=run_test_suite()\n"
@@ -192,6 +193,7 @@ class Worker:
         "refs": "find_references",
         "complex": "analyze_complexity",
         "graph": "get_call_graph",
+        "dead": "find_dead_code",
         "extract": "extract_method",
         "rename": "rename_symbol",
         "bash": "run_bash",
@@ -245,7 +247,8 @@ class Worker:
         # Gruppi tematici
         git = {"git_status", "git_diff", "git_commit", "git_log",
                "git_branch", "git_merge"}
-        analysis = {"analyze", "refs", "complex", "graph", "extract", "rename"}
+        analysis = {"analyze", "refs", "complex", "graph", "dead",
+                    "extract", "rename"}
         usb = set()
         try:
             from GUI.settings_store import get_usb_tools_enabled
@@ -259,7 +262,8 @@ class Worker:
             return core | git
         if any(k in text for k in ("refactor", "rename", "extract", "complex",
                                     "analyze", "reference", "call graph", "architettura",
-                                    "struttura", "complessità")):
+                                    "struttura", "complessità", "codice morto",
+                                    "dead code")):
             return core | analysis | git
         if any(k in text for k in ("usb", "device", "hardware", "periferica")):
             return core | usb if usb else core
@@ -324,6 +328,7 @@ class Worker:
             "refs": "  refs=find_references(symbol)",
             "complex": "  complex=analyze_complexity(path)",
             "graph": "  graph=get_call_graph(symbol)",
+            "dead": "  dead=find_dead_code(path)  # solo report, non cancella",
             "extract": "  extract=extract_method(path,s,e,name,body)",
             "rename": "  rename=rename_symbol(old,new)",
             "bash": "  bash=run_bash(cmd)",
@@ -1733,6 +1738,8 @@ class Worker:
                 return self.tools.analyze_complexity(args[0])
             elif name == "get_call_graph":
                 return self.tools.get_call_graph(args[0])
+            elif name == "find_dead_code":
+                return self.tools.find_dead_code(args[0] if args else ".")
             elif name == "extract_method":
                 return self.tools.extract_method(args[0], args[1], args[2], args[3])
             elif name == "run_bash":
