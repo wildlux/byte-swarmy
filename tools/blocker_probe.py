@@ -515,8 +515,10 @@ def markdown(result: dict) -> str:
          "installare la CLI (`sudo apt install gh`), `gh auth login`, revocare la PAT")
         + " |",
         f"| M5 hardening | {'✅' if not hard['needs_root'] else '🔒'} | "
-        f"utente {_yes_no(hard['user_exists'])}, slice {_yes_no(hard['cgroup_slice_present'])} | "
-        f"`{hard['command']}` |",
+        f"utente {_yes_no(hard['user_exists'])}, slice {_yes_no(hard['cgroup_slice_present'])} | " +
+        ("rendere persistenti le regole iptables (iptables-persistent); "
+         "opzionale: `systemd-run --slice=byteswarmy.slice` per i worker"
+         if not hard["needs_root"] else f"`{hard['command']}`") + " |",
         f"| M6 profiling CI | 🔒 | run #2 fallito: {ci['failed_step']} | "
         f"{ci['blocker']}; poi `{ci['command']}` |",
         "",

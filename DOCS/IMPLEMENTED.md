@@ -2888,3 +2888,21 @@ token disponibile (`/user/authorizations` e `/user/personal_access_tokens`
 rispondono 404). Il probe riporta esplicitamente `Rotazione PAT confermata: ❌`
 invece di affermare un verdetto non dimostrabile. Nessun token stampato o
 committato; `.git-credentials` non modificato.
+
+---
+
+## Cycle 133 (2026-11-23) — M5 chiuso: hardening applicato come root
+
+| Azione | Dettaglio |
+|---|---|
+| Correzione pre-applicazione | `scripts/setup/hardening.sh`: aggiunto `--exclude 'data/state/'` alla rsync — senza questa, `data/state/cloud_api.json` (credenziali cloud) sarebbe stato copiato e chownato all'utente isolato. Lock in `tests/test_hardening_paths.py` (4 test verdi) |
+| Esecuzione | `pkexec scripts/setup/hardening.sh --all` → EXIT 0, su autorizzazione root esplicita dell'utente |
+| Utente | `byteswarmy` uid/gid 1001/1002, nessun gruppo amministrativo, home 0700, password bloccata |
+| Copia | progetto in `/home/byteswarmy/byte-swarmy`, `.git` senza token evidenti; `cloud_api.json` **non** copiato (verificato sia in `data/state/` sia in `state/`) |
+| Slice | `/etc/systemd/system/byteswarmy.slice`, `systemctl is-active` → `active` (MemoryMax 4G, CPUQuota 200%, TasksMax 100) |
+| Firewall | 2 regole OUTPUT per uid 1001: ACCEPT `127.0.0.1:11434` (Ollama) e DROP di tutto il resto; rete di `wildlux` intatta (HTTP 200) |
+| `todo.md` | M5 portato a `[x] Cycle 133` |
+
+⚠️ **Limite dichiarato**: le regole iptables non sono persistenti al reboot
+(`/etc/iptables` assente). Lo script lo segnala; serve `iptables-persistent`
+o un `iptables-save` esplicito. Non è stato installato nulla di aggiuntivo.

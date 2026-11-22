@@ -1,6 +1,6 @@
 # 🔍 Sonde di sblocco — M2…M6
 
-Generato (UTC): `2026-11-22T23:08:16+00:00`
+Generato (UTC): `2026-11-22T23:11:28+00:00`
 
 > Solo dati letti ora da file/sysfs/comandi locali. Nessun valore
 > inventato, nessuna chiamata API, nessun LLM. I blocchi restano aperti
@@ -9,25 +9,25 @@ Generato (UTC): `2026-11-22T23:08:16+00:00`
 | ID | Stato | Evidenza | Azione richiesta |
 |---|---|---|---|
 | M2 suite completa | 🔒 | VIETATA dalla regola termica 2026-11-20 | trigger CI: `gh workflow run profile.yml -R wildlux/byte-swarmy` |
-| M3 ventole | 🔒 | CPU 52.0 °C, RPM 0, nbfc `daemon attivo` | misurare RPM con tachometro esterno (nbfc già attivo non basta), poi `tools/blocker_probe.py --attest-rpm data/state/rpm_attestation.json` |
+| M3 ventole | 🔒 | CPU 63.0 °C, RPM 0, nbfc `daemon attivo` | misurare RPM con tachometro esterno (nbfc già attivo non basta), poi `tools/blocker_probe.py --attest-rpm data/state/rpm_attestation.json` |
 | M4 credenziali | ✅ | gh: ok; remote token-free: ✅ | revoca PAT da confermare su GitHub (UI/API); vecchio token gia' invalido e sostituito |
-| M5 hardening | 🔒 | utente ❌, slice ❌ | `sudo scripts/setup/hardening.sh --all` |
+| M5 hardening | ✅ | utente ✅, slice ✅ | rendere persistenti le regole iptables (iptables-persistent); opzionale: `systemd-run --slice=byteswarmy.slice` per i worker |
 | M6 profiling CI | 🔒 | run #2 fallito: Profilazione completa (--durations=0) — run #2 | richiede autenticazione gh + trigger manuale UI/CLI; poi `gh workflow run profile.yml -R wildlux/byte-swarmy` |
 
 ## Dettaglio termico (M3)
 
 | Misura | Valore |
 |---|---|
-| Temperatura CPU (coretemp) | 52.0 °C |
+| Temperatura CPU (coretemp) | 63.0 °C |
 | Sorgente temperatura | `/sys/class/hwmon/hwmon3/temp1_input, /sys/class/hwmon/hwmon3/temp2_input, /sys/class/hwmon/hwmon3/temp3_input, /sys/class/hwmon/hwmon3/temp4_input, /sys/class/hwmon/hwmon3/temp5_input` |
 | RPM ventola | 0 (nessuna sorgente RPM esplicita) |
 | Current Fan Speed (nbfc, %) | 0.0 % — **percentuale, non RPM** |
-| Duty richiesto | 10.0 % (Target Fan Speed) |
+| Duty richiesto | 0.0 % (Target Fan Speed) |
 | Unità systemd | `inactive` |
 | Dettaglio nbfc | Read-only                : false |
 | PWM sysfs | 0 nodi (indizio, non RPM) |
 | `fan_rpm > 0` | ❌ |
-| `temp_c <= 60` | ✅ |
+| `temp_c <= 60` | ❌ |
 | Gate verificabile | ❌ |
 | `fan_verified.json` salvato | ❌ |
 
