@@ -1,4 +1,4 @@
-# 📈 Miglioramenti implementati — Cycle 70 → 102 (v0.3.18 → v0.3.34)
+# 📈 Miglioramenti implementati — Cycle 70 → 103 (v0.3.18 → v0.3.34)
 
 ![Grafico miglioramenti](grafici/miglioramenti.svg)
 
@@ -48,6 +48,8 @@ verso il goal; il progresso è un numero, non un'impressione.
 
 > Report deterministico: [`DOCS/BRUTAL_HONESTY_REPORT.md`](BRUTAL_HONESTY_REPORT.md).
 > Rigenera con `.venv/bin/python tools/brutal_honesty_report.py --out DOCS/BRUTAL_HONESTY_REPORT.md`.
+> Stato dei blocchi M2–M6 misurato da [`DOCS/BLOCKER_PROBE_REPORT.md`](BLOCKER_PROBE_REPORT.md),
+> rigenerabile con `.venv/bin/python tools/blocker_probe.py --out DOCS/BLOCKER_PROBE_REPORT.md`.
 > Nessun LLM: i numeri vengono dal codice, dal TOML e dal corpus.
 
 | Voce | Correzione applicata |
@@ -58,6 +60,7 @@ verso il goal; il progresso è un numero, non un'impressione.
 | Best-of-N | Configurabile, ma `fast_lane.enabled=false` e `best_of_n=1`: **non attivo a runtime**. |
 | 41 meccanismi | Sono **documentati/implementati**; non tutti abilitati o runtime, e alcuni sono report/harness. |
 | Radar | I valori restano **giudizi espliciti** in `tools/gen_grafici.py`: qui correggiamo le frasi, non alziamo gli assi. |
+| Blocchi M2–M6 | La sonda `tools/blocker_probe.py` misura sensori/nbfc/hardening/credenziali/CI e **non scrive** `fan_verified.json` se non ci sono RPM reali e ≤60 °C: i blocchi restano tali finché l'azione esterna non è verificata. |
 | Mobile (F1) | Nuovo asse a **2/4** solo per scaffold strutturale offline: **non** build, **non** live. Non è una prova che il Middle sia raggiunto. |
 
 ---
@@ -221,7 +224,7 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 
 ---
 
-*Documento aggiornato al Cycle 102 il 2026-11-22: il grafico legge ciclo e
+*Documento aggiornato al Cycle 103 il 2026-11-22: il grafico legge ciclo e
 conteggio meccanismi dai documenti, quindi basta premere 🔄 Rigenera nella
 Plancia (oppure `.venv/bin/python tools/gen_grafici.py`). I valori del radar
 restano giudizi espliciti in `tools/gen_grafici.py`.*

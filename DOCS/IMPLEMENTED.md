@@ -2391,3 +2391,20 @@ Verifiche: `pyflakes` 0 su `CORE GUI tools SAFETY tests` (esclusi `tests/archivi
 del radar toccato** e nessun LLM/rete/GPU. La suite completa resta 🔒 bloccata
 dalla regola termica del 2026-11-20.
 
+---
+
+## Cycle 103 (2026-11-22) — Sblocchi M2–M6: preparazione misurabile, nessun falso dato
+
+| Modifica | Dettaglio |
+|---|---|
+| `tools/blocker_probe.py` (nuovo) | Sonda deterministica di sola lettura per M2–M6: coretemp da sysfs, RPM da `nbfc status`, PWM grezzo, `hardening.sh --check`, integrità di `gh` (shebang incluso), remote token-free, permessi 0600, presenza del workflow CI. Nessuna rete/API/LLM. `--write-fan` rilegge le misure e **rifiuta** la scrittura se `fan_rpm <= 0` o `temp_c > 60`; non esiste un'opzione per passare i numeri a mano |
+| `tests/test_blocker_probe.py` (nuovo) | 10 test: parser RPM/temperature, gate falso senza RPM o sopra soglia, rifiuto di scrittura, provenienza obbligatoria, permessi 0600, mascheratura token, rilevamento shebang rotto, determinismo del report |
+| `DOCS/BLOCKER_PROBE_REPORT.md` (nuovo) | Snapshot generato: CPU 65.0 °C, RPM 0, nbfc `inactive`, gh con interprete shebang assente, utente/slice hardening assenti, remote token-free. Tutti gli ID M2–M6 restano 🔒 |
+| `DOCS/MIGLIORAMENTI.md`, `todo.md` | Link al nuovo report e aggiornamento delle evidenze reali. **Nessun asse del radar toccato** |
+
+Verifiche: 10 test mirati verdi, `compileall` OK, `pyflakes` 0,
+`lint_style` 0 errori, `git diff --check` pulito. Verificato anche il comportamento
+negativo: `--write-fan` stampa `RIFIUTO` e non crea il file; `--check-fan` esce 1.
+Il dato termico è peggiorato rispetto al primo campione del giorno (53 °C → 65 °C),
+quindi la regola del 2026-11-20 resta applicata senza eccezioni.
+
