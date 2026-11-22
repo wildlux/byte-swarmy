@@ -1,6 +1,6 @@
 # 🔍 Sonde di sblocco — M2…M6
 
-Generato (UTC): `2026-11-22T15:12:45+00:00`
+Generato (UTC): `2026-11-22T15:14:42+00:00`
 
 > Solo dati letti ora da file/sysfs/comandi locali. Nessun valore
 > inventato, nessuna chiamata API, nessun LLM. I blocchi restano aperti
@@ -37,7 +37,8 @@ Su questa macchina il daemon nbfc è stato avviato via pkexec, ma
 `Current Fan Speed` resta 0.00 anche con duty al 100% e non esiste
 alcun `fan*_input` in sysfs: il tachimetro non è leggibile. Pertanto
 `fan_rpm > 0` NON è dimostrabile con i sensori disponibili: il gate
-resta chiuso finché non si decide una misura alternativa verificabile.
+resta chiuso **per decisione esplicita del 2026-11-22** (gate stretto
+mantenuto): nessun duty cycle o altra misura sostituisce i RPM.
 
 ## Dettaglio credenziali (M4)
 

@@ -2423,6 +2423,8 @@ quindi la regola del 2026-11-20 resta applicata senza eccezioni.
 Verifiche: 13 test mirati verdi, `pyflakes` 0, `compileall` OK.
 `DOCS/BLOCKER_PROBE_REPORT.md` rigenerato con duty, stato unità e nota sul
 tachimetro. **Nessun asse del radar toccato**, nessuna suite completa locale,
-nessun `fan_verified.json` scritto. La decisione su un'eventuale misura
-alternativa al conteggio RPM spetta all'utente: non viene presa di default.
+nessun `fan_verified.json` scritto. **Decisione esplicita dell'utente
+(2026-11-22): mantenere il gate stretto `fan_rpm > 0`**: nessun duty cycle o
+misura surrogata lo sostituisce. M3 resta 🔒 finché non arriva una misura RPM
+esterna verificabile.
 
