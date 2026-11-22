@@ -2758,3 +2758,24 @@ confermata con evidenza pubblica e senza credenziali.
 
 Verifiche: 8 test mirati verdi, `pyflakes` 0, YAML valido, `git diff --check`
 pulito. Nessuna suite locale, LLM, GPU o misura inventata.
+
+---
+
+## Cycle 126 (2026-11-22) — M6: collezione verde, diagnostica dei test falliti
+
+| Modifica | Dettaglio |
+|---|---|
+| `.github/workflows/profile.yml` | Lo step `Profilazione completa` emette `::error title=pytest_exit::EXIT=$code`, fino a 20 righe `FAILED ` e le ultime 20 righe di `pytest_profile.log` come annotations pubbliche, leggibili via API senza auth |
+| `tests/test_ci_profile_workflow.py` | Test `test_fallimento_suite_esposto_in_annotations_pubbliche` blocca hook, grep dei `FAILED` e conservazione di `exit $code` |
+| `DOCS/CI_PROFILE_DIAGNOSIS.md` | Verdetto run #5/#6 e passaggio a monitor HTML pubblico |
+
+I run #5 (`b47482a`) e #6 (`a78a24c`) mostrano **collezione success**: il fix
+`libEGL` del Cycle 125 ha eliminato l'errore di import. La suite completa è
+invece fallita nello step 8: il run #6 è durato 28 minuti (`16:56:10Z →
+17:24:31Z`) con `exit code 1`, quindi test falliti e non un problema di setup.
+Senza i nomi dei test nelle annotations il log restava privato: il Cycle 126
+chiude quel buco diagnostico. Commit `91bc272` pushato; run #7 `45051444788`
+in corso.
+
+Verifiche: 9 test mirati verdi, `pyflakes` 0, YAML valido, `git diff --check`
+pulito. Nessuna suite locale, LLM, GPU o misura inventata.

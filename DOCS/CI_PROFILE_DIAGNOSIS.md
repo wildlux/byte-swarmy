@@ -83,3 +83,27 @@ dell'installazione Python, con `libegl1`, `libgl1`, `libxkbcommon-x11-0`,
 `libxcb-cursor0`, `libdbus-1-3`, `libfontconfig1`. Lock in
 `tests/test_ci_profile_workflow.py`. La suite resta **solo su GitHub Actions**:
 nessun test locale completo, nessun LLM, nessun GPU.
+
+## Aggiornamento Cycle 126 — run #5/#6: collezione verde, suite fallita
+
+| Run | Commit | Collezione (step 7) | Suite (step 8) |
+|---|---|---|---|
+| #5 — `45046500711` | `b47482a` | ✅ success | ❌ failure |
+| #6 — `45046535481` | `a78a24c` | ✅ success | ❌ failure, `16:56:10Z → 17:24:31Z` (28 min), `exit code 1` |
+
+Il fix `libEGL` ha quindi **risolto il blocco storico**: la diagnostica di
+collezione passa su GitHub. Il nuovo fallimento è di natura diversa: la suite
+completa è partita, ha girato per 28 minuti ed è terminata con `exit 1`, cioè
+**test falliti**, non errore di import.
+
+Il log del job resta privato anche per lo step 8; l'unica annotation era
+`Process completed with exit code 1`, senza nomi di test. Il Cycle 126 aggiunge
+allo step di profilazione la stessa diagnostica pubblica già usata per la
+collezione: `::error title=pytest_exit::EXIT=$code`, poi fino a 20 righe
+`FAILED` e le ultime 20 righe del log come annotations. Il run #7
+(`45051444788`, commit `91bc272`) è stato avviato dal push e fornirà i nomi dei
+test falliti senza `gh`, auth o download dell'artifact.
+
+Nota operativa: le ripetute chiamate all'API GitHub anonima hanno esaurito il
+limite di 60 richieste/ora. Il monitor del run #7 usa solo le pagine HTML
+pubbliche di GitHub, che non consumano quella quota.
