@@ -2444,3 +2444,15 @@ esterna verificabile.
 Verifiche: 21 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori.
 **Nessun modulo compilato, nessun `insmod`, nessun QEMU**: il gate resta vuoto
 e viene dichiarato tale. Nessun asse del radar toccato, nessun LLM/rete.
+
+---
+
+## Cycle 106 (2026-11-22) — Todo residuo: ponte chiarimento GUI verificato
+
+| Modifica | Dettaglio |
+|---|---|
+| `tests/test_clarifier_gui_bridge.py` (nuovo) | Verifica offline che il ponte chiarimento è già operativo: il worker scrive `state/clarification.txt` e attende `clarification_answer.txt` (`CORE/worker.py:1099-1145`), il main thread della GUI fa polling con `QTimer` + `QInputDialog` e scrive la risposta (`GUI/center_area.py:268-300`). Test: risposta file-based propagata al worker con cleanup, timeout fail-open, presenza del polling sul thread principale. Nessun `QApplication`, finestra, LLM o rete |
+| `todo.md` | Voce “Integrazione GUI dialog completa” chiusa per verifica. Nota esplicita: il bridge è file-based, non signal/slot diretto; il widget alternativo `show_clarification()` resta non usato |
+
+Verifiche: 3 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori (1 info su `from __future__`).
+Nessuna finestra GUI avviata, nessun asse del radar toccato, nessun LLM/rete.

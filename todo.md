@@ -604,8 +604,12 @@ compute grezzo.
       GUI/headless fallback (input() se tty, altrimenti
       state/clarification.txt con timeout 30 s, fail-open).
 - [x] (fatto 2026-11-21) Aggiungere regola AGENT.md #10 "Clarify Before Acting".
-- [ ] (prossima) Integrazione GUI dialog completa (show_clarification su
-      thread principale via Qt signal/slot) — richiede spazio disco per test.
+- [x] (verificato 2026-11-22) Ponte chiarimento GUI già operativo: il worker
+      scrive `state/clarification.txt` (`CORE/worker.py:1099-1145`), il main
+      thread fa polling con `QTimer` e `QInputDialog` e scrive la risposta
+      (`GUI/center_area.py:268-300`). 3 test offline verdi. Nota: il widget
+      alternativo `show_clarification()` resta non usato; il bridge è
+      file-based, non un signal/slot diretto — nessuna finestra avviata nei test.
 
 ---
 
