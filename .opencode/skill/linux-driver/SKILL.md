@@ -15,7 +15,10 @@ Flusso: **specifica → scaffold → codice → gate (compile/checkpatch/sparse)
 ## 2. Workflow
 
 1. Identificare il sottosistema (char, platform, I2C, SPI, IIO, GPIO, input, DMA).
-2. Scaffold del modulo (Makefile, Kbuild, probe/remove, file_operations).
+2. Scaffold del modulo (Makefile, Kbuild, probe/remove, file_operations):
+   `.venv/bin/python tools/kernel_slot_scaffold.py --name NOME --out DIR`
+   genera lo scheletro con 3 slot (read/write/ioctl) e verifica le API
+   contro la whitelist degli header target (fail closed).
 3. Implementare le operazioni (read/write/ioctl, probe, remove, IRQ handler).
 4. Gate: `make` contro i kernel headers della versione target.
 5. `scripts/checkpatch.pl` + `sparse` per qualità.
@@ -26,7 +29,9 @@ Flusso: **specifica → scaffold → codice → gate (compile/checkpatch/sparse)
 - Compilazione pulita contro i kernel headers target (nessun warning).
 - `checkpatch.pl` senza errori.
 - `sparse` senza warning.
-- Nessuna API allucinata: ogni simbodo kernel deve esistere negli header target.
+- Nessuna API allucinata: ogni simbodo kernel deve esistere negli header target;
+  dopo il fill degli slot eseguire
+  `.venv/bin/python tools/kernel_slot_scaffold.py --check FILE.c`.
 
 ## 4. Mappa capitoli (Linux Device Driver Development, 2nd ed.)
 

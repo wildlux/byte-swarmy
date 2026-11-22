@@ -626,8 +626,10 @@ compute grezzo.
       prima dell'esecuzione; se sconosciuto, chiedere al modello di riprovare
       con un tool valido — iniettando la lista tool nel prompt di correzione
       (commit b4a17ca).
-- [ ] (prossima) Iniettare la lista tool nel prompt del ReAct (già
-      presente? verificare).
+- [x] (verificato 2026-11-22) Lista tool già nel SYSTEM prompt ReAct
+      (`CORE/worker.py:493`) e reiniettata dopo `unknown tool`
+      (`CORE/worker.py:981-989`). Lock con 3 test offline in
+      `tests/test_react_tool_prompt.py`.
 
 ---
 
@@ -649,9 +651,12 @@ diventare un **panic a runtime**. Serve un gate rigoroso.
       + `tools/gen_kernel_whitelist.py`.
 - [x] (fatto 2026-11-22) **Gate compile**: `make` + `checkpatch.pl` + `sparse`
       aggiunti alla skill `static-analyzer`.
-- [ ] (prossima) **Scaffold deterministico (SLOT)**: il planner genera lo
-      scheletro (probe/remove, file_operations, Makefile); il modello 3b
-      riempie solo piccoli slot (read/write/ioctl).
+- [x] (fatto 2026-11-22) **Scaffold deterministico (SLOT)**:
+      `tools/kernel_slot_scaffold.py` genera `.c` + Makefile + `SLOTS.md`
+      con probe/remove/file_operations fissi e 3 slot (read/write/ioctl);
+      verifica ogni simbolo contro la whitelist estratta dagli header e si
+      ferma se le macro non sono verificabili. 5 test offline verdi.
+      Compilazione/QEMU restano gate esterni, non eseguiti qui.
 
 ### Limiti residui
 - API inline/static: catturate solo parzialmente da checkpatch/sparse.

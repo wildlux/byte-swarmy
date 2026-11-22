@@ -2428,3 +2428,19 @@ nessun `fan_verified.json` scritto. **Decisione esplicita dell'utente
 misura surrogata lo sostituisce. M3 resta 🔒 finché non arriva una misura RPM
 esterna verificabile.
 
+---
+
+## Cycle 105 (2026-11-22) — Todo residui offline: prompt ReAct verificato + scaffold driver SLOT
+
+| Modifica | Dettaglio |
+|---|---|
+| `tests/test_react_tool_prompt.py` (nuovo) | Verifica offline che la lista tool è già nel SYSTEM prompt del loop ReAct (`CORE/worker.py:493`) e viene reiniettata dopo `unknown tool` (`CORE/worker.py:981-989`). Todo “iniettare la lista tool” chiuso per verifica, senza duplicare codice |
+| `tools/kernel_slot_scaffold.py` (nuovo) | Genera `.c` + `Makefile` + `SLOTS.md` per driver platform: probe/remove/file_operations deterministici, tre slot (read/write/ioctl) da riempire uno alla volta. Ogni simbolo chiamato è controllato contro la whitelist estratta dagli header del kernel target; le macro `module_init`/`module_exit`/`MODULE_LICENSE` sono accettate solo se il `#define` esiste davvero negli header. Nome sanitizzato, nessun timestamp, fail closed |
+| `GUI/refs/templates/kernel_platform.c.tpl`, `kernel_makefile.tpl` (nuovi) | Template curati, stessi cartelle di `GUI/refs/templates/`; nessuna API scritta a mano dentro gli slot |
+| `tests/test_kernel_slot_scaffold.py` (nuovo) | 5 test: determinismo, nomi rifiutati, gate che becca un simbolo inventato, macro verificate dagli header, regole SLOT. Saltati se gli header mancano |
+| `.opencode/skill/linux-driver/SKILL.md` | Workflow aggiornato con generatore e comando `--check` post-fill |
+| `todo.md` | Voci “lista tool ReAct” e “scaffold SLOT” chiuse con evidenze |
+
+Verifiche: 21 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori.
+**Nessun modulo compilato, nessun `insmod`, nessun QEMU**: il gate resta vuoto
+e viene dichiarato tale. Nessun asse del radar toccato, nessun LLM/rete.
