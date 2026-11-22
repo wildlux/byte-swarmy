@@ -88,17 +88,22 @@ def skill_body(name: str, max_chars: int = MAX_SKILL_CHARS) -> str:
     return body
 
 
+def _read_raw() -> dict:
+    """Contenuto grezzo della selezione (o {} se assente/rotto)."""
+    if not SELECTION_FILE.exists():
+        return {}
+    try:
+        data = json.loads(SELECTION_FILE.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
 def load_selection() -> tuple[list[str], list[str]]:
     """Selezione salvata, filtrata sui tool/skill realmente esistenti."""
-    tools: list[str] = []
-    skills: list[str] = []
-    if SELECTION_FILE.exists():
-        try:
-            data = json.loads(SELECTION_FILE.read_text(encoding="utf-8"))
-            tools = [str(x) for x in data.get("tools", [])]
-            skills = [str(x) for x in data.get("skills", [])]
-        except Exception:
-            tools, skills = [], []
+    data = _read_raw()
+    tools = [str(x) for x in data.get("tools", [])]
+    skills = [str(x) for x in data.get("skills", [])]
     valid_tools = set(list_tool_names())
     valid_skills = {s["name"] for s in list_skills()}
     tools = [t for t in tools if t in valid_tools]
@@ -106,11 +111,22 @@ def load_selection() -> tuple[list[str], list[str]]:
     return tools, skills
 
 
-def save_selection(tools: list[str], skills: list[str]) -> None:
+def load_auto_skill() -> bool:
+    """Auto-skill attivo? Default: sì."""
+    return bool(_read_raw().get("auto_skill", True))
+
+
+def save_selection(tools: list[str], skills: list[str],
+                   auto_skill: bool | None = None) -> None:
+    """Salva tool/skill; ``auto_skill=None`` conserva il valore esistente."""
+    data = _read_raw()
+    if auto_skill is None:
+        auto_skill = bool(data.get("auto_skill", True))
     SELECTION_FILE.parent.mkdir(parents=True, exist_ok=True)
     SELECTION_FILE.write_text(
         json.dumps({"tools": sorted(set(tools)),
-                    "skills": sorted(set(skills))},
+                    "skills": sorted(set(skills)),
+                    "auto_skill": bool(auto_skill)},
                    indent=2, ensure_ascii=False),
         encoding="utf-8")
 

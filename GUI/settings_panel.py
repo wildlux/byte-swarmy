@@ -434,6 +434,10 @@ class SettingsPanel(QWidget):
             btn.clicked.connect(
                 lambda _=False, n=lab["name"]: self._on_change_label_color(n))
             row.addWidget(btn)
+            rename_btn = QPushButton("✏️ Rinomina")
+            rename_btn.clicked.connect(
+                lambda _=False, n=lab["name"]: self._on_rename_label(n))
+            row.addWidget(rename_btn)
             del_btn = QPushButton("🗑️ Elimina")
             del_btn.clicked.connect(
                 lambda _=False, n=lab["name"]: self._on_delete_label(n))
@@ -457,6 +461,25 @@ class SettingsPanel(QWidget):
         if not picked.isValid():
             return
         L.set_color(name, picked.name())
+        self._refresh_labels_list()
+
+    def _on_rename_label(self, name: str) -> None:
+        """Rinomina etichetta (registro + task), preservando il colore."""
+        from PyQt6.QtWidgets import QInputDialog, QMessageBox
+        from GUI.label_actions import rename_label_everywhere
+        new, ok = QInputDialog.getText(
+            self, "Rinomina etichetta", "Nuovo nome:", text=name)
+        if not ok:
+            return
+        new = new.strip()
+        if not new or new == name:
+            return
+        if not rename_label_everywhere(name, new):
+            QMessageBox.warning(
+                self, "Rinomina etichetta",
+                f"Impossibile rinominare '{name}' in '{new}': "
+                "nome vuoto o già esistente.")
+            return
         self._refresh_labels_list()
 
     def _on_delete_label(self, name: str) -> None:

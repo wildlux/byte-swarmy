@@ -388,6 +388,7 @@ on real prompts without touching the pipeline.
 | **Models** | decorated list from `GUI/actors_panel.py` (📌 local / 🌍 cloud / ⬇ downloadable + capability + usage note) |
 | **Tools on/off** | checkboxes over `CORE/tools.py`; selected signatures are injected into the system prompt |
 | **Skills on/off** | checkboxes over `.opencode/skill/`; the (truncated) body is injected as context |
+| **Auto-skill** | on by default: prompt keywords add the relevant skills automatically (max 4); extra keywords in `state/auto_skill_keywords.json` |
 | **Persistence** | `state/chat_tools_skills.json` (gitignored) |
 | **API key** | **🔑 Paste API key** button → masked dialog (`EchoMode.Password`) → `state/cloud_api.json`, mode `0600`, outside git |
 | **Errors** | the provider's real HTTP body is shown (`HTTP 402/410: …`) instead of a generic "HTTP error" |

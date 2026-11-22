@@ -134,6 +134,7 @@ reale. Nessun flake residuo: `test_functional_swarm` passa da solo
 |---|---|---|
 | Pannello Chat | `GUI/chat_panel.py` | sezione collassabile in Plancia; source combo, models combo, tool/skill pickers, chiave API |
 | Contesto selezionabile | `CORE/chat_context.py` | elenca tool (`TOOL_SIGNATURES`) e skill (`.opencode/skill/*/SKILL.md`), salva la selezione in `state/chat_tools_skills.json`, costruisce il blocco di system prompt (max 12k char) |
+| Auto-skill | `CORE/auto_skill.py` | 23 skill con keyword IT/EN, matching su parole intere, max 4 skill per prompt; anteprima live mentre si scrive; keyword extra da `state/auto_skill_keywords.json` |
 | Client cloud | `CORE/cloud_client.py` | provider OpenAI-compatibili (Groq, Gemini, OpenRouter), `list_models`, `pick_default_model`, `chat`, chiavi in `state/cloud_api.json` (0600) |
 | CLI di test | `tools/test_cloud_api.py` | `--save-key`, `--list`, `--prompt`, misura latenza e stampa la risposta |
 
@@ -151,6 +152,7 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 | Dettaglio task | due colonne: metadati/log a sinistra, **Risultato** e **Progetti** a destra |
 | Codice prodotto | click sul file → codice effettivo nel viewer (con ▶ Esegui) |
 | Etichette | pallini colore nel menu contestuale, settings, completer `#`, colori rapidi |
+| Rinomina etichetta | pulsante ✏️ accanto a 🎨 Cambia colore e 🗑️ Elimina; `GUI/label_actions.py` aggiorna registro e task in un unico posto |
 
 ### Sicurezza dei segreti
 

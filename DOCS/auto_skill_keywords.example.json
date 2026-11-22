@@ -1,0 +1,7 @@
+{
+  "_comment": "Copia questo file in state/auto_skill_keywords.json (gitignored) e aggiungi qui le tue parole chiave. Le keyword si sommano a quelle già presenti in CORE/auto_skill.py.",
+  "git-expert": ["rebase", "tag", "cherry-pick", "risolvi conflitto"],
+  "sql-writer": ["migrazione", "schema", "transazione", "indice"],
+  "summarizer": ["in breve", "tl;dr", "punti chiave"],
+  "markdown-formatter": ["tabella markdown", "elenco puntato"]
+}

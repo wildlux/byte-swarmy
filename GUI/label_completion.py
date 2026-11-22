@@ -31,7 +31,7 @@ class LabelMentionCompleter(QCompleter):
 
     def _on_context_menu(self, pos) -> None:
         """Menu tasto destro: cambia colore dell'etichetta selezionata."""
-        from PyQt6.QtWidgets import QMenu, QColorDialog
+        from PyQt6.QtWidgets import QInputDialog, QMenu, QColorDialog, QMessageBox
         from CORE import labels as L
         popup = self.popup()
         index = popup.indexAt(pos)
@@ -59,6 +59,7 @@ class LabelMentionCompleter(QCompleter):
             act = color_menu.addAction(
                 make_swatch(hex_color), f"● {color_name}  {hex_color}")
             act.setData(hex_color)
+        act_rename = menu.addAction("✏️ Rinomina etichetta")
         act_remove = menu.addAction("🗑️ Rimuovi etichetta")
         chosen = menu.exec(popup.mapToGlobal(pos))
         if chosen == act_color:
@@ -66,6 +67,18 @@ class LabelMentionCompleter(QCompleter):
             if picked.isValid():
                 L.set_color(name, picked.name())
                 self._refresh_model()
+        elif chosen == act_rename:
+            new, ok = QInputDialog.getText(
+                popup, "Rinomina etichetta", "Nuovo nome:", text=name)
+            if not ok or not new.strip() or new.strip() == name:
+                return
+            from GUI.label_actions import rename_label_everywhere
+            if not rename_label_everywhere(name, new.strip()):
+                QMessageBox.warning(
+                    popup, "Rinomina etichetta",
+                    "Nome vuoto o già esistente.")
+                return
+            self._refresh_model()
         elif chosen == act_remove:
             L.remove_label(name)
             self._refresh_model()

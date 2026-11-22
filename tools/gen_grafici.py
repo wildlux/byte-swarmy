@@ -25,6 +25,15 @@ def skill_count() -> int:
     return len(list(SKILLS_DIR.glob("*/SKILL.md")))
 
 
+def auto_skill_count() -> int:
+    """Skill con parole chiave per l'attivazione automatica in Chat."""
+    try:
+        from CORE.auto_skill import KEYWORDS
+        return len(KEYWORDS)
+    except Exception:
+        return 0
+
+
 def tool_count() -> int:
     """Numero di tool selezionabili nel banco Chat."""
     try:
@@ -428,7 +437,7 @@ def build_svg() -> str:
     y += 24
     s, y = ladder_section(
         [("Junior — 3b nudo (baseline C72: 0/4 task GUI)", 1, "done"),
-         ("Junior+ — sistema v0.3.30 (meccanismi attivi)", 2, "current"),
+         ("Junior+ — sistema v0.3.33 (meccanismi attivi)", 2, "current"),
          ("Middle — ≥50% primo colpo, GUI ≥50%", 3, "next"),
          ("Middle Senior — GOAL ≥70%, 0 warning", 4, "goal")],
         x0 + 60, x1, y,
@@ -463,12 +472,14 @@ def build_svg() -> str:
     s, y = hbar_section(
         [("Tool selezionabili in Chat", tool_count(), C_BLUE),
          ("Skill attivabili in Chat", skill_count(), C_PURPLE),
+         ("Skill con auto-keyword", auto_skill_count(), C_GREEN),
          ("Etichette default", label_count(), C_GREEN),
          ("Provider cloud gratuiti", cloud_provider_count(), C_ORANGE)],
         x0, x1, y,
         "G. Novità Nov 2026 — banco di test e organizzazione",
-        "Chat con tools/skill on-off, client Groq/Gemini/OpenRouter, "
-        "etichette (rinomina/colore/elimina), sorting Archivio per nome/tipo")
+        "Chat con tools/skill on-off e auto-skill per parole chiave, "
+        "client Groq/Gemini/OpenRouter, etichette (rinomina/colore/elimina), "
+        "sorting Archivio per nome/tipo")
     sections.append(s)
 
     y += 10

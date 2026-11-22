@@ -821,6 +821,7 @@ Le vecchie "7 tab" (Coda Task, Modelli, MCP Servers, Logs, Timestral, Config, Te
 - **Archivio progetto — ordinamento**: click su **Name** ordina alfabeticamente (A→Z, secondo click Z→A, cartelle e file mescolati); click sull'icona **📄** ordina per tipologia di file e raggruppa le cartelle (secondo click inverte: prima i file, poi le cartelle).
 - **Dettaglio task — due colonne**: a sinistra metadati, descrizione, ultimo errore e log di debug; a destra **Risultato** e **Progetti / Codice prodotto**. Click sul nome di un file → anteprima del codice effettivo, con pulsante ▶ Esegui.
 - **Etichette con colore**: pallini colorati nel menu contestuale, nelle impostazioni, nel completer `#` e nel sotto-menu colori rapidi; rinomina/elimina/colore per ogni etichetta.
+- **Rinomina etichetta**: pulsante **✏️ Rinomina** aggiunto accanto a **🎨 Cambia colore** e **🗑️ Elimina** in Impostazioni e nel menu contestuale del completer `#`; il vecchio nome viene aggiornato anche nei task.
 - **Plancia — sezione "Skill"**: pannello per vedere e attivare/disattivare le skill del repo (`.opencode/skill/`), con stato persistito in `state/skills_enabled.json`.
 
 ### 💬 Chat — banco di prova modelli (locale + cloud)
@@ -834,6 +835,7 @@ Serve a confrontare i modelli su prompt reali senza toccare la pipeline.
 | **Modelli** | elenco decorato da `GUI/actors_panel.py` (📌 locale / 🌍 cloud / ⬇ scaricabile + capability + note d'uso) |
 | **Tools on/off** | checkbox sui tool di `CORE/tools.py`; le firme selezionate vengono iniettate nel system prompt |
 | **Skill on/off** | checkbox sulle skill di `.opencode/skill/`; il corpo (troncato) viene iniettato come contesto |
+| **Auto-skill** | attivo di default: le parole chiave nel prompt aggiungono da sole le skill pertinenti (max 4); altre keyword in `state/auto_skill_keywords.json` (esempio: `DOCS/auto_skill_keywords.example.json`) |
 | **Persistenza** | `state/chat_tools_skills.json` (gitignored) |
 | **Chiave API** | pulsante **🔑 Incolla chiave API** → dialog mascherato (`EchoMode.Password`) → `state/cloud_api.json` con permessi `0600`, fuori da git |
 | **Errori** | il body HTTP reale del provider viene mostrato a schermo (`HTTP 402/410: …`), non un generico "HTTP error" |
