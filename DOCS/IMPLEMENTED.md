@@ -2906,3 +2906,18 @@ committato; `.git-credentials` non modificato.
 ⚠️ **Limite dichiarato**: le regole iptables non sono persistenti al reboot
 (`/etc/iptables` assente). Lo script lo segnala; serve `iptables-persistent`
 o un `iptables-save` esplicito. Non è stato installato nulla di aggiuntivo.
+
+---
+
+## Cycle 134 (2026-11-23) — snapshot firewall verificabile offline
+
+| Azione | Dettaglio |
+|---|---|
+| Snapshot | `pkexec mkdir -p /etc/iptables` + `iptables-save > /etc/iptables/rules.v4` (0644 root); le 2 regole per uid 1001 (ACCEPT Ollama + DROP) sono state riverificate nel file |
+| Probe | `hardening_probe()` espone `rules_saved`; la tabella M5 mostra `regole salvate ✅` e l'azione successiva distingue il caso con/senza snapshot |
+| Report | `DOCS/BLOCKER_PROBE_REPORT.md` rigenerato: M5 ✅ con snapshot |
+| `todo.md` | M5 aggiornato con lo stato dello snapshot |
+
+Nessun pacchetto installato: il ripristino automatico al boot richiede
+`iptables-persistent`, che resta un'azione esplicita non eseguita. 19 test
+mirati verdi, `pyflakes` 0, `git diff --check` pulito.

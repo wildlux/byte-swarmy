@@ -343,10 +343,12 @@ def hardening_probe(repo: Path = ROOT) -> dict:
     slice_ok = "slice cgroup assente" not in out
     evidence = [line.strip() for line in out.splitlines()
                 if "NON esiste" in line or "assente" in line][:4]
+    rules_file = Path("/etc/iptables/rules.v4")
     return {
         "script": "scripts/setup/hardening.sh",
         "user_exists": user_exists,
         "cgroup_slice_present": slice_ok,
+        "rules_saved": rules_file.is_file(),
         "needs_root": not (user_exists and slice_ok),
         "command": "sudo scripts/setup/hardening.sh --all",
         "evidence": evidence,
@@ -515,9 +517,13 @@ def markdown(result: dict) -> str:
          "installare la CLI (`sudo apt install gh`), `gh auth login`, revocare la PAT")
         + " |",
         f"| M5 hardening | {'✅' if not hard['needs_root'] else '🔒'} | "
-        f"utente {_yes_no(hard['user_exists'])}, slice {_yes_no(hard['cgroup_slice_present'])} | " +
-        ("rendere persistenti le regole iptables (iptables-persistent); "
-         "opzionale: `systemd-run --slice=byteswarmy.slice` per i worker"
+        f"utente {_yes_no(hard['user_exists'])}, slice {_yes_no(hard['cgroup_slice_present'])}, "
+        f"regole salvate {_yes_no(hard['rules_saved'])} | " +
+        ((("attivare iptables-persistent per il ripristino al boot; "
+           "salvare lo snapshot con `iptables-save > /etc/iptables/rules.v4`; ")
+          if not hard["rules_saved"] else
+          "attivare iptables-persistent per il ripristino automatico al boot; ")
+         + "opzionale: `systemd-run --slice=byteswarmy.slice` per i worker"
          if not hard["needs_root"] else f"`{hard['command']}`") + " |",
         f"| M6 profiling CI | 🔒 | run #2 fallito: {ci['failed_step']} | "
         f"{ci['blocker']}; poi `{ci['command']}` |",
