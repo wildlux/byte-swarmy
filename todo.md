@@ -877,8 +877,10 @@ del modello nudo (192s vs 14s per task) — la vera leva è la semplificazione.
       (AST scanner, safe path, runtime verifier). **Default OFF** in attesa
       del benchmark di validazione a macchina fredda (regola "measure,
       don't add"). Attivazione: `[fast_lane] enabled = true` in config.toml.
-2. [ ] **Ridurre il prefill del worker**: rimuovere tool non usati dal prompt,
+2. [~] **Ridurre il prefill del worker**: rimuovere tool non usati dal prompt,
       comprimere descrizioni. Riduzione stimata ~30-50% per step.
+      ✅ Verifica Cycle 108: T1/T10 già attivi, 3 test in
+      `tests/test_worker_prefill.py` (voce duplicates in Fascia 4 aggiornata).
 3. [x] **Consolidare i timer della GUI**: ✅ **Cycle 63** — un solo
       heartbeat (1s) al posto di 5 timer (500ms/1500ms/1500ms/3000ms);
       subprocess costosi (nvidia-smi + ollama ps) da ogni 1.5s a ogni 3s,
@@ -886,7 +888,9 @@ del modello nudo (192s vs 14s per task) — la vera leva è la semplificazione.
       Stima ~5-10% CPU costante in meno a riposo.
 4. [ ] **Spegnere componenti inutili via config**: disabilitare Timestral,
       SystemMonitor, LifecycleManager quando non necessari.
-5. [ ] **Ridurre num_ctx del planner**: 3072 → 2048 (come orchestrator).
+5. [x] **Ridurre num_ctx del planner**: 3072 → 2048 (come orchestrator).
+      ✅ Verificato: `CONFIG/config.toml:24` planner `num_ctx = 2048`,
+      uguale a orchestrator (`:12`). Nessuna modifica necessaria.
 6. [ ] **Caching KV cache (llama.cpp)**: salvare il cache del system prompt
       e riutilizzarlo tra chiamate. Richiede passaggio a llama.cpp diretto.
 7. [ ] **Batch scritture disco**: batch delle write_file, commit solo alla
