@@ -26,6 +26,7 @@ from CORE.persistent_memory import (
 )
 from CORE.planner import Planner
 from CORE.regex_controller import RegexController, DEFAULT_PATTERNS
+from CORE.subagent import SubagentRegistry
 from CORE.test_generator import TestGenerator
 from CORE.tools import ToolSet
 from SAFETY.security import log_security_event
@@ -139,6 +140,8 @@ class Worker:
         "  extract=extract_method(path,s,e,name,body)\n"
         "  rename=rename_symbol(old,new,apply=True)  # default: anteprima\n"
         "  restore=restore_snapshot(id)  # rollback del rename\n"
+        "  spawn=spawn_subagent(model_key, task)  # figlio, nessun LLM\n"
+        "  subreport=get_subagent_report(id)      # report del figlio\n"
         "  bash=run_bash(cmd)                 test=run_test_suite()\n"
         "  lint=lint_code(path)\n"
         "  git_status  git_diff(rev)  git_commit(msg)  git_log(n)\n"
@@ -200,6 +203,9 @@ class Worker:
         "extract": "extract_method",
         "rename": "rename_symbol",
         "restore": "restore_snapshot",
+        "spawn": "spawn_subagent",
+        "subreport": "get_subagent_report",
+        "sublist": "list_subagents",
         "bash": "run_bash",
         "test": "run_test_suite",
         "lint": "lint_code",
@@ -226,6 +232,9 @@ class Worker:
         self.memory = memory
         self.models = model_client
         self.log = logger
+        if hasattr(self.tools, "set_subagents"):
+            self.tools.set_subagents(
+                SubagentRegistry(self.tools.cfg, self.models, self.log))
         # P1-1: tentativi interni dell'ultimo execute (1 = primo colpo).
         self.last_attempts = 1
 
@@ -252,7 +261,8 @@ class Worker:
         git = {"git_status", "git_diff", "git_commit", "git_log",
                "git_branch", "git_merge"}
         analysis = {"analyze", "refs", "api", "complex", "graph", "dead",
-                    "extract", "rename", "restore"}
+                    "extract", "rename", "restore", "spawn", "subreport",
+                    "sublist"}
         usb = set()
         try:
             from GUI.settings_store import get_usb_tools_enabled
@@ -267,7 +277,8 @@ class Worker:
         if any(k in text for k in ("refactor", "rename", "extract", "complex",
                                     "analyze", "reference", "call graph", "architettura",
                                     "struttura", "complessità", "codice morto",
-                                    "dead code", "firma api", "libreria")):
+                                    "dead code", "firma api", "libreria",
+                                    "subagent", "agente figlio", "delega")):
             return core | analysis | git
         if any(k in text for k in ("usb", "device", "hardware", "periferica")):
             return core | usb if usb else core
@@ -337,6 +348,9 @@ class Worker:
             "extract": "  extract=extract_method(path,s,e,name,body)",
             "rename": "  rename=rename_symbol(old,new,apply=True)",
             "restore": "  restore=restore_snapshot(id)  # rollback",
+            "spawn": "  spawn=spawn_subagent(model_key, task)  # no LLM",
+            "subreport": "  subreport=get_subagent_report(id)",
+            "sublist": "  sublist=list_subagents()",
             "bash": "  bash=run_bash(cmd)",
             "test": "  test=run_test_suite()",
             "lint": "  lint=lint_code(path)",
@@ -1744,6 +1758,13 @@ class Worker:
                     args[0], args[1], args[2] if len(args) > 2 else False)
             elif name == "restore_snapshot":
                 return self.tools.restore_snapshot(args[0] if args else "")
+            elif name == "spawn_subagent":
+                return self.tools.spawn_subagent(
+                    args[0] if args else "", args[1] if len(args) > 1 else "")
+            elif name == "get_subagent_report":
+                return self.tools.get_subagent_report(args[0] if args else "")
+            elif name == "list_subagents":
+                return self.tools.list_subagents()
             elif name == "analyze_complexity":
                 return self.tools.analyze_complexity(args[0])
             elif name == "get_call_graph":

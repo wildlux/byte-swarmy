@@ -109,6 +109,8 @@ reboot.
 | **Safety valve** | Auto-pause for RAM, disk, CPU/GPU temperature; clean shutdown on SIGTERM. |
 | **Token streaming** | Model tokens appear in real time in the Live Activity Panel (300 ms). |
 | **Model rotation** | Only one model in VRAM at a time; explicit load/unload. |
+| **One-level subagents** | `CORE/subagent.py`: children with own identity/memory and existing model roles, depth ≤1, max 4, no LLM in `spawn()`, wall-clock cap and thermal gate. Policy in `DOCS/SUBAGENTS.md`, 8 offline tests. |
+| **Regex inventory** | `tests/test_regex_inventory.py`: AST scan of registry and `re.*` calls in `CORE/`/`GUI/`/`tools/`, printable with `pytest -q -s`. 24 patterns + 130 usages, 0 invalid/duplicates; report in `DOCS/REGEX_INVENTORY.md`. |
 
 ---
 

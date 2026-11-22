@@ -179,6 +179,13 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 | mascheramento | il finding mostra solo i primi 4 caratteri (`ghp_…(40 char)`), mai il token intero |
 | remote git | URL pulito `https://github.com/wildlux/byte-swarmy.git`; credenziali nel credential helper dell'utente (`~/.git-credentials`, 0600, fuori dal repo) |
 
+### Novità 2026-11-22 — inventario regex e subagent
+
+| Meccanismo | Dettaglio | Gate |
+|---|---|---|
+| Inventario regex | `tests/test_regex_inventory.py` scansiona con AST il registro (`DEFAULT_PATTERNS` + `LANG_HINTS`) e le chiamate `re.*` letterali in `CORE/`, `GUI/`, `tools/`: 24 pattern, 130 usages, 148 file, 0 invalidi/duplicati. Report: `DOCS/REGEX_INVENTORY.md` | 4 test verdi, `pytest -q -s` stampa tutto |
+| Subagent 1-livello | `CORE/subagent.py` + tool `spawn_subagent`/`get_subagent_report`/`list_subagents`: figli con `AgentMemory` e ruoli modello esistenti, profondità ≤1, max 4, zero LLM in `spawn()`, gate ≤60 °C/`pause.flag`, cap wall-clock. Policy: `DOCS/SUBAGENTS.md` | 8 test offline verdi, zero rete/LLM |
+
 ---
 
 *Documento e grafico generati dal Cycle 86, allineati al codice il 2026-11-22 —

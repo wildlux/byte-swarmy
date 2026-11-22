@@ -126,19 +126,20 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 
 | # | Task (atomico, verificabile) | Stato |
 |---|---|---|
-| 1 | `CORE/subagent.py`: registry deterministico `spawn(parent_id, model_key, task)` → `agent_id` + `AgentMemory` + `Worker`, riutilizzando la factory di `CORE/external_benchmark.py:827-848`; valida `model_key` contro `[models.*]`, profondità max 1, max 4 figli, zero chiamate LLM nel costruttore | [ ] |
-| 2 | Tool `spawn_subagent(model_key, task)` + `get_subagent_report(agent_id)` in `CORE/tools.py`: firme in `TOOL_SIGNATURES`, `allowed_tools()`, dispatch e descrizioni in `CORE/worker.py`, keyword in `CORE/auto_tool.py` | [ ] |
-| 3 | Ciclo di vita in `CORE/worker.py`: il figlio gira con cap wall-clock (schema `max_run_sec` di `tools/swarm_refactor_session.py:124-128`), il report torna nel contesto del padre; timeout o blocco_termico = fail-open esplicito, mai `done` con figlio pendente | [ ] |
-| 4 | Gate operativo: figlio = run LLM → ventole al max, ≤60 °C, rispetto di `state/pause.flag`; i test usano solo fake client, mai Ollama/cloud | [ ] |
-| 5 | Test offline `tests/test_subagent.py`: spawn valido/invalido, depth cap, max figli, roundtrip del report, timeout/fail-open, rifiuto con `pause.flag`, zero chiamate LLM | [ ] |
-| 6 | Docs: `README.md`, `DOCS/README_EN.md`, `DOCS/MIGLIORAMENTI.md` + policy in `DOCS/`; aggiornare `todo.md` con l'esito | [ ] |
-| 7 | Gate leggeri: `compileall`, `tools/lint_style.py`, `tools/security_scan.py`, test mirato, `git diff --check` | [ ] |
+| 1 | `CORE/subagent.py`: registry deterministico `spawn(parent_id, model_key, task)` → `agent_id` + `AgentMemory` + `Worker`, riutilizzando la factory di `CORE/external_benchmark.py:827-848`; valida `model_key` contro `[models.*]`, profondità max 1, max 4 figli, zero chiamate LLM nel costruttore | [x] |
+| 2 | Tool `spawn_subagent(model_key, task)` + `get_subagent_report(agent_id)` in `CORE/tools.py`: firme in `TOOL_SIGNATURES`, `allowed_tools()`, dispatch e descrizioni in `CORE/worker.py`, keyword in `CORE/auto_tool.py` | [x] |
+| 3 | Ciclo di vita in `CORE/worker.py`: il figlio gira con cap wall-clock (schema `max_run_sec` di `tools/swarm_refactor_session.py:124-128`), il report torna nel contesto del padre; timeout o blocco_termico = fail-open esplicito, mai `done` con figlio pendente | [x] |
+| 4 | Gate operativo: figlio = run LLM → ventole al max, ≤60 °C, rispetto di `state/pause.flag`; i test usano solo fake client, mai Ollama/cloud | [x] |
+| 5 | Test offline `tests/test_subagent.py`: spawn valido/invalido, depth cap, max figli, roundtrip del report, timeout/fail-open, rifiuto con `pause.flag`, zero chiamate LLM | [x] |
+| 6 | Docs: `README.md`, `DOCS/README_EN.md`, `DOCS/MIGLIORAMENTI.md` + policy in `DOCS/`; aggiornare `todo.md` con l'esito | [x] |
+| 7 | Gate leggeri: `compileall`, `tools/lint_style.py`, `tools/security_scan.py`, test mirato, `git diff --check` | [x] |
 
-> Criterio di done: `pytest tests/test_subagent.py -q` verde senza rete né LLM,
-> profondità e numero massimo di figli rispettati, report del figlio sempre
-> leggibile dal padre. **Fuori scope**: annidamento >1, parallelismo dei figli,
-> creazione di nuovi ruoli modello, credenziali cloud. Esecuzione live solo
-> dopo la verifica della ventola (incidente termico 2026-11-20).
+> Eseguito il 2026-11-22: 8 test offline verdi (1,17 s), profondità ≤1 e max 4
+> figli rispettati, report sempre leggibile dal padre, zero LLM/rete nei test.
+> Policy: [`DOCS/SUBAGENTS.md`](DOCS/SUBAGENTS.md). **Fuori scope**: annidamento
+> >1, parallelismo dei figli, nuovi ruoli modello, credenziali cloud.
+> Esecuzione live solo dopo la verifica della ventola (incidente termico
+> 2026-11-20).
 
 ## 📈 Sessione 2026-11-22 — piano auto-miglioramento (pianificata)
 

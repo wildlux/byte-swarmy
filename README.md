@@ -81,6 +81,8 @@ dopo un riavvio.
 | **Persistent Memory** | Memoria cross-task: file esistenti, errori comuni, task recenti, preferenze utente. | Il worker non ricrea file già esistenti, evita errori noti. |
 | **USB Analysis** | Tool di ispezione passiva del traffico USB via `usbmon`. | Reverse engineering hardware in modo sicuro e read-only. |
 | **Disk Quota** | Limite 500 MB su `project/` per prevenire saturazione disco. | Protezione contro attacchi di tipo `dd` o loop di scritture. |
+| **Subagent 1-livello** | `CORE/subagent.py`: figli con identità/memoria e ruoli modello esistenti, profondità ≤1, max 4, zero LLM in `spawn()`, cap wall-clock e gate termico. | Delega verificabile con report sempre leggibile; policy in `DOCS/SUBAGENTS.md`, 8 test offline. |
+| **Inventario regex** | `tests/test_regex_inventory.py`: scansione AST di registro e `re.*` in `CORE/`/`GUI/`/`tools/`, stampa con `pytest -q -s`. | 24 pattern + 130 usages, 0 invalidi/duplicati; report in `DOCS/REGEX_INVENTORY.md`. |
 
 ### Principi di progettazione
 

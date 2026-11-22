@@ -81,6 +81,9 @@ TOOL_SIGNATURES = {
     "lint_code": "lint_code(path) -> str: verifica errori di sintassi e stile in un file",
     "rename_symbol": "rename_symbol(old, new, apply=False) -> str: anteprima diff; apply=True scrive con snapshot",
     "restore_snapshot": "restore_snapshot(id) -> str: ripristina i file di un rename precedente (rollback)",
+    "spawn_subagent": "spawn_subagent(model_key, task) -> str: crea un figlio (profondità max 1, max 4); NON esegue LLM",
+    "get_subagent_report": "get_subagent_report(agent_id) -> str: esegue (se pending) e restituisce il report del figlio",
+    "list_subagents": "list_subagents() -> str: elenca i subagent con stato e modello",
     "analyze_complexity": "analyze_complexity(path) -> str: stima la complessità di un file",
     "get_call_graph": "get_call_graph(symbol) -> str: mappa chi chiama la funzione/classe",
     "find_dead_code": "find_dead_code(path='.') -> str: report SOLO LETTURA di funzioni/classi/import non referenziati (non cancella nulla)",
@@ -180,6 +183,7 @@ class ToolSet:
         self.log = logger
         self.project_root = Path(config["paths"]["project_root"]).resolve()
         self.worker = "worker"
+        self.subagents = None  # registry iniettata dal Worker (CORE/subagent.py)
 
         sec = config.get("security", {})
         self.max_output = int(sec.get("max_output_chars", 10_000))
@@ -226,6 +230,10 @@ class ToolSet:
     def set_worker(self, worker: str) -> None:
         """Imposta l'id usato nei log di sicurezza (single-thread)."""
         self.worker = worker or "worker"
+
+    def set_subagents(self, registry) -> None:
+        """Collega il registry dei subagent (senza chiamare l'LLM)."""
+        self.subagents = registry
 
     # ------------------------------------------------------------------
     # P1-2 — gate import-check (nomi indefiniti = API allucinate)
@@ -369,6 +377,25 @@ class ToolSet:
             self.log.warning(f"retrieve_similar_task fallito: {e}")
             return f"ERROR: retrieval fallito: {e}"
 
+    # ----- subagent: creazione/rendicontazione figli (no LLM in spawn) -----
+    def spawn_subagent(self, model_key: str, task: str) -> str:
+        """Crea un subagent con ruolo modello esistente. Non lo esegue."""
+        if self.subagents is None:
+            return "ERROR: registry subagent non inizializzata."
+        return self.subagents.spawn(self.worker, model_key, task)
+
+    def get_subagent_report(self, agent_id: str) -> str:
+        """Report del figlio; se pending applica i gate e lo esegue."""
+        if self.subagents is None:
+            return "ERROR: registry subagent non inizializzata."
+        return self.subagents.get_report(agent_id)
+
+    def list_subagents(self) -> str:
+        """Elenco dei figli creati in questa sessione."""
+        if self.subagents is None:
+            return "ERROR: registry subagent non inizializzata."
+        return self.subagents.list_agents()
+
     def allowed_tools(self) -> set[str]:
         """Tool che il worker può realmente chiamare."""
         tools = {
@@ -381,7 +408,8 @@ class ToolSet:
             "git_commit", "git_diff", "git_status", "git_log",
             "git_branch", "git_merge", "git_pull", "git_push", "git_remote",
             "run_test_suite", "list_refs", "list_tools", "diary_llm", "retrieve_similar_task",
-            "api_lookup",
+            "api_lookup", "spawn_subagent", "get_subagent_report",
+            "list_subagents",
         }
         try:
             from GUI.settings_store import get_usb_tools_enabled
