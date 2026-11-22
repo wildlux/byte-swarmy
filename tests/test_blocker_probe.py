@@ -29,8 +29,35 @@ def test_parse_nbfc_formato_053_senza_unita_rpm():
             "Target Fan Speed         : 100.00\n")
     assert bp.parse_nbfc_rpm(text) == 0
     assert bp.parse_nbfc_duty(text) == 100.0
-    assert bp.parse_nbfc_rpm("Current Fan Speed : 3200.00") == 3200
+    assert bp.parse_nbfc_rpm("Current Fan Speed : 3200.00") == 0
     assert bp.parse_nbfc_duty("nessun dato") is None
+
+
+def test_percentuale_nbfc_non_diventa_mai_rpm():
+    """Current Fan Speed è una percentuale: accettarla come RPM è un falso."""
+    text = ("Current Fan Speed        : 50.00\n"
+            "Target Fan Speed         : 100.00\n")
+    assert bp.parse_nbfc_speed_pct(text) == 50.0
+    assert bp.parse_nbfc_rpm(text) == 0
+    assert bp.parse_nbfc_rpm("Fan 1: 3200 RPM") == 3200
+    assert bp.parse_nbfc_rpm("Fan 1: 3200.50 RPM") == 3200
+
+
+def test_gate_non_si_apre_con_percentuale_nbfc(monkeypatch, tmp_path):
+    monkeypatch.setattr(bp, "read_cpu_temp_c", lambda base: (53.0, "fixture"))
+    monkeypatch.setattr(bp, "nbfc_probe", lambda: {
+        "rpm": 0, "speed_pct": 87.0, "fan_duty_pct": 100.0,
+        "rpm_source": None, "service_state": "daemon attivo",
+        "unit_state": "active", "detail": "Current Fan Speed : 87.00",
+    })
+    monkeypatch.setattr(bp, "read_pwm", lambda base: [])
+    snap = bp.fan_snapshot(tmp_path)
+    assert snap["speed_pct"] == 87.0
+    assert snap["fan_rpm"] == 0
+    assert snap["gate"]["verified"] is False
+    with pytest.raises(ValueError, match="Rifiutato"):
+        bp.write_fan_verification(snap, tmp_path / "gate.json")
+    assert not (tmp_path / "gate.json").exists()
 
 
 def test_parse_hwmon_temp():

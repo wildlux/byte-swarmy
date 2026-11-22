@@ -19,6 +19,9 @@ dichiarazione di operatore. Ho aggiunto il canale sicuro per registrarla
 
 Il duty-cycle non è una misura dei giri: la decisione esplicita del
 2026-11-22 vieta surrogati. `nbfc` attivo non dimostra che la ventola giri.
+Dal Cycle 122 il probe accetta come RPM **solo valori con unità esplicita**
+(`3200 RPM`): `Current Fan Speed : 50.00` di nbfc è una percentuale (0-100)
+e non può più aprire il gate. Serve comunque la misura fisica esterna.
 
 ## Cosa serve
 

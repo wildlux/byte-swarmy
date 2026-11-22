@@ -1,11 +1,21 @@
 name: Profile — suite completa (durations)
 
-# Profilazione manuale della suite completa su runner GitHub.
+# Profilazione della suite completa su runner GitHub.
 # Perché: misurare i tempi senza scaldare la macchina locale.
 # I live e2e vengono saltati con state/pause.flag (niente Ollama/orchestratore
 # nei runner hosted). Il log con --durations=0 è pubblicato come artifact.
+#
+# Cycle 123: trigger `push` su main in aggiunta a `workflow_dispatch`.
+# Motivo: il trigger manuale richiede la CLI GitHub ufficiale + auth, non
+# disponibile (il `gh` locale è uno script browser 0.0.4). Con il push ogni
+# commit su main esegue la suite sui runner hosted: nessuna suite locale,
+# nessun LLM e nessun calore sulla macchina termicamente vincolata.
+# La diagnostica di collezione stampa `tail -60 collect.log` nel log pubblico:
+# così la causa del run #2 è leggibile anche senza scaricare l'artifact privato.
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       filter:

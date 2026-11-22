@@ -49,3 +49,13 @@ su runner GitHub, dove le dipendenze vengono reinstallate da `requirements.txt`.
   script browser 0.0.4, non la CLI.
 - ✅ Diagnosi, strumenti di diagnosi e lock del workflow: fatti (Cycle 112).
 - ⛔ Nessun nuovo run avviato, nessuna suite locale completa, nessun LLM.
+
+## Aggiornamento Cycle 123 — trigger automatico
+
+Il trigger manuale richiedeva la CLI GitHub ufficiale + auth, non disponibili.
+Dal Cycle 123 il workflow ha anche `on.push.branches: [main]`: il push del
+commit che introduce questa modifica avvia un nuovo run sui runner hosted.
+La diagnostica (`tail -60 collect.log` e `tail -80 pytest_profile.log`) finisce
+nel **log pubblico** dello step, quindi la causa del fallimento è leggibile
+tramite API pubblica senza scaricare l'artifact privato. Nessuna suite locale,
+nessun LLM, nessun calore sulla macchina vincolata.

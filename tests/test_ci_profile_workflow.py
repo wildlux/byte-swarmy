@@ -24,6 +24,16 @@ def test_workflow_presente_e_manuale():
     assert "runs-on: ubuntu-latest" in text
 
 
+def test_trigger_push_su_main_per_sbloccare_m2_m6():
+    """Il trigger manuale richiede gh+auth: il push esegue la suite su CI."""
+    text = _text()
+    assert "push:" in text
+    assert "branches: [main]" in text
+    # La diagnostica deve restare nel log pubblico, non solo nell'artifact.
+    assert "tail -60 collect.log" in text
+    assert "tail -80 pytest_profile.log" in text
+
+
 def test_pausa_live_e2e():
     assert "touch state/pause.flag" in _text()
 

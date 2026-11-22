@@ -51,7 +51,7 @@ ATTEST_MAX_SKEW_MIN = 2
 ATTEST_REQUIRED_FIELDS = ("fan_rpm", "instrument", "method", "operator",
                           "measured_at")
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
-RPM_RE = re.compile(r"(?<![\d.])(\d{2,6})\s*RPM\b", re.IGNORECASE)
+RPM_RE = re.compile(r"(?<![\d.])(\d{2,6}(?:\.\d+)?)\s*RPM\b", re.IGNORECASE)
 SPEED_RE = re.compile(r"Current Fan Speed\s*:\s*(\d+(?:\.\d+)?)", re.IGNORECASE)
 DUTY_RE = re.compile(r"Target Fan Speed\s*:\s*(\d+(?:\.\d+)?)", re.IGNORECASE)
 TOKEN_URL_RE = re.compile(r"(https?://)[^/@\s]+@")
@@ -69,14 +69,19 @@ def _cmd(argv: list[str], timeout: int = 8) -> str:
 
 
 def parse_nbfc_rpm(text: str) -> int:
-    """RPM da `nbfc status`: sia '3200 RPM' sia 'Current Fan Speed: 0.00'.
+    """Solo RPM con unità esplicita ('3200 RPM').
 
-    nbfc 0.5.3 su questa macchina NON stampa l'unità RPM: ignorare il formato
-    vecchio sarebbe un falso '0 RPM' anche quando il valore è positivo.
+    `Current Fan Speed: 50.00` di nbfc è una PERCENTUALE (0-100), non RPM:
+    interpreterla come 50 RPM scriverebbe un gate falso. Il formato senza
+    unità non è accettato: in assenza di unità il valore è sconosciuto.
     """
-    vals = [int(v) for v in RPM_RE.findall(text or "")]
-    vals += [int(float(v)) for v in SPEED_RE.findall(text or "")]
-    return max(vals, default=0)
+    return max((int(float(v)) for v in RPM_RE.findall(text or "")), default=0)
+
+
+def parse_nbfc_speed_pct(text: str) -> float | None:
+    """`Current Fan Speed` come percentuale nbfc (solo contesto, MAI RPM)."""
+    found = SPEED_RE.findall(text or "")
+    return float(found[-1]) if found else None
 
 
 def parse_nbfc_duty(text: str) -> float | None:
@@ -148,16 +153,13 @@ def nbfc_probe() -> dict:
             break
     unit_state = state[-1].strip() if state else "sconosciuto"
     daemon_ok = "Current Fan Speed" in status
-    if daemon_ok:
-        rpm_source = "nbfc status (Current Fan Speed)" if SPEED_RE.search(status) \
-            else "nbfc status (RPM)" if RPM_RE.search(status) else None
-    else:
-        rpm_source = None
+    rpm_source = "nbfc status (RPM espliciti)" if RPM_RE.search(status) else None
     return {
         "service_state": "daemon attivo" if daemon_ok else unit_state,
         "unit_state": unit_state,
         "daemon_running": daemon_ok,
         "rpm": parse_nbfc_rpm(status),
+        "speed_pct": parse_nbfc_speed_pct(status),
         "fan_duty_pct": parse_nbfc_duty(status),
         "detail": detail,
         "rpm_source": rpm_source,
@@ -175,6 +177,7 @@ def fan_snapshot(base: Path = Path("/sys")) -> dict:
         "cpu_temp_c": round(temp_c, 1),
         "temp_source": source,
         "fan_rpm": rpm,
+        "speed_pct": nbfc.get("speed_pct"),
         "fan_duty_pct": nbfc.get("fan_duty_pct"),
         "rpm_source": nbfc["rpm_source"],
         "nbfc_service_state": nbfc["service_state"],
@@ -519,7 +522,9 @@ def markdown(result: dict) -> str:
         "|---|---|",
         f"| Temperatura CPU (coretemp) | {fan['cpu_temp_c']} °C |",
         f"| Sorgente temperatura | `{fan['temp_source']}` |",
-        f"| RPM ventola | {fan['fan_rpm']} ({fan['rpm_source'] or 'nessuna sorgente'}) |",
+        f"| RPM ventola | {fan['fan_rpm']} ({fan['rpm_source'] or 'nessuna sorgente RPM esplicita'}) |",
+        f"| Current Fan Speed (nbfc, %) | {fan.get('speed_pct')} % — "
+        "**percentuale, non RPM** |",
         f"| Duty richiesto | {fan.get('fan_duty_pct')} % (Target Fan Speed) |",
         f"| Unità systemd | `{fan.get('nbfc_unit_state')}` |",
         f"| Dettaglio nbfc | {fan['nbfc_detail'] or 'nessuna risposta'} |",

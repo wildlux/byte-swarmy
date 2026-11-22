@@ -2680,3 +2680,35 @@ Verifiche: 36 test mirati verdi (`test_rpm_attestation.py` + `test_blocker_probe
 nessuna misura è stata inventata — il gate resta NON VALIDO finché non arriva
 un tachometro reale. Durante lo sviluppo un test ha scritto per errore un gate
 finto nel file reale: rimosso immediatamente e verificato con `--check-fan`.
+
+---
+
+## Cycle 122 (2026-11-22) — M3: la percentuale nbfc non è RPM
+
+| Modifica | Dettaglio |
+|---|---|
+| `tools/blocker_probe.py` | `parse_nbfc_rpm()` accetta **solo** valori con unità esplicita (`3200 RPM`, decimali inclusi): rimosso il fallback che interpretava `Current Fan Speed : 50.00` come 50 RPM. Nuovo `parse_nbfc_speed_pct()` espone la percentuale nbfc come contesto (`speed_pct`), mai come giri. `nbfc_probe()`/`fan_snapshot()` propagano il valore; `rpm_source` è `null` senza RPM espliciti. Report: nuova riga "Current Fan Speed (nbfc, %)" etichettata **percentuale, non RPM** |
+| `tests/test_blocker_probe.py` | 3 test nuovi/aggiornati: `3200.00` senza unità → 0 RPM, percentuale 50% → 0 RPM mentre `parse_nbfc_speed_pct` → 50.0, RPM con/senza decimali, gate bloccato anche con nbfc al 87% e duty 100% |
+| `DOCS/RPM_MEASUREMENT_PROCEDURE.md`, `todo.md` | Nota sul parser fail-closed; M3 aggiornato |
+
+Motivazione: il gate stretto della decisione 2026-11-22 vieta i surrogati.
+Un numero senza unità non è una misura di giri: accettarlo avrebbe potuto
+scrivere `fan_rpm=50` da una percentuale, cioè un dato falso. Il comportamento
+fail-closed mantiene il gate chiuso finché non arriva un RPM esplicito o la
+ricevuta attestata del Cycle 121.
+
+Verifiche: 38 test mirati verdi, `pyflakes` 0, gate reale `--check-fan` NON
+VALIDO. **Nessun LLM, rete, GPU o misura inventata**.
+
+---
+
+## Cycle 123 (2026-11-22) — M2/M6: trigger push per la suite su GitHub
+
+| Modifica | Dettaglio |
+|---|---|
+| `.github/workflows/profile.yml` | Aggiunto `on.push.branches: [main]` oltre a `workflow_dispatch`. Ogni push su `main` esegue la suite completa sui runner hosted: nessuna suite locale (vietata finché M3 non è chiuso), nessun LLM, nessun calore sulla macchina termicamente vincolata. Il commento documenta il motivo (il `gh` locale è uno script browser 0.0.4, non la CLI ufficiale). La diagnostica di collezione stampa `tail -60 collect.log` nel log pubblico, leggibile senza scaricare l'artifact privato |
+| `tests/test_ci_profile_workflow.py` | Nuovo test `test_trigger_push_su_main_per_sbloccare_m2_m6`: verifica `push:`, `branches: [main]` e che i `tail` dei log restino nel log pubblico |
+
+Perché: M2/M6 erano bloccati solo dal trigger manuale, che richiedeva `gh` ufficiale + auth non disponibili. Il push rimuove dipendenza da credenziali e dalla macchina locale. **Nessuna suite è stata eseguita localmente**; l'esecuzione avviene solo su GitHub Actions.
+
+Verifiche: 6 test mirati verdi, YAML valido (`trigger: ['push', 'workflow_dispatch']`), `pyflakes` 0. **Nessun LLM, rete o GPU**: il trigger userà i runner GitHub, non questa macchina.
