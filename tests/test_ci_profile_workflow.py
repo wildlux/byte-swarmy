@@ -42,6 +42,16 @@ def test_errore_collezione_esposto_in_annotations_pubbliche():
     assert "check-runs/{id}/annotations" in text
 
 
+def test_librerie_qt_headless_installate_sul_runner():
+    """Run #4: EXIT=2 per `ImportError: libEGL.so.1` in PyQt6.QtWidgets."""
+    text = _text()
+    assert "Librerie di sistema per Qt headless (libEGL)" in text
+    assert "libegl1" in text
+    assert "sudo apt-get install -y --no-install-recommends" in text
+    # Deve essere prima della collezione, altrimenti l'import fallisce ancora.
+    assert text.index("libegl1") < text.index("Diagnostica collezione")
+
+
 def test_pausa_live_e2e():
     assert "touch state/pause.flag" in _text()
 

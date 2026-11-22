@@ -56,6 +56,30 @@ Il trigger manuale richiedeva la CLI GitHub ufficiale + auth, non disponibili.
 Dal Cycle 123 il workflow ha anche `on.push.branches: [main]`: il push del
 commit che introduce questa modifica avvia un nuovo run sui runner hosted.
 La diagnostica (`tail -60 collect.log` e `tail -80 pytest_profile.log`) finisce
-nel **log pubblico** dello step, quindi la causa del fallimento è leggibile
-tramite API pubblica senza scaricare l'artifact privato. Nessuna suite locale,
-nessun LLM, nessun calore sulla macchina vincolata.
+nel log dello step. Nessuna suite locale, nessun LLM, nessun calore sulla
+macchina vincolata.
+
+## Aggiornamento Cycle 124/125 — causa del fallimento provata
+
+Correzione: il **log del job non è pubblico**. La API restituisce `403 Must have
+admin rights to Repository` per il download dei log e `401 Requires
+authentication` per l'artifact. Il Cycle 124 ha allora ripetuto le ultime 25
+righe della collezione come annotations `::error::`, che **sono** leggibili via
+`GET /repos/{owner}/{repo}/check-runs/{job_id}/annotations` senza credenziali.
+
+| Run | Commit | Esito | Evidenza pubblica |
+|---|---|---|---|
+| #3 — `45046013422` | `7cfaf47` | failure, step 6 | `EXIT=2` (annotations assenti: prima del Cycle 124) |
+| #4 — `45046337143` | `576b0e7` | failure, step 6 | 11 annotations, di cui: `E ImportError: libEGL.so.1: cannot open shared object file: No such file or directory`, `tests/test_zoom.py:10: from PyQt6.QtWidgets import QApplication`, `ERROR` su 4 file GUI, `EXIT=2` |
+
+Verdetto: non è un errore della suite né del codice. `ubuntu-latest` non ha
+`libEGL.so.1`; `QT_QPA_PLATFORM=offscreen` sceglie il backend Qt, ma non
+fornisce la libreria condivisa richiesta al momento dell'import. L'ipotesi del
+run #2 (errore di collezione/import) è ora **confermata**, con il messaggio
+esatto.
+
+Fix Cycle 125: step `Librerie di sistema per Qt headless (libEGL)` prima
+dell'installazione Python, con `libegl1`, `libgl1`, `libxkbcommon-x11-0`,
+`libxcb-cursor0`, `libdbus-1-3`, `libfontconfig1`. Lock in
+`tests/test_ci_profile_workflow.py`. La suite resta **solo su GitHub Actions**:
+nessun test locale completo, nessun LLM, nessun GPU.
