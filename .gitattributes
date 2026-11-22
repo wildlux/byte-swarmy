@@ -1,0 +1,25 @@
+# .gitattributes — normalizzazione e classificazione dei file.
+# Il progetto è Linux: i sorgenti restano LF su ogni piattaforma.
+
+* text=auto eol=lf
+
+# Binari: nessuna conversione righe, nessun diff testuale.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svgz binary
+*.db binary
+*.sqlite binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.pdf binary
+*.zip binary
+
+# SVG generati da tools/gen_grafici.py: testo, ma diff chiuso di default.
+DOCS/grafici/miglioramenti.svg text eol=lf linguist-generated
+
+# Lock file prodotto da pip freeze.
+requirements-lock.txt linguist-generated

@@ -155,6 +155,7 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 | Codice prodotto | click sul file → codice effettivo nel viewer (con ▶ Esegui) |
 | Etichette | pallini colore nel menu contestuale, settings, completer `#`, colori rapidi |
 | Rinomina etichetta | pulsante ✏️ accanto a 🎨 Cambia colore e 🗑️ Elimina; `GUI/label_actions.py` aggiorna registro e task in un unico posto |
+| Dotfile di configurazione | `.editorconfig` (stile = `tools/lint_style.py`), `.gitattributes` (LF + binari + `linguist-generated`), `.env.example` (variabili cloud debug/sandbox; `.env` gitignored) |
 
 ### Sicurezza dei segreti
 

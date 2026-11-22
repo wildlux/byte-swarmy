@@ -392,6 +392,7 @@ on real prompts without touching the pipeline.
 | **Auto-tool** | on by default: prompt keywords add the relevant tool signatures automatically (max 4); extra keywords in `state/auto_tool_keywords.json` |
 | **Persistence** | `state/chat_tools_skills.json` (gitignored) |
 | **API key** | **🔑 Paste API key** button → masked dialog (`EchoMode.Password`) → `state/cloud_api.json`, mode `0600`, outside git |
+| **Environment variables** | `.env.example` lists the supported keys; copy to `.env` (gitignored) and load with `set -a; source .env; set +a` (no automatic dotenv) |
 | **Errors** | the provider's real HTTP body is shown (`HTTP 402/410: …`) instead of a generic "HTTP error" |
 
 > Chat **does not execute** tools: it describes them in the prompt to measure
@@ -759,6 +760,14 @@ python -m py_compile CORE/*.py INTENT/*.py SAFETY/*.py MONITORING/*.py GUI/*.py
 bash -n avvia.sh ferma.sh sync.sh setup.sh setup-hardening.sh
 git diff --check
 ```
+
+### Configuration dotfiles
+
+| File | Effect |
+|---|---|
+| `.editorconfig` | UTF-8, LF, 4-space indent (2 for YAML/JSON/TOML), no trailing whitespace, 100 columns — same as `tools/lint_style.py` |
+| `.gitattributes` | LF line endings normalised, binaries excluded from diff, generated SVG and lock file marked `linguist-generated` |
+| `.env.example` | lists the environment variables read by the code (cloud keys + debug/sandbox toggles); `.env` stays gitignored |
 
 ### Model selector
 

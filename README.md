@@ -839,6 +839,7 @@ Serve a confrontare i modelli su prompt reali senza toccare la pipeline.
 | **Auto-tool** | attivo di default: le parole chiave aggiungono da sole le firme dei tool pertinenti (max 4); altre keyword in `state/auto_tool_keywords.json` (esempio: `DOCS/auto_tool_keywords.example.json`) |
 | **Persistenza** | `state/chat_tools_skills.json` (gitignored) |
 | **Chiave API** | pulsante **🔑 Incolla chiave API** → dialog mascherato (`EchoMode.Password`) → `state/cloud_api.json` con permessi `0600`, fuori da git |
+| **Variabili d'ambiente** | `.env.example` elenca le chiavi supportate; copia in `.env` (gitignored) e carica con `set -a; source .env; set +a` (nessun dotenv automatico) |
 | **Errori** | il body HTTP reale del provider viene mostrato a schermo (`HTTP 403: error code: 1010`, `HTTP 402/410: …`), non un generico "HTTP error" |
 
 > La Chat **non esegue** i tool: li descrive nel prompt per misurare quanto il
@@ -1085,6 +1086,14 @@ python -m py_compile CORE/*.py INTENT/*.py SAFETY/*.py MONITORING/*.py GUI/*.py
 bash -n avvia.sh ferma.sh sync.sh setup.sh setup-hardening.sh
 git diff --check
 ```
+
+### Dotfile di configurazione
+
+| File | Effetto |
+|---|---|
+| `.editorconfig` | UTF-8, LF, indent 4 spazi (2 per YAML/JSON/TOML), nessun trailing whitespace, max 100 colonne — uguale a `tools/lint_style.py` |
+| `.gitattributes` | fine riga LF normalizzati, binari esclusi dal diff, SVG generato e lock file marcati `linguist-generated` |
+| `.env.example` | elenca le variabili d'ambiente lette dal codice (chiavi cloud + toggle debug/sandbox); `.env` resta gitignored |
 
 ### Model selector e benchmark
 
