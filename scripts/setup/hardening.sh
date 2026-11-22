@@ -153,6 +153,7 @@ apply_user() {
         --exclude '__pycache__/' \
         --exclude 'logs/' \
         --exclude 'state/' \
+        --exclude 'data/state/' \
         --exclude 'backups/' \
         --exclude 'mcp_servers.json' \
         --exclude '*.pyc' \

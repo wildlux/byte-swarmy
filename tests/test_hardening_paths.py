@@ -36,6 +36,17 @@ def test_rsync_copia_la_radice_non_la_cartella_script():
     assert 'rsync -a --delete' in text
 
 
+def test_rsync_esclude_lo_stato_runtime_con_credenziali():
+    """`state/` è un symlink: la rsync deve escludere anche la destinazione.
+
+    Altrimenti `data/state/cloud_api.json` verrebbe copiato nell'utente
+    isolato insieme al resto dello stato runtime.
+    """
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "--exclude 'state/'" in text
+    assert "--exclude 'data/state/'" in text
+
+
 def test_script_setup_sintatticamente_validi():
     for script in sorted((ROOT / "scripts" / "setup").glob("*.sh")):
         cp = subprocess.run(["bash", "-n", str(script)], cwd=ROOT,
