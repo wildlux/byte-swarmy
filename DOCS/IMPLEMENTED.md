@@ -2921,3 +2921,20 @@ o un `iptables-save` esplicito. Non è stato installato nulla di aggiuntivo.
 Nessun pacchetto installato: il ripristino automatico al boot richiede
 `iptables-persistent`, che resta un'azione esplicita non eseguita. 19 test
 mirati verdi, `pyflakes` 0, `git diff --check` pulito.
+
+---
+
+## Cycle 135 (2026-11-23) — runner live della eval suite, pronto ma non eseguito
+
+| Azione | Dettaglio |
+|---|---|
+| `tools/run_eval.py` | `--live` implementato: `require_gate()` riutilizza `blocker_probe.read_stored_fan()` (RPM attestati) e rilegge la temperatura live; rifiuto con exit 2 se il gate non è valido o se la CPU è già >60 °C. `run_live()` crea un worker per caso, campiona la temperatura prima di ogni caso, interrompe se supera 60 °C, verifica il marker nei file `.py` toccati dal worker (`touched_python`) e registra `passed=False` su errore, marker mancante o retry interno (`last_attempts > 1`). Nessun `passed` sintetico |
+| Wiring SLOT-5 | I risultati vanno in `data/state/eval_live_results.json` (gitignored) con `source: "live"`, evidenza termica e 11 record con marker; i 2 casi gate/chiarimento finiscono in `excluded_cases`. Verificato che `tools/eval_by_slot.py --results` accetti il file prodotto e rifiuti quello interrotto per calore |
+| Sicurezza | Nessun import `CORE` a livello di modulo: il factory reale (`ModelClient`/`ToolSet`/`AgentMemory`/`Worker`) viene importato solo dopo il gate. `--live` richiede di essere lanciato dalla radice del repo (path configurazione relativi) |
+| Test | `tests/test_run_eval_live.py` (8 test): rifiuto gate, assenza import LLM, formato live, fallimenti, retry, surriscaldamento, CLI exit 2, invarianza dry-run. Con `test_eval_suite.py` e `test_eval_by_slot.py`: **22 passed** |
+| Verifica reale | `tools/run_eval.py --live` su questa macchina → `RIFIUTO: fan_verified.json NON VALIDO (file assente)`, exit 2, nessun worker creato, nessun file risultati scritto. Dry-run invariante (13 casi, 8 assi, 3 granularità) |
+
+**Limite dichiarato**: il runner è pronto, ma **nessuna misura pass@1 è stata
+prodotta**. M3 (tachometro) e M7 (task GUI live) restano bloccati: questo
+commit non alza nessun asse del radar e non dichiara il Middle raggiunto.
+Nessuna suite completa locale, nessun LLM, GPU o benchmark eseguiti.

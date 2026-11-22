@@ -401,8 +401,13 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
       > valida e riassume per asse/granularità; --live richiede LLM).
       > ✅ **Lock Cycle 111**: `tests/test_eval_suite.py` (5 test) blocca
       > copertura 8 assi/3 granularità, validazione casi corrotti e
-      > dry-run JSON deterministico. 🔒 Resta `--live` (pass@1): serve
-      > run LLM con gate termico, non eseguito.
+      > dry-run JSON deterministico. ✅ **Cycle 135**: `--live` implementato
+      > (non eseguito): rifiuta l'avvio senza `fan_verified.json` valido,
+      > rilegge la temperatura prima di ogni caso, interrompe oltre 60 °C,
+      > verifica il marker nei file toccati dal worker e scrive risultati
+      > nel formato accettato da `eval_by_slot.py`; 8 test offline in
+      > `tests/test_run_eval_live.py`. 🔒 Resta l'esecuzione reale (pass@1):
+      > serve gate termico valido (M3) e un task GUI live, non eseguito.
 7. [~] **[SLOT-5] Eval per-slot pass@1** — runner che misura il
       primo-colpo **per tipo di slot** (import/function/handler/widget)
       e per dimensione output: è il numero che dice se SLOT funziona.
