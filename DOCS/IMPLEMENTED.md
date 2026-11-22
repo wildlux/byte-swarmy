@@ -2712,3 +2712,49 @@ VALIDO. **Nessun LLM, rete, GPU o misura inventata**.
 Perché: M2/M6 erano bloccati solo dal trigger manuale, che richiedeva `gh` ufficiale + auth non disponibili. Il push rimuove dipendenza da credenziali e dalla macchina locale. **Nessuna suite è stata eseguita localmente**; l'esecuzione avviene solo su GitHub Actions.
 
 Verifiche: 6 test mirati verdi, YAML valido (`trigger: ['push', 'workflow_dispatch']`), `pyflakes` 0. **Nessun LLM, rete o GPU**: il trigger userà i runner GitHub, non questa macchina.
+
+---
+
+## Cycle 124 (2026-11-22) — M6: errore CI leggibile senza auth
+
+| Modifica | Dettaglio |
+|---|---|
+| `.github/workflows/profile.yml` | In caso di `EXIT!=0` nella diagnostica di collezione, le ultime 25 righe di `collect.log` vengono emesse come annotations `::error::`. Il log del job richiede diritti admin (403 API, 401 artifact), ma le annotations dei check run sono pubbliche e leggibili via `GET /repos/{owner}/{repo}/check-runs/{id}/annotations` |
+| `tests/test_ci_profile_workflow.py` | Test `test_errore_collezione_esposto_in_annotations_pubbliche` blocca l'hook e la conservazione di `exit $code` |
+
+Il run #3 (`45046013422`, commit `7cfaf47`, evento `push`) è fallito allo step 6
+con `EXIT=2`; senza annotations il messaggio restava in un artifact privato.
+
+Verifiche: 7 test mirati verdi, YAML valido (`trigger: ['push', 'workflow_dispatch']`),
+`pyflakes` 0, `git diff --check` pulito. Nessuna suite locale, LLM o GPU.
+
+---
+
+## Cycle 125 (2026-11-22) — M6: causa provata (libEGL) e fix CI
+
+| Modifica | Dettaglio |
+|---|---|
+| `.github/workflows/profile.yml` | Nuovo step `Librerie di sistema per Qt headless (libEGL)` prima di `pip install`: `sudo apt-get update` + `libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0 libdbus-1-3 libfontconfig1` |
+| `tests/test_ci_profile_workflow.py` | Test `test_librerie_qt_headless_installate_sul_runner`: verifica pacchetto `libegl1`, installazione `--no-install-recommends` e ordinamento prima della diagnostica |
+| `DOCS/CI_PROFILE_DIAGNOSIS.md` | Corretta l'affermazione "log pubblico" (in realtà 403/401) e aggiunta la tabella con run #3/#4 e le 11 annotations pubbliche |
+
+Il run #4 (`45046337143`, commit `576b0e7`) ha fallito di nuovo allo step 6, ma
+le annotations hanno dato il verdetto esatto:
+
+```
+E   ImportError: libEGL.so.1: cannot open shared object file: No such file or directory
+tests/test_zoom.py:10: in <module>
+    from PyQt6.QtWidgets import QApplication
+ERROR tests/test_actors_panel.py
+ERROR tests/test_clarifier_gui_bridge.py
+ERROR tests/test_close_orchestrator.py
+ERROR tests/test_crud_file_manager.py
+EXIT=2
+```
+
+Non è un difetto della suite: `QT_QPA_PLATFORM=offscreen` seleziona il backend,
+ma `ubuntu-latest` non ha la libreria condivisa Qt. L'ipotesi del run #2 è ora
+confermata con evidenza pubblica e senza credenziali.
+
+Verifiche: 8 test mirati verdi, `pyflakes` 0, YAML valido, `git diff --check`
+pulito. Nessuna suite locale, LLM, GPU o misura inventata.
