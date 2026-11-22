@@ -2161,3 +2161,20 @@ approvazione, CLI `--gate`). Regressione skill_executor/behavioral/diagnosis/
 oracle/logic: 36 passed. Nessun LLM, nessuna rete. Nessuna skill reale
 modificata: i test usano una SKILLS dir temporanea.
 
+---
+
+## Cycle 90 (2026-11-22) — B3: validatore degli override auto-skill/auto-tool
+
+| Modifica | Dettaglio |
+|---|---|
+| `CORE/override_guard.py` (nuovo) | `Issue`/`ValidationResult`/`validate_overrides`/`load_validated`: chiavi note, max 4 keyword, dedup normalizzato (accent-insensitive), keyword testuali <80 char senza controlli, JSON invalido e root type. Report `to_dict()`/`markdown()` per C2 |
+| `CORE/auto_skill.py` | `_load_overrides` usa `load_validated` + `_known_skill_keys()` (keyword curate + cartelle `.opencode/skill/`); warning per ogni issue; file mancante = {} |
+| `CORE/auto_tool.py` | `_load_overrides` usa `load_validated` + `_known_tool_keys()` (keyword curate + `TOOL_SIGNATURES`); warning per ogni issue |
+
+Verifiche: `tests/test_override_guard.py` 10 test + 4 subtest (valido, 4
+invalidi con codice `unknown_key`/`too_many`/`bad_type`/`bad_keyword`,
+dedup `caffe`/`caffè`, cap 4, file mancante, JSON rotto, root non-dict,
+markdown, wiring dei due loader). Regressione dead-code/refactor/retrieval/
+subagent: 36 passed + 4 subtest. Nessun LLM. Le keyword valide continuano a
+funzionare: il validatore scarta solo le voci non conformi.
+

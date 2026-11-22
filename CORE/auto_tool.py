@@ -13,10 +13,12 @@ es.::
 
 from __future__ import annotations
 
-import json
+import logging
 from pathlib import Path
 
 from CORE.auto_skill import normalize
+
+LOG = logging.getLogger("byte-swarmy.auto-tool")
 
 BASE_DIR = Path(__file__).parent.parent.resolve()
 OVERRIDES_FILE = BASE_DIR / "state" / "auto_tool_keywords.json"
@@ -89,21 +91,26 @@ TOOL_KEYWORDS: dict[str, list[str]] = {
 }
 
 
-def _load_overrides() -> dict[str, list[str]]:
-    if not OVERRIDES_FILE.exists():
-        return {}
+def _known_tool_keys() -> set[str]:
+    """Chiavi ammesse: tool con keyword curate + firme registrate."""
+    keys = set(TOOL_KEYWORDS)
     try:
-        data = json.loads(OVERRIDES_FILE.read_text(encoding="utf-8"))
+        from CORE.tools import TOOL_SIGNATURES
+        keys.update(TOOL_SIGNATURES)
     except Exception:
-        return {}
-    out: dict[str, list[str]] = {}
-    if isinstance(data, dict):
-        for key, value in data.items():
-            if isinstance(value, list):
-                words = [str(w).strip() for w in value if str(w).strip()]
-                if words:
-                    out[str(key)] = words
-    return out
+        pass
+    return keys
+
+
+def _load_overrides() -> dict[str, list[str]]:
+    """Keyword extra validate da state/auto_tool_keywords.json (B3)."""
+    from CORE.override_guard import load_validated
+
+    result = load_validated(OVERRIDES_FILE, _known_tool_keys())
+    for issue in result.issues:
+        LOG.warning("auto-tool override %s (%s): %s",
+                    issue.code, issue.key or "-", issue.message)
+    return result.overrides
 
 
 def _tool_names() -> list[str]:

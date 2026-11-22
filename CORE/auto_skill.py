@@ -21,11 +21,12 @@ Non esegue nulla: produce solo nomi di skill da iniettare nel system prompt.
 
 from __future__ import annotations
 
-import json
+import logging
 import re
 import unicodedata
 from pathlib import Path
 
+LOG = logging.getLogger("byte-swarmy.auto-skill")
 BASE_DIR = Path(__file__).parent.parent.resolve()
 OVERRIDES_FILE = BASE_DIR / "state" / "auto_skill_keywords.json"
 
@@ -168,22 +169,30 @@ def _phrase_hit(haystack: str, keyword: str) -> bool:
     return f" {kw} " in f" {haystack} "
 
 
-def _load_overrides() -> dict[str, list[str]]:
-    """Keyword extra scritte dall'utente in state/auto_skill_keywords.json."""
-    if not OVERRIDES_FILE.exists():
-        return {}
+def _known_skill_keys() -> set[str]:
+    """Chiavi ammesse: skill con keyword curate + cartelle skill presenti."""
+    keys = set(KEYWORDS)
     try:
-        data = json.loads(OVERRIDES_FILE.read_text(encoding="utf-8"))
+        skills_dir = BASE_DIR / ".opencode" / "skill"
+        keys.update(p.name for p in skills_dir.iterdir() if p.is_dir())
     except Exception:
-        return {}
-    out: dict[str, list[str]] = {}
-    if isinstance(data, dict):
-        for key, value in data.items():
-            if isinstance(value, list):
-                words = [str(w).strip() for w in value if str(w).strip()]
-                if words:
-                    out[str(key)] = words
-    return out
+        pass
+    return keys
+
+
+def _load_overrides() -> dict[str, list[str]]:
+    """Keyword extra validate da state/auto_skill_keywords.json (B3).
+
+    Fail-open: file mancante → {}; voci invalide → scartate con warning
+    esplicito, mai entrance silenziosa nel prompt.
+    """
+    from CORE.override_guard import load_validated
+
+    result = load_validated(OVERRIDES_FILE, _known_skill_keys())
+    for issue in result.issues:
+        LOG.warning("auto-skill override %s (%s): %s",
+                    issue.code, issue.key or "-", issue.message)
+    return result.overrides
 
 
 def _derived_keywords(name: str, description: str) -> list[str]:
