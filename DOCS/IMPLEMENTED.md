@@ -2661,3 +2661,22 @@ il benchmark con 3 task reali resta 🔒 termico.
 Verifiche: 21 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning.
 **Nessun LLM, rete o GPU**: i pareri sono sintetici e il report lo dichiara;
 servono 20 casi reali con pareri live per chiudere la voce.
+
+---
+
+## Cycle 121 (2026-11-22) — M3: canale auditabile per la misura RPM esterna
+
+| Modifica | Dettaglio |
+|---|---|
+| `tools/blocker_probe.py` | Nuovo `--attest-rpm <ricevuta.json>`: registra una misura RPM esterna solo con ricevuta contenente `fan_rpm`, `instrument`, `method`, `operator`, `measured_at`. Valida range fisico 300–6000, freschezza ≤30 min, nessuna data futura (skew 2 min), path fuori dal tree versionato (o in `data/state/`). La temperatura è **sempre** riletta live da sysfs; il duty è solo contesto (`fan_duty_pct_context_only`) e non entra nel gate. Provenienza esplicita nel file scritto. Nessuna opzione `--rpm`: valori CLI diretti impossibili. `write_fan_verification`/`read_stored_fan` risolvono `FAN_FILE` a runtime (corretto default congelato che rischiava di scrivere il gate reale da un test). `main()` refattorizzato in `_handle_fan_write()` |
+| `tests/test_rpm_attestation.py` (nuovo) | 16 test offline: campi obbligatori, RPM fuori range/non numerico/bool, misura stale/futura/date malformata, timestamp naive come UTC, path dentro repo rifiutato, JSON invalido, temperatura live anche con RPM attestati, duty non usato come prova, provenienza e permessi del gate, CLI happy-path/rifiuti/mutua esclusività, assenza di `--rpm`, regressione del default runtime |
+| `DOCS/RPM_MEASUREMENT_PROCEDURE.md` (nuovo) | Procedura operativa con evidenza hardware reale (HP Pavilion 15-cb0xx, profilo nbfc `HP Pavilion 17 Notebook PC` discrepante, Current Fan Speed 0.00, nessun `fan*_input`, ~64 °C), passi per la misura con tachometro e comandi di registrazione/verifica |
+| `DOCS/rpm_attestation.example.json` (nuovo) | Template compilabile della ricevuta |
+| `todo.md`, `DOCS/BLOCKER_PROBE_REPORT.md` | M3 aggiornato con il nuovo canale; report rigenerato dal tool |
+
+Verifiche: 36 test mirati verdi (`test_rpm_attestation.py` + `test_blocker_probe.py`),
+`pyflakes` 0, lint 0 errori/0 warning sui file nuovi; W006 pre-esistente su
+`markdown()` (89 righe già prima della modifica). **Nessun LLM, rete o GPU**:
+nessuna misura è stata inventata — il gate resta NON VALIDO finché non arriva
+un tachometro reale. Durante lo sviluppo un test ha scritto per errore un gate
+finto nel file reale: rimosso immediatamente e verificato con `--check-fan`.

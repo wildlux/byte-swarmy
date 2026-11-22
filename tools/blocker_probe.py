@@ -11,12 +11,21 @@ sono giri ventola reali (> 0 RPM) e temperatura CPU entro 60 °C. Non esiste
 un'opzione per passare `fan_rpm`/`temp_c` a mano: scrivere un valore falso
 deve essere impossibile per costruzione.
 
+Eccezione auditabile (M3): quando i sensori non espongono i RPM ma esiste una
+**misura fisica esterna** (tachometro ottico), ``--attest-rpm`` legge una
+ricevuta JSON con strumento, metodo, operatore e timestamp. La temperatura
+resta SEMPRE riletta live dai sensori; i RPM attestati non sono un surrogato
+di duty-cycle e la ricevuta deve essere fresca e fuori dal tree versionato.
+La provenienza scritta nel gate distingue esplicitamente la misura esterna da
+quella dei sensori. Nessun valore può essere passato come argomento CLI.
+
 Uso:
     .venv/bin/python tools/blocker_probe.py
     .venv/bin/python tools/blocker_probe.py --out DOCS/BLOCKER_PROBE_REPORT.md
     .venv/bin/python tools/blocker_probe.py --json
     .venv/bin/python tools/blocker_probe.py --check-fan   # gate 0/1
     .venv/bin/python tools/blocker_probe.py --write-fan   # solo se misure OK
+    .venv/bin/python tools/blocker_probe.py --attest-rpm data/state/rpm_attestation.json
 """
 from __future__ import annotations
 
@@ -33,6 +42,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 FAN_FILE = ROOT / "data" / "state" / "fan_verified.json"
 MAX_TEMP_C = 60.0
+# Range fisico plausibile per una ventola da notebook: filtro anti-typo,
+# NON un surrogato del numero di giri (il gate resta fan_rpm > 0 misurato).
+MIN_ATTESTED_RPM = 300
+MAX_ATTESTED_RPM = 6000
+ATTEST_MAX_AGE_MIN = 30
+ATTEST_MAX_SKEW_MIN = 2
+ATTEST_REQUIRED_FIELDS = ("fan_rpm", "instrument", "method", "operator",
+                          "measured_at")
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 RPM_RE = re.compile(r"(?<![\d.])(\d{2,6})\s*RPM\b", re.IGNORECASE)
 SPEED_RE = re.compile(r"Current Fan Speed\s*:\s*(\d+(?:\.\d+)?)", re.IGNORECASE)
@@ -173,23 +190,115 @@ def fan_snapshot(base: Path = Path("/sys")) -> dict:
     }
 
 
-def write_fan_verification(snapshot: dict, out: Path = FAN_FILE) -> Path:
+def _attestation_path_ok(path: Path) -> bool:
+    """La ricevuta non deve finire nel tree versionato (saltare data/state)."""
+    resolved = path.resolve()
+    state_dir = (ROOT / "data" / "state").resolve()
+    if resolved == state_dir or state_dir in resolved.parents:
+        return True
+    return ROOT.resolve() not in resolved.parents and resolved != ROOT.resolve()
+
+
+def load_rpm_attestation(path: Path, now: datetime | None = None) -> dict:
+    """Valida una ricevuta di misura RPM esterna. Nessun valore CLI diretto.
+
+    La ricevuta è un attestato dell'operatore: il tool NON può verificarne la
+    verità, ma può rifiutare campi mancanti, valori fuori range, date stale e
+    file dentro il tree versionato. La temperatura NON è mai letta da qui.
+    """
+    if not _attestation_path_ok(path):
+        raise ValueError("ricevuta fuori posto: usa data/state/ (gitignored) "
+                         "oppure un path fuori dal repository")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ValueError(f"ricevuta non leggibile: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ValueError("ricevuta: serve un oggetto JSON")
+    missing = [k for k in ATTEST_REQUIRED_FIELDS
+               if not str(data.get(k, "")).strip()]
+    if missing:
+        raise ValueError("campi obbligatori mancanti: " + ", ".join(missing))
+
+    rpm = data["fan_rpm"]
+    if isinstance(rpm, bool) or not isinstance(rpm, (int, float)):
+        raise ValueError("fan_rpm deve essere numerico")
+    rpm = int(rpm)
+    if not MIN_ATTESTED_RPM <= rpm <= MAX_ATTESTED_RPM:
+        raise ValueError(f"fan_rpm {rpm} fuori dal range fisico "
+                         f"{MIN_ATTESTED_RPM}-{MAX_ATTESTED_RPM}")
+
+    raw_stamp = str(data["measured_at"]).strip().replace("Z", "+00:00")
+    try:
+        stamp = datetime.fromisoformat(raw_stamp)
+    except ValueError as exc:
+        raise ValueError(f"measured_at non valido: {raw_stamp!r}") from exc
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=timezone.utc)
+    now = now or datetime.now(timezone.utc)
+    age_min = (now - stamp).total_seconds() / 60
+    if age_min > ATTEST_MAX_AGE_MIN:
+        raise ValueError(f"misura troppo vecchia: {age_min:.1f} min "
+                         f"(max {ATTEST_MAX_AGE_MIN})")
+    if age_min < -ATTEST_MAX_SKEW_MIN:
+        raise ValueError("measured_at nel futuro oltre la tolleranza")
+
+    return {
+        "fan_rpm": rpm,
+        "instrument": str(data["instrument"]).strip(),
+        "method": str(data["method"]).strip(),
+        "operator": str(data["operator"]).strip(),
+        "measured_at": stamp.isoformat(timespec="seconds"),
+        "notes": str(data.get("notes", "")).strip(),
+    }
+
+
+def attested_rpm_snapshot(attestation: dict, base: Path = Path("/sys")) -> dict:
+    """Snapshot con RPM attestati e temperatura RILETTA LIVE dai sensori."""
+    snap = fan_snapshot(base)
+    duty = snap.get("fan_duty_pct")
+    snap["fan_rpm"] = attestation["fan_rpm"]
+    snap["rpm_source"] = f"misura esterna: {attestation['instrument']}"
+    snap["fan_duty_pct"] = duty  # contesto, MAI usato come prova dei giri
+    snap["attestation"] = attestation
+    snap["gate"] = {
+        "fan_rpm_positivo": attestation["fan_rpm"] > 0,
+        "temp_entro_60c": 0.0 < snap["cpu_temp_c"] <= MAX_TEMP_C,
+        "verified": (attestation["fan_rpm"] > 0
+                     and 0.0 < snap["cpu_temp_c"] <= MAX_TEMP_C),
+    }
+    return snap
+
+
+def write_fan_verification(snapshot: dict, out: Path | None = None) -> Path:
     """Scrive il gate SOLO se lo snapshot contiene misure reali sufficienti."""
+    out = out or FAN_FILE  # risolto a runtime: i test possono isolare la path
     if not snapshot.get("gate", {}).get("verified", False):
         raise ValueError(
             "Rifiutato: servono fan_rpm > 0 e 0 < temp_c <= 60 misurati ora. "
             "Nessun valore viene inventato o accettato da riga di comando.")
+    attestation = snapshot.get("attestation")
+    if attestation:
+        method = ("tools/blocker_probe.py --attest-rpm "
+                  "(tachometro esterno attestato + temperatura sysfs live)")
+        rpm_source = snapshot["rpm_source"]
+    else:
+        method = "tools/blocker_probe.py --write-fan (lettura sysfs + nbfc)"
+        rpm_source = snapshot["rpm_source"]
     payload = {
         "fan_rpm": int(snapshot["fan_rpm"]),
         "temp_c": float(snapshot["cpu_temp_c"]),
         "measured_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "sources": {
             "temperature": snapshot["temp_source"],
-            "fan_rpm": snapshot["rpm_source"],
+            "fan_rpm": rpm_source,
             "nbfc_service_state": snapshot["nbfc_service_state"],
         },
-        "method": "tools/blocker_probe.py --write-fan (lettura sysfs + nbfc)",
+        "method": method,
     }
+    if attestation:
+        payload["attestation"] = attestation
+        payload["fan_duty_pct_context_only"] = snapshot.get("fan_duty_pct")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
                    encoding="utf-8")
@@ -197,8 +306,9 @@ def write_fan_verification(snapshot: dict, out: Path = FAN_FILE) -> Path:
     return out
 
 
-def read_stored_fan(path: Path = FAN_FILE) -> dict:
+def read_stored_fan(path: Path | None = None) -> dict:
     """Valida un gate già scritto: valori + provenienza, non solo esistenza."""
+    path = path or FAN_FILE  # risolto a runtime: niente default congelato
     if not path.is_file():
         return {"present": False, "valid": False, "reason": "file assente"}
     try:
@@ -391,8 +501,8 @@ def markdown(result: dict) -> str:
         f"| M3 ventole | {'✅' if gate['verified'] else '🔒'} | "
         f"CPU {fan['cpu_temp_c']} °C, RPM {fan['fan_rpm']}, "
         f"nbfc `{fan['nbfc_service_state']}` | "
-        f"misurare RPM con strumento esterno (nbfc già attivo non basta), "
-        f"poi `tools/blocker_probe.py --write-fan` |",
+        f"misurare RPM con tachometro esterno (nbfc già attivo non basta), "
+        f"poi `tools/blocker_probe.py --attest-rpm data/state/rpm_attestation.json` |",
         f"| M4 credenziali | {'✅' if creds['gh_auth_ok'] else '🔒'} | "
         f"gh: {creds['gh']['reason'] or 'ok'}; remote token-free: "
         f"{_yes_no(creds['remote_token_free'])} | "
@@ -421,6 +531,9 @@ def markdown(result: dict) -> str:
         "",
         "Il file di gate non viene mai scritto con valori passati a mano:",
         "`--write-fan` rilegge i sensori e rifiuta se il gate non è verificato.",
+        "Se i sensori non espongono i RPM, una misura fisica esterna può essere",
+        "registrata con `--attest-rpm <ricevuta.json>`: la temperatura resta",
+        "letta live, la provenienza è dichiarata e il duty è solo contesto.",
         "",
         "Su questa macchina il daemon nbfc è stato avviato via pkexec, ma",
         "`Current Fan Speed` resta 0.00 anche con duty al 100% e non esiste",
@@ -428,6 +541,7 @@ def markdown(result: dict) -> str:
         "`fan_rpm > 0` NON è dimostrabile con i sensori disponibili: il gate",
         "resta chiuso **per decisione esplicita del 2026-11-22** (gate stretto",
         "mantenuto): nessun duty cycle o altra misura sostituisce i RPM.",
+        "Procedura operativa: `DOCS/RPM_MEASUREMENT_PROCEDURE.md`.",
         "",
         "## Dettaglio credenziali (M4)",
         "",
@@ -457,6 +571,30 @@ def markdown(result: dict) -> str:
     return "\n".join(lines)
 
 
+def _handle_fan_write(write_fan: bool, attest_rpm: Path | None) -> int | None:
+    """Scrive il gate se richiesto; None se nessuna opzione di scrittura."""
+    if write_fan and attest_rpm:
+        print("RIFIUTO: --write-fan e --attest-rpm sono mutuamente esclusivi")
+        return 1
+    if not (write_fan or attest_rpm):
+        return None
+    try:
+        if attest_rpm:
+            attestation = load_rpm_attestation(attest_rpm)
+            snap = attested_rpm_snapshot(attestation)
+            label = "misura esterna attestata"
+        else:
+            snap = fan_snapshot()  # rilettura live, nessun valore a mano
+            label = "sensori live"
+        path = write_fan_verification(snap)
+    except ValueError as exc:
+        print(f"RIFIUTO: {exc}")
+        return 1
+    print(f"Gate scritto: {path} (RPM {snap['fan_rpm']}, "
+          f"{snap['cpu_temp_c']} °C, provenienza {label})")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Sonde deterministiche di sblocco")
     parser.add_argument("--json", action="store_true", help="output JSON")
@@ -465,6 +603,9 @@ def main(argv: list[str] | None = None) -> int:
                         help="exit 0 solo se il gate salvato è valido")
     parser.add_argument("--write-fan", action="store_true",
                         help="scrive il gate SOLO da misure live verifiche")
+    parser.add_argument("--attest-rpm", type=Path, metavar="RICEVUTA",
+                        help="ricevuta JSON di misura RPM esterna (tachometro); "
+                             "la temperatura resta letta live")
     args = parser.parse_args(argv)
 
     if args.check_fan:
@@ -472,15 +613,9 @@ def main(argv: list[str] | None = None) -> int:
         print("fan_verified.json: VALIDO" if valid else "fan_verified.json: NON VALIDO")
         return 0 if valid else 1
 
-    if args.write_fan:
-        snap = fan_snapshot()  # rilettura live, nessun valore accettato a mano
-        try:
-            path = write_fan_verification(snap)
-        except ValueError as exc:
-            print(f"RIFIUTO: {exc}")
-            return 1
-        print(f"Gate scritto: {path} (RPM {snap['fan_rpm']}, "
-              f"{snap['cpu_temp_c']} °C)")
+    status = _handle_fan_write(args.write_fan, args.attest_rpm)
+    if status is not None:
+        return status
 
     result = collect()
     text = json.dumps(result, indent=2, ensure_ascii=False) + "\n" if args.json \

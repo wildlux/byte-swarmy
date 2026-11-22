@@ -1,0 +1,8 @@
+{
+  "fan_rpm": 1800,
+  "instrument": "tachometro ottico DT-6234B",
+  "method": "lettura ottica su paletta ventola CPU attraverso griglia",
+  "operator": "wildlux",
+  "measured_at": "2026-11-22T16:50:00+00:00",
+  "notes": "sostituire con la misura reale: 3 letture consecutive, range e nota sul metodo"
+}
