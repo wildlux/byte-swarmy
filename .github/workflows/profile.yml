@@ -53,6 +53,17 @@ jobs:
           echo "EXIT=$code" >> collect.log
           echo "--- ultime righe ---"
           tail -60 collect.log
+          # Cycle 124: il log del job è privato (403 senza auth). Le annotations
+          # dei check run sono pubbliche: ripetere l'errore qui permette di
+          # leggerlo via GET /repos/{owner}/{repo}/check-runs/{id}/annotations
+          # senza credenziali e senza scaricare l'artifact. Nessun segreto:
+          # l'output della collezione contiene solo nomi di test e import.
+          if [ "$code" -ne 0 ]; then
+            echo "::error title=collect_exit::EXIT=$code"
+            tail -25 collect.log | grep -v '^$' | head -25 | while IFS= read -r line; do
+              echo "::error::${line}"
+            done
+          fi
           exit $code
 
       - name: Profilazione completa (--durations=0)

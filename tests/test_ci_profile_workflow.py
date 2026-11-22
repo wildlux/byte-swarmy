@@ -34,6 +34,14 @@ def test_trigger_push_su_main_per_sbloccare_m2_m6():
     assert "tail -80 pytest_profile.log" in text
 
 
+def test_errore_collezione_esposto_in_annotations_pubbliche():
+    """Senza auth il log è privato: le annotations sono leggibili via API."""
+    text = _text()
+    assert "::error title=collect_exit::EXIT=$code" in text
+    assert 'echo "::error::${line}"' in text
+    assert "check-runs/{id}/annotations" in text
+
+
 def test_pausa_live_e2e():
     assert "touch state/pause.flag" in _text()
 
