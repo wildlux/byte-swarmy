@@ -2870,3 +2870,21 @@ nessuna suite locale, LLM o GPU.
 Nessun root, nessuna modifica a `.git-credentials` (usato da altri repo HTTPS),
 nessun token committato. Il login resta un'azione dell'utente nel browser: è
 il dato oggettivo mancante, non deducibile dal repo.
+
+---
+
+## Cycle 132 (2026-11-23) — M4 chiuso: gh autenticato, token ruotato
+
+| Azione | Dettaglio |
+|---|---|
+| Login | `gh auth login --hostname github.com --web --scopes repo,read:org,gist` eseguito dall'utente nel browser |
+| Verifica | `gh auth status` → `wildlux`, token `gho_`, scope `gist`, `read:org`, `repo`, `workflow`; `gh api user` → `wildlux` |
+| Rotazione | Il token invalido in `hosts.yml` è stato sostituito nel keyring; `.git-credentials` contiene solo il token OAuth corrente (nessun `ghp_`/`github_pat_` residuo) |
+| Report | `DOCS/BLOCKER_PROBE_REPORT.md` rigenerato: M4 ✅. `tools/blocker_probe.py`: azione successiva M4 resa dinamica (non più "installare la CLI" quando già autenticato) |
+| `todo.md` | M4 portato a `[x] Cycle 132` |
+
+**Limite dichiarato**: la revoca lato GitHub non è verificabile via API con il
+token disponibile (`/user/authorizations` e `/user/personal_access_tokens`
+rispondono 404). Il probe riporta esplicitamente `Rotazione PAT confermata: ❌`
+invece di affermare un verdetto non dimostrabile. Nessun token stampato o
+committato; `.git-credentials` non modificato.

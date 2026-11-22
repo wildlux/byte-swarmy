@@ -508,8 +508,12 @@ def markdown(result: dict) -> str:
         f"poi `tools/blocker_probe.py --attest-rpm data/state/rpm_attestation.json` |",
         f"| M4 credenziali | {'✅' if creds['gh_auth_ok'] else '🔒'} | "
         f"gh: {creds['gh']['reason'] or 'ok'}; remote token-free: "
-        f"{_yes_no(creds['remote_token_free'])} | "
-        "installare la CLI (`sudo apt install gh`), `gh auth login`, revocare la PAT |",
+        f"{_yes_no(creds['remote_token_free'])} | " +
+        ("revoca PAT da confermare su GitHub (UI/API); vecchio token gia' "
+         "invalido e sostituito"
+         if creds["gh_auth_ok"] else
+         "installare la CLI (`sudo apt install gh`), `gh auth login`, revocare la PAT")
+        + " |",
         f"| M5 hardening | {'✅' if not hard['needs_root'] else '🔒'} | "
         f"utente {_yes_no(hard['user_exists'])}, slice {_yes_no(hard['cgroup_slice_present'])} | "
         f"`{hard['command']}` |",
