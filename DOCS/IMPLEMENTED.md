@@ -2612,3 +2612,18 @@ dichiara che il risultato non è un esperimento reale.
 Verifiche: 9 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning.
 **Nessun LLM, rete o GPU**: il live richiede evidenza termica verificata e un
 file di risultati esterno, non generato qui.
+
+---
+
+## Cycle 118 (2026-11-22) — Fase E: distillazione gate-verificata
+
+| Modifica | Dettaglio |
+|---|---|
+| `tools/distill_task.py` (nuovo) | Riceve una soluzione prodotta esternamente e la accetta solo se passa 6 gate offline: file leggibile, ≤200 righe, AST valido, pyflakes 0, security_scan 0 errori (copia temporanea gitignored in `data/state/tmp`, rimossa in `finally`), `expected_marker` del caso eval presente. `--commit` richiede inoltre `fan_verified.json` valido, `--model` dichiarato e dedup via `fc.Triple.dedup_key()`; scrive una tripla `done` con `ts=0.0`. Il tool NON esegue alcun modello |
+| `tests/test_distill_task.py` (nuovo) | 10 test offline: caso eval e marker, gate verde senza scrittura, 5 gate rotti (sintassi/pyflakes/security/marker/dimensione), file vuoto, modello obbligatorio, commit bloccato senza termico, scrittura + deduplicazione, report sintetico, CLI JSON/exit code, assenza di client LLM e residui temporanei |
+| `DOCS/BENCH.md`, `todo.md` | Sezione Fase E con gate e conteggio esempi reali (0); Fase E portata a `[~]` |
+
+Verifiche: 10 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning.
+**Nessun LLM, rete o GPU**: le soluzioni usate nei test sono sintetiche e il
+report lo dichiara; servono ≥3 esempi reali da modello 7b/14b per chiudere
+la voce.

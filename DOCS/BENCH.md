@@ -477,3 +477,20 @@ prompt viene promosso finché non arriva un esperimento reale con gate termico.
 Il reporter rifiuta `case_id` sconosciuti/duplicati, `slot_kind` non ammessi e
 qualsiasi `source` diverso da `live`/`simulation`. Nessun asse del radar viene
 alzato: SLOT-5 resta `[~]` finché la tabella non contiene dati misurati.
+
+---
+
+## Distill occasionale (Fase E) — Cycle 118, tool pronto (2026-11-22)
+
+| Parametro | Valore |
+|---|---|
+| Strumento | `tools/distill_task.py` + `tests/test_distill_task.py` (10 test) |
+| Gate deterministici | file leggibile, ≤ 200 righe, AST valido, pyflakes 0, security_scan 0 errori, `expected_marker` presente |
+| Scrittura | `--commit` richiede `fan_verified.json` (`fan_rpm > 0`, `temp_c ≤ 60`), modello dichiarato e dedup per contenuto |
+| Corpus | `state/feedback_corpus/<task>.jsonl`, tripla `verdict=done`, `ts=0.0` (nessun timestamp inventato) |
+| Esempi reali | **0** — 🔒 servono ≥3 soluzioni da modello 7b/14b con gate termico |
+| Stato | `[~]`: tool verificato, criterio done incompleto |
+
+Il tool NON esegue il modello più grande: riceve una soluzione già prodotta
+esternamente e la rifiuta se anche uno solo dei sei gate fallisce. Le soluzioni
+dei test sono file sintetici e non entrano nel corpus versionato.

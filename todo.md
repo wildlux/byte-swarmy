@@ -493,11 +493,19 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
       > (TaskRetriever TF-IDF, build_from_pairs/queue_db/corpus) +
       > `ToolSet.retrieve_similar_task()` + `tests/test_retrieval.py`
       > (7 test). Resta: A/B su 10 task (richiede run LLM).
-19. [ ] **[Fase E] Distill occasionale** — UN task hard risolto da
+19. [~] **[Fase E] Distill occasionale** — UN task hard risolto da
       modello più grande (7b/14b, macchina fredda), soluzione
       gate-verificata → entra nel corpus Fase B: il 3b impara
       dall'esempio. Criterio done: `tools/distill_task.py` + ≥3 esempi
       nel corpus.
+      > ✅ **Slice Fase E fatta (Cycle 118)**: `tools/distill_task.py`
+      > verifica 6 gate deterministici (leggibilità, ≤200 righe, AST,
+      > pyflakes 0, security_scan 0 errori, expected_marker) prima di
+      > scrivere una tripla `done` nel corpus; `--commit` richiede inoltre
+      > `fan_verified.json` valido e deduplica per contenuto.
+      > `tests/test_distill_task.py` (10 test). 🔒 Restano i **≥3 esempi
+      > reali** prodotti da un modello 7b/14b con gate termico: le
+      > soluzioni usate nei test sono sintetiche e dichiarate tali.
 20. [~] **[Fase G] A/B automatico delle varianti prompt** — refs
       on/off, posizione REFS, formato PLAN: promosso solo chi vince
       misurato. Criterio done: `tools/eval_prompt_variants.py` + 1
