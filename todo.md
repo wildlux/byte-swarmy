@@ -164,13 +164,28 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 | C3 | A/B memoria, eval per-slot, sweep `num_ctx`, distillazione, giudice | [ ] 🔒 termico |
 | D1 | `tools/prompt_lint.py`: misura offline del prompt effettivo (istruzioni, tool esposti, lunghezza frasi, quota token non-inglesi, "1 azione per turno"). Verifica l'ipotesi "LLM piccoli = bambini, istruzioni in inglese": struttura sì, tono no; A/B live resta 🔒 termico | [x] |
 
+## 🎯 Sessione 2026-11-22 — radar capacità: chiudere i 4 assi aperti
+
+> Ordine deciso: prima tutto ciò che è offline e misurabile (E1, E2),
+> poi la preparazione GUI (E3), infine l'unico blocco termico (E4).
+> Ogni voce ha un criterio `done` numerico: senza numero l'asse del radar
+> non si alza (i valori restano giudizi espliciti in `tools/gen_grafici.py`).
+
+| ID | Task atomico | Criterio done | Stato |
+|---|---|---|---|
+| E1 | Refactoring mecc.: guard deterministico AST + behavioral diff per ogni patch | `tools/refactor_guard.py`: 8/8 refactoring atomici con API pubblica preservata, comportamento identico e zero errori di sintassi; report in `DOCS/` | [x] |
+| E2 | Fedeltà API: ref generati per librerie nuove + validazione simboli | `tools/gen_api_refs.py` + `validate_refs.py` + `api_lookup(strict=True)` su ≥2 librerie fuori cheat sheet; 0 simboli indefiniti in output eval | [ ] |
+| E3 | Task GUI: 3 template PyQt6 curati + skill `py-gui-scaffold` | `GUI/refs/templates/` con finestra/layout/segnali/thread + test snapshot offscreen; collaudo con LLM resta 🔒 termico | [ ] |
+| E4 | Memoria/contesto: preparare A/B 10 task con/senza contesto | Harness con retriever finto, task set congelato e soglia in `DOCS/BENCH.md`; esecuzione live resta 🔒 termico (C3) | [ ] |
+
 > Eseguito il 2026-11-22: A1–A4 chiusi in Cycle 87, 28 test mirati verdi,
 > 82 test di regressione verdi (110 subtests). B1 chiuso in Cycle 88:
 > 8 test best-of + 55 regressioni verdi; B2 in Cycle 89: 14 test proposer
 > + 22 regressioni; B3 in Cycle 90: 10 test guard + 26 regressioni;
 > C1 in Cycle 91: 4 test di coerenza docs; C2 in Cycle 92: 6 test report
 > + 6 subtest; D1 in Cycle 93: 6 test lint + snapshot
-> `DOCS/PROMPT_LINT_REPORT.md`. Registro:
+> `DOCS/PROMPT_LINT_REPORT.md`; E1 in Cycle 96: 6 test guard + report
+> `DOCS/REFACTOR_GUARD_REPORT.md`, radar Refactoring 3/4 → 4/4. Registro:
 > [`DOCS/IMPLEMENTED.md`](DOCS/IMPLEMENTED.md).
 > C3 resta 🔒 bloccato finché la ventola non è verificata (≤60 °C, ventole al max).
 

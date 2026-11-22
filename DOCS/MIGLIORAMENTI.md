@@ -1,4 +1,4 @@
-# 📈 Miglioramenti implementati — Cycle 70 → 95 (v0.3.18 → v0.3.34)
+# 📈 Miglioramenti implementati — Cycle 70 → 96 (v0.3.18 → v0.3.34)
 
 ![Grafico miglioramenti](grafici/miglioramenti.svg)
 
@@ -20,7 +20,7 @@ Scala (grafico D, criteri misurabili):
 | Livello | Criterio | Stato |
 |---|---|---|
 | **Junior** — 1/4 | 3b nudo senza sistema: 0/4 task GUI, modifiche minime fallite, requirements sovrascritto | baseline (C72) |
-| **Junior+** — 2/4 | Sistema v0.3.34: 37 meccanismi attivi, gate per-slot + assembler + import-check, Zero Warning (0 pyflakes), corpus feedback, best-of-N configurabile, auto-skill/auto-tool validati, self-improvement misurabile | **◀ siamo qui** |
+| **Junior+** — 2/4 | Sistema v0.3.34: 38 meccanismi attivi, gate per-slot + assembler + import-check, Zero Warning (0 pyflakes), corpus feedback, best-of-N configurabile, auto-skill/auto-tool validati, self-improvement misurabile | **◀ siamo qui** |
 | **Middle** — 3/4 | ≥50% dei task chiusi al primo tentativo (senza correction), task GUI ≥50% | target intermedio |
 | **Middle Senior** — 4/4 | **≥70% al primo tentativo; task GUI ≥75%; 0 simboli API inesistenti nei file scritti (gate import-check); 0 violazioni gate; 0 warning (pyflakes + pytest — regola Zero Warning) ✅ raggiunto (474 → 0)** | ★ GOAL |
 
@@ -34,7 +34,7 @@ verso il goal; il progresso è un numero, non un'impressione.
 |---|:-:|:-:|---|
 | Task GUI (creazione) | 1/4 | 3/4 | scaffolding deterministico (template) — SLOT-3 |
 | Modifiche minime | 3/4 | 4/4 | best-of-N attivo (fast lane), executor + disciplina |
-| Refactoring mecc. | 3/4 | 4/4 | estendere executor AST |
+| Refactoring mecc. | 4/4 | 4/4 | E1: `tools/refactor_guard.py` — AST + API pubblica + behavioral diff, 8/8 refactoring atomici verdi |
 | Gate / verifica | 4/4 | 4/4 | punto di forza: gate per-slot + import-check |
 | Fedeltà API | 3/4 | 4/4 | gate import-check (0 allucinazioni misurabili) + refs interni |
 | Chiarimenti ambigui | 3/4 | 4/4 | clarifier esteso (3 pattern nuovi) |
@@ -57,7 +57,7 @@ Commit: `4a1cb1a` (12 difetti) · `0bb4998` (parità GUI) · `72e1b71` (toolbar)
 
 ---
 
-## B. I 37 meccanismi di robustezza e anti-allucinazione attivi
+## B. I 38 meccanismi di robustezza e anti-allucinazione attivi
 
 | # | Meccanismo | Introdotto |
 |--:|---|---|
@@ -194,6 +194,7 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 | Coerenza docs (C1) | MAX_STEPS=10 e baseline security=7 unica in `AGENT.md`/`SPECIFICATIONS`/`verify_cycle.sh`; `GUI/IMPLEMENTED.md` ridotto a stub; symlink `state→data/state` dichiarato | 4 test di coerenza, zero codice runtime toccato |
 | Report self-improvement (C2) | `tools/self_improvement_report.py`: corpus/verdetti/first-try, gate skill, override invalidi, copertura retrieval; snapshot rigenerabile in `DOCS/SELF_IMPROVEMENT_REPORT.md` | 6 test + 6 subtest, zero LLM |
 | Prompt lint (D1) | `tools/prompt_lint.py`: misura struttura del prompt reale (regole, tool, frasi, lingua, 1 azione/turno, tono); snapshot `DOCS/PROMPT_LINT_REPORT.md`. Ipotesi: struttura sì, tono no | 6 test, zero LLM; A/B live resta 🔒 termico |
+| Refactor guard (E1) | `tools/refactor_guard.py`: AST + API pubblica invariata + behavioral diff (snapshot stdin→stdout); WARN se snapshot non conclusivo, FAIL su comportamento/sintassi/API | 8/8 casi atomici + 4 negativi, zero LLM; report `DOCS/REFACTOR_GUARD_REPORT.md` |
 
 ---
 

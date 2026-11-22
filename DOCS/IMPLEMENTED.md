@@ -2264,3 +2264,18 @@ subprocess mockato: identico/errore) + `tests/test_gen_grafici_data.py`
 reale: `prima: DOCS/grafici/miglioramenti.svg (940×1911)` →
 `dopo: ✅ SVG identico (nessun dato cambiato) · 13:37:58 · 21228 byte`.
 
+---
+
+## Cycle 96 (2026-11-22) — E1: gate deterministico per refactoring
+
+| Modifica | Dettaglio |
+|---|---|
+| `tools/refactor_guard.py` (nuovo) | `check_refactor(before, after)` verifica AST, API pubblica di primo livello (nomi/argomenti; annotazioni e default ignorati) e equivalenza comportamentale tramite `behavioral_diff.snapshot`/`verify` sugli stessi input stdin. `FAIL` su sintassi/API/comportamento, `WARN` se snapshot non conclusivo (fail-open), `OK` se tutto preservato. CLI `--inputs`, `--json`, `--out` |
+| `tests/test_refactor_guard.py` (nuovo) | 8 trasformazioni atomiche (type hints, docstring, helper privato, rename locali, f-string, costante, stdout esplicito, `__all__`) + 4 negativi (comportamento, API rimossa, sintassi, file mancante) + snapshot non conclusivo + report |
+| `DOCS/REFACTOR_GUARD_REPORT.md` (generato) | Esercizio reale su `bench_target/utils.py` con type hints (ext-01): `OK`, API invariata, output identico |
+| Radar | **Refactoring mecc. 3/4 → 4/4** in `tools/gen_grafici.py` e `DOCS/MIGLIORAMENTI.md`; 38 meccanismi |
+
+Verifiche: 6 test + exercise reale, zero LLM/rete. Il guard NON applica patch:
+prende due file già scritti e certifica l'equivalenza. È il numero che
+permette di alzare l'asse del refactoring senza fidarsi di un giudizio.
+
