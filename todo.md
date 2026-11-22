@@ -395,7 +395,7 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 
 ### Fascia 3 — ★ Chiudere i gap del sistema
 
-8. [ ] **[SLOT-3 / P2-3] Planner a slot v2 + scaffolding GUI** — il
+8. [~] **[SLOT-3 / P2-3] Planner a slot v2 + scaffolding GUI** — il
       cambiamento più grande: da PLAN testuale a lista di SLOT
       (file, anchor, tipo, refs proprie, test proprio); 3-4 regole
       nuove dal decision tree (M8); template PyQt6 curati (finestra+
@@ -404,6 +404,13 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
       Criterio done: planner produce slot + 3 template in
       GUI/refs/templates/ + skill + test snapshot + 1 task GUI reale
       chiuso al primo colpo con il template.
+      > ✅ **Parte deterministica fatta (Cycle 107)**: `CORE/slot_planner.py`
+      > + `tools/slot_plan.py` + 8 test. I 4 template, la skill e gli snapshot
+      > esistevano già. Classificazione a punteggio, fail-closed su task
+      > ambigui/sconosciuti, marker `# SLOT:` allineati al template, refs
+      > verificate sull'AST, test verificato. 🔒 **Resta il benchmark LLM**:
+      > 1 task GUI reale chiuso al primo colpo con verdetto in BENCH.md
+      > (serve gate termico, non eseguito).
 9. [ ] **[Fase D-16] Sweep num_ctx + flash-attention** — 2048/3072/
       4096 con `flash_attention_kv`: più contesto = meno dimenticanze
       (il bug requirements era conteso in parte per contesto corto).

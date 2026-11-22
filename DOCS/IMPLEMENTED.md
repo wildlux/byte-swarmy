@@ -2456,3 +2456,20 @@ e viene dichiarato tale. Nessun asse del radar toccato, nessun LLM/rete.
 
 Verifiche: 3 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori (1 info su `from __future__`).
 Nessuna finestra GUI avviata, nessun asse del radar toccato, nessun LLM/rete.
+
+---
+
+## Cycle 107 (2026-11-22) — SLOT-3: planner deterministico a slot
+
+| Modifica | Dettaglio |
+|---|---|
+| `CORE/slot_planner.py` (nuovo) | Step [1] dell'architettura a slot: da task dichiarativo → piano di slot `{file, anchor, tipo, refs, test}`. Un solo template scelto per parole chiave con punteggio; **fail-closed** su task vuoti/sconosciuti/ambigui, su marker `# SLOT:` disallineati, su ref non presente nell'AST del template e su test mancante. Output identico per input identico, nessun LLM/rete |
+| `tools/slot_plan.py` (nuovo) | CLI con `--task`, `--json`, `--out`; uscita 1 e motivo esplicito quando il piano è rifiutato |
+| `tests/test_slot_planner.py` (nuovo) | 8 test: determinismo, 4 template, fail-closed (vuoto/ambiguo), refs reali, integrazione con `gate_slot`, stabilità Markdown/JSON, forma di `SlotSpec` |
+| `todo.md` | SLOT-3/P2-3 portato a `[~]`: parte deterministica completata, benchmark LLM (1 task GUI al primo colpo) resta 🔒 termico |
+
+Verifiche: 8 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning,
+compilazione anche con Python 3.11 (CI). **Nessun task GUI reale eseguito**,
+nessun `insmod`/LLM/rete, nessun asse del radar alzato. I template PyQt6, la
+skill `py-gui-scaffold` e gli snapshot offscreen esistevano già: non sono stati
+duplicati.
