@@ -69,6 +69,21 @@ def cloud_provider_count() -> int:
     except Exception:
         return 3
 
+
+def missing_docstring_count() -> int:
+    """File .py in CORE/GUI/tools senza docstring di modulo (goal: 0)."""
+    import ast
+    count = 0
+    for base in ("CORE", "GUI", "tools"):
+        for path in sorted((ROOT / base).glob("*.py")):
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError, UnicodeDecodeError):
+                continue
+            if ast.get_docstring(tree) is None:
+                count += 1
+    return count
+
 W = 940
 MARGIN_L = 245          # spazio etichette barre orizzontali
 MARGIN_R = 70
@@ -484,12 +499,13 @@ def build_svg() -> str:
          ("Skill con auto-keyword", auto_skill_count(), C_GREEN),
          ("Tool con auto-keyword", auto_tool_count(), C_GREEN),
          ("Etichette default", label_count(), C_GREEN),
-         ("Provider cloud gratuiti", cloud_provider_count(), C_ORANGE)],
+         ("Provider cloud gratuiti", cloud_provider_count(), C_ORANGE),
+         ("File senza docstring (goal 0)", missing_docstring_count(), C_RED)],
         x0, x1, y,
         "G. Novità Nov 2026 — banco di test e organizzazione",
         "Chat con tools/skill on-off, auto-skill e auto-tool per parole chiave, "
         "client Groq/Gemini/OpenRouter, etichette (rinomina/colore/elimina), "
-        "sorting Archivio per nome/tipo")
+        "dotfile, cartelle ordinate (TOOLS/), 0 docstring mancanti")
     sections.append(s)
 
     y += 10

@@ -1,4 +1,4 @@
-# 📈 Miglioramenti implementati — Cycle 70 → 86 (v0.3.18 → v0.3.33)
+# 📈 Miglioramenti implementati — Cycle 70 → 86 (v0.3.18 → v0.3.34)
 
 ![Grafico miglioramenti](grafici/miglioramenti.svg)
 
@@ -20,7 +20,7 @@ Scala (grafico D, criteri misurabili):
 | Livello | Criterio | Stato |
 |---|---|---|
 | **Junior** — 1/4 | 3b nudo senza sistema: 0/4 task GUI, modifiche minime fallite, requirements sovrascritto | baseline (C72) |
-| **Junior+** — 2/4 | Sistema v0.3.33: 26 meccanismi attivi, gate per-slot + assembler + import-check, Zero Warning (0 pyflakes), corpus feedback, best-of-N | **◀ siamo qui** |
+| **Junior+** — 2/4 | Sistema v0.3.34: 26 meccanismi attivi, gate per-slot + assembler + import-check, Zero Warning (0 pyflakes), corpus feedback, best-of-N, auto-skill/auto-tool, cartelle ordinate | **◀ siamo qui** |
 | **Middle** — 3/4 | ≥50% dei task chiusi al primo tentativo (senza correction), task GUI ≥50% | target intermedio |
 | **Middle Senior** — 4/4 | **≥70% al primo tentativo; task GUI ≥75%; 0 simboli API inesistenti nei file scritti (gate import-check); 0 violazioni gate; 0 warning (pyflakes + pytest — regola Zero Warning) ✅ raggiunto (474 → 0)** | ★ GOAL |
 
@@ -124,6 +124,8 @@ reale. Nessun flake residuo: `test_functional_swarm` passa da solo
 | v0.3.30 | 85 | Audit robustezza: 15 difetti corretti, test ermetici |
 | v0.3.33 | 86 | Chat = banco di test (tools/skill on-off), client cloud Groq/Gemini/OpenRouter, sorting Archivio, dettaglio task a 2 colonne, scan segreti |
 | v0.3.34 | 86 | Auto-skill + **auto-tool** per parole chiave; fix 403 Groq (User-Agent Cloudflare); test cloud live (11 modelli, 0,78 s) |
+| v0.3.34 | 86 | Dotfile `.editorconfig`, `.gitattributes`, `.env.example` (variabili cloud documentate, `.env` gitignored) |
+| v0.3.34 | 86 | Riordino `TOOLS/REVERSE_ENGINEERING/` (refuso corretto, 14 riferimenti), regola cartelle in `AGENT.md` #11 + README, 0 file senza docstring in `CORE/GUI/tools` |
 
 ---
 
@@ -156,6 +158,9 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 | Etichette | pallini colore nel menu contestuale, settings, completer `#`, colori rapidi |
 | Rinomina etichetta | pulsante ✏️ accanto a 🎨 Cambia colore e 🗑️ Elimina; `GUI/label_actions.py` aggiorna registro e task in un unico posto |
 | Dotfile di configurazione | `.editorconfig` (stile = `tools/lint_style.py`), `.gitattributes` (LF + binari + `linguist-generated`), `.env.example` (variabili cloud debug/sandbox; `.env` gitignored) |
+| Regola delle cartelle | contenitori di primo livello in MAIUSCOLO, una cartella per categoria, nessun refuso o duplicato — `AGENT.md` guardrail #11 e README |
+| Riordino tool RE | `REVERSE_ENGEREENING_TOOLS/` → `TOOLS/REVERSE_ENGINEERING/`; 14 riferimenti aggiornati, `$ROOT` nella copia di setup corretto |
+| Docstring di modulo | 0 file senza docstring in `CORE/GUI/tools` (completati i 3 `__init__.py` vuoti) |
 
 ### Sicurezza dei segreti
 
@@ -168,8 +173,9 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 
 ---
 
-*Documento e grafico generati dal Cycle 86 — aggiornare `tools/gen_grafici.py`
-e rigenerare quando si aggiungono nuovi meccanismi.*
+*Documento e grafico generati dal Cycle 86, allineati al codice il 2026-11-22 —
+aggiornare `tools/gen_grafici.py` e rigenerare quando si aggiungono nuovi
+meccanismi.*
 
 ---
 

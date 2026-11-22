@@ -48,7 +48,7 @@
 - [Compatibilità, contribuire e licenza](#compatibilità-contribuire-e-licenza)
 
 📄 **Documenti chiave**: [`DOCS/MIGLIORAMENTI.md`](DOCS/MIGLIORAMENTI.md)
-(grafico + registro dei miglioramenti Cycle 70→85) ·
+(grafico + registro dei miglioramenti Cycle 70→86) ·
 [`DOCS/IMPLEMENTED.md`](DOCS/IMPLEMENTED.md) (log completo dei cicli) ·
 [`DOCS/BENCH.md`](DOCS/BENCH.md) (benchmark)
 

@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="1871" viewBox="0 0 940 1871">
-<rect width="940" height="1871" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="1911" viewBox="0 0 940 1911">
+<rect width="940" height="1911" fill="#ffffff"/>
 <text x="20" y="38" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">byte-swarmy — Miglioramenti implementati (Cycle 70 → 86 — Nov 2026)</text>
 <text x="20" y="60" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#64748b">Generato deterministicamente da tools/gen_grafici.py — dati: DOCS/IMPLEMENTED.md</text>
 <text x="20" y="92" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">A. Audit robustezza Cycle 85 — 15 difetti corretti, per categoria</text>
@@ -150,7 +150,7 @@
 <rect x="249" y="1467" width="621" height="26" rx="4" fill="#9333ea"/>
 <text x="878" y="1485.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">23</text>
 <text x="20" y="1539" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">G. Novità Nov 2026 — banco di test e organizzazione</text>
-<text x="20" y="1559" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Chat con tools/skill on-off, auto-skill e auto-tool per parole chiave, client Groq/Gemini/OpenRouter, etichette (rinomina/colore/elimina), sorting Archivio per nome/tipo</text>
+<text x="20" y="1559" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Chat con tools/skill on-off, auto-skill e auto-tool per parole chiave, client Groq/Gemini/OpenRouter, etichette (rinomina/colore/elimina), dotfile, cartelle ordinate (TOOLS/), 0 docstring mancanti</text>
 <text x="20" y="1591.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Tool selezionabili in Chat</text>
 <rect x="249" y="1573" width="621" height="26" rx="4" fill="#e2e8f0"/>
 <rect x="249" y="1573" width="621" height="26" rx="4" fill="#2563eb"/>
@@ -175,5 +175,9 @@
 <rect x="249" y="1773" width="621" height="26" rx="4" fill="#e2e8f0"/>
 <rect x="249" y="1773" width="62" height="26" rx="4" fill="#f59e0b"/>
 <text x="319" y="1791.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">3</text>
-<text x="20" y="1831" font-family="DejaVu Sans, sans-serif" font-size="11" fill="#64748b">Nota: i "subtests" sono asserzioni per-elemento (subTest pytest) — non tracciati al Cycle 75.</text>
+<text x="20" y="1831.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">File senza docstring (goal 0)</text>
+<rect x="249" y="1813" width="621" height="26" rx="4" fill="#e2e8f0"/>
+<rect x="249" y="1813" width="3" height="26" rx="4" fill="#dc2626"/>
+<text x="260" y="1831.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">0</text>
+<text x="20" y="1871" font-family="DejaVu Sans, sans-serif" font-size="11" fill="#64748b">Nota: i "subtests" sono asserzioni per-elemento (subTest pytest) — non tracciati al Cycle 75.</text>
 </svg>
