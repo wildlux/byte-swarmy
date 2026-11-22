@@ -8,11 +8,14 @@ approvazione/rifiuto, fail-open.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import shutil
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -119,6 +122,98 @@ class TestSkillProposer(unittest.TestCase):
         pid = sp.pending_proposals()[0]["id"]
         sp.reject_proposal(pid)
         self.assertEqual(sp.pending_proposals(), [])
+
+    # --- B2 (2026-11-22): gate verde = approvazione, rosso = bozza ------
+    def _draft(self):
+        for i in range(3):
+            sp.record_failure("input_interattivo", f"t{i}", "EOFError")
+        return sp.pending_proposals()[0]
+
+    def test_gate_verde_autoapprova_con_backup_e_report(self):
+        prop = self._draft()
+        approved = [sp.record_skill_usage("input_interattivo", True)
+                    for _ in range(3)]
+        self.assertEqual(approved[-1], prop["id"])
+        self.assertTrue((sp.SKILLS_DIR / "py-cli-script.md").exists())
+        backup = sp.SKILLS_DIR / "py-cli-script.backup.md"
+        self.assertTrue(backup.exists())
+        data = sp._load_failures()
+        info = data["proposals"]["input_interattivo"]
+        self.assertEqual(info["status"], "approved")
+        self.assertEqual(info["mode"], "auto")
+        self.assertEqual(info["backup"], str(backup))
+        self.assertTrue(data["gate_reports"][prop["id"]]["ok"])
+        report = sp.gate_report(prop["id"])
+        self.assertTrue(report.ok)
+        self.assertIn("VERDE", report.markdown())
+        self.assertEqual(sp.pending_proposals(), [])
+
+    def test_gate_rosso_mantiene_bozza_e_scrive_report(self):
+        prop = self._draft()
+        path = Path(prop["path"])
+        path.write_text(path.read_text(encoding="utf-8").replace(
+            "## Template concreto", "## Template rimosso"), encoding="utf-8")
+        base_before = (sp.SKILLS_DIR / "py-cli-script.md").read_text(
+            encoding="utf-8")
+
+        approved = [sp.record_skill_usage("input_interattivo", True)
+                    for _ in range(3)]
+
+        self.assertEqual(approved, [None, None, None])
+        self.assertEqual(len(sp.pending_proposals()), 1)
+        self.assertEqual(sp._load_failures()["proposals"]["input_interattivo"]["status"],
+                         "pending")
+        self.assertEqual((sp.SKILLS_DIR / "py-cli-script.md").read_text(
+            encoding="utf-8"), base_before)  # nessuna sovrascrittura
+        report = sp.gate_report(prop["id"])
+        self.assertFalse(report.ok)
+        self.assertTrue(any(r.startswith("sezioni:") for r in report.reasons()))
+        self.assertIn("ROSSO", report.markdown())
+
+    def test_gate_rifiuta_codice_pericoloso_e_sintassi_invalida(self):
+        good = ("# REGOLA APPRESA\n\n## Regola\n"
+                + "x" * 60 + "\n\n## Template concreto\n\n"
+                "```python\nprint('ok')\n```\n")
+        bad_eval = good.replace("print('ok')", "eval(input('x'))")
+        bad_syntax = good.replace("print('ok')", "def x(:")
+
+        p = self.tmp / "candidato.md"
+        p.write_text(good, encoding="utf-8")
+        self.assertTrue(sp.gate_proposal(str(p)).ok)
+        p.write_text(bad_eval, encoding="utf-8")
+        reasons = sp.gate_proposal(str(p)).reasons()
+        self.assertTrue(any("chiamata vietata" in r for r in reasons))
+        p.write_text(bad_syntax, encoding="utf-8")
+        reasons = sp.gate_proposal(str(p)).reasons()
+        self.assertTrue(any("sintassi non valida" in r for r in reasons))
+
+    def test_gate_file_mancante_e_fail_open(self):
+        report = sp.gate_proposal(str(self.tmp / "inesistente.md"))
+        self.assertFalse(report.ok)
+        self.assertIn("mancante", report.reasons()[0])
+        self.assertIsNone(sp.gate_report("id-mai-valutato"))
+
+    def test_fallimento_blocca_autoapprovazione(self):
+        self._draft()
+        outcomes = [sp.record_skill_usage("input_interattivo", True),
+                    sp.record_skill_usage("input_interattivo", True),
+                    sp.record_skill_usage("input_interattivo", False),
+                    sp.record_skill_usage("input_interattivo", True),
+                    sp.record_skill_usage("input_interattivo", True)]
+        self.assertEqual(outcomes, [None] * 5)
+        self.assertEqual(len(sp.pending_proposals()), 1)
+
+    def test_cli_gate_stampa_report(self):
+        prop = self._draft()
+        for _ in range(3):
+            sp.record_skill_usage("input_interattivo", True)
+        buf = io.StringIO()
+        with mock.patch.object(sys, "argv", ["skill_proposer", "--gate",
+                                             prop["id"]]):
+            with contextlib.redirect_stdout(buf):
+                code = sp._cli()
+        self.assertEqual(code, 0)
+        self.assertIn("VERDE", buf.getvalue())
 
 
 if __name__ == "__main__":

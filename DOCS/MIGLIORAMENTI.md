@@ -189,6 +189,7 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 | Corpus verificabile (A2–A3) | `reason` popolato e troncato a 4000 char, `failed_definitively` nel corpus, curatore con `done` + `corrected` stratificati e `--only-done` | 11 test offline, dedup invariato |
 | Retrieval nel loop (A4) | `retrieve_similar_task` in mapping/prompt/allowlist/dispatch/auto-tool, chiamabile ma non automatico | 4 test con retriever finto |
 | Best-of-N configurabile (B1) | `OrchestratorConfig.best_of_n` tipizzato e clampato 1..8; `judge_candidates` puro: primo candidato che passa il gate, `all_rejected` esplicito. Loop live resta a 1 | 8 test + 55 regressioni, zero LLM |
+| Skill proposer con gate (B2) | Auto-approvazione dopo 3 successi SOLO se gate deterministico verde; gate rosso = bozza intatta + report in `failures.json` + CLI `--gate`; backup `.backup.md` e metadati su ogni approvazione | 14 test + 22 regressioni, zero LLM |
 | Prompts per modelli piccoli (D1, pianificato) | Struttura "bambino" (una azione per turno, poche scelte, formato esplicito) e istruzioni in inglese; il tono offensivo è escluso. Misura offline in `tools/prompt_lint.py` | 🔒 A/B live dopo verifica ventola |
 
 ---

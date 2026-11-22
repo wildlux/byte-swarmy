@@ -6,8 +6,8 @@
 > eval e gate. Il piano rende quel loop **verificabile e misurabile**, non
 > aggiunge un secondo meccanismo di apprendimento.
 >
-> **Stato aggiornato 2026-11-22: Onda 1 (A1–A4) in Cycle 87 e B1 in Cycle 88.**
-> B2–C2 e D1 restano pianificati; C3 è 🔒 bloccato termicamente. Il piano
+> **Stato aggiornato 2026-11-22: Onda 1 (A1–A4) in Cycle 87, B1 in Cycle 88,
+> B2 in Cycle 89.** B3–C2 e D1 restano pianificati; C3 è 🔒 bloccato termicamente. Il piano
 > agenti/subagenti è una voce separata in `todo.md` (chiusa in Cycle 86).
 > Nessun run LLM, nessuna rete, nessun benchmark: dopo lo shutdown termico del
 > 2026-11-20 la ventola non è ancora verificata (≤60 °C, ventole al max).
@@ -27,6 +27,9 @@
 | 8 | Skill proposer auto-approva dopo 3 successi | `CORE/skill_proposer.py:318-344` | una bozza può entrare senza gate verde |
 | 9 | Override auto-skill/auto-tool solo in file gitignored | `CORE/auto_skill.py:30`, `CORE/auto_tool.py:22` | nessuna validazione di schema |
 | 10 | Documentazione contraddittoria | `AGENT.md:208-210` (MAX_STEPS 6) vs `CORE/worker.py:218` (10); baseline security 7/15/13 in `tools/verify_cycle.sh:9,65` e `todo.md:260-264` | le regole scritte non sono quelle eseguite |
+
+> La tabella è lo **snapshot iniziale** del piano. Evidenze 1–8 chiuse nei
+> Cycle 87–89 (A1–A4, B1, B2); 9–10 restano gli input di B3 e C1.
 
 ## 2. Principi del piano
 

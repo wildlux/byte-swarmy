@@ -2144,3 +2144,20 @@ inglese" è stata registrata come **D1** (`tools/prompt_lint.py`, misura
 offline del prompt). La leva è la struttura (una azione per turno, poche
 scelte, formato esplicito), non il tono; A/B live resta 🔒 termico.
 
+---
+
+## Cycle 89 (2026-11-22) — B2: auto-approvazione skill solo con gate verde
+
+| Modifica | Dettaglio |
+|---|---|
+| `CORE/skill_proposer.py` | `GateCheck`/`GateReport` + `gate_proposal(path)`: gate deterministico sul candidato (file presente, dimensione ≤20000, sezioni obbligatorie, regola ≥40 char, fence ```python compilabile via AST con placeholder `{{…}}` neutralizzati, nessuna chiamata `eval/exec/input/os.system/…`). `gate_report(id)` rilegge il report salvato; CLI `--gate ID` |
+| Auto-approvazione | `auto_approve_ready(skill_id)`: dopo 3 successi senza fallimenti valuta il candidato; **gate verde** → `approve_proposal(report)` con backup `.backup.md` e metadati `mode=auto`/`backup`/`gate_report`; **gate rosso** → bozza intatta in `state/skill_proposals/`, report persistito in `failures.json`. `record_skill_usage` passa solo da qui |
+| Approvazione manuale | `approve_proposal` resta disponibile da CLI (scelta umana esplicita) e registra ora sempre backup + report nei metadati: nessuna sovrascrittura silenziosa |
+
+Verifiche: `tests/test_skill_proposer.py` 14 test offline (6 nuovi: gate
+verde→approvazione con backup, gate rosso→bozza+report, codice pericoloso e
+sintassi invalida, file mancante fail-open, fallimento che blocca l'auto-
+approvazione, CLI `--gate`). Regressione skill_executor/behavioral/diagnosis/
+oracle/logic: 36 passed. Nessun LLM, nessuna rete. Nessuna skill reale
+modificata: i test usano una SKILLS dir temporanea.
+

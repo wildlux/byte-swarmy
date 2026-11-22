@@ -13,17 +13,27 @@ Storage:
   - state/skill_proposals/<sig>_<n>.md   → bozze in attesa
 Approvazione: `python -m CORE.skill_proposer --approve <id>` sposta
 la bozza in `SKILLS/<name>.md` (dove il matcher la carica). Rifiuto:
-`--reject <id>` la cancella. Fail-open ovunque: un errore qui non
-blocca mai un task.
+`--reject <id>` la cancella. `--gate <id>` stampa il report gate.
+Fail-open ovunque: un errore qui non blocca mai un task.
 
 Soglia: 3 occorrenze (stessa del correction loop).
+
+B2 (2026-11-22): l'auto-approvazione dopo 3 successi NON è più cieca.
+Prima di scrivere in SKILLS/ il candidato passa un gate deterministico
+(sezioni, regola non vuota, fence Python compilabile, nessuna chiamata
+pericolosa). Gate rosso = bozza intatta + report in `failures.json`;
+gate verde = approvazione con backup `.backup.md` e report salvato.
 """
 from __future__ import annotations
 
 import argparse
+import ast
 import json
+import re
 import shutil
+import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -32,6 +42,60 @@ SKILLS_DIR = ROOT / "SKILLS"
 PROPOSALS_DIR = ROOT / "state" / "skill_proposals"
 FAILURES_FILE = PROPOSALS_DIR / "failures.json"
 THRESHOLD = 3
+
+# B2 (2026-11-22): gate deterministico per l'auto-approvazione.
+MAX_PROPOSAL_CHARS = 20000
+REQUIRED_SECTIONS = ("# REGOLA APPRESA", "## Regola", "## Template concreto")
+MIN_RULE_CHARS = 40
+# Chiamate vietate nei template delle bozze (rilevate via AST, non per testo:
+# un commento che dice "MAI usare input()" non deve bloccare la bozza).
+_FORBIDDEN_CALLS = frozenset({"eval", "exec", "compile", "__import__", "input"})
+_FORBIDDEN_ATTRS = frozenset({
+    "system", "popen", "Popen", "run", "call", "check_output",
+})
+
+
+@dataclass(frozen=True)
+class GateCheck:
+    name: str
+    ok: bool
+    detail: str = ""
+
+
+@dataclass(frozen=True)
+class GateReport:
+    """Report del gate sul candidato: mai una valutazione LLM."""
+    proposal_id: str
+    checks: tuple[GateCheck, ...]
+
+    @property
+    def ok(self) -> bool:
+        return all(c.ok for c in self.checks)
+
+    def reasons(self) -> list[str]:
+        return [f"{c.name}: {c.detail}" for c in self.checks if not c.ok]
+
+    def to_dict(self) -> dict:
+        return {
+            "proposal_id": self.proposal_id,
+            "ok": self.ok,
+            "checks": [{"name": c.name, "ok": c.ok, "detail": c.detail}
+                       for c in self.checks],
+            "reasons": self.reasons(),
+        }
+
+    def markdown(self) -> str:
+        lines = [f"### Gate skill `{self.proposal_id}` — "
+                 f"{'✅ VERDE' if self.ok else '🔴 ROSSO'}", "",
+                 "| Check | Esito | Dettaglio |", "|---|---|---|"]
+        for c in self.checks:
+            lines.append(f"| {c.name} | {'OK' if c.ok else 'FAIL'} | "
+                         f"{c.detail or '-'} |")
+        if self.reasons():
+            lines += ["", "Motivi:", ""]
+            lines += [f"- {r}" for r in self.reasons()]
+        return "\n".join(lines)
+
 
 # Firma → (etichetta, skill base da cui partire, regola appresa)
 SIGNATURES: dict[str, dict] = {
@@ -144,6 +208,103 @@ def _save_failures(data: dict) -> None:
             encoding="utf-8")
     except Exception:
         pass
+
+
+def _fence_errors(text: str) -> list[str]:
+    """Valida i blocchi ```python del candidato (sintassi + chiamate vietate)."""
+    errors: list[str] = []
+    fences = re.findall(r"```python[ \t]*\n(.*?)```", text,
+                        flags=re.DOTALL | re.IGNORECASE)
+    if not fences:
+        return ["nessun blocco python concreto"]
+    for idx, code in enumerate(fences, 1):
+        # I segnaposto {{ ... }} sono template, non codice: sostituirli
+        # con None rende il blocco analizzabile senza cambiare la semantica.
+        src = re.sub(r"\{\{[^}]*\}\}", "None", code)
+        try:
+            tree = ast.parse(src)
+        except SyntaxError as e:
+            errors.append(f"blocco {idx}: sintassi non valida "
+                          f"({e.msg}, riga {e.lineno})")
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            if isinstance(fn, ast.Name) and fn.id in _FORBIDDEN_CALLS:
+                errors.append(f"blocco {idx}: chiamata vietata {fn.id}()")
+            if isinstance(fn, ast.Attribute) and fn.attr in _FORBIDDEN_ATTRS:
+                errors.append(f"blocco {idx}: chiamata vietata .{fn.attr}()")
+    return errors
+
+
+def gate_proposal(proposal_path: str, signature: str = "",
+                  proposal_id: str = "") -> GateReport:
+    """B2: gate deterministico sul candidato — zero LLM, zero rete.
+
+    Controlli: file presente, dimensione, sezioni obbligatorie, regola non
+    vuota, fence Python compilabile e senza chiamate pericolose. Il report
+    è sempre restituito (fail-open: un errore diventa gate rosso, non un
+    dump di eccezioni).
+    """
+    prop_id = proposal_id or Path(proposal_path).stem
+    checks: list[GateCheck] = []
+    path = Path(proposal_path)
+
+    if not path.is_file():
+        return GateReport(prop_id, (GateCheck("file", False, "mancante"),))
+
+    try:
+        text = path.read_text(encoding="utf-8")
+    except Exception as e:
+        return GateReport(prop_id, (GateCheck("file", False, str(e)[:120]),))
+
+    checks.append(GateCheck(
+        "dimensione", 0 < len(text) <= MAX_PROPOSAL_CHARS,
+        f"{len(text)} caratteri (max {MAX_PROPOSAL_CHARS})"))
+
+    missing = [s for s in REQUIRED_SECTIONS if s not in text]
+    checks.append(GateCheck("sezioni", not missing,
+                            "mancano: " + ", ".join(missing) if missing else
+                            "tutte presenti"))
+
+    rule = ""
+    if "## Regola" in text:
+        tail = text.split("## Regola", 1)[1]
+        rule = tail.split("## Template concreto", 1)[0].strip()
+    checks.append(GateCheck("regola", len(rule) >= MIN_RULE_CHARS,
+                            f"{len(rule)} caratteri (min {MIN_RULE_CHARS})"))
+
+    errors = _fence_errors(text)
+    checks.append(GateCheck("template_python", not errors,
+                            "; ".join(errors[:3]) if errors else "valido"))
+
+    return GateReport(prop_id, tuple(checks))
+
+
+def _record_gate_report(prop_id: str, report: GateReport) -> None:
+    """Persiste l'ultimo report gate (anche se rosso) per la review."""
+    try:
+        data = _load_failures()
+        data.setdefault("gate_reports", {})[prop_id] = {
+            **report.to_dict(), "at": time.time()}
+        _save_failures(data)
+    except Exception:
+        pass
+
+
+def gate_report(prop_id: str) -> Optional[GateReport]:
+    """Report gate salvato per una proposta (None se mai valutata)."""
+    try:
+        raw = _load_failures().get("gate_reports", {}).get(prop_id)
+        if not raw:
+            return None
+        return GateReport(
+            raw["proposal_id"],
+            tuple(GateCheck(c["name"], c["ok"], c.get("detail", ""))
+                  for c in raw["checks"]))
+    except Exception:
+        return None
 
 
 def record_failure(signature: str, task_title: str = "",
@@ -268,8 +429,15 @@ def pending_proposals() -> list[dict]:
         return []
 
 
-def approve_proposal(prop_id: str) -> bool:
-    """Approva una bozza: la sposta in SKILLS/ (dove il matcher la carica)."""
+def approve_proposal(prop_id: str,
+                     report: Optional[GateReport] = None) -> bool:
+    """Approva una bozza: la sposta in SKILLS/ (dove il matcher la carica).
+
+    Chiamata manuale (CLI) = approvazione umana esplicita. Quella automatica
+    passa da `auto_approve_ready`, che richiede un GateReport verde. In ogni
+    caso la sovrascrittura NON è silenziosa: backup `.backup.md` + report
+    salvato nei metadati della proposta.
+    """
     try:
         data = _load_failures()
         for sig, info in data.get("proposals", {}).items():
@@ -282,12 +450,18 @@ def approve_proposal(prop_id: str) -> bool:
                 skill_name = base  # sovrascrive la skill base con la versione appresa
                 dst = SKILLS_DIR / skill_name
                 # Backup della skill base prima di sovrascrivere
+                backup_path = None
                 if dst.exists():
                     backup = SKILLS_DIR / f"{dst.stem}.backup.md"
                     shutil.copy2(dst, backup)
+                    backup_path = str(backup)
                 shutil.move(str(src), str(dst))
                 info["status"] = "approved"
                 info["approved_at"] = time.time()
+                info["backup"] = backup_path
+                info["mode"] = "auto" if report is not None else "manual"
+                if report is not None:
+                    info["gate_report"] = report.to_dict()
                 _save_failures(data)
                 return True
         return False
@@ -315,11 +489,39 @@ def reject_proposal(prop_id: str) -> bool:
         return False
 
 
-# ── G2: auto-approvazione dopo N successi ─────────────────────────────
+# ── B2: auto-approvazione SOLO con gate verde ──────────────────────────
+def auto_approve_ready(skill_id: str) -> tuple[Optional[str], Optional[GateReport]]:
+    """Dopo 3 successi senza fallimenti valuta il candidato col gate.
+
+    - gate verde → approvazione con backup e report salvato;
+    - gate rosso → bozza INTATTA in `state/skill_proposals/`, report rosso
+      persistito per la review (nessuna sovrascrittura silenziosa).
+
+    Ritorna `(id_approvato, report)`. Fail-open: errori → (None, None).
+    """
+    try:
+        data = _load_failures()
+        u = data.get("usage", {}).get(skill_id, {})
+        if u.get("success", 0) < 3 or u.get("fail", 0) != 0:
+            return None, None
+        for sig, info in data.get("proposals", {}).items():
+            if info.get("status") == "pending" and sig in skill_id:
+                report = gate_proposal(info.get("path", ""), sig,
+                                       info.get("id", ""))
+                _record_gate_report(info["id"], report)
+                if not report.ok:
+                    return None, report
+                approved = approve_proposal(info["id"], report=report)
+                return (info["id"] if approved else None), report
+        return None, None
+    except Exception:
+        return None, None
+
+
 def record_skill_usage(skill_id: str, success: bool) -> Optional[str]:
-    """Traccia l'uso di una skill suggerita. Se usata 3 volte senza
-    fallimenti → auto-approvazione (con log). Ritorna l'id approvato
-    o None. Fail-open.
+    """Traccia l'uso di una skill suggerita. Dopo 3 successi senza
+    fallimenti prova l'auto-approvazione, ma solo se il gate è verde.
+    Ritorna l'id approvato o None. Fail-open.
     """
     try:
         data = _load_failures()
@@ -331,17 +533,15 @@ def record_skill_usage(skill_id: str, success: bool) -> Optional[str]:
             u["fail"] = u.get("fail", 0) + 1
         _save_failures(data)
 
-        # Auto-approve se 3 successi consecutivi senza fallimenti
-        if (u.get("success", 0) >= 3 and u.get("fail", 0) == 0):
-            # Trova la proposta pendente con questo skill_id
-            for sig, info in data.get("proposals", {}).items():
-                if info.get("status") == "pending" and sig in skill_id:
-                    ok = approve_proposal(info["id"])
-                    if ok:
-                        return info["id"]
-        return None
+        approved, _report = auto_approve_ready(skill_id)
+        return approved
     except Exception:
         return None
+
+
+def _emit(text: str) -> None:
+    """Output della CLI (sys.stdout: nessun print() in CORE/, regola W005)."""
+    sys.stdout.write(text + "\n")
 
 
 def _cli() -> int:
@@ -355,26 +555,36 @@ def _cli() -> int:
                    help="Approva una bozza (la sposta in SKILLS/).")
     g.add_argument("--reject", metavar="ID",
                    help="Rifiuta una bozza (la cancella).")
+    g.add_argument("--gate", metavar="ID",
+                   help="Mostra il report gate deterministico della bozza.")
     args = parser.parse_args()
 
     if args.list:
         props = pending_proposals()
         if not props:
-            print("Nessuna bozza in attesa.")
+            _emit("Nessuna bozza in attesa.")
             return 0
         for p in props:
-            print(f"\n[{p['id']}] {p['label']} (occorrenze: {p['count']})")
-            print(f"  file: {p['path']}")
-            print(f"  preview: {p['preview'][:200].replace(chr(10), ' | ')}")
+            _emit(f"\n[{p['id']}] {p['label']} (occorrenze: {p['count']})")
+            _emit(f"  file: {p['path']}")
+            _emit(f"  preview: {p['preview'][:200].replace(chr(10), ' | ')}")
         return 0
     if args.approve:
         ok = approve_proposal(args.approve)
-        print("APPROVATA" if ok else "NON TROVATA / già gestita")
+        _emit("APPROVATA" if ok else "NON TROVATA / già gestita")
         return 0 if ok else 1
     if args.reject:
         ok = reject_proposal(args.reject)
-        print("RIFIUTATA" if ok else "NON TROVATA / già gestita")
+        _emit("RIFIUTATA" if ok else "NON TROVATA / già gestita")
         return 0 if ok else 1
+    if args.gate:
+        report = gate_report(args.gate)
+        if report is None:
+            _emit("Nessun report gate per questa bozza "
+                  "(usare 3 successi per triggerare la valutazione).")
+            return 1
+        _emit(report.markdown())
+        return 0 if report.ok else 1
     return 0
 
 
