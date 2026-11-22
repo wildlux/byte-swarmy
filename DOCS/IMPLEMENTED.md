@@ -2582,3 +2582,18 @@ assente.
 
 Verifiche: nessun codice toccato; `git diff --check` e report deterministico
 rigenerato. **Nessuna attività LLM, CI o termica avviata.**
+
+---
+
+## Cycle 116 (2026-11-22) — Fase G: harness A/B delle varianti prompt
+
+| Modifica | Dettaglio |
+|---|---|
+| `tools/eval_prompt_variants.py` (nuovo) | Confronta 4 varianti di prompt (`baseline`, `refs_off`, `refs_first`, `plan_compact`) sugli 11 casi con `expected_marker` di `evals/cases.json`. Task set congelato `182ae2a82284`. Regola scritta prima del live: PROMOTE se tasso ≥0.60 e delta ≥0.20, REJECT se delta ≤0, altrimenti INCONCLUSIVE. Gate termico (`fan_rpm > 0`, `temp_c ≤ 60`) e rifiuto esplicito del solver finto nel live: `--live` non è ancora eseguibile dal CLI |
+| `tests/test_prompt_variants.py` (nuovo) | 9 test offline: task set e impronta, determinismo dei prompt, tutte le diramazioni della soglia, dry-run senza PROMOTE, gate termico con tre casi (RPM 0, 75 °C, 50 °C), richiesta di solver reale, report che dichiara SIMULAZIONE, assenza di client LLM |
+| `DOCS/PROMPT_VARIANTS_REPORT.md` (nuovo) | Generato dal tool: baseline 0.09, `refs_off` 0.00 (REJECT), `refs_first` 0.27 e `plan_compact` 0.45 (INCONCLUSIVE). Nessuna promozione autorizzata |
+| `DOCS/BENCH.md`, `todo.md` | Sezione Fase G con parametri e stato; Fase G portata a `[~]` |
+
+Verifiche: 9 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning.
+**Nessun LLM, rete o GPU**: il solver è finto per costruzione e il report
+dichiara che il risultato non è un esperimento reale.

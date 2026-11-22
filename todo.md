@@ -490,10 +490,19 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
       gate-verificata → entra nel corpus Fase B: il 3b impara
       dall'esempio. Criterio done: `tools/distill_task.py` + ≥3 esempi
       nel corpus.
-20. [ ] **[Fase G] A/B automatico delle varianti prompt** — refs
+20. [~] **[Fase G] A/B automatico delle varianti prompt** — refs
       on/off, posizione REFS, formato PLAN: promosso solo chi vince
       misurato. Criterio done: `tools/eval_prompt_variants.py` + 1
       esperimento chiuso con verdetto in DOCS/BENCH.md.
+      > ✅ **Slice Fase G fatta (Cycle 116)**: `tools/eval_prompt_variants.py`
+      > confronta 4 varianti (baseline/refs_off/refs_first/plan_compact) sugli
+      > 11 casi con expected_marker della eval suite; task set congelato
+      > `182ae2a82284`, regola PROMOTE/REJECT/INCONCLUSIVE scritta prima del
+      > live, gate termico e rifiuto del solver finto nel live.
+      > `tests/test_prompt_variants.py` (9 test) e
+      > `DOCS/PROMPT_VARIANTS_REPORT.md`. 🔒 Resta l'esperimento reale:
+      > serve solver LLM con ventole verificate; il dry-run **non promuove
+      > nulla** ed è dichiarato simulazione.
 21. [ ] **[Fase H] Timestral giudice di qualità (mai sovrano)** —
       quando il gate passa ma la qualità è dubbia, il decision model
       valuta; logga accordo/disaccordo. MAI override automatico: il

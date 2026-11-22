@@ -439,3 +439,22 @@ Comando di preparazione: `.venv/bin/python tools/memory_ab.py --dry-run --out
 DOCS/MEMORY_AB_REPORT.md`. Le soglie sono state scritte **prima** di qualsiasi
 run live: il passaggio di Memoria/contesto da 3/4 a 4/4 richiede il verdetto
 reale sui 10 task, non il dry-run.
+
+---
+
+## Varianti prompt (Fase G) — Cycle 116, harness pronto (2026-11-22)
+
+| Parametro | Valore |
+|---|---|
+| Strumento | `tools/eval_prompt_variants.py` + `tests/test_prompt_variants.py` (9 test) |
+| Varianti | `baseline`, `refs_off`, `refs_first`, `plan_compact` |
+| Task set congelato | `182ae2a82284` — 11 casi della eval suite con `expected_marker` |
+| Regola PROMOTE | tasso ≥ **0.60** e delta ≥ **0.20** rispetto a baseline |
+| Regola REJECT | delta ≤ 0 |
+| Esito dry-run | `refs_off` REJECT, `refs_first`/`plan_compact` INCONCLUSIVE — **simulazione, nessuna promozione** |
+| Report | `DOCS/PROMPT_VARIANTS_REPORT.md` (rigenerato dal tool, non scritto a mano) |
+| Esecuzione live | 🔒 bloccata: serve `fan_verified.json` (`fan_rpm > 0`, `temp_c ≤ 60`) e un solver reale passato dal chiamante |
+
+Il solver del dry-run assegna l'HINT per hash del `case_id`: serve solo a
+esercitare le diramazioni della regola, **non** è una misura di qualità. Nessun
+prompt viene promosso finché non arriva un esperimento reale con gate termico.
