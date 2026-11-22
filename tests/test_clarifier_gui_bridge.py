@@ -41,8 +41,11 @@ def _ask_fn(tmp_path, monkeypatch):
                     SimpleNamespace(), _LOG)
     monkeypatch.setattr(sys, "stdin", SimpleNamespace(isatty=lambda: False))
     real_sleep = time.sleep
+    # 30 iterazioni × 0,05 s = 1,5 s: margine sufficiente perché il thread
+    # rispondi venga schedulato anche su runner carichi (0,01 s → 0,3 s
+    # era troppo stretto e il worker faceva fail-open con risposta vuota).
     monkeypatch.setattr(worker_module.time, "sleep",
-                        lambda seconds: real_sleep(0.01))
+                        lambda seconds: real_sleep(0.05))
     return worker._make_clarify_ask_fn()
 
 

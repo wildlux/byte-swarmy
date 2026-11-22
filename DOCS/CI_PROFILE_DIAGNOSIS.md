@@ -125,3 +125,19 @@ precedenti, ma le nuove annotations hanno finalmente pubblicato i nomi:
 
 Verifica locale mirata dopo le correzioni: 56 test passati su 58, poi i 2
 residui corretti e riverificati (2 passed). Nessuna suite completa locale.
+
+## Aggiornamento Cycle 128 — run #8: 4 failure residui, tutti ambientali
+
+Il run #8 (`45055387426`, commit `11377e5`) è fallito nello step 8 con
+`EXIT=1` e 4 failure. Due erano già apparsi al run #7 ma con cause diverse:
+
+| Test fallito | Causa reale (verificata) | Correzione |
+|---|---|---|
+| `test_config_gates.py::test_remote_github_senza_token` | `checkout@v5` imposta `https://github.com/wildlux/byte-swarmy` senza suffisso `.git`; il test accettava solo la forma con `.git` | Normalizzare rimuovendo `.git` e accettare HTTPS e SSH |
+| `test_repo_hygiene.py::test_tasks_gitkeep_exists` | Il symlink `tasks → data/tasks` non è tracciato: su CI esiste solo `data/tasks/.gitkeep` | Verificare entrambe le sedi (`tasks/.gitkeep` e `data/tasks/.gitkeep`) |
+| `test_user_workflow.py::TestToolbarToggle::test_toggle_pauses_and_resumes` | Stato iniziale del pulsante inquinato da test precedenti: il setUp rimuoveva `pause.flag` senza risincronizzare l'icona | setUp chiama `_sync_toggle_icon()` + `processEvents()` |
+| `test_clarifier_gui_bridge.py::test_ponte_file_porteda_la_risposta_al_worker` | Timeout di polling 30 × 0,01 s = 0,3 s troppo corto su runner carico → fail-open con risposta vuota | Polling a 0,05 s (1,5 s totali) |
+
+Verifica locale: i 4 test passano (`4 passed in 9.76s`), incluso il caso
+HTTPS del remote simulato con ripristino automatico. Nessuna suite completa
+locale, LLM, GPU o misura inventata.

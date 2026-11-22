@@ -156,7 +156,11 @@ class TestGitTrackedRuntime(unittest.TestCase):
                         "e aggiungi il pattern in .gitignore.")
 
     def test_tasks_gitkeep_exists(self):
-        self.assertTrue((ROOT / "tasks" / ".gitkeep").exists(),
+        # `tasks` è un symlink locale a `data/tasks`: su GitHub Actions il
+        # link non è tracciato, quindi il file vive solo nella destinazione.
+        candidates = (ROOT / "tasks" / ".gitkeep",
+                      ROOT / "data" / "tasks" / ".gitkeep")
+        self.assertTrue(any(p.exists() for p in candidates),
                         "tasks/ è runtime-ignored: serve tasks/.gitkeep.")
 
     def test_gitkeep_only_in_expected_dirs(self):

@@ -2801,3 +2801,22 @@ Verifiche locali: `pyflakes` 0 sui file toccati, 56 test mirati passati su 58,
 poi i 2 residui corretti e riverificati (2 passed), YAML valido,
 `git diff --check` pulito. Commit `11377e5` pushato; run #8 `45055387426`
 avviato. Nessuna suite completa locale, LLM, GPU o misura inventata.
+
+---
+
+## Cycle 128 (2026-11-22) — M6: ultimate 4 failure ambientali del run #8
+
+Il run #8 (`45055387426`, commit `11377e5`) ha riportato 4 failure, tutti
+riconducibili a differenze tra ambiente locale e runner hosted:
+
+| File | Modifica |
+|---|---|
+| `tests/test_config_gates.py` | Remote HTTPS senza `.git` accettato tramite normalizzazione; resta il divieto di token |
+| `tests/test_repo_hygiene.py` | `test_tasks_gitkeep_exists` verifica `tasks/.gitkeep` oppure `data/tasks/.gitkeep` (symlink non tracciato su CI) |
+| `tests/test_user_workflow.py` | `setUp` di `TestToolbarToggle` risincronizza l'icona dopo la rimozione di `pause.flag` |
+| `tests/test_clarifier_gui_bridge.py` | Polling del bridge da 0,01 s a 0,05 s per evitare fail-open su runner carichi |
+| `DOCS/CI_PROFILE_DIAGNOSIS.md` | Verdetto run #8 e cause verificate |
+
+Verifica: 4 test mirati verdi (`4 passed in 9.76s`), `pyflakes` 0,
+`git diff --check` pulito. Nessuna suite completa locale, LLM, GPU o misura
+inventata.

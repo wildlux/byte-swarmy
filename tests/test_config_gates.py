@@ -48,7 +48,11 @@ def test_remote_github_senza_token():
     assert url.startswith(("git@github.com:", "https://github.com/"))
     for marker in ("ghp_", "github_pat_", "x-access-token"):
         assert marker not in url
-    assert url.endswith("wildlux/byte-swarmy.git")
+    # checkout@v5 usa HTTPS senza suffisso .git; lo sviluppo locale usa SSH
+    # con .git. Entrambe sono forme legittime e senza token.
+    normalized = url.rstrip("/").removesuffix(".git")
+    assert normalized in ("git@github.com:wildlux/byte-swarmy",
+                          "https://github.com/wildlux/byte-swarmy")
 
 
 def test_credenziali_non_tracciate_e_permessi_stretti():

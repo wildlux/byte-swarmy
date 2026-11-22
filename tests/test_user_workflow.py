@@ -292,8 +292,12 @@ class TestToolbarToggle(unittest.TestCase):
         center = _window()
         self._orig_running = center._is_orchestrator_running
         center._is_orchestrator_running = lambda: True
-        # Ambiente pulito: niente flag pre-esistente
+        # Ambiente pulito: niente flag pre-esistente. Risincronizza anche
+        # l'icona: un test precedente può aver lasciato il pulsante ⏸ senza
+        # che il QTimer di sync sia passato (runner lenti / CI).
         (ROOT / "state" / "pause.flag").unlink(missing_ok=True)
+        center._sync_toggle_icon()
+        _app.processEvents()
 
     def tearDown(self):
         center = _window()
