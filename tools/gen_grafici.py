@@ -511,7 +511,7 @@ def build_svg() -> str:
         ["Task GUI (creazione)", "Modifiche minime", "Refactoring mecc.",
          "Gate / verifica", "Fedeltà API", "Chiarimenti ambigui",
          "Architettura", "Memoria / contesto"],
-        [1, 3, 4, 4, 4, 3, 2, 3],
+        [2, 3, 4, 4, 4, 3, 2, 3],
         [3, 3, 4, 4, 4, 3, 2, 4],
         cx=W // 2, cy=y + 205, R=130, top=y,
         title="E. Radar capacità — dove siamo deboli (→ todo.md)",

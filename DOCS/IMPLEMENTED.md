@@ -2297,3 +2297,20 @@ Verifiche: 24 test offline (eval + gate refs + validazione), zero LLM/rete/GPU;
 nessun changeset live. Il verdetto misura la fedeltà delle API, non la qualità
 delle risposte del modello.
 
+---
+
+## Cycle 98 (2026-11-22) — E3: scaffolding GUI da template curati
+
+| Modifica | Dettaglio |
+|---|---|
+| `GUI/refs/templates/` (nuovo) | 4 template PyQt6 validi Python con marker `# SLOT:`: `finestra` (QMainWindow), `layout` (QVBoxLayout + QFormLayout + QHBoxLayout), `segnali` (pyqtSignal → QLabel), `thread` (QThread + Worker con `quit` in DirectConnection per evitare Qt abort su `wait()`) |
+| `.opencode/skill/py-gui-scaffold/SKILL.md` (nuovo) | Policy: scegli template, verifica i simboli Qt con `api_lookup` **non-strict** (le classi C++ non hanno firma), incrocia `GUI/refs/pyqt6.md`, gate offscreen obbligatorio, nessun `app.exec()` nei test |
+| `CORE/auto_skill.py` | Keyword `pyqt6`, `finestra qt`, `crea gui`, `layout qt`, `segnali qt`, `qthread`, `widget qt`, `scaffolding gui` per attivazione automatica della skill |
+| `tests/test_gui_templates.py` (nuovo) | 7 test offscreen: compilazione/SLOT/timestamp, snapshot finestra e layout, segnali collegati, thread terminato senza Qt abort, gate simboli Qt, skill + keyword registrati |
+| `DOCS/BENCH.md` | Metrica E3: 4 template, 4 snapshot, 7 test; task GUI live non misurato (🔒 termico) |
+| Radar | **Task GUI 1/4 → 2/4**; 40 meccanismi; grafico Cycle 98 |
+
+Verifiche: 11 test (nuovi + parità skill), zero LLM/rete/GPU. Il livello 3/4
+richiede un task GUI reale chiuso al primo colpo: resta 🔒 bloccato termicamente
+finché le ventole non sono verificate (≤60 °C).
+

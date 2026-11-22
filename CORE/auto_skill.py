@@ -109,6 +109,10 @@ KEYWORDS: dict[str, list[str]] = {
         "salute del progetto", "mappa del progetto", "code map",
         "progetto sconosciuto", "com e fatto il progetto",
     ],
+    "py-gui-scaffold": [
+        "pyqt6", "finestra qt", "crea finestra", "crea gui", "layout qt",
+        "segnali qt", "qthread", "widget qt", "scaffolding gui",
+    ],
     "qr-code": [
         "qr", "codice qr", "qrcode", "qr code", "codice a barre",
     ],

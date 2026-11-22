@@ -404,3 +404,19 @@ Comando: `.venv/bin/python tools/api_fidelity_eval.py --out DOCS/API_FIDELITY_RE
 valori (`csv.QUOTE_MINIMAL`) senza accettare simboli inventati; i callabili
 con firma non introspettabile restano bloccati. Nessuna misura live: il
 verdetto riguarda la fedeltà delle API, non la qualità delle risposte LLM.
+
+---
+
+## Scaffolding GUI (E3) — Cycle 98, struttura verificata (2026-11-22)
+
+| Metrica | Valore |
+|---|---:|
+| Template PyQt6 curati | 4 (`finestra`, `layout`, `segnali`, `thread`) |
+| Snapshot offscreen | 4 (titolo/dimensioni, gerarchia layout, segnali, thread) |
+| Test E3 | 7 (6 template/GUI + 1 skill/keyword), zero LLM/rete/GPU |
+| Task GUI chiusi al primo colpo con LLM | non misurato — 🔒 ventole da verificare (≤60 °C) |
+
+Nota: `api_lookup(strict=True)` blocca le classi C++ di PyQt6 (firme non
+introspettabili); per i simboli Qt la verifica deterministica è `api_lookup`
+senza `strict` (esistenza) + `GUI/refs/pyqt6.md`. Il passaggio da 2/4 a 3/4
+dell'asse Task GUI richiede un task reale con modello, non questo gate.

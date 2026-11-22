@@ -1,4 +1,4 @@
-# 📈 Miglioramenti implementati — Cycle 70 → 97 (v0.3.18 → v0.3.34)
+# 📈 Miglioramenti implementati — Cycle 70 → 98 (v0.3.18 → v0.3.34)
 
 ![Grafico miglioramenti](grafici/miglioramenti.svg)
 
@@ -20,7 +20,7 @@ Scala (grafico D, criteri misurabili):
 | Livello | Criterio | Stato |
 |---|---|---|
 | **Junior** — 1/4 | 3b nudo senza sistema: 0/4 task GUI, modifiche minime fallite, requirements sovrascritto | baseline (C72) |
-| **Junior+** — 2/4 | Sistema v0.3.34: 39 meccanismi attivi, gate per-slot + assembler + import-check, Zero Warning (0 pyflakes), corpus feedback, best-of-N configurabile, auto-skill/auto-tool validati, self-improvement misurabile | **◀ siamo qui** |
+| **Junior+** — 2/4 | Sistema v0.3.34: 40 meccanismi attivi, gate per-slot + assembler + import-check, Zero Warning (0 pyflakes), corpus feedback, best-of-N configurabile, auto-skill/auto-tool validati, self-improvement misurabile | **◀ siamo qui** |
 | **Middle** — 3/4 | ≥50% dei task chiusi al primo tentativo (senza correction), task GUI ≥50% | target intermedio |
 | **Middle Senior** — 4/4 | **≥70% al primo tentativo; task GUI ≥75%; 0 simboli API inesistenti nei file scritti (gate import-check); 0 violazioni gate; 0 warning (pyflakes + pytest — regola Zero Warning) ✅ raggiunto (474 → 0)** | ★ GOAL |
 
@@ -32,7 +32,7 @@ verso il goal; il progresso è un numero, non un'impressione.
 
 | Asse | Oggi | Goal | Gap → azione (todo.md) |
 |---|:-:|:-:|---|
-| Task GUI (creazione) | 1/4 | 3/4 | scaffolding deterministico (template) — SLOT-3 |
+| Task GUI (creazione) | 2/4 | 3/4 | E3: 4 template in `GUI/refs/templates/` + skill `py-gui-scaffold`, snapshot offscreen verdi; 3/4 richiede 1 task GUI live 🔒 termico (SLOT-3) |
 | Modifiche minime | 3/4 | 4/4 | best-of-N attivo (fast lane), executor + disciplina |
 | Refactoring mecc. | 4/4 | 4/4 | E1: `tools/refactor_guard.py` — AST + API pubblica + behavioral diff, 8/8 refactoring atomici verdi |
 | Gate / verifica | 4/4 | 4/4 | punto di forza: gate per-slot + import-check |
@@ -57,7 +57,7 @@ Commit: `4a1cb1a` (12 difetti) · `0bb4998` (parità GUI) · `72e1b71` (toolbar)
 
 ---
 
-## B. I 39 meccanismi di robustezza e anti-allucinazione attivi
+## B. I 40 meccanismi di robustezza e anti-allucinazione attivi
 
 | # | Meccanismo | Introdotto |
 |--:|---|---|
@@ -196,10 +196,11 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 | Prompt lint (D1) | `tools/prompt_lint.py`: misura struttura del prompt reale (regole, tool, frasi, lingua, 1 azione/turno, tono); snapshot `DOCS/PROMPT_LINT_REPORT.md`. Ipotesi: struttura sì, tono no | 6 test, zero LLM; A/B live resta 🔒 termico |
 | Refactor guard (E1) | `tools/refactor_guard.py`: AST + API pubblica invariata + behavioral diff (snapshot stdin→stdout); WARN se snapshot non conclusivo, FAIL su comportamento/sintassi/API | 8/8 casi atomici + 4 negativi, zero LLM; report `DOCS/REFACTOR_GUARD_REPORT.md` |
 | API fidelity eval (E2) | `tools/api_fidelity_eval.py`: AST → `api_lookup(strict=True)` (stesso gate del worker) + ref `json`/`csv` validati; `strict` accetta costanti reali come valori, blocca callabili non introspettabili e simboli inventati | 7/7 simboli verificati, 0 indefiniti, 22 firme; 8 test, zero LLM; report `DOCS/API_FIDELITY_REPORT.md` |
+| Scaffolding GUI (E3) | `GUI/refs/templates/`: 4 template PyQt6 (finestra, layout, segnali, QThread con `DirectConnection` per `quit`); skill `py-gui-scaffold` + keyword auto; i simboli Qt si verificano con `api_lookup` non-strict (le classi C++ non hanno firma) | 7 test offscreen con snapshot struttura/segnali/thread; zero LLM; 3/4 resta 🔒 termico |
 
 ---
 
-*Documento aggiornato al Cycle 97 il 2026-11-22: il grafico legge ciclo e
+*Documento aggiornato al Cycle 98 il 2026-11-22: il grafico legge ciclo e
 conteggio meccanismi dai documenti, quindi basta premere 🔄 Rigenera nella
 Plancia (oppure `.venv/bin/python tools/gen_grafici.py`). I valori del radar
 restano giudizi espliciti in `tools/gen_grafici.py`.*
