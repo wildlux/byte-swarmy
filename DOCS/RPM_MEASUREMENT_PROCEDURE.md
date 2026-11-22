@@ -11,11 +11,19 @@ dichiarazione di operatore. Ho aggiunto il canale sicuro per registrarla
 |---|---|
 | Modello | HP Pavilion Power Laptop 15-cb0xx |
 | Profilo nbfc selezionato | `HP Pavilion 17 Notebook PC` (**modello diverso**) |
-| `nbfc status` → Current Fan Speed | `0.00` |
-| `nbfc status` → Target Fan Speed | `20.00 %` |
+| `nbfc status` → Current Fan Speed | `0.00` (percentuale, non RPM — Cycle 122) |
+| `nbfc status` → Target Fan Speed | `0.00 %` al 2026-11-22 |
 | `Auto Control Enabled` | `true` |
-| `/sys/class/hwmon/hwmon*/fan*_input` | nessun nodo presente |
-| Temperatura CPU (coretemp) | ~64 °C (sopra la soglia 60 °C del gate) |
+| `/sys/class/hwmon/hwmon*/fan*_input` | nessun nodo presente (verificato ancora il 2026-11-22) |
+| `hwmon5` (`hp`) → `pwm1` | `N/A` — duty-cycle, **non** una misura di giri |
+| `/sys/kernel/debug/ec/` | non accessibile |
+| Temperatura CPU (coretemp) | 65,0 °C al momento dell'audit (sopra la soglia 60 °C del gate) |
+| `tools/blocker_probe.py --check-fan` | `fan_verified.json: NON VALIDO` |
+
+Audit del 2026-11-22: `find /sys -name 'fan*_input' -o -name 'fan*_rpm'` non
+restituisce alcun nodo; `sensors` mostra solo `pwm1: N/A` per il chip `hp`.
+Non esiste quindi alcuna sorgente RPM leggibile: il tachometro esterno resta
+l'unico canale ammesso.
 
 Il duty-cycle non è una misura dei giri: la decisione esplicita del
 2026-11-22 vieta surrogati. `nbfc` attivo non dimostra che la ventola giri.

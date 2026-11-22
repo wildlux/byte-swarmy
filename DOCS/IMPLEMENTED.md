@@ -2835,3 +2835,22 @@ La diagnosi del profiling CI, iniziata al Cycle 112, si chiude con il run #9.
 La suite completa non viene rieseguita in locale: la regola termica del
 2026-11-20 vieta LLM/GPU/benchmark finché `fan_verified.json` non è valido.
 Nessun LLM, GPU o dato ventola fabbricato.
+
+---
+
+## Cycle 130 (2026-11-22) — M3: audit conclusivo delle sorgenti RPM
+
+| Verifica | Esito |
+|---|---|
+| `/sys/class/hwmon/hwmon*/fan*_input` | nessun nodo su 7 chip (`ADP1`, `acpitz`, `BAT0`, `coretemp`, `pch_skylake`, `hp`, `iwlwifi_1`) |
+| `find /sys` per `fan*_input` / `fan*_rpm` | 0 risultati |
+| `sensors` → `hp-isa-0000` | `pwm1: N/A` (duty-cycle, non giri) |
+| `nbfc status` | `Current Fan Speed: 0.00` (percentuale), `Target: 0.00 %`, `Auto Control: true` |
+| `/sys/kernel/debug/ec/` | non accessibile |
+| `tools/blocker_probe.py --check-fan` | `fan_verified.json: NON VALIDO` |
+| Test attestazione RPM | 38 passed |
+
+`DOCS/RPM_MEASUREMENT_PROCEDURE.md` aggiornata con l'evidenza: non esiste
+alcuna sorgente RPM leggibile, quindi il tachometro esterno resta l'unico
+canale ammesso. Nessun valore inventato, nessun surrogato da duty-cycle,
+nessuna suite locale, LLM o GPU.
