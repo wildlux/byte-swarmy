@@ -2314,3 +2314,18 @@ Verifiche: 11 test (nuovi + parità skill), zero LLM/rete/GPU. Il livello 3/4
 richiede un task GUI reale chiuso al primo colpo: resta 🔒 bloccato termicamente
 finché le ventole non sono verificate (≤60 °C).
 
+---
+
+## Cycle 99 (2026-11-22) — E4: harness A/B memoria/contesto pronto
+
+| Modifica | Dettaglio |
+|---|---|
+| `tools/memory_ab.py` (nuovo) | 10 task congelati (id `5e6051bfc33d`), `FakeRetriever`/`fake_solver` deterministici, due bracci con/senza contesto, `verdict()` con soglie GO ≥0.60 e delta ≥0.20 (arrotondato a 4 decimali), gate termico che richiede `data/state/fan_verified.json` con `fan_rpm>0` e `temp_c<=60` per il live. Nessun client LLM importato |
+| `tests/test_memory_ab.py` (nuovo) | 8 test: task set congelato, soglie, dry-run, retriever finto, gate termico (dry-run OK / live bloccato / valori validi), report deterministico e dichiarazione "non reale", assenza di import LLM |
+| `DOCS/MEMORY_AB_REPORT.md`, `DOCS/BENCH.md` | Snapshot del solo dry-run (0.80 vs 0.00, simulato) e parametri/soglie del bench prima del live |
+| Radar | Memoria/contesto resta **3/4**: la preparazione non è impatto misurato; 41 meccanismi; grafico Cycle 99 |
+
+Verifiche: 8 test offline, zero LLM/rete/GPU. Il verdetto reale resta 🔒
+bloccato termicamente: serve la verifica ventole (≤60 °C) prima di qualsiasi
+task con modello. Nessun numero del dry-run viene usato per alzare il radar.
+

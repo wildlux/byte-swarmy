@@ -1,4 +1,4 @@
-# 📈 Miglioramenti implementati — Cycle 70 → 98 (v0.3.18 → v0.3.34)
+# 📈 Miglioramenti implementati — Cycle 70 → 99 (v0.3.18 → v0.3.34)
 
 ![Grafico miglioramenti](grafici/miglioramenti.svg)
 
@@ -20,7 +20,7 @@ Scala (grafico D, criteri misurabili):
 | Livello | Criterio | Stato |
 |---|---|---|
 | **Junior** — 1/4 | 3b nudo senza sistema: 0/4 task GUI, modifiche minime fallite, requirements sovrascritto | baseline (C72) |
-| **Junior+** — 2/4 | Sistema v0.3.34: 40 meccanismi attivi, gate per-slot + assembler + import-check, Zero Warning (0 pyflakes), corpus feedback, best-of-N configurabile, auto-skill/auto-tool validati, self-improvement misurabile | **◀ siamo qui** |
+| **Junior+** — 2/4 | Sistema v0.3.34: 41 meccanismi attivi, gate per-slot + assembler + import-check, Zero Warning (0 pyflakes), corpus feedback, best-of-N configurabile, auto-skill/auto-tool validati, self-improvement misurabile | **◀ siamo qui** |
 | **Middle** — 3/4 | ≥50% dei task chiusi al primo tentativo (senza correction), task GUI ≥50% | target intermedio |
 | **Middle Senior** — 4/4 | **≥70% al primo tentativo; task GUI ≥75%; 0 simboli API inesistenti nei file scritti (gate import-check); 0 violazioni gate; 0 warning (pyflakes + pytest — regola Zero Warning) ✅ raggiunto (474 → 0)** | ★ GOAL |
 
@@ -39,7 +39,7 @@ verso il goal; il progresso è un numero, non un'impressione.
 | Fedeltà API | 4/4 | 4/4 | E2: ref `json`/`csv` generati e validati, 0 simboli indefiniti con `api_lookup(strict=True)` su 7 usi; costanti reali verificate come valori |
 | Chiarimenti ambigui | 3/4 | 4/4 | clarifier esteso (3 pattern nuovi) |
 | Architettura | 2/4 | 3/4 | SLOT: gate + assembler pronti, planner v2 (SLOT-3) |
-| Memoria / contesto | 3/4 | 4/4 | A2–A3 triple con `reason` + `corrected`, A4 retrieval chiamabile, C2 report (copertura 100%): loop misurabile; impatto live resta 🔒 termico (C3) |
+| Memoria / contesto | 3/4 | 4/4 | A2–A3 triple con `reason` + `corrected`, A4 retrieval chiamabile, C2 report (copertura 100%), E4 harness A/B pronto (10 task, soglie): impatto live resta 🔒 termico (C3) |
 
 ---
 
@@ -57,7 +57,7 @@ Commit: `4a1cb1a` (12 difetti) · `0bb4998` (parità GUI) · `72e1b71` (toolbar)
 
 ---
 
-## B. I 40 meccanismi di robustezza e anti-allucinazione attivi
+## B. I 41 meccanismi di robustezza e anti-allucinazione attivi
 
 | # | Meccanismo | Introdotto |
 |--:|---|---|
@@ -197,10 +197,11 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 | Refactor guard (E1) | `tools/refactor_guard.py`: AST + API pubblica invariata + behavioral diff (snapshot stdin→stdout); WARN se snapshot non conclusivo, FAIL su comportamento/sintassi/API | 8/8 casi atomici + 4 negativi, zero LLM; report `DOCS/REFACTOR_GUARD_REPORT.md` |
 | API fidelity eval (E2) | `tools/api_fidelity_eval.py`: AST → `api_lookup(strict=True)` (stesso gate del worker) + ref `json`/`csv` validati; `strict` accetta costanti reali come valori, blocca callabili non introspettabili e simboli inventati | 7/7 simboli verificati, 0 indefiniti, 22 firme; 8 test, zero LLM; report `DOCS/API_FIDELITY_REPORT.md` |
 | Scaffolding GUI (E3) | `GUI/refs/templates/`: 4 template PyQt6 (finestra, layout, segnali, QThread con `DirectConnection` per `quit`); skill `py-gui-scaffold` + keyword auto; i simboli Qt si verificano con `api_lookup` non-strict (le classi C++ non hanno firma) | 7 test offscreen con snapshot struttura/segnali/thread; zero LLM; 3/4 resta 🔒 termico |
+| A/B memoria (E4) | `tools/memory_ab.py`: 10 task congelati (`5e6051bfc33d`), retriever/solver finti, due bracci con/senza contesto, soglie GO ≥0.60 e delta ≥0.20 fissate prima del live; gate termico `fan_rpm>0` e ≤60 °C | 8 test offline + report `DOCS/MEMORY_AB_REPORT.md`; il dry-run NON alza il radar, 4/4 richiede LLM live 🔒 termico |
 
 ---
 
-*Documento aggiornato al Cycle 98 il 2026-11-22: il grafico legge ciclo e
+*Documento aggiornato al Cycle 99 il 2026-11-22: il grafico legge ciclo e
 conteggio meccanismi dai documenti, quindi basta premere 🔄 Rigenera nella
 Plancia (oppure `.venv/bin/python tools/gen_grafici.py`). I valori del radar
 restano giudizi espliciti in `tools/gen_grafici.py`.*

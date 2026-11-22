@@ -176,7 +176,7 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 | E1 | Refactoring mecc.: guard deterministico AST + behavioral diff per ogni patch | `tools/refactor_guard.py`: 8/8 refactoring atomici con API pubblica preservata, comportamento identico e zero errori di sintassi; report in `DOCS/` | [x] |
 | E2 | Fedeltà API: ref generati per librerie nuove + validazione simboli | `tools/gen_api_refs.py` + `validate_refs.py` + `api_lookup(strict=True)` su ≥2 librerie fuori cheat sheet; 0 simboli indefiniti in output eval | [x] |
 | E3 | Task GUI: 3 template PyQt6 curati + skill `py-gui-scaffold` | `GUI/refs/templates/` con finestra/layout/segnali/thread + test snapshot offscreen; collaudo con LLM resta 🔒 termico | [x] |
-| E4 | Memoria/contesto: preparare A/B 10 task con/senza contesto | Harness con retriever finto, task set congelato e soglia in `DOCS/BENCH.md`; esecuzione live resta 🔒 termico (C3) | [ ] |
+| E4 | Memoria/contesto: preparare A/B 10 task con/senza contesto | Harness con retriever finto, task set congelato e soglia in `DOCS/BENCH.md`; esecuzione live resta 🔒 termico (C3) | [x] |
 
 > Eseguito il 2026-11-22: A1–A4 chiusi in Cycle 87, 28 test mirati verdi,
 > 82 test di regressione verdi (110 subtests). B1 chiuso in Cycle 88:
@@ -189,7 +189,9 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 > 8 test eval + report `DOCS/API_FIDELITY_REPORT.md`, 0 simboli indefiniti su
 > `json`/`csv`, radar Fedeltà API 3/4 → 4/4; E3 in Cycle 98: 4 template
 > PyQt6 + skill `py-gui-scaffold`, 7 test offscreen, radar Task GUI 1/4 → 2/4
-> (3/4 richiede task live 🔒 termico). Registro:
+> (3/4 richiede task live 🔒 termico); E4 in Cycle 99: harness `tools/memory_ab.py`,
+> task set congelato `5e6051bfc33d`, soglie GO/NO-GO in `DOCS/BENCH.md`,
+> live 🔒 bloccato finché le ventole non sono verificate. Registro:
 > [`DOCS/IMPLEMENTED.md`](DOCS/IMPLEMENTED.md).
 > C3 resta 🔒 bloccato finché la ventola non è verificata (≤60 °C, ventole al max).
 

@@ -420,3 +420,22 @@ Nota: `api_lookup(strict=True)` blocca le classi C++ di PyQt6 (firme non
 introspettabili); per i simboli Qt la verifica deterministica è `api_lookup`
 senza `strict` (esistenza) + `GUI/refs/pyqt6.md`. Il passaggio da 2/4 a 3/4
 dell'asse Task GUI richiede un task reale con modello, non questo gate.
+
+---
+
+## Memoria/contesto (E4) — Cycle 99, harness pronto (2026-11-22)
+
+| Parametro | Valore |
+|---|---|
+| Task set congelato | `5e6051bfc33d` — 10 task, 8 con contesto utile, 2 senza |
+| Bracci | `with_context` vs `without_context`, stesso solver e stesso task set |
+| Soglia GO | tasso with ≥ **0.60** e delta ≥ **0.20** |
+| Soglia NO-GO | delta ≤ 0 |
+| Esito dry-run | solver finto: 0.80 vs 0.00 — **simulazione, non verdetto reale** |
+| Test | 8 offline, zero LLM/rete/GPU |
+| Esecuzione live | 🔒 bloccata: serve `data/state/fan_verified.json` con `fan_rpm > 0` e `temp_c <= 60` |
+
+Comando di preparazione: `.venv/bin/python tools/memory_ab.py --dry-run --out
+DOCS/MEMORY_AB_REPORT.md`. Le soglie sono state scritte **prima** di qualsiasi
+run live: il passaggio di Memoria/contesto da 3/4 a 4/4 richiede il verdetto
+reale sui 10 task, non il dry-run.
