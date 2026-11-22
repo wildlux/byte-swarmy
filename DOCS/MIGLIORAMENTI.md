@@ -1,4 +1,4 @@
-# 📈 Miglioramenti implementati — Cycle 70 → 85k (v0.3.18 → v0.3.32)
+# 📈 Miglioramenti implementati — Cycle 70 → 86 (v0.3.18 → v0.3.33)
 
 ![Grafico miglioramenti](grafici/miglioramenti.svg)
 
@@ -20,7 +20,7 @@ Scala (grafico D, criteri misurabili):
 | Livello | Criterio | Stato |
 |---|---|---|
 | **Junior** — 1/4 | 3b nudo senza sistema: 0/4 task GUI, modifiche minime fallite, requirements sovrascritto | baseline (C72) |
-| **Junior+** — 2/4 | Sistema v0.3.32: 26 meccanismi attivi, gate per-slot + assembler + import-check, Zero Warning (0 pyflakes), corpus feedback, best-of-N | **◀ siamo qui** |
+| **Junior+** — 2/4 | Sistema v0.3.33: 26 meccanismi attivi, gate per-slot + assembler + import-check, Zero Warning (0 pyflakes), corpus feedback, best-of-N | **◀ siamo qui** |
 | **Middle** — 3/4 | ≥50% dei task chiusi al primo tentativo (senza correction), task GUI ≥50% | target intermedio |
 | **Middle Senior** — 4/4 | **≥70% al primo tentativo; task GUI ≥75%; 0 simboli API inesistenti nei file scritti (gate import-check); 0 violazioni gate; 0 warning (pyflakes + pytest — regola Zero Warning) ✅ raggiunto (474 → 0)** | ★ GOAL |
 
@@ -122,10 +122,48 @@ reale. Nessun flake residuo: `test_functional_swarm` passa da solo
 | v0.3.27 | 83 | Ref WM espliciti (tkinter, pyside6) |
 | v0.3.28 | 84 | Clarifier ask-if-vague per GUI |
 | v0.3.30 | 85 | Audit robustezza: 15 difetti corretti, test ermetici |
+| v0.3.33 | 86 | Chat = banco di test (tools/skill on-off), client cloud Groq/Gemini/OpenRouter, sorting Archivio, dettaglio task a 2 colonne, scan segreti |
 
 ---
 
-*Documento e grafico generati dal Cycle 85k — aggiornare `tools/gen_grafici.py`
+## E. Novità Cycle 86 — banco di prova modelli e organizzazione GUI (Nov 2026)
+
+### Banco di prova modelli (Chat)
+
+| Componente | File | Cosa fa |
+|---|---|---|
+| Pannello Chat | `GUI/chat_panel.py` | sezione collassabile in Plancia; source combo, models combo, tool/skill pickers, chiave API |
+| Contesto selezionabile | `CORE/chat_context.py` | elenca tool (`TOOL_SIGNATURES`) e skill (`.opencode/skill/*/SKILL.md`), salva la selezione in `state/chat_tools_skills.json`, costruisce il blocco di system prompt (max 12k char) |
+| Client cloud | `CORE/cloud_client.py` | provider OpenAI-compatibili (Groq, Gemini, OpenRouter), `list_models`, `pick_default_model`, `chat`, chiavi in `state/cloud_api.json` (0600) |
+| CLI di test | `tools/test_cloud_api.py` | `--save-key`, `--list`, `--prompt`, misura latenza e stampa la risposta |
+
+Le skill restano **solo** in `.opencode/skill/`; le chiavi API non entrano mai
+in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
+`EchoMode.Password`.
+
+### Organizzazione GUI
+
+| Miglioramento | Effetto |
+|---|---|
+| Toggle "Seleziona/deseleziona tutti" | glifo e stato coerenti (☐ vuoto / ☑ pieno) |
+| Archivio — click su **Name** | ordine alfabetico A→Z, secondo click Z→A |
+| Archivio — click su **📄** | raggruppa per estensione; secondo click inverte cartelle/file |
+| Dettaglio task | due colonne: metadati/log a sinistra, **Risultato** e **Progetti** a destra |
+| Codice prodotto | click sul file → codice effettivo nel viewer (con ▶ Esegui) |
+| Etichette | pallini colore nel menu contestuale, settings, completer `#`, colori rapidi |
+
+### Sicurezza dei segreti
+
+| Controllo | Dettaglio |
+|---|---|
+| `tools/security_scan.py` S030 | rileva token/credenziali nell'URL dei remote git (`.git/config`) |
+| `tools/security_scan.py` S031 | rileva token reali (GitHub/Groq/Gemini/OpenRouter/AWS/Slack) nei file **tracciati** e nel diff staged |
+| mascheramento | il finding mostra solo i primi 4 caratteri (`ghp_…(40 char)`), mai il token intero |
+| remote git | URL pulito `https://github.com/wildlux/byte-swarmy.git`; credenziali nel credential helper dell'utente (`~/.git-credentials`, 0600, fuori dal repo) |
+
+---
+
+*Documento e grafico generati dal Cycle 86 — aggiornare `tools/gen_grafici.py`
 e rigenerare quando si aggiungono nuovi meccanismi.*
 
 ---

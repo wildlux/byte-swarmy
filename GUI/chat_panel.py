@@ -17,11 +17,13 @@ import urllib.request
 
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (
-    QComboBox, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QPushButton,
-    QTextEdit, QVBoxLayout, QWidget,
+    QComboBox, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QListWidget,
+    QListWidgetItem, QPushButton, QTextEdit, QVBoxLayout, QWidget,
 )
 
+from CORE import chat_context as chat_ctx
 from CORE import cloud_client as cc
+from GUI.collapsible_section import CollapsibleSection
 
 SOURCE_OLLAMA = "ollama"
 
@@ -188,6 +190,7 @@ class ChatPanel(QWidget):
         self.model_info.setObjectName("chat_model_info")
         self.model_info.setWordWrap(True)
         outer.addWidget(self.model_info)
+        self._build_context_section(outer)
         self._build_chat_area(outer)
         self._reload_models()
 
@@ -200,7 +203,7 @@ class ChatPanel(QWidget):
             self.source_combo.addItem(label, key)
         self.source_combo.currentIndexChanged.connect(self._on_source_changed)
         row.addWidget(self.source_combo, stretch=1)
-        self.key_btn = QPushButton("🔑 Chiave")
+        self.key_btn = QPushButton("🔑 Incolla chiave API")
         self.key_btn.clicked.connect(self._set_key)
         row.addWidget(self.key_btn)
         self.refresh_btn = QPushButton("🔄")
@@ -220,6 +223,93 @@ class ChatPanel(QWidget):
         self.clear_btn.clicked.connect(self._clear)
         row.addWidget(self.clear_btn)
         outer.addLayout(row)
+
+    def _build_context_section(self, outer):
+        self.context_section = CollapsibleSection("Tools e Skill", icon="🧰")
+        box = QWidget()
+        cols = QHBoxLayout(box)
+        cols.setSpacing(12)
+        cols.addWidget(self._build_picker("Tools", "tools"))
+        cols.addWidget(self._build_picker("Skill", "skills"))
+        self.context_section.add_widget(box)
+        self.context_section.set_expanded(False)
+        outer.addWidget(self.context_section)
+        self._fill_context_lists()
+
+    def _build_picker(self, title, kind):
+        wrap = QWidget()
+        lay = QVBoxLayout(wrap)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(4)
+        head = QHBoxLayout()
+        head.addWidget(QLabel(title))
+        head.addStretch()
+        for label, state in (("Tutti", True), ("Nessuno", False)):
+            btn = QPushButton(label)
+            btn.setFixedHeight(24)
+            btn.clicked.connect(
+                lambda _=False, k=kind, s=state: self._set_all(k, s))
+            head.addWidget(btn)
+        lay.addLayout(head)
+        widget = QListWidget()
+        widget.setMaximumHeight(150)
+        widget.itemChanged.connect(self._on_context_changed)
+        lay.addWidget(widget)
+        setattr(self, f"_{kind}_list", widget)
+        return wrap
+
+    def _fill_context_lists(self):
+        tools, skills = chat_ctx.load_selection()
+        self._fill_list(self._tools_list, chat_ctx.list_tool_names(), tools)
+        skill_entries = chat_ctx.list_skills()
+        self._fill_list(self._skills_list,
+                        [s["name"] for s in skill_entries], skills,
+                        {s["name"]: s["description"] for s in skill_entries})
+        self._refresh_context_title()
+
+    def _fill_list(self, widget, names, checked, tooltips=None):
+        widget.blockSignals(True)
+        widget.clear()
+        for name in names:
+            item = QListWidgetItem(name)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            state = (Qt.CheckState.Checked if name in checked
+                     else Qt.CheckState.Unchecked)
+            item.setCheckState(state)
+            if tooltips and tooltips.get(name):
+                item.setToolTip(tooltips[name])
+            widget.addItem(item)
+        widget.blockSignals(False)
+
+    def _checked(self, widget) -> list[str]:
+        return [widget.item(i).text() for i in range(widget.count())
+                if widget.item(i).checkState() == Qt.CheckState.Checked]
+
+    def _selected_tools(self) -> list[str]:
+        return self._checked(self._tools_list)
+
+    def _selected_skills(self) -> list[str]:
+        return self._checked(self._skills_list)
+
+    def _set_all(self, kind: str, checked: bool) -> None:
+        widget = self._tools_list if kind == "tools" else self._skills_list
+        widget.blockSignals(True)
+        state = (Qt.CheckState.Checked if checked
+                 else Qt.CheckState.Unchecked)
+        for i in range(widget.count()):
+            widget.item(i).setCheckState(state)
+        widget.blockSignals(False)
+        self._on_context_changed()
+
+    def _on_context_changed(self) -> None:
+        chat_ctx.save_selection(self._selected_tools(), self._selected_skills())
+        self._refresh_context_title()
+
+    def _refresh_context_title(self) -> None:
+        nt, tt = len(self._selected_tools()), self._tools_list.count()
+        ns, ts = len(self._selected_skills()), self._skills_list.count()
+        self.context_section.title_lbl.setText(
+            f"🧰 Tools e Skill ({nt}/{tt} tool · {ns}/{ts} skill)")
 
     def _build_chat_area(self, outer):
         self.system_input = QLineEdit()
@@ -263,7 +353,7 @@ class ChatPanel(QWidget):
         elif not cc.has_api_key(provider):
             info = cc.provider_info(provider)
             self.model_combo.addItem(
-                f"(serve chiave — ottienila su {info['signup']})", "")
+                f"(serve chiave — premi 🔑 Incolla chiave API · {info['signup']})", "")
         else:
             self.model_combo.addItem("⏳ carico modelli...", "")
             worker = _ModelsWorker(provider)
@@ -358,6 +448,12 @@ class ChatPanel(QWidget):
         self.output.append(f"\n👤 [{label}] {prompt}")
         self.output.append("⏳ Generazione in corso...")
         system = self.system_input.text().strip()
+        tools, skills = self._selected_tools(), self._selected_skills()
+        context = chat_ctx.build_context(tools, skills)
+        if context:
+            system = f"{system}\n\n{context}".strip() if system else context
+            self.output.append(
+                f"🧰 Contesto: {len(tools)} tool · {len(skills)} skill")
         if provider == SOURCE_OLLAMA:
             worker = _ChatWorker(model, prompt, system)
         else:

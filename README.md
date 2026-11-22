@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.3.32-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.3.33-blue">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-yellow">
   <img alt="Ollama" src="https://img.shields.io/badge/Ollama-required-orange">
@@ -31,7 +31,7 @@
 > con streaming token in tempo reale, selezione intelligente dei modelli e
 > ottimizzazione termica adattiva (Timestral LLM Tuner).
 
-**Versione:** 0.3.32 · **Licenza:** MIT · **Piattaforma:** Linux
+**Versione:** 0.3.33 · **Licenza:** MIT · **Piattaforma:** Linux
 
 ---
 
@@ -817,7 +817,36 @@ Le vecchie "7 tab" (Coda Task, Modelli, MCP Servers, Logs, Timestral, Config, Te
 - **QSplitter verticale** tra file tree ("Archivio progetto") e lista task ("Lavori e compiti"): divisibile a metà di default, ridimensionabile trascinando, dimensioni persistenti in `state/splitter_vertical_state.json`.
 - **Usabilità plancia**: badge con testo bianco su colore solido (contrasto leggibile, es. "Security", "Pipeline", "Scheduler"), badge a dimensione fissa, titoli troncati con puntini di sospensione + tooltip, tooltip sui valori CPU/GPU (2.1G = cache KV, 65% = RAM, 800M = bus/VRAM), filtro categorie "Tutte le categorie" accanto alla ricerca globale, barra di avanzamento "Pronto" e vuota a riposo, larghezza minima del pannello sinistro che si adegua allo zoom e barra di scorrimento visibile sull'area card.
 - **Correzione valori CPU/GPU**: `kv`/`mem`/`bus` erano segnaposto hardcoded identici per entrambi i box (2.1G, 65%, 800M). Ora mostrano valori reali: RAM % da `/proc/meminfo`, memoria GPU % e frequenza da `nvidia-smi`, cache KV stimata dal contesto del modello caricato. Mostrano `-` quando il dato non è disponibile.
+- **"Seleziona/deseleziona tutti" corretto**: il glifo del pulsante era invertito (☑ con lista vuota). Ora ☐ = nessuno selezionato, ☑ = tutti selezionati, e il click applica lo stato coerente.
+- **Archivio progetto — ordinamento**: click su **Name** ordina alfabeticamente (A→Z, secondo click Z→A, cartelle e file mescolati); click sull'icona **📄** ordina per tipologia di file e raggruppa le cartelle (secondo click inverte: prima i file, poi le cartelle).
+- **Dettaglio task — due colonne**: a sinistra metadati, descrizione, ultimo errore e log di debug; a destra **Risultato** e **Progetti / Codice prodotto**. Click sul nome di un file → anteprima del codice effettivo, con pulsante ▶ Esegui.
+- **Etichette con colore**: pallini colorati nel menu contestuale, nelle impostazioni, nel completer `#` e nel sotto-menu colori rapidi; rinomina/elimina/colore per ogni etichetta.
+- **Plancia — sezione "Skill"**: pannello per vedere e attivare/disattivare le skill del repo (`.opencode/skill/`), con stato persistito in `state/skills_enabled.json`.
 
+### 💬 Chat — banco di prova modelli (locale + cloud)
+
+Nella Plancia c'è una sezione collassabile **💬 Chat - Test modelli**.
+Serve a confrontare i modelli su prompt reali senza toccare la pipeline.
+
+| Funzione | Dettaglio |
+|---|---|
+| **Sorgente** | 📌 Ollama locale, ⚡ Groq, ✨ Google AI Studio (Gemini), 🌐 OpenRouter (`:free`) |
+| **Modelli** | elenco decorato da `GUI/actors_panel.py` (📌 locale / 🌍 cloud / ⬇ scaricabile + capability + note d'uso) |
+| **Tools on/off** | checkbox sui tool di `CORE/tools.py`; le firme selezionate vengono iniettate nel system prompt |
+| **Skill on/off** | checkbox sulle skill di `.opencode/skill/`; il corpo (troncato) viene iniettato come contesto |
+| **Persistenza** | `state/chat_tools_skills.json` (gitignored) |
+| **Chiave API** | pulsante **🔑 Incolla chiave API** → dialog mascherato (`EchoMode.Password`) → `state/cloud_api.json` con permessi `0600`, fuori da git |
+| **Errori** | il body HTTP reale del provider viene mostrato a schermo (`HTTP 402/410: …`), non un generico "HTTP error" |
+
+> La Chat **non esegue** i tool: li descrive nel prompt per misurare quanto il
+> modello ne comprende l'uso. La pipeline dei worker resta invariata e solo
+> Ollama-based.
+
+**Sicurezza delle chiavi**: la chiave API non viene mai scritta in file
+tracciati, non viene mostrata a schermo e non compare nei log. Ordine di
+risoluzione: variabile d'ambiente del provider → `state/cloud_api.json`.
+Il remote git è configurato **senza token nell'URL** (le credenziali stanno nel
+credential helper dell'utente, fuori dal repo).
 
 ### Swarm commands (istantanei, no LLM)
 
@@ -844,10 +873,10 @@ via `run_bash` nel sandbox.
 Push è **manuale solo**. I worker non possono modificare remote o push.
 
 ```bash
-./sync.sh "descrizione delle modifiche"
-./sync.sh --pull
-./sync.sh --status
-./sync.sh --log
+scripts/dev/sync.sh "descrizione delle modifiche"
+scripts/dev/sync.sh --pull
+scripts/dev/sync.sh --status
+scripts/dev/sync.sh --log
 ```
 
 ---
@@ -873,7 +902,10 @@ ma **non sostituiscono un isolamento di sistema**:
 - task MCP ricostruiti da zero e URL limitati a `http`/`https`;
 - audit log con rotazione in `logs/security.log`;
 - AST scanner: blocca `eval`, `exec`, `pickle` prima del sandbox;
-- anti-escape guardrail: blocca artefatti `\"`, `//` e righe duplicate nei file generati.
+- anti-escape guardrail: blocca artefatti `\"`, `//` e righe duplicate nei file generati;
+- segreti: `tools/security_scan.py` cerca token/API key nei file **tracciati** e
+  credenziali nell'URL dei remote git; le chiavi API stanno in `state/`
+  (gitignored, `0600`) o in variabili d'ambiente, mai nel codice.
 
 `[security] enabled = false` in `config.toml` viene **ignorato** e registrato
 come `CRITICAL`: il flag esiste solo per retrocompatibilità.

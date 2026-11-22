@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.3.32-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.3.33-blue">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-yellow">
   <img alt="Ollama" src="https://img.shields.io/badge/Ollama-required-orange">
@@ -30,7 +30,7 @@
 > documentation tasks under a deterministic orchestrator, with real-time token
 > streaming and intelligent model selection.
 
-**Version:** 0.3.32 · **License:** MIT · **Platform:** Linux
+**Version:** 0.3.33 · **License:** MIT · **Platform:** Linux
 
 ---
 
@@ -376,6 +376,31 @@ export BSWARM_GITLAB_TOKEN="glpat-…"  # remotes of type "gitlab"
 The env var takes **priority** over any token saved in `CONFIG/settings.json`; `CONFIG/settings.json`, `actors.json`, `scheduled_tasks.json`, … are gitignored and never committed by auto-sync.
 
 **Chat History**: accessible from Tools → Chat History, shows the last 20 completed tasks.
+
+### 💬 Chat — model test bench (local + cloud)
+
+The Dashboard has a collapsible **💬 Chat - Test models** section: compare models
+on real prompts without touching the pipeline.
+
+| Feature | Detail |
+|---|---|
+| **Source** | 📌 local Ollama, ⚡ Groq, ✨ Google AI Studio (Gemini), 🌐 OpenRouter (`:free`) |
+| **Models** | decorated list from `GUI/actors_panel.py` (📌 local / 🌍 cloud / ⬇ downloadable + capability + usage note) |
+| **Tools on/off** | checkboxes over `CORE/tools.py`; selected signatures are injected into the system prompt |
+| **Skills on/off** | checkboxes over `.opencode/skill/`; the (truncated) body is injected as context |
+| **Persistence** | `state/chat_tools_skills.json` (gitignored) |
+| **API key** | **🔑 Paste API key** button → masked dialog (`EchoMode.Password`) → `state/cloud_api.json`, mode `0600`, outside git |
+| **Errors** | the provider's real HTTP body is shown (`HTTP 402/410: …`) instead of a generic "HTTP error" |
+
+> Chat **does not execute** tools: it describes them in the prompt to measure
+> how well the model understands their use. The worker pipeline is unchanged
+> and stays Ollama-only.
+
+**Key security**: API keys are never written to tracked files, never echoed to
+the screen and never logged. Resolution order: provider env var →
+`state/cloud_api.json`. The git remote is configured **without a token in the
+URL** (credentials live in the user's credential helper, outside the repo), and
+`tools/security_scan.py` flags tokens in tracked files and remote URLs.
 
 The previous "7 tabs" (Task Queue, Models, MCP Servers, Logs, Timestral, Config, Test & Sandbox) are now reusable dialogs.
 

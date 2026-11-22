@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="940" height="1565" viewBox="0 0 940 1565">
-<rect width="940" height="1565" fill="#ffffff"/>
-<text x="20" y="38" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">byte-swarmy — Miglioramenti implementati (Cycle 70 → 85k)</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="1791" viewBox="0 0 940 1791">
+<rect width="940" height="1791" fill="#ffffff"/>
+<text x="20" y="38" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">byte-swarmy — Miglioramenti implementati (Cycle 70 → 86 — Nov 2026)</text>
 <text x="20" y="60" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#64748b">Generato deterministicamente da tools/gen_grafici.py — dati: DOCS/IMPLEMENTED.md</text>
 <text x="20" y="92" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">A. Audit robustezza Cycle 85 — 15 difetti corretti, per categoria</text>
 <text x="20" y="112" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Rilevati da pyflakes + pytest + smoke sandbox; tutti corretti e su GitHub (commit 4a1cb1a / 0bb4998 / 72e1b71)</text>
@@ -68,21 +68,21 @@
 <text x="870" y="309" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">26</text>
 <text x="870" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.31+</text>
 <text x="20" y="594" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">C. Crescita della suite di test (run completa)</text>
-<text x="20" y="614" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Durata: 387s (Cycle 75) → 1134s (Cycle 85): i gate ora eseguono veri comandi sandbox invece di morire su NameError</text>
+<text x="20" y="614" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Durata: 387s (Cycle 75) → 1031s (ultima run completa, 2026-11-19); 888 test + 1055 subtest, 0 warning</text>
 <text x="20" y="649" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Test passati</text>
 <rect x="249" y="634" width="621" height="11" rx="3" fill="#e2e8f0"/>
-<rect x="249" y="634" width="447" height="11" rx="3" fill="#64748b"/>
-<text x="704" y="643" font-family="DejaVu Sans, sans-serif" font-size="10.5" font-weight="bold" fill="#0f172a">756</text>
+<rect x="249" y="634" width="445" height="11" rx="3" fill="#64748b"/>
+<text x="702" y="643" font-family="DejaVu Sans, sans-serif" font-size="10.5" font-weight="bold" fill="#0f172a">756</text>
 <rect x="249" y="648" width="621" height="11" rx="3" fill="#e2e8f0"/>
-<rect x="249" y="648" width="467" height="11" rx="3" fill="#2563eb"/>
-<text x="724" y="657" font-family="DejaVu Sans, sans-serif" font-size="10.5" font-weight="bold" fill="#0f172a">789</text>
+<rect x="249" y="648" width="523" height="11" rx="3" fill="#2563eb"/>
+<text x="780" y="657" font-family="DejaVu Sans, sans-serif" font-size="10.5" font-weight="bold" fill="#0f172a">888</text>
 <text x="20" y="689" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Subtests passati</text>
 <rect x="249" y="674" width="621" height="11" rx="3" fill="#e2e8f0"/>
 <rect x="249" y="674" width="3" height="11" rx="3" fill="#64748b"/>
 <text x="260" y="683" font-family="DejaVu Sans, sans-serif" font-size="10.5" font-weight="bold" fill="#0f172a">0</text>
 <rect x="249" y="688" width="621" height="11" rx="3" fill="#e2e8f0"/>
 <rect x="249" y="688" width="621" height="11" rx="3" fill="#2563eb"/>
-<text x="878" y="697" font-family="DejaVu Sans, sans-serif" font-size="10.5" font-weight="bold" fill="#0f172a">1050</text>
+<text x="878" y="697" font-family="DejaVu Sans, sans-serif" font-size="10.5" font-weight="bold" fill="#0f172a">1055</text>
 <rect x="249" y="716" width="12" height="12" rx="2" fill="#64748b"/>
 <text x="267" y="726" font-family="DejaVu Sans, sans-serif" font-size="11" fill="#64748b">Cycle 75 (v0.3.22)</text>
 <rect x="399" y="716" width="12" height="12" rx="2" fill="#2563eb"/>
@@ -144,10 +144,28 @@
 <rect x="480" y="1379" width="12" height="12" rx="2" fill="#16a34a" fill-opacity="0.25" stroke="#16a34a" stroke-width="2" stroke-dasharray="6,4"/>
 <text x="498" y="1389" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">goal middle senior</text>
 <text x="20" y="1433" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">F. Skill operative attive — famiglia di skill del sistema</text>
-<text x="20" y="1453" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Aggiunte recenti: git-expert, date-counts, qr-code, freecad, blender, skill-lister; + pannello Plancia Skill (GUI)</text>
-<text x="20" y="1485.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Skill operative attive</text>
+<text x="20" y="1453" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Tutte versionate in .opencode/skill/: planner, refs API/kernel, CAD/3D, Linux, SQL, report, grafica, git, summarizer</text>
+<text x="20" y="1485.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Skill operative nel repo</text>
 <rect x="249" y="1467" width="621" height="26" rx="4" fill="#e2e8f0"/>
-<rect x="249" y="1467" width="621" height="26" rx="4" fill="#2563eb"/>
-<text x="878" y="1485.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">16</text>
-<text x="20" y="1525" font-family="DejaVu Sans, sans-serif" font-size="11" fill="#64748b">Nota: i "subtests" sono asserzioni per-elemento (subTest pytest) — non tracciati al Cycle 75.</text>
+<rect x="249" y="1467" width="621" height="26" rx="4" fill="#9333ea"/>
+<text x="878" y="1485.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">23</text>
+<text x="20" y="1539" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">G. Novità Nov 2026 — banco di test e organizzazione</text>
+<text x="20" y="1559" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Chat con tools/skill on-off, client Groq/Gemini/OpenRouter, etichette (rinomina/colore/elimina), sorting Archivio per nome/tipo</text>
+<text x="20" y="1591.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Tool selezionabili in Chat</text>
+<rect x="249" y="1573" width="621" height="26" rx="4" fill="#e2e8f0"/>
+<rect x="249" y="1573" width="621" height="26" rx="4" fill="#2563eb"/>
+<text x="878" y="1591.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">30</text>
+<text x="20" y="1631.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Skill attivabili in Chat</text>
+<rect x="249" y="1613" width="621" height="26" rx="4" fill="#e2e8f0"/>
+<rect x="249" y="1613" width="476" height="26" rx="4" fill="#9333ea"/>
+<text x="733" y="1631.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">23</text>
+<text x="20" y="1671.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Etichette default</text>
+<rect x="249" y="1653" width="621" height="26" rx="4" fill="#e2e8f0"/>
+<rect x="249" y="1653" width="352" height="26" rx="4" fill="#16a34a"/>
+<text x="609" y="1671.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">17</text>
+<text x="20" y="1711.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Provider cloud gratuiti</text>
+<rect x="249" y="1693" width="621" height="26" rx="4" fill="#e2e8f0"/>
+<rect x="249" y="1693" width="62" height="26" rx="4" fill="#f59e0b"/>
+<text x="319" y="1711.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">3</text>
+<text x="20" y="1751" font-family="DejaVu Sans, sans-serif" font-size="11" fill="#64748b">Nota: i "subtests" sono asserzioni per-elemento (subTest pytest) — non tracciati al Cycle 75.</text>
 </svg>

@@ -843,50 +843,65 @@ class FileTreeDrawer(QFrame):
     # ==================================================================
 
     def _toggle_sort_order(self):
-        """Alterna l'ordinamento: cartelle prima / file prima."""
+        """Alterna cartelle prima / file prima in modalità 'tipologia'."""
+        self.model._sort_mode = "type"
         self.model._folders_first = not self.model._folders_first
         self.sort_btn.setText("📁📄" if self.model._folders_first else "📄📁")
         self._refresh_file_tree()
 
     def _on_header_section_clicked(self, logicalIndex: int):
-        """Click sull'header di una colonna.
+        """Click sull'header: Name = alfabetico, icona 📄 = per tipologia.
 
-        Se si clicca sulla colonna Name (3): ordina i figli di ogni cartella
-        gia' espansa (e della radice) mettendo cartelle prima, poi file,
-        in ordine alfabetico.
+        - Name (col 3): A→Z al primo click, Z→A al successivo (cartelle e
+          file mescolati, ordine alfabetico puro).
+        - Icona 📄 (col 2): file raggruppati per estensione e cartelle in
+          blocco; un nuovo click inverte il blocco (cartelle prima/dopo).
         """
         if logicalIndex == 3:
-            self._sort_by_name()
+            if self.model._sort_mode != "name":
+                self.model._sort_mode = "name"
+                self.model._sort_desc = False
+            else:
+                self.model._sort_desc = not self.model._sort_desc
+            self._sort_loaded_tree()
+        elif logicalIndex == 2:
+            if self.model._sort_mode != "type":
+                self.model._sort_mode = "type"
+                self.model._folders_first = True
+            else:
+                self.model._folders_first = not self.model._folders_first
+            self.sort_btn.setText(
+                "📁📄" if self.model._folders_first else "📄📁")
+            self._sort_loaded_tree()
+
+    def _sort_loaded_tree(self) -> None:
+        """Riordina i figli già caricati secondo la modalità corrente."""
+        self._sort_children_recursive(self.model.invisibleRootItem())
 
     def _sort_by_name(self):
-        """Ordina i figli di ogni cartella visibile: cartelle prima, poi file, alfabeticamente."""
-        root = self.model.invisibleRootItem()
-        self._sort_children_recursive(root)
+        """Compat: ordina alfabeticamente i figli già caricati."""
+        self.model._sort_mode = "name"
+        self._sort_loaded_tree()
 
     def _sort_children_recursive(self, parent_item):
-        """Riordina i figli di parent_item: is_dir=True prima, poi nome alfabeticamente."""
+        """Riordina ricorsivamente i figli di parent_item."""
         rows = parent_item.rowCount()
         if rows <= 1:
             return
-        # Raccogli tutte le righe con takeRow (trasferisce la ownership a Python)
         row_items = []
         for _ in range(rows):
             row_items.append(parent_item.takeRow(0))
-        # Ordina: colonna 0 ha is_dir in UserRole+1 (True=cartella),
-        # colonna 3 ha il nome in UserRole
-        row_items.sort(key=lambda row: (
-            not row[0].data(Qt.ItemDataRole.UserRole + 1),  # cartelle prima
-            str(row[3].data(Qt.ItemDataRole.UserRole) or "").lower(),  # nome alfabetico
-        ))
-        # Reinserisci in ordine
+        reverse = (self.model._sort_mode == "name"
+                   and self.model._sort_desc)
+        row_items.sort(key=self.model.item_sort_key, reverse=reverse)
         for row in row_items:
             parent_item.appendRow(row)
-        # Ordina ricorsivamente le sottocartelle che hanno gia' figli caricati
         for row in row_items:
             col0 = row[0]
-            if col0.data(Qt.ItemDataRole.UserRole + 1):  # e' una cartella
+            if col0.data(Qt.ItemDataRole.UserRole + 1):  # è una cartella
                 first = col0.child(0, 0)
-                if col0.rowCount() > 0 and first is not None and first.data(Qt.ItemDataRole.UserRole) is not None:
+                if (col0.rowCount() > 0 and first is not None
+                        and first.data(Qt.ItemDataRole.UserRole) is not None):
                     self._sort_children_recursive(col0)
 
     # ==================================================================
@@ -1734,13 +1749,28 @@ class FileTreeDrawer(QFrame):
 
             dlg = QDialog(self)
             dlg.setWindowTitle(f"📋 Dettagli task {task_id[:12]}")
-            dlg.resize(600, 500)
+            dlg.resize(980, 640)
             lay = QVBoxLayout(dlg)
 
             title = QLabel(f"<b>{task.get('title', '(senza titolo)')[:80]}</b>")
             title.setStyleSheet("font-size:14px; padding:8px; border-radius:6px;")
             title.setWordWrap(True)
             lay.addWidget(title)
+
+            # Due colonne: sinistra = metadati/log, destra = risultato/codice.
+            from PyQt6.QtWidgets import QSplitter
+            body = QSplitter(Qt.Orientation.Horizontal)
+            left_panel = QWidget()
+            left_lay = QVBoxLayout(left_panel)
+            left_lay.setContentsMargins(0, 0, 0, 0)
+            right_panel = QWidget()
+            right_lay = QVBoxLayout(right_panel)
+            right_lay.setContentsMargins(0, 0, 0, 0)
+            body.addWidget(left_panel)
+            body.addWidget(right_panel)
+            body.setStretchFactor(0, 1)
+            body.setStretchFactor(1, 1)
+            lay.addWidget(body, stretch=1)
 
             form = QFormLayout()
             form.setSpacing(6)
@@ -1782,15 +1812,14 @@ class FileTreeDrawer(QFrame):
             if task.get('reason'):
                 form.addRow("Motivo:", QLabel(str(task.get('reason'))))
 
-            lay.addLayout(form)
+            left_lay.addLayout(form)
 
             for label, field in [("Descrizione", 'description'),
-                                  ("Risultato", 'result'),
                                   ("Ultimo errore", 'last_error')]:
                 val = task.get(field, '')
                 if val:
                     color_style = ' style="color:red"' if 'error' in field.lower() else ''
-                    lay.addWidget(QLabel(f"<b{color_style}>{label}:</b>"))
+                    left_lay.addWidget(QLabel(f"<b{color_style}>{label}:</b>"))
                     te = QTextEdit()
                     te.setReadOnly(True)
                     te.setPlainText(str(val)[:2000])
@@ -1798,7 +1827,19 @@ class FileTreeDrawer(QFrame):
                         te.setStyleSheet(
                             "border:1px solid rgba(128,128,128,0.35); border-radius:4px;")
                     te.setMaximumHeight(100)
-                    lay.addWidget(te)
+                    left_lay.addWidget(te)
+
+            # Risultato: colonna DESTRA (testo completo del task).
+            result_val = task.get('result', '')
+            if result_val:
+                right_lay.addWidget(QLabel("<b>Risultato:</b>"))
+                result_te = QTextEdit()
+                result_te.setReadOnly(True)
+                result_te.setPlainText(str(result_val)[:8000])
+                result_te.setStyleSheet(
+                    "border:1px solid rgba(128,128,128,0.35); border-radius:4px;")
+                result_te.setMinimumHeight(120)
+                right_lay.addWidget(result_te)
 
             # Codice prodotto dal task (navigabile se multi-file)
             try:
@@ -1807,7 +1848,8 @@ class FileTreeDrawer(QFrame):
                 print(f"raccolta file task: {_e}")
                 task_files = []
             if task_files:
-                lay.addWidget(QLabel("<b>📄 Codice prodotto:</b>"))
+                right_lay.addWidget(
+                    QLabel("<b>📄 Progetti / Codice prodotto:</b>"))
                 from PyQt6.QtWidgets import QSplitter
 
                 code_split = QSplitter(Qt.Orientation.Horizontal)
@@ -1816,6 +1858,8 @@ class FileTreeDrawer(QFrame):
                 file_list.setMaximumWidth(260)
                 viewer = QPlainTextEdit()
                 viewer.setReadOnly(True)
+                viewer.setPlaceholderText(
+                    "Clicca un file a sinistra per vedere il codice.")
                 viewer.setStyleSheet(
                     "font-family:'JetBrains Mono','Consolas',monospace; "
                     "font-size:11px;")
@@ -1823,12 +1867,16 @@ class FileTreeDrawer(QFrame):
                 code_split.addWidget(viewer)
                 code_split.setStretchFactor(0, 0)
                 code_split.setStretchFactor(1, 1)
-                lay.addWidget(code_split, stretch=1)
+                right_lay.addWidget(code_split, stretch=1)
 
                 def _load_file(item):
+                    if item is None:
+                        return
                     rel = item.text()
                     try:
-                        full = Path(BASE_DIR) / "project" / rel
+                        candidate = Path(rel)
+                        full = (candidate if candidate.is_absolute()
+                                else Path(BASE_DIR) / "project" / rel)
                         content = full.read_text(encoding="utf-8",
                                                  errors="replace")
                         if len(content) > 30000:
@@ -1841,6 +1889,7 @@ class FileTreeDrawer(QFrame):
 
                 file_list.currentItemChanged.connect(_load_file)
                 file_list.setCurrentRow(0)
+                _load_file(file_list.currentItem())
 
                 # Flusso utente 3: ESEGUIRE il codice generato
                 run_row = QHBoxLayout()
@@ -1849,7 +1898,7 @@ class FileTreeDrawer(QFrame):
                 run_hint.setStyleSheet("font-size:10px;")
                 run_row.addWidget(run_btn)
                 run_row.addWidget(run_hint, stretch=1)
-                lay.addLayout(run_row)
+                right_lay.addLayout(run_row)
 
                 proc_holder = []
 
@@ -1910,8 +1959,9 @@ class FileTreeDrawer(QFrame):
                 if len(task_files) > 1:
                     dlg.resize(980, 680)
             elif task.get("status") == "done":
-                lay.addWidget(QLabel("<span style='color:gray'>"
-                                     "Nessun file di progetto associato.</span>"))
+                right_lay.addWidget(QLabel(
+                    "<span style='color:gray'>"
+                    "Nessun file di progetto associato.</span>"))
 
             # Ragionamento / Log del task (per debug e stima tempo)
             try:
@@ -1943,7 +1993,8 @@ class FileTreeDrawer(QFrame):
                         pass
                 if len(lines_out) > 40:
                     lines_out = lines_out[-40:]
-                lay.addWidget(QLabel("<b>🧠 Ragionamento / Log (debug):</b>"))
+                left_lay.addWidget(
+                    QLabel("<b>🧠 Ragionamento / Log (debug):</b>"))
                 log_te = QTextEdit()
                 log_te.setReadOnly(True)
                 log_te.setStyleSheet(
@@ -1954,7 +2005,7 @@ class FileTreeDrawer(QFrame):
                     else "(nessun log trovato per questo task)"
                 )
                 log_te.setMaximumHeight(160)
-                lay.addWidget(log_te)
+                left_lay.addWidget(log_te)
             except Exception as e:
                 print(f"log ragionamento: {e}")
 

@@ -9,6 +9,7 @@ Cerca pattern pericolosi su tutti i .py del repo:
   - assert fuori da tests/ (rimossi con -O)
   - file .bak / backup / merge-conflict markers
   - file > 1 MB tracciati da git
+  - token/API key nei file TRACCIATI e nell'URL dei remote git
   - open() su path potenzialmente controllato dall'utente (euristico)
 
 Uso:
@@ -39,6 +40,23 @@ SECRET_RE = re.compile(
 )
 # esclude placeholder espliciti
 PLACEHOLDER_RE = re.compile(r"(?i)example|placeholder|xxx|changeme|your[_-]|<[^>]*>")
+
+# Token reali (GitHub, Groq, Gemini, OpenRouter, Slack, AWS).
+TOKEN_RE = re.compile(
+    r"(ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}"
+    r"|gsk_[A-Za-z0-9]{20,}|AIza[A-Za-z0-9_\-]{30,}"
+    r"|sk-or-v1-[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9\-]{10,}"
+    r"|AKIA[0-9A-Z]{16})"
+)
+# Credenziali dentro un URL https://utente:token@host
+URL_CRED_RE = re.compile(r"https?://[^/\s:@]+:[^/\s@]+@")
+BINARY_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".pdf", ".db",
+                   ".sqlite", ".ico", ".woff", ".woff2", ".zip", ".gz"}
+
+
+def _mask(secret: str) -> str:
+    """Mostra solo i primi 4 caratteri: il token non deve finire nei log."""
+    return f"{secret[:4]}…({len(secret)} char)" if len(secret) > 8 else "***"
 
 
 @dataclass
@@ -156,6 +174,60 @@ def _check_file(path: Path, findings: List[Finding]) -> None:
                                                 "yaml.load senza Loader (usa SafeLoader)"))
 
 
+def _git_remote_secrets(findings: List[Finding]) -> None:
+    """Token incorporati nell'URL dei remote (es. https://user:ghp_xxx@...).
+
+    Il remote vive in ``.git/config`` (non tracciato), ma chiunque legga la
+    cartella o un log di ``git remote -v`` vede il token in chiaro.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(ROOT), "config", "--get-regexp",
+             r"^remote\..*\.url$"],
+            capture_output=True, text=True, timeout=10,
+        ).stdout
+    except (subprocess.SubprocessError, OSError):
+        return
+    for line in out.splitlines():
+        key, _, url = line.partition(" ")
+        if URL_CRED_RE.search(url):
+            remote = key.split(".")[1] if "." in key else "?"
+            findings.append(Finding(
+                ".git/config", 1, "error", "S030",
+                f"token/credenziali nell'URL del remote '{remote}': "
+                "usa il credential helper o SSH e revoca il token"))
+
+
+def _tracked_secret_scan(findings: List[Finding]) -> None:
+    """Cerca token reali nei file TRACCIATI da git (quelli che finiscono online)."""
+    try:
+        raw = subprocess.run(
+            ["git", "-C", str(ROOT), "ls-files", "-z"],
+            capture_output=True, timeout=15,
+        ).stdout
+    except (subprocess.SubprocessError, OSError):
+        return
+    for entry in raw.split(b"\0"):
+        if not entry:
+            continue
+        rel = entry.decode("utf-8", "replace")
+        p = ROOT / rel
+        try:
+            if not p.is_file() or p.suffix.lower() in BINARY_SUFFIXES:
+                continue
+            if p.stat().st_size > 2_000_000:
+                continue
+            txt = p.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        for match in TOKEN_RE.finditer(txt):
+            line_no = txt.count("\n", 0, match.start()) + 1
+            findings.append(Finding(
+                rel, line_no, "error", "S031",
+                f"token/API key in file tracciato "
+                f"({_mask(match.group(0))}) — revoca e rimuovi"))
+
+
 def _repo_hygiene(findings: List[Finding]) -> None:
     # file .bak / backup
     for p in ROOT.rglob("*.bak*"):
@@ -211,6 +283,12 @@ def _repo_hygiene(findings: List[Finding]) -> None:
             if SECRET_RE.search(line) and not PLACEHOLDER_RE.search(line):
                 findings.append(Finding("(staged)", i, "error", "S001",
                                         "segreto nel diff staged"))
+            for match in TOKEN_RE.finditer(line):
+                findings.append(Finding(
+                    "(staged)", i, "error", "S031",
+                    f"token/API key nel diff staged ({_mask(match.group(0))})"))
+    _git_remote_secrets(findings)
+    _tracked_secret_scan(findings)
 
 
 def _is_nosec(f: Finding) -> bool:

@@ -73,7 +73,7 @@ class TaskListWidget(QFrame):
         btn_row.setSpacing(4)
 
         # ☑ Toggle select all
-        self.btn_select_all = QPushButton("☑")
+        self.btn_select_all = QPushButton("☐")
         self.btn_select_all.setFixedSize(28, 28)
         self.btn_select_all.setToolTip("Seleziona/deseleziona tutti i task")
         self.btn_select_all.setStyleSheet(BTN_TRANSPARENT_STYLE)
@@ -153,7 +153,7 @@ class TaskListWidget(QFrame):
             self._toggle_select_all()
         # Indicatore di stato sul pulsante: ☐ quando tutto è selezionato
         self.btn_select_all.setText(
-            "☐" if self._is_select_all_checked() else "☑")
+            "☑" if self._is_select_all_checked() else "☐")
 
     def _on_refresh_clicked(self):
         if self._on_refresh_requested:
@@ -209,7 +209,7 @@ class TaskListWidget(QFrame):
         for i in range(self.task_list.count()):
             it = self.task_list.item(i)
             it.setCheckState(new_state)
-        self.btn_select_all.setText("☐" if new_state == _Qt.CheckState.Checked else "☑")
+        self.btn_select_all.setText("☑" if new_state == _Qt.CheckState.Checked else "☐")
 
     def _is_select_all_checked(self) -> bool:
         """Verifica se tutti i task sono spuntati."""

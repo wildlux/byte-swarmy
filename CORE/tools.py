@@ -59,9 +59,45 @@ from CORE.regex_controller import RegexController, DEFAULT_PATTERNS, validate_ch
 from CORE.runtime_verifier import RuntimeVerifier
 from CORE.tool_registry import TOOL_REGISTRY, register_tool, get_tool, list_tools
 
+# Firme dei tool per i system prompt (worker e pannello Chat).
+# Estratte a livello modulo così anche la GUI può elencarle senza
+# istanziare un ToolSet (che richiede config e project_root).
+TOOL_SIGNATURES = {
+    "read_file": "read_file(path) -> str: legge un file dentro project/",
+    "read_document": "read_document(path) -> str: legge un documento (.txt/.md/.py/.pdf via pdftotext) e restituisce il testo estratto (troncato)",
+    "list_refs": "list_refs() -> str: elenca i cheat sheet disponibili in GUI/refs/ (PyQt6, ToolSet API, debt ledger). Leggili con read_file per ridurre allucinazioni.",
+    "api_lookup": "api_lookup(module, symbol='') -> str: introspezione per API nuove.",
+    "read_file_slice": "read_file_slice(path, start_line, end_line) -> str: legge max 200 righe di un file grande (righe 1-based)",
+    "write_file": "write_file(path, content) -> str: scrive atomicamente in project/",
+    "patch_code": "patch_code(path, old_text, new_text) -> str: sostituisce una porzione di testo in un file",
+    "delete_file": "delete_file(path) -> str: cancella un file singolo dentro project/",
+    "move_file": "move_file(path, new_path) -> str: rinomina o sposta un file dentro project/ (non sovrascrive)",
+    "list_files": "list_files(path='.', pattern='*') -> str: elenca file e cartelle (glob, es. '*.py')",
+    "analyze_project": "analyze_project() -> str: restituisce la mappa di classi e funzioni del progetto",
+    "find_references": "find_references(symbol) -> str: cerca tutte le occorrenze di una funzione/variabile",
+    "lint_code": "lint_code(path) -> str: verifica errori di sintassi e stile in un file",
+    "rename_symbol": "rename_symbol(old, new) -> str: rinomina un simbolo in tutto il progetto",
+    "analyze_complexity": "analyze_complexity(path) -> str: stima la complessità di un file",
+    "get_call_graph": "get_call_graph(symbol) -> str: mappa chi chiama la funzione/classe",
+    "extract_method": "extract_method(path, old_block, name, body) -> str: estrae un blocco in una nuova funzione",
+    "run_bash": "run_bash(cmd) -> str: UN comando semplice, senza pipe/redirect",
+    "git_commit": "git_commit(message) -> str: snapshot git locale",
+    "git_diff": "git_diff(rev='HEAD~1') -> str: diff locale",
+    "search": "search(pattern, file_glob='*') -> str: grep ricorsivo nel progetto",
+    "git_status": "git_status() -> str: stato repo (modificati/non tracciati)",
+    "git_log": "git_log(n=10) -> str: ultimi N commit",
+    "git_branch": "git_branch(action='list|create|switch|delete', name='') -> str",
+    "git_merge": "git_merge(branch) -> str: merge --no-ff branch locale",
+    "git_pull": "DISABILITATO per i worker (usa ./sync.sh come utente reale)",
+    "git_push": "DISABILITATO per i worker (usa ./sync.sh come utente reale)",
+    "git_remote": "git_remote(action='list') -> str (add/remove disabilitati)",
+    "run_test_suite": "run_test_suite() -> str: esegue i test del progetto",
+    "list_tools": "list_tools() -> str: elenca i tool disponibili con le loro firme",
+}
+
 # Re-export storici: tests/test_reuse.py importa questi nomi da CORE.tools.
 __all__ = [
-    "ToolSet", "PROTECTED_FILES", "PROTECTED_BRANCHES",
+    "ToolSet", "PROTECTED_FILES", "PROTECTED_BRANCHES", "TOOL_SIGNATURES",
     "TOOL_REGISTRY", "register_tool", "get_tool", "list_tools",
 ]
 
@@ -974,38 +1010,7 @@ class ToolSet:
 
     def list_tools(self) -> dict:
         """Firma dei tool per il system prompt dell'agente."""
-        return {
-            "read_file": "read_file(path) -> str: legge un file dentro project/",
-            "read_document": "read_document(path) -> str: legge un documento (.txt/.md/.py/.pdf via pdftotext) e restituisce il testo estratto (troncato)",
-            "list_refs": "list_refs() -> str: elenca i cheat sheet disponibili in GUI/refs/ (PyQt6, ToolSet API, debt ledger). Leggili con read_file per ridurre allucinazioni.",
-            "api_lookup": "api_lookup(module, symbol='') -> str: introspezione per API nuove.",
-            "read_file_slice": "read_file_slice(path, start_line, end_line) -> str: legge max 200 righe di un file grande (righe 1-based)",
-            "write_file": "write_file(path, content) -> str: scrive atomicamente in project/",
-            "patch_code": "patch_code(path, old_text, new_text) -> str: sostituisce una porzione di testo in un file",
-            "delete_file": "delete_file(path) -> str: cancella un file singolo dentro project/",
-            "move_file": "move_file(path, new_path) -> str: rinomina o sposta un file dentro project/ (non sovrascrive)",
-            "list_files": "list_files(path='.', pattern='*') -> str: elenca file e cartelle (glob, es. '*.py')",
-            "analyze_project": "analyze_project() -> str: restituisce la mappa di classi e funzioni del progetto",
-            "find_references": "find_references(symbol) -> str: cerca tutte le occorrenze di una funzione/variabile",
-            "lint_code": "lint_code(path) -> str: verifica errori di sintassi e stile in un file",
-            "rename_symbol": "rename_symbol(old, new) -> str: rinomina un simbolo in tutto il progetto",
-            "analyze_complexity": "analyze_complexity(path) -> str: stima la complessità di un file",
-            "get_call_graph": "get_call_graph(symbol) -> str: mappa chi chiama la funzione/classe",
-            "extract_method": "extract_method(path, old_block, name, body) -> str: estrae un blocco in una nuova funzione",
-            "run_bash": "run_bash(cmd) -> str: UN comando semplice, senza pipe/redirect",
-            "git_commit": "git_commit(message) -> str: snapshot git locale",
-            "git_diff": "git_diff(rev='HEAD~1') -> str: diff locale",
-            "search": "search(pattern, file_glob='*') -> str: grep ricorsivo nel progetto",
-            "git_status": "git_status() -> str: stato repo (modificati/non tracciati)",
-            "git_log": "git_log(n=10) -> str: ultimi N commit",
-            "git_branch": "git_branch(action='list|create|switch|delete', name='') -> str",
-            "git_merge": "git_merge(branch) -> str: merge --no-ff branch locale",
-            "git_pull": "DISABILITATO per i worker (usa ./sync.sh come utente reale)",
-            "git_push": "DISABILITATO per i worker (usa ./sync.sh come utente reale)",
-            "git_remote": "git_remote(action='list') -> str (add/remove disabilitati)",
-            "run_test_suite": "run_test_suite() -> str: esegue i test del progetto",
-            "list_tools": "list_tools() -> str: elenca i tool disponibili con le loro firme",
-        }
+        return dict(TOOL_SIGNATURES)
 
     # ------------------------------------------------------------------
     # Internals

@@ -70,11 +70,24 @@ class FileSystemModel(QStandardItemModel):
         self.setHeaderData(1, Qt.Orientation.Horizontal, "✓")
         self.setHeaderData(2, Qt.Orientation.Horizontal, "📄")
         self.setHeaderData(3, Qt.Orientation.Horizontal, "Name")
+        self.setHeaderData(
+            2, Qt.Orientation.Horizontal,
+            "Ordina per tipologia di file (click per invertire cartelle/file)",
+            Qt.ItemDataRole.ToolTipRole)
+        self.setHeaderData(
+            3, Qt.Orientation.Horizontal,
+            "Ordina alfabeticamente (click per invertire A→Z / Z→A)",
+            Qt.ItemDataRole.ToolTipRole)
         self._checked_paths = set()
         self._root_path = ""
         self._icon_provider = QFileIconProvider()
         self._dark_icons = False  # icone ri-tintate per tema scuro
-        # Ordinamento: True = cartelle prima poi file; False = file prima poi cartelle
+        # Ordinamento:
+        # - "name": alfabetico puro (cartelle e file mescolati), asc/desc
+        # - "type": per tipologia di file; _folders_first decide se le
+        #   cartelle vengono prima o dopo i file.
+        self._sort_mode = "name"
+        self._sort_desc = False
         self._folders_first = True
 
     def set_dark_icons(self, dark: bool) -> None:
@@ -119,6 +132,14 @@ class FileSystemModel(QStandardItemModel):
         self.setHeaderData(1, Qt.Orientation.Horizontal, "✓")
         self.setHeaderData(2, Qt.Orientation.Horizontal, "📄")
         self.setHeaderData(3, Qt.Orientation.Horizontal, "Name")
+        self.setHeaderData(
+            2, Qt.Orientation.Horizontal,
+            "Ordina per tipologia di file (click per invertire cartelle/file)",
+            Qt.ItemDataRole.ToolTipRole)
+        self.setHeaderData(
+            3, Qt.Orientation.Horizontal,
+            "Ordina alfabeticamente (click per invertire A→Z / Z→A)",
+            Qt.ItemDataRole.ToolTipRole)
         root_item = self.invisibleRootItem()
         self._populate_folder(self._root_path, root_item)
 
@@ -173,15 +194,14 @@ class FileSystemModel(QStandardItemModel):
         name.setData(False, Qt.ItemDataRole.UserRole + 1)  # non è una cartella
         return [empty, checkbox, icon_item, name]
 
-    def _populate_folder(self, folder_path, parent_item):
+    def _visible_entries(self, folder_path):
+        """[(name, full_path, is_dir)] visibili, senza file/cartelle di sistema."""
         try:
-            entries = sorted(os.listdir(folder_path))
+            names = sorted(os.listdir(folder_path))
         except Exception:
-            return
-        # Separa cartelle e file per poterle ordinare a gruppi
-        dirs = []
-        files = []
-        for name in entries:
+            return []
+        entries = []
+        for name in names:
             # Salta file/cartelle di sistema che non devono apparire nell'albero
             if name == "__init__.py":
                 continue
@@ -196,15 +216,36 @@ class FileSystemModel(QStandardItemModel):
             if name.startswith(".") and name not in (".", ".."):
                 continue
             full_path = os.path.join(folder_path, name)
-            is_dir = os.path.isdir(full_path)
-            if is_dir:
-                dirs.append((name, full_path, is_dir))
-            else:
-                files.append((name, full_path, is_dir))
-        if self._folders_first:
-            ordered = dirs + files
-        else:
-            ordered = files + dirs
+            entries.append((name, full_path, os.path.isdir(full_path)))
+        return entries
+
+    def sort_entries(self, entries):
+        """Ordina [(name, path, is_dir)] secondo modalità e direzione correnti."""
+        if self._sort_mode == "type":
+            folders = sorted((e for e in entries if e[2]),
+                             key=lambda e: e[0].lower())
+            files = sorted(
+                (e for e in entries if not e[2]),
+                key=lambda e: (os.path.splitext(e[0])[1].lower(),
+                               e[0].lower()))
+            return folders + files if self._folders_first else files + folders
+        return sorted(entries, key=lambda e: e[0].lower(),
+                      reverse=self._sort_desc)
+
+    def item_sort_key(self, row):
+        """Chiave di ordinamento per una riga già caricata (4 colonne)."""
+        name = str(row[3].data(Qt.ItemDataRole.UserRole) or "").lower()
+        is_dir = bool(row[0].data(Qt.ItemDataRole.UserRole + 1))
+        if self._sort_mode == "type":
+            ext = "" if is_dir else os.path.splitext(name)[1].lower()
+            group = 0 if is_dir else 1
+            if not self._folders_first:
+                group = 1 - group
+            return (group, ext, name)
+        return (name,)
+
+    def _populate_folder(self, folder_path, parent_item):
+        ordered = self.sort_entries(self._visible_entries(folder_path))
         # Cartella senza contenuti: mostra la riga "Cartella vuota"
         if not ordered:
             parent_item.appendRow(self._make_empty_marker())
@@ -229,37 +270,7 @@ class FileSystemModel(QStandardItemModel):
         # Rimuovi placeholder esistenti
         while parent_item.rowCount() > 0:
             parent_item.removeRow(0)
-        try:
-            entries = sorted(os.listdir(full_path))
-        except Exception:
-            return
-        # Separa cartelle e file per ordine (stessa logica di _populate_folder)
-        dirs = []
-        files = []
-        for name in entries:
-            # Salta file/cartelle di sistema che non devono apparire nell'albero
-            if name == "__init__.py":
-                continue
-            if name == "__pycache__":
-                continue
-            if name.endswith(".pyc"):
-                continue
-            if name == ".git":
-                continue
-            if name == ".venv":
-                continue
-            if name.startswith(".") and name not in (".", ".."):
-                continue
-            child_full = os.path.join(full_path, name)
-            is_dir = os.path.isdir(child_full)
-            if is_dir:
-                dirs.append((name, child_full, is_dir))
-            else:
-                files.append((name, child_full, is_dir))
-        if self._folders_first:
-            ordered = dirs + files
-        else:
-            ordered = files + dirs
+        ordered = self.sort_entries(self._visible_entries(full_path))
         # Cartella senza contenuti: mostra la riga "Cartella vuota"
         if not ordered:
             parent_item.appendRow(self._make_empty_marker())

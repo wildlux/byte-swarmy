@@ -10,10 +10,46 @@ Rigenera con:  .venv/bin/python tools/gen_grafici.py
 Deterministico: stesso input → stesso SVG byte-per-byte (nessun timestamp).
 """
 from pathlib import Path
+import sys
 from xml.sax.saxutils import escape
 
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 OUT = ROOT / "DOCS" / "grafici" / "miglioramenti.svg"
+SKILLS_DIR = ROOT / ".opencode" / "skill"
+
+
+def skill_count() -> int:
+    """Numero di skill operative nel repo (SKILL.md)."""
+    return len(list(SKILLS_DIR.glob("*/SKILL.md")))
+
+
+def tool_count() -> int:
+    """Numero di tool selezionabili nel banco Chat."""
+    try:
+        from CORE.tools import TOOL_SIGNATURES
+        return len(TOOL_SIGNATURES)
+    except Exception:
+        return 30
+
+
+def label_count() -> int:
+    """Numero di etichette di default."""
+    try:
+        from CORE.labels import DEFAULT_LABELS
+        return len(DEFAULT_LABELS)
+    except Exception:
+        return 17
+
+
+def cloud_provider_count() -> int:
+    """Provider cloud gratuiti supportati dal banco di test."""
+    try:
+        from CORE.cloud_client import PROVIDERS
+        return len(PROVIDERS)
+    except Exception:
+        return 3
 
 W = 940
 MARGIN_L = 245          # spazio etichette barre orizzontali
@@ -62,8 +98,8 @@ CHART_B = [
 
 # ── Dati Chart C: suite di test ──────────────────────────────────────
 CHART_C = [
-    ("Test passati", 756, 789),
-    ("Subtests passati", 0, 1050),
+    ("Test passati", 756, 888),
+    ("Subtests passati", 0, 1055),
 ]
 C75_COLOR = C_GRAY
 C85_COLOR = C_BLUE
@@ -355,7 +391,7 @@ def build_svg() -> str:
     sections.append(
         f'<text x="20" y="38" font-family="{FONT}" font-size="20" '
         f'font-weight="bold" fill="#0f172a">byte-swarmy — Miglioramenti '
-        f'implementati (Cycle 70 → 85k)</text>')
+        f'implementati (Cycle 70 → 86 — Nov 2026)</text>')
     sections.append(
         f'<text x="20" y="60" font-family="{FONT}" font-size="12" '
         f'fill="{C_GRAY}">Generato deterministicamente da '
@@ -385,8 +421,8 @@ def build_svg() -> str:
     s, y = grouped_section(
         CHART_C, x0, x1, y,
         "C. Crescita della suite di test (run completa)",
-        "Durata: 387s (Cycle 75) → 1134s (Cycle 85): i gate ora eseguono "
-        "veri comandi sandbox invece di morire su NameError")
+        "Durata: 387s (Cycle 75) → 1031s (ultima run completa, 2026-11-19); "
+        "888 test + 1055 subtest, 0 warning")
     sections.append(s)
 
     y += 24
@@ -416,11 +452,23 @@ def build_svg() -> str:
 
     y += 24
     s, y = hbar_section(
-        [("Skill operative attive", 16, C_BLUE)],
+        [("Skill operative nel repo", skill_count(), C_PURPLE)],
         x0, x1, y,
         "F. Skill operative attive — famiglia di skill del sistema",
-        "Aggiunte recenti: git-expert, date-counts, qr-code, freecad, "
-        "blender, skill-lister; + pannello Plancia Skill (GUI)")
+        "Tutte versionate in .opencode/skill/: planner, refs API/kernel, "
+        "CAD/3D, Linux, SQL, report, grafica, git, summarizer")
+    sections.append(s)
+
+    y += 24
+    s, y = hbar_section(
+        [("Tool selezionabili in Chat", tool_count(), C_BLUE),
+         ("Skill attivabili in Chat", skill_count(), C_PURPLE),
+         ("Etichette default", label_count(), C_GREEN),
+         ("Provider cloud gratuiti", cloud_provider_count(), C_ORANGE)],
+        x0, x1, y,
+        "G. Novità Nov 2026 — banco di test e organizzazione",
+        "Chat con tools/skill on-off, client Groq/Gemini/OpenRouter, "
+        "etichette (rinomina/colore/elimina), sorting Archivio per nome/tipo")
     sections.append(s)
 
     y += 10
