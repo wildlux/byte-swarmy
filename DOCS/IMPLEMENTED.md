@@ -2571,3 +2571,14 @@ slice o regole firewall, e non è stato usato `pkexec`.
 Verifiche: 13 test mirati verdi, `pyflakes` 0. **Nessun gate indebolito**: il
 report continua a rifiutare RPM surrogati e il file `fan_verified.json` resta
 assente.
+
+---
+
+## Cycle 115 (2026-11-22) — Stato onesto del piano "Domani"
+
+| Modifica | Dettaglio |
+|---|---|
+| `todo.md` | Le 5 voci del piano datato 2026-11-20 non sono più etichettate "(Domani)": ora riportano 🔒, il riferimento M/C3 e il blocco effettivo (trigger CI, gate termico, GPU). Aggiunto rimando a `DOCS/CI_PROFILE_DIAGNOSIS.md`. Nessuna voce chiusa o scoperta: solo rimozione di una scadenza ormai falsa |
+
+Verifiche: nessun codice toccato; `git diff --check` e report deterministico
+rigenerato. **Nessuna attività LLM, CI o termica avviata.**

@@ -574,14 +574,24 @@ compute grezzo.
 > Dopo la riparazione: CPU ≤ 60 °C (non 65) e LLM/GPU ≤ 60 °C con
 > ventole al massimo.
 
-1. [ ] (Domani) Suite completa finale di regressione: `pytest --ignore=project
+> ⚠️ **Aggiornamento Cycle 115**: il piano era del 2026-11-20, oggi 2026-11-22.
+> Nessuna di queste voci è stata eseguita: tutte restano 🔒 per la regola
+> termica del 2026-11-20. I riferimenti sotto sostituiscono la scadenza
+> "Domani" con lo stato reale; la diagnosi M6 è in
+> `DOCS/CI_PROFILE_DIAGNOSIS.md`.
+
+1. [ ] 🔒 (M2/M6) Suite completa finale di regressione: `pytest --ignore=project
       -q -p no:cacheprovider --durations=0` (regola operativa) → conferma
       finale Zero Warning + exit 0; usare i dati per il profilo fast ≤3 min.
-2. [ ] (Domani) Fase D-16 — sweep num_ctx 2048/3072/4096 con flash_attention_kv
-      (run LLM, ventole al max, ≤60 °C).
-3. [ ] (Domani) SLOT-4 — prompt per-slot + benchmark 3 task reali.
-4. [ ] (Domani) P2-4 — A/B memoria/contesto (10 task, run LLM).
-5. [ ] (Domani) Fase C — feasibility QLoRA 3b (notte, GPU 4GB, macchina fredda).
+      Solo su GitHub Actions; trigger bloccato (CLI GitHub + auth).
+2. [ ] 🔒 (Fase D-16 / C3) Sweep num_ctx 2048/3072/4096 con flash_attention_kv
+      (run LLM, ventole al max, ≤60 °C). Serve `fan_verified.json`.
+3. [ ] 🔒 (SLOT-4 / M7) Prompt per-slot + benchmark 3 task reali.
+      Stesso gate termico; la parte deterministica di SLOT-3 è già lockata.
+4. [ ] 🔒 (P2-4 / C3) A/B memoria/contesto (10 task, run LLM).
+      Harness `tools/memory_ab.py` pronto, esecuzione live bloccata.
+5. [ ] 🔒 (Fase C / C3) Feasibility QLoRA 3b (notte, GPU 4GB, macchina fredda).
+      Nessun training avviato: GPU e gate termico non verificati.
 
 ---
 
