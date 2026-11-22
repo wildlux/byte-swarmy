@@ -247,11 +247,20 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 | Azione successiva | Stato |
 |---|---|
 | Chiudere questa verifica di sicurezza | [x] |
-| Ruotare il token GitHub esposto e aggiornare `~/.git-credentials` o passare a SSH | [ ] 🔒 credenziali |
-| Attivare utente dedicato + firewall: `./setup-hardening.sh --all` | [ ] 🔒 root |
+| Passare il remote di questo repo da HTTPS a SSH (mitigazione token esposto) | [x] — SSH verificato con `git ls-remote origin HEAD` |
+| Ruotare/revocare il token GitHub esposto | [ ] 🔒 serve accesso web/API GitHub: `gh` installato ma **non autenticato** |
+| Cancellare `~/.git-credentials` | [ ] ⛔ non fatto: altri 4 repo usano HTTPS GitHub; va **aggiornato** dopo la rotazione, non rimosso |
+| Attivare utente dedicato + firewall: `scripts/setup/hardening.sh --all` | [ ] 🔒 root: sudo non passwordless; diagnostica → utente `byteswarmy` e slice cgroup assenti |
+| Aggiornare i 23 riferimenti a `./setup-hardening.sh` (script reale: `scripts/setup/hardening.sh`) | [ ] documentazione |
 | Mantenere le difese deterministiche senza allargare l'allowlist | [x] |
 | Aggiungere un rilevatore AI-based | [ ] ⛔ non fare ora: troppo alto senza misure e gate termico |
 
+> Eseguito in autonomia il 2026-11-22: remote SSH verificato (`git ls-remote`
+> OK), diagnostica hardening letta senza modifiche, credenziale HTTPS **non**
+> rimossa perché usata da altri 4 repo. `gh` non è autenticato e sudo non è
+> passwordless: rotazione token e `--all` restano blocchi reali con rimedio
+> concreto (fare login GitHub e revocare il PAT; eseguire lo script come root).
+>
 > Esito: il sistema è ben difeso **contro** l'AI locale, ma non **usa**
 > l'AI locale per difendersi. Il passo successivo consigliato è chiudere
 > rotazione token + utente dedicato prima di qualsiasi "difesa AI".
