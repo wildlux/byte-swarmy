@@ -1,4 +1,4 @@
-# 📈 Miglioramenti implementati — Cycle 70 → 111 (v0.3.18 → v0.3.34)
+# 📈 Miglioramenti implementati — Cycle 70 → 112 (v0.3.18 → v0.3.34)
 
 ![Grafico miglioramenti](grafici/miglioramenti.svg)
 
@@ -224,7 +224,7 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 
 ---
 
-*Documento aggiornato al Cycle 111 il 2026-11-22: il grafico legge ciclo e
+*Documento aggiornato al Cycle 112 il 2026-11-22: il grafico legge ciclo e
 conteggio meccanismi dai documenti, quindi basta premere 🔄 Rigenera nella
 Plancia (oppure `.venv/bin/python tools/gen_grafici.py`). I valori del radar
 restano giudizi espliciti in `tools/gen_grafici.py`.*

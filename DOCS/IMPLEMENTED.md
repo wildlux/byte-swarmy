@@ -2529,3 +2529,17 @@ applicata e il profiling completo passa solo da GitHub Actions.
 Verifiche: 5 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning.
 **Nessun caso aggiunto e nessuna misura pass@1 prodotta**: i test bloccano la
 struttura già presente, non simulano risultati di modello.
+
+---
+
+## Cycle 112 (2026-11-22) — M6: diagnosi del run CI fallito con fonti reali
+
+| Modifica | Dettaglio |
+|---|---|
+| `DOCS/CI_PROFILE_DIAGNOSIS.md` (nuovo) | Evidenza da GitHub Actions REST API pubblica: run #2 `44838701460` su `e3f90be`, step 6 `Profilazione completa` fallito in 3 s (23:42:26→29), artifact 1227 byte; log e artifact richiedono auth (`401`/`403`) e **non sono stati letti**. Ipotesi errore di collezione, dichiarata come ipotesi. Mitigazioni `f35f9dd`/`b3ec027` e verifica locale `--collect-only` EXIT=0 (1094 test in 1,71 s) |
+| `tests/test_ci_profile_workflow.py` (nuovo) | 5 test offline: workflow manuale con Python 3.11, pausa e2e, step diagnostico `--collect-only`, profilazione con `--durations=0` e `QT_QPA_PLATFORM=offscreen`, upload di `pytest_profile.log` + `collect.log` con `if: always()` |
+| `todo.md` | M6 portato a `[~]`: diagnosi e strumenti fatti; trigger su GitHub Actions resta 🔒 (CLI ufficiale + auth) |
+
+Verifiche: 5 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning.
+**Nessun run CI avviato e nessun log privato scaricato**: la diagnosi usa solo
+metadati pubblici e la collezione locale, che non esegue test.
