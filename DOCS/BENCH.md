@@ -494,3 +494,22 @@ alzato: SLOT-5 resta `[~]` finché la tabella non contiene dati misurati.
 Il tool NON esegue il modello più grande: riceve una soluzione già prodotta
 esternamente e la rifiuta se anche uno solo dei sei gate fallisce. Le soluzioni
 dei test sono file sintetici e non entrano nel corpus versionato.
+
+---
+
+## Prompt per-slot (SLOT-4) — Cycle 119, builder pronto (2026-11-22)
+
+| Parametro | Valore |
+|---|---|
+| Strumento | `tools/slot_prompt.py` + `tests/test_slot_prompt.py` (9 test) |
+| Input | `SlotPlan` deterministico da `CORE/slot_planner.py` (già lockato da SLOT-3) |
+| Output | Un prompt per chiamata: sole refs dello slot corrente, anchor reale del template, regole di output ≤40 righe |
+| Fail-closed | Piani rifiutati dal planner non generano prompt; indice slot fuori range → errore |
+| Onestà | Nessun client LLM; il report dichiara che il benchmark reale resta 🔒 termico |
+| Esempio | `DOCS/SLOT4_PROMPTS.md` (task "finestra con titolo", 2 slot) generato dal tool |
+| Stato | `[~]`: struttura dei prompt verificata; 🔒 restano 3 task reali misurati con pass@1 |
+
+Il builder cambia **solo il prompt**, non il motore: ogni chiamata vede le ref
+del proprio slot e l'anchor del template, senza le ref degli altri slot. Nessun
+modello è stato invocato: il pass@1 per tipo di slot richiede il benchmark live
+con ventole verificate.

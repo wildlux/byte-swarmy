@@ -366,11 +366,20 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
       ✅ Flag e gate-giudice già presenti (`CONFIG/config.toml:237`
       `best_of_n = 1`, `CORE/best_of.py`, lock in `tests/test_config_gates.py`).
       🔒 Resta il benchmark costo/qualità: richiede run LLM, non eseguito.
-3. [ ] **[SLOT-4] Prompt per-slot + benchmark 3 task reali** — cambia
+3. [~] **[SLOT-4] Prompt per-slot + benchmark 3 task reali** — cambia
       il prompt (non il motore): uno slot per chiamata, refs solo
       dello slot, output piccolo. ⚠ Richiede run LLM (ventole al max,
       limite 60°C, sessione corta). Criterio done: 3 task reali
       misurati con pass@1 per tipo di slot in DOCS/BENCH.md.
+      > ✅ **Slice SLOT-4 fatta (Cycle 119)**: `tools/slot_prompt.py`
+      > converte il `SlotPlan` deterministico in un prompt per slot,
+      > con le sole refs dello slot corrente, l'anchor reale del
+      > template e regole di output piccolo (≤40 righe). Fail-closed
+      > sui piani rifiutati, zero client LLM. `DOCS/SLOT4_PROMPTS.md`
+      > generato dal tool + `tests/test_slot_prompt.py` (9 test).
+      > 🔒 Restano i **3 task reali misurati** con pass@1 sotto gate
+      > termico: nessun modello è stato chiamato, il benchmark non è
+      > stato eseguito.
 4. [x] **[Robustezza #3] Config: validazione fail-fast all'avvio** —
       verificato (`CORE/orchestrator.py:170`): toml invalido/chiave
       errata → warning e si girano i DEFAULT silenziosamente. Criterio

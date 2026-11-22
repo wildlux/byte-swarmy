@@ -2627,3 +2627,22 @@ Verifiche: 10 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning.
 **Nessun LLM, rete o GPU**: le soluzioni usate nei test sono sintetiche e il
 report lo dichiara; servono ≥3 esempi reali da modello 7b/14b per chiudere
 la voce.
+
+---
+
+## Cycle 119 (2026-11-22) — SLOT-4: builder deterministico dei prompt per-slot
+
+| Modifica | Dettaglio |
+|---|---|
+| `tools/slot_prompt.py` (nuovo) | Converte un `SlotPlan` (da `CORE/slot_planner.py`) in un prompt per chiamata: sole refs dello slot corrente, anchor reale del template, regole di output ≤40 righe. Fail-closed su piani rifiutati e indici fuori range; nessun client LLM/rete/scrittura di progetto (solo `--out`). CLI con `--json` e `--out` |
+| `tests/test_slot_prompt.py` (nuovo) | 9 test offline: un prompt per slot con refs isolate, anchor e regole output, rifiuto piano rifiutato, indice fuori range, determinismo e report, dichiarazione benchmark bloccato, CLI JSON/rifiuto/scrittura, assenza client LLM |
+| `DOCS/SLOT4_PROMPTS.md` (nuovo) | Generato dal tool per "finestra con titolo" (2 slot) |
+| `DOCS/BENCH.md`, `todo.md` | Sezione SLOT-4 con stato `[~]`; restano 3 task reali da misurare |
+
+Nota CI (M6): il log HTML pubblico del job `44838701460` conferma solo
+`exit code 2` (collezione/interruzione), senza testo di errore. Nessun log
+privato letto: la diagnosi in `DOCS/CI_PROFILE_DIAGNOSIS.md` resta invariata.
+
+Verifiche: 9 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning.
+**Nessun LLM, rete o GPU**: i prompt sono generati dal piano deterministico;
+il benchmark con 3 task reali resta 🔒 termico.
