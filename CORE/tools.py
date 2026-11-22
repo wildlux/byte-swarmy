@@ -82,6 +82,7 @@ TOOL_SIGNATURES = {
     "rename_symbol": "rename_symbol(old, new, apply=False) -> str: anteprima diff; apply=True scrive con snapshot",
     "restore_snapshot": "restore_snapshot(id) -> str: ripristina i file di un rename precedente (rollback)",
     "spawn_subagent": "spawn_subagent(model_key, task) -> str: crea un figlio (profondità max 1, max 4); NON esegue LLM",
+    "retrieve_similar_task": "retrieve_similar_task(query, k=3) -> str: recupera task simili chiusi dal corpus/queue (TF-IDF, zero LLM); non viene chiamato automaticamente",
     "get_subagent_report": "get_subagent_report(agent_id) -> str: esegue (se pending) e restituisce il report del figlio",
     "list_subagents": "list_subagents() -> str: elenca i subagent con stato e modello",
     "analyze_complexity": "analyze_complexity(path) -> str: stima la complessità di un file",

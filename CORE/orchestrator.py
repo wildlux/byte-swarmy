@@ -32,6 +32,7 @@ from CORE.task_dispatcher import TaskDispatcher
 from CORE.tools import ToolSet
 from CORE.memory import AgentMemory
 from CORE.ollama_client import ModelClient
+from CORE import feedback_corpus as feedback_corpus_module  # A2: triple fallimenti
 
 # New import for structured logging
 import datetime
@@ -957,6 +958,17 @@ class Orchestrator:
                 f"task {task['id']} FAILED_DEFINITIVELY after "
                 f"{self.queue.RETRY_LIMIT + 1} attempts"
             )
+            # A2: il fallimento definitivo alimenta il corpus con un reason
+            # tracciato (prompt correttivo). Scrittura passiva, fail-open.
+            try:
+                feedback_corpus_module.failure_triple(
+                    task=task, reason=reason,
+                    attempts=self.queue.RETRY_LIMIT + 1,
+                    model=(getattr(worker, "model_key", "") if worker else ""),
+                    correction=correction,
+                    state_dir=self.config["paths"].get("state_dir"))
+            except Exception as _e:
+                self.log.debug(f"triple failed_definitively non salvata: {_e}")
             # 🆕 Rollback all'ultima configurazione LLM nota come buona,
             # per evitare di restare bloccati con parametri che producono loop.
             mk = worker.model_key if worker else None

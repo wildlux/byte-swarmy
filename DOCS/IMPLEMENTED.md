@@ -2107,3 +2107,19 @@ gate/assembler a 0).
 **Prossima voce del piano** (Fase B — corpus di triple): da avviare subito
 colle regole già messe in piedi (P1-1/P1-2/SLOT/Zero Warning verdi).
 
+---
+
+## Cycle 87 (2026-11-22) — Onda 1 del piano auto-miglioramento (A1–A4)
+
+| ID | Implementazione | Verifica |
+|---|---|---|
+| A1 | `CORE/worker.py`: `classify_verification`, `verification_override`, `verification_gate`, `verification_report_line`. Stato `verified`/`failed`/`not_tested`; `not_tested` richiede `run_test_suite` (max 2 retry) o override esplicito (`allow_unverified_done` / `context.verification_override`). Marker nel **report** (evento memoria + reason triple), mai nel `result` di `execute()` | `tests/test_worker_verification.py`: 7 test, inclusa integrazione con fake model |
+| A2 | `CORE/feedback_corpus.py`: `MAX_REASON_CHARS=4000`, `clamp_reason`, `failure_triple`, `VALID_VERDICTS` con `failed_definitively`. `CORE/worker.py` popola `reason` dal prompt correttivo; `CORE/orchestrator.py` scrive la triple sul fallimento definitivo; corpus ora rispetta `state_dir` del config | `tests/test_feedback_corpus.py`: +6 test |
+| A3 | `tools/curate_corpus.py`: default `done + corrected` (hard negatives) stratificati/interleaved, `--only-done` ripristina il vecchio filtro, `--max-per-verdict`, conteggi per verdict e `excluded_failed` | `tests/test_curate_corpus.py`: 5 test CLI offline |
+| A4 | `retrieve_similar_task` collegato: `TOOL_CODE_MAP['retrieve']`, SYSTEM + prompt dinamico, allowlist, `TOOL_SIGNATURES`, dispatch `_call_tool`, keyword auto-tool. Chiamabile, **non** automatico | `tests/test_retrieval_wiring.py`: 4 test con retriever finto |
+
+Gate: 28 test mirati verdi + regressione 82 passed/110 subtests (1 test
+aggiornato dal contratto `execute()`: marker rimosso dal result), compileall,
+lint 0 errori, security S030/S031 puliti, `git diff --check` OK. Nessun LLM,
+nessuna rete, ventola non verificata → C3 resta 🔒 termico.
+

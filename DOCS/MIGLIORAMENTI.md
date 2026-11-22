@@ -185,6 +185,9 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 |---|---|---|
 | Inventario regex | `tests/test_regex_inventory.py` scansiona con AST il registro (`DEFAULT_PATTERNS` + `LANG_HINTS`) e le chiamate `re.*` letterali in `CORE/`, `GUI/`, `tools/`: 24 pattern, 130 usages, 148 file, 0 invalidi/duplicati. Report: `DOCS/REGEX_INVENTORY.md` | 4 test verdi, `pytest -q -s` stampa tutto |
 | Subagent 1-livello | `CORE/subagent.py` + tool `spawn_subagent`/`get_subagent_report`/`list_subagents`: figli con `AgentMemory` e ruoli modello esistenti, profondità ≤1, max 4, zero LLM in `spawn()`, gate ≤60 °C/`pause.flag`, cap wall-clock. Policy: `DOCS/SUBAGENTS.md` | 8 test offline verdi, zero rete/LLM |
+| Verità della verifica (A1) | `verification_status` esplicito: `not_tested` non vale `verified`; richiede `run_test_suite` o override tracciato; marker nel report, non nel result | 7 test (-integrazione), contratto `execute()` invariato |
+| Corpus verificabile (A2–A3) | `reason` popolato e troncato a 4000 char, `failed_definitively` nel corpus, curatore con `done` + `corrected` stratificati e `--only-done` | 11 test offline, dedup invariato |
+| Retrieval nel loop (A4) | `retrieve_similar_task` in mapping/prompt/allowlist/dispatch/auto-tool, chiamabile ma non automatico | 4 test con retriever finto |
 
 ---
 

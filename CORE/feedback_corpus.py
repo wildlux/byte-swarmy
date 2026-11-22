@@ -15,11 +15,49 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable, Optional
 
 _SAFE_ID = re.compile(r"[^A-Za-z0-9._-]")
+
+# A2 (2026-11-22): reason popolato dal prompt correttivo, con cap esplicito.
+MAX_REASON_CHARS = 4000
+VALID_VERDICTS = frozenset({"done", "corrected", "failed_definitively"})
+
+
+def clamp_reason(text) -> str:
+    """Normalizza e tronca il `reason` di una triple a MAX_REASON_CHARS."""
+    return " ".join(str(text or "").split())[:MAX_REASON_CHARS]
+
+
+def failure_triple(task: dict, reason: str, attempts: int = 1,
+                   model: str = "", correction: str = "",
+                   state_dir: Optional[str | Path] = None) -> Triple:
+    """Tripla `failed_definitively` con reason dal prompt correttivo (A2).
+
+    Scrittura passiva e fail-open: il calling code la avvolge in try/except.
+    """
+    task = task if isinstance(task, dict) else {}
+    ctx = task.get("context")
+    refs = tuple(
+        (ctx.get("refs") or ()) if isinstance(ctx, dict) else ()
+    )
+    return append_triple(Triple(
+        task_id=str(task.get("id") or "?"),
+        kind=str(task.get("type") or "code"),
+        title=str(task.get("title") or ""),
+        description=str(task.get("description") or ""),
+        refs=refs,
+        output=clamp_reason(reason),
+        verdict="failed_definitively",
+        first_try=attempts <= 1,
+        attempts=max(1, int(attempts)),
+        model=str(model or ""),
+        reason=clamp_reason(correction or reason),
+        ts=time.time(),
+    ), state_dir=state_dir)
 
 
 @dataclass(frozen=True)

@@ -35,6 +35,65 @@ log = logging.getLogger("byte-swarmy.worker")
 
 _REGEX = RegexController(DEFAULT_PATTERNS)
 
+# --- A1 (2026-11-22): verità della verifica ---------------------------------
+# Stato esplicito di un `done`: "non testato" NON vale "verificato".
+VERIFICATION_VERIFIED = "verified"
+VERIFICATION_FAILED = "failed"
+VERIFICATION_NOT_TESTED = "not_tested"
+VERIFICATION_STATUSES = frozenset({
+    VERIFICATION_VERIFIED, VERIFICATION_FAILED, VERIFICATION_NOT_TESTED})
+
+
+def classify_verification(pending_import_issues, test_passed) -> str:
+    """Classifica lo stato di verifica di un done. Zero LLM, zero I/O.
+
+    `pending_import_issues`: dict con file → nomi indefiniti (vuoto/None = ok).
+    `test_passed`: True/False/None (None = suite mai eseguita).
+    """
+    if pending_import_issues:
+        return VERIFICATION_FAILED
+    if test_passed is False:
+        return VERIFICATION_FAILED
+    if test_passed is None:
+        return VERIFICATION_NOT_TESTED
+    return VERIFICATION_VERIFIED
+
+
+def verification_override(task) -> bool:
+    """Override esplicito e tracciato per accettare un done non verificato."""
+    if not isinstance(task, dict):
+        return False
+    if task.get("allow_unverified_done") is True:
+        return True
+    ctx = task.get("context")
+    return isinstance(ctx, dict) and ctx.get("verification_override") is True
+
+
+def verification_gate(status: str, override: bool, retries: int = 0,
+                      max_retries: int = 2) -> tuple[bool, str]:
+    """(stop, mode). Fail-closed: non verified senza override -> correzione.
+
+    - `verified` / override -> stop, si accetta il done.
+    - `not_tested` -> al massimo `max_retries` richieste di run_test_suite.
+    - `failed` (import/test già ritentati) -> stop, ma resta `failed` nel report.
+    Allo stop senza verifica il result viene marcato `UNVERIFIED` (A1).
+    """
+    if status == VERIFICATION_VERIFIED:
+        return True, "verified"
+    if override:
+        return True, "override"
+    if status == VERIFICATION_NOT_TESTED and retries < max_retries:
+        return False, "retry"
+    return True, "unverified"
+
+
+def verification_report_line(status: str, mode: str) -> str:
+    """Riga tracciata nel report quando il done non è verificato."""
+    if mode == "verified":
+        return ""
+    tag = "override" if mode == "override" else "UNVERIFIED"
+    return f"[{tag} verification_status={status}]"
+
 # 🆕 Cycle 62: loop detector fuso in worker.py (rimosso CORE/loop_detector.py).
 # Rilevamento ripetizioni nell'output dei modelli LLM: evita che il worker
 # rimanga intrappolato in loop di ripetizione (stesse frasi/n-grammi che si
@@ -142,6 +201,7 @@ class Worker:
         "  restore=restore_snapshot(id)  # rollback del rename\n"
         "  spawn=spawn_subagent(model_key, task)  # figlio, nessun LLM\n"
         "  subreport=get_subagent_report(id)      # report del figlio\n"
+        "  retrieve=retrieve_similar_task(query,k=3)  # zero LLM, non automatico\n"
         "  bash=run_bash(cmd)                 test=run_test_suite()\n"
         "  lint=lint_code(path)\n"
         "  git_status  git_diff(rev)  git_commit(msg)  git_log(n)\n"
@@ -206,6 +266,7 @@ class Worker:
         "spawn": "spawn_subagent",
         "subreport": "get_subagent_report",
         "sublist": "list_subagents",
+        "retrieve": "retrieve_similar_task",
         "bash": "run_bash",
         "test": "run_test_suite",
         "lint": "lint_code",
@@ -262,7 +323,7 @@ class Worker:
                "git_branch", "git_merge"}
         analysis = {"analyze", "refs", "api", "complex", "graph", "dead",
                     "extract", "rename", "restore", "spawn", "subreport",
-                    "sublist"}
+                    "sublist", "retrieve"}
         usb = set()
         try:
             from GUI.settings_store import get_usb_tools_enabled
@@ -278,7 +339,9 @@ class Worker:
                                     "analyze", "reference", "call graph", "architettura",
                                     "struttura", "complessità", "codice morto",
                                     "dead code", "firma api", "libreria",
-                                    "subagent", "agente figlio", "delega")):
+                                    "subagent", "agente figlio", "delega",
+                                    "task simile", "simile", "similar",
+                                    "retrieval", "già fatto", "gia fatto")):
             return core | analysis | git
         if any(k in text for k in ("usb", "device", "hardware", "periferica")):
             return core | usb if usb else core
@@ -351,6 +414,7 @@ class Worker:
             "spawn": "  spawn=spawn_subagent(model_key, task)  # no LLM",
             "subreport": "  subreport=get_subagent_report(id)",
             "sublist": "  sublist=list_subagents()",
+            "retrieve": "  retrieve=retrieve_similar_task(query,k=3)  # no LLM",
             "bash": "  bash=run_bash(cmd)",
             "test": "  test=run_test_suite()",
             "lint": "  lint=lint_code(path)",
@@ -532,6 +596,8 @@ class Worker:
         repeated_actions = {}
         test_fail_retries = 0  # 🆕 Cycle 78: test results → feedback loop
         import_fail_retries = 0  # P1-2: nomi indefiniti → feedback loop
+        verification_retries = 0  # A1: retry dedicati a `not_tested`
+        correction_reasons: list[str] = []  # A2: reason della triple
 
         for step in range(self.MAX_STEPS):
             self.memory.heartbeat()
@@ -689,6 +755,7 @@ class Worker:
                             "that exist in the refs.\n\n"
                             "Next step (JSON only):"
                         )
+                        correction_reasons.append(prompt)  # A2
                         continue
                     self.log.warning(
                         f"[{self.agent_id}] done con nomi indefiniti "
@@ -740,17 +807,55 @@ class Worker:
                             "Do NOT declare done until tests pass.\n\n"
                             "Next step (JSON only):"
                         )
+                        correction_reasons.append(prompt)  # A2
                         continue
                     # retry esauriti: allow done con warning
                     self.log.info(f"[{self.agent_id}] task marked done without passing tests (warning only, retries exhausted).")
                 else:
                     self.log.info(f"[{self.agent_id}] task marked done (tests: {test_passed}).")
 
+                # A1: verità della verifica — "non testato" != "verificato".
+                vstatus = classify_verification(pending, test_passed)
+                override = verification_override(task)
+                stop, mode = verification_gate(vstatus, override,
+                                               verification_retries)
+                if not stop:
+                    verification_retries += 1
+                    prompt = (
+                        "VERIFICATION REQUIRED — do not declare done until "
+                        "the test suite has been run.\n"
+                        "Call run_test_suite() now, fix any failure, then "
+                        "declare done again.\n\nNext step (JSON only):"
+                    )
+                    correction_reasons.append(prompt)  # A2
+                    self.log.info(
+                        f"[{self.agent_id}] done=true rifiutato: "
+                        f"verification_status={vstatus} "
+                        f"(retry {verification_retries}/2)")
+                    continue
+
                 result = action.get("result", "(no result)")
-                # P1-1: i retry per test/import contano come correction.
-                self.last_attempts = 1 + test_fail_retries + import_fail_retries
-                # Fase B: registra la tripla (prompt/output/verdetto) nel
-                # corpus di feedback. Collezione passiva, fail-open.
+                vline = verification_report_line(vstatus, mode)
+                # Il marker va nel REPORT (evento di memoria + triple), non nel
+                # result: `execute()` restituisce sempre il testo del task.
+                self.last_verification_status = vstatus
+                self.last_verification_override = override
+                self.memory.add_event({
+                    "type": "verification",
+                    "content": vline or f"[verification_status={vstatus}]",
+                    "status": vstatus, "override": override, "mode": mode,
+                })
+                # P1-1: i retry per test/import/verifica contano come correction.
+                self.last_attempts = (1 + test_fail_retries
+                                      + import_fail_retries
+                                      + verification_retries)
+                # Fase B + A2: tripla con reason popolato e verdetto esplicito.
+                reason_parts = list(correction_reasons)
+                if vline:
+                    reason_parts.append(vline)
+                reason = feedback_corpus_module.clamp_reason(
+                    " | ".join(reason_parts))
+                verdict = ("corrected" if self.last_attempts > 1 else "done")
                 try:
                     feedback_corpus_module.append_triple(
                         feedback_corpus_module.Triple(
@@ -763,15 +868,13 @@ class Worker:
                                 if isinstance(task.get("context"), dict) else ()
                             ),
                             output=str(result or ""),
-                            verdict=("corrected"
-                                     if (import_fail_retries or test_fail_retries)
-                                     else "done"),
+                            verdict=verdict,
                             first_try=(self.last_attempts <= 1),
                             attempts=self.last_attempts,
                             model=self.model_key,
-                            reason="",
+                            reason=reason,
                             ts=time.time(),
-                        ))
+                        ), state_dir=self.tools.cfg["paths"].get("state_dir"))
                 except Exception:
                     pass
                 self.memory.add_event({"type": "task_done", "content": result[:200]})
@@ -1765,6 +1868,10 @@ class Worker:
                 return self.tools.get_subagent_report(args[0] if args else "")
             elif name == "list_subagents":
                 return self.tools.list_subagents()
+            elif name == "retrieve_similar_task":
+                return self.tools.retrieve_similar_task(
+                    str(args[0]) if args else "",
+                    int(args[1]) if len(args) > 1 else 3)
             elif name == "analyze_complexity":
                 return self.tools.analyze_complexity(args[0])
             elif name == "get_call_graph":

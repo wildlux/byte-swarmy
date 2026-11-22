@@ -152,10 +152,10 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 
 | ID | Task atomico (dettaglio nel piano) | Stato |
 |---|---|---|
-| A1 | `verification_status` esplicito (`verified`/`failed`/`not_tested`); `done` non verificato richiede override tracciato | [ ] |
-| A2 | Triple nel corpus anche per `corrected`/`failed_definitively`, con `reason` popolato | [ ] |
-| A3 | `curate_corpus.py`: include `corrected` come hard negatives, `--only-done` per il vecchio comportamento | [ ] |
-| A4 | Collegare `retrieve_similar_task` al dispatch/prompt del worker | [ ] |
+| A1 | `verification_status` esplicito (`verified`/`failed`/`not_tested`); `done` non verificato richiede override tracciato | [x] |
+| A2 | Triple nel corpus anche per `corrected`/`failed_definitively`, con `reason` popolato | [x] |
+| A3 | `curate_corpus.py`: include `corrected` come hard negatives, `--only-done` per il vecchio comportamento | [x] |
+| A4 | Collegare `retrieve_similar_task` al dispatch/prompt del worker | [x] |
 | B1 | `best_of_n` configurabile + gate-giudice testato con candidati finti | [ ] |
 | B2 | Skill proposer: auto-approvazione solo con gate verde, altrimenti bozza | [ ] |
 | B3 | Validatore deterministico degli override auto-skill/auto-tool | [ ] |
@@ -163,9 +163,10 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 | C2 | `tools/self_improvement_report.py`: report misure del loop, zero LLM | [ ] |
 | C3 | A/B memoria, eval per-slot, sweep `num_ctx`, distillazione, giudice | [ ] 🔒 termico |
 
-> Criterio di done: ogni ID chiuso con test offline verde, registrato in
-> `DOCS/IMPLEMENTED.md` con Cycle number e spuntato qui. C3 resta bloccato
-> finché la ventola non è verificata (≤60 °C, ventole al max).
+> Eseguito il 2026-11-22: A1–A4 chiusi in Cycle 87, 28 test mirati verdi,
+> 82 test di regressione verdi (110 subtests). Registro:
+> [`DOCS/IMPLEMENTED.md`](DOCS/IMPLEMENTED.md). B1–C2 restano pending;
+> C3 resta 🔒 bloccato finché la ventola non è verificata (≤60 °C, ventole al max).
 
 ---
 
