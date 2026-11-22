@@ -92,6 +92,25 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 > ripristinabile. Nuovi test: `test_gui_wiring_lint.py` (5),
 > `test_api_refs_gate.py` (11), `test_refactor_rename.py` (7).
 
+## 🧪 Sessione 2026-11-22 — inventario delle regex (pianificata)
+
+> Richiesta: "creare un test nella cartella TEST per vedere le espressioni
+> regolari del software". Interpretazione autonoma: `tests/` è il contenitore
+> canonico (regola "stessi cartelle, sempre"), quindi **nessuna nuova cartella
+> `TEST/`**. Il test è **solo lettura/validazione**: non modifica i pattern,
+> non chiama l'LLM ed è interamente offline.
+
+| # | Task (atomico, verificabile) | Stato |
+|---|---|---|
+| 1 | Creare `tests/test_regex_inventory.py`: raccoglie le regex del software da `CORE/regex_controller.py` (`DEFAULT_PATTERNS`) e dai `re.compile(...)` / pattern usati da `re.search/findall` nei moduli `CORE/`, `GUI/`, `tools/` | [ ] |
+| 2 | Gate deterministico: ogni pattern compila con `re.compile`, nessun pattern vuoto o duplicato; stampa l'inventario (file · nome/variabile · pattern · flag) con `pytest -s` così le regex sono **vedibili** | [ ] |
+| 3 | Riportare conteggio e eventuali pattern sospetti (backtracking/ambigui) in `DOCS/`; aggiornare `todo.md` con l'esito | [ ] |
+| 4 | Gate leggeri: `compileall`, `tools/lint_style.py`, test mirato, `git diff --check` | [ ] |
+
+> Criterio di done: `pytest tests/test_regex_inventory.py -q -s` verde, inventario
+> completo stampato, zero pattern invalidi. Nessuna regex viene riscritta dal
+> test: eventuali correzioni sono una sessione separata e documentata.
+
 ---
 
 ## 🎯 Piano d'attacco — dalle voci più impattanti (2026-11-18)
