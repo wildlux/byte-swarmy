@@ -384,3 +384,23 @@ Le prime 2 sessioni (ext-01, ext-02) hanno evidenziato 2 problemi:
 - **Uso ammesso**: sottoinsieme puramente non-Qt (es. i nuovi test
   deterministici) con `-n 2/4` per feedback rapido in sviluppo, mai in CI
   sulla suite completa.
+
+---
+
+## Fedeltà API (E2) — Cycle 97, verdetto deterministico (2026-11-22)
+
+| Metrica | Valore |
+|---|---:|
+| Librerie fuori cheat sheet | `json`, `csv` (2) |
+| Simboli usati negli eval case | 7 (`dumps`, `loads`, `JSONEncoder`, `reader`, `DictWriter`, `QUOTE_MINIMAL`, `excel`) |
+| Simboli verificati con `api_lookup(strict=True)` | 7/7 |
+| **Simboli indefiniti** | **0** |
+| Ref generati e validati | 2 (`GUI/refs/json_api.md`, `GUI/refs/csv_api.md`) |
+| Firme confrontate via `inspect.signature` | 22 (8 + 14), 0 discrepanze |
+| Test | 8 offline, zero LLM/rete/GPU |
+
+Comando: `.venv/bin/python tools/api_fidelity_eval.py --out DOCS/API_FIDELITY_REPORT.md`
+(exit 0 = PASS). Nota: `strict=True` ora verifica le costanti reali come
+valori (`csv.QUOTE_MINIMAL`) senza accettare simboli inventati; i callabili
+con firma non introspettabile restano bloccati. Nessuna misura live: il
+verdetto riguarda la fedeltà delle API, non la qualità delle risposte LLM.

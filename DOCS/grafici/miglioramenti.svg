@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="1911" viewBox="0 0 940 1911">
 <rect width="940" height="1911" fill="#ffffff"/>
-<text x="20" y="38" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">byte-swarmy — Miglioramenti implementati (Cycle 70 → 96 — Nov 2026)</text>
+<text x="20" y="38" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">byte-swarmy — Miglioramenti implementati (Cycle 70 → 97 — Nov 2026)</text>
 <text x="20" y="60" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#64748b">Generato deterministicamente da tools/gen_grafici.py — dati: DOCS/IMPLEMENTED.md</text>
 <text x="20" y="92" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">A. Audit robustezza Cycle 85 — 15 difetti corretti, per categoria</text>
 <text x="20" y="112" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Rilevati da pyflakes + pytest + smoke sandbox; tutti corretti e su GitHub (commit 4a1cb1a / 0bb4998 / 72e1b71)</text>
@@ -25,28 +25,28 @@
 <rect x="249" y="286" width="104" height="26" rx="4" fill="#16a34a"/>
 <text x="361" y="304.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">1</text>
 <text x="20" y="358" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">B. Meccanismi di robustezza e anti-allucinazione attivi (cumulativo)</text>
-<text x="20" y="378" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Elenco completo dei 38 meccanismi in DOCS/MIGLIORAMENTI.md</text>
+<text x="20" y="378" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Elenco completo dei 39 meccanismi in DOCS/MIGLIORAMENTI.md</text>
 <line x1="245" y1="530" x2="870" y2="530" stroke="#e2e8f0" stroke-width="1"/>
 <text x="219" y="534" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">0</text>
 <line x1="245" y1="517" x2="870" y2="517" stroke="#e2e8f0" stroke-width="1"/>
 <text x="219" y="521" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">4</text>
-<line x1="245" y1="503" x2="870" y2="503" stroke="#e2e8f0" stroke-width="1"/>
-<text x="219" y="507" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">8</text>
-<line x1="245" y1="489" x2="870" y2="489" stroke="#e2e8f0" stroke-width="1"/>
-<text x="219" y="493" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">12</text>
-<line x1="245" y1="476" x2="870" y2="476" stroke="#e2e8f0" stroke-width="1"/>
-<text x="219" y="480" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">16</text>
-<line x1="245" y1="462" x2="870" y2="462" stroke="#e2e8f0" stroke-width="1"/>
-<text x="219" y="466" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">20</text>
-<line x1="245" y1="448" x2="870" y2="448" stroke="#e2e8f0" stroke-width="1"/>
-<text x="219" y="452" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">24</text>
-<line x1="245" y1="435" x2="870" y2="435" stroke="#e2e8f0" stroke-width="1"/>
-<text x="219" y="439" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">28</text>
-<line x1="245" y1="421" x2="870" y2="421" stroke="#e2e8f0" stroke-width="1"/>
-<text x="219" y="425" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">32</text>
-<line x1="245" y1="407" x2="870" y2="407" stroke="#e2e8f0" stroke-width="1"/>
-<text x="219" y="411" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">36</text>
-<path d="M 245 527 L 314 527 L 314 524 L 383 524 L 383 520 L 453 520 L 453 517 L 522 517 L 522 507 L 592 507 L 592 503 L 661 503 L 661 496 L 731 496 L 731 493 L 800 493 L 800 476 L 870 476 L 870 400" fill="none" stroke="#16a34a" stroke-width="2.5"/>
+<line x1="245" y1="504" x2="870" y2="504" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="508" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">8</text>
+<line x1="245" y1="490" x2="870" y2="490" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="494" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">12</text>
+<line x1="245" y1="477" x2="870" y2="477" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="481" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">16</text>
+<line x1="245" y1="464" x2="870" y2="464" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="468" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">20</text>
+<line x1="245" y1="450" x2="870" y2="450" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="454" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">24</text>
+<line x1="245" y1="437" x2="870" y2="437" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="441" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">28</text>
+<line x1="245" y1="424" x2="870" y2="424" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="428" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">32</text>
+<line x1="245" y1="410" x2="870" y2="410" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="414" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">36</text>
+<path d="M 245 527 L 314 527 L 314 524 L 383 524 L 383 520 L 453 520 L 453 517 L 522 517 L 522 507 L 592 507 L 592 504 L 661 504 L 661 497 L 731 497 L 731 494 L 800 494 L 800 477 L 870 477 L 870 400" fill="none" stroke="#16a34a" stroke-width="2.5"/>
 <circle cx="245" cy="527" r="4" fill="#16a34a"/>
 <text x="245" y="517" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">1</text>
 <text x="245" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.18</text>
@@ -62,20 +62,20 @@
 <circle cx="522" cy="507" r="4" fill="#16a34a"/>
 <text x="522" y="497" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">7</text>
 <text x="522" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.25</text>
-<circle cx="592" cy="503" r="4" fill="#16a34a"/>
-<text x="592" y="493" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">8</text>
+<circle cx="592" cy="504" r="4" fill="#16a34a"/>
+<text x="592" y="494" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">8</text>
 <text x="592" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.26</text>
-<circle cx="661" cy="496" r="4" fill="#16a34a"/>
-<text x="661" y="486" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">10</text>
+<circle cx="661" cy="497" r="4" fill="#16a34a"/>
+<text x="661" y="487" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">10</text>
 <text x="661" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.27</text>
-<circle cx="731" cy="493" r="4" fill="#16a34a"/>
-<text x="731" y="483" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">11</text>
+<circle cx="731" cy="494" r="4" fill="#16a34a"/>
+<text x="731" y="484" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">11</text>
 <text x="731" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.28</text>
-<circle cx="800" cy="476" r="4" fill="#16a34a"/>
-<text x="800" y="466" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">16</text>
+<circle cx="800" cy="477" r="4" fill="#16a34a"/>
+<text x="800" y="467" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">16</text>
 <text x="800" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.30</text>
 <circle cx="870" cy="400" r="4" fill="#16a34a"/>
-<text x="870" y="390" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">38</text>
+<text x="870" y="390" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">39</text>
 <text x="870" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.34+</text>
 <text x="20" y="594" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">C. Crescita della suite di test (run completa)</text>
 <text x="20" y="614" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Durata: 387s (Cycle 75) → 1031s (ultima run completa, 2026-11-19); 888 test + 1055 subtest, 0 warning</text>
@@ -140,17 +140,17 @@
 <line x1="470" y1="1197" x2="378.1" y2="1105.1" stroke="#e2e8f0" stroke-width="1"/>
 <text x="360.8" y="1091.8" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="end">Memoria / contesto</text>
 <polygon points="470.0,1099.5 538.9,1128.1 600.0,1197.0 561.9,1288.9 470.0,1327.0 401.1,1265.9 405.0,1197.0 378.1,1105.1" fill="#16a34a" fill-opacity="0.25" stroke="#16a34a" stroke-width="2" stroke-dasharray="6,4" stroke-opacity="1"/>
-<polygon points="470.0,1164.5 538.9,1128.1 600.0,1197.0 561.9,1288.9 470.0,1294.5 401.1,1265.9 405.0,1197.0 401.1,1128.1" fill="#2563eb" fill-opacity="0.25" stroke="#2563eb" stroke-width="2.5" stroke-opacity="1"/>
+<polygon points="470.0,1164.5 538.9,1128.1 600.0,1197.0 561.9,1288.9 470.0,1327.0 401.1,1265.9 405.0,1197.0 401.1,1128.1" fill="#2563eb" fill-opacity="0.25" stroke="#2563eb" stroke-width="2.5" stroke-opacity="1"/>
 <circle cx="470.0" cy="1164.5" r="3.5" fill="#2563eb"/>
 <circle cx="538.9" cy="1128.1" r="3.5" fill="#2563eb"/>
 <circle cx="600.0" cy="1197.0" r="3.5" fill="#2563eb"/>
 <circle cx="561.9" cy="1288.9" r="3.5" fill="#2563eb"/>
-<circle cx="470.0" cy="1294.5" r="3.5" fill="#2563eb"/>
+<circle cx="470.0" cy="1327.0" r="3.5" fill="#2563eb"/>
 <circle cx="401.1" cy="1265.9" r="3.5" fill="#2563eb"/>
 <circle cx="405.0" cy="1197.0" r="3.5" fill="#2563eb"/>
 <circle cx="401.1" cy="1128.1" r="3.5" fill="#2563eb"/>
 <rect x="350" y="1379" width="12" height="12" rx="2" fill="#2563eb" fill-opacity="0.25" stroke="#2563eb" stroke-width="2"/>
-<text x="368" y="1389" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">oggi (Cycle 96)</text>
+<text x="368" y="1389" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">oggi (Cycle 97)</text>
 <rect x="480" y="1379" width="12" height="12" rx="2" fill="#16a34a" fill-opacity="0.25" stroke="#16a34a" stroke-width="2" stroke-dasharray="6,4"/>
 <text x="498" y="1389" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">goal middle senior</text>
 <text x="20" y="1433" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">F. Skill operative attive — famiglia di skill del sistema</text>

@@ -19,6 +19,7 @@ Sicurezza (vedi security.py e sandbox.py):
 from __future__ import annotations
 
 import difflib
+import inspect
 import io
 import os
 import re
@@ -174,6 +175,22 @@ GREP_EXCLUDES = (
 )
 
 TRUNCATED = "\n...[output troncato]...\n"
+
+
+def _api_signature_line(obj, sym: str, strict: bool) -> str:
+    """Firma via inspect; costante reale come valore; strict blocca i callabili.
+
+    Solleva ValueError con il messaggio di blocco se la firma di un callabile
+    non è introspettabile (nessun simbolo inventato passa il gate strict).
+    """
+    try:
+        return f"  firma: {sym}{inspect.signature(obj)}"
+    except (TypeError, ValueError):
+        if strict and callable(obj):
+            raise ValueError(f"firma di '{sym}' non introspettabile") from None
+        if strict:
+            return f"  costante: {sym} = {str(obj)[:120]}"
+        return "  firma: (non disponibile)"
 
 
 class ToolSet:
@@ -521,11 +538,11 @@ class ToolSet:
         Restituisce la firma + docstring di `symbol` in `module`, oppure
         l'elenco dei simbodo pubblici se `symbol` è vuoto. Funziona per
         qualsiasi pacchetto installato, incluse API nuove. Con `strict=True`
-        import falliti, simboli assenti e firme non introspettabili bloccano
-        la generazione invece di lasciare un elenco generico.
+        import falliti, simboli assenti e firme non introspettabili di
+        callabili bloccano la generazione; le costanti reali sono verificate
+        come valori via getattr (nessun simbolo inventato passa).
         """
         import importlib
-        import inspect
         strict = _as_bool(strict)
 
         def blocked(msg: str) -> str:
@@ -562,12 +579,9 @@ class ToolSet:
 
         lines = [f"{module}.{sym}"]
         try:
-            sig = inspect.signature(obj)
-            lines.append(f"  firma: {sym}{sig}")
-        except (TypeError, ValueError):
-            if strict:
-                return blocked(f"firma di '{sym}' non introspettabile")
-            lines.append("  firma: (non disponibile)")
+            lines.append(_api_signature_line(obj, sym, strict))
+        except ValueError as e:
+            return blocked(str(e))
         doc = inspect.getdoc(obj)
         if doc:
             lines.append("  doc: " + doc.splitlines()[0][:200])

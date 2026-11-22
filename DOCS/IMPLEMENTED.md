@@ -2279,3 +2279,21 @@ Verifiche: 6 test + exercise reale, zero LLM/rete. Il guard NON applica patch:
 prende due file già scritti e certifica l'equivalenza. È il numero che
 permette di alzare l'asse del refactoring senza fidarsi di un giudizio.
 
+---
+
+## Cycle 97 (2026-11-22) — E2: fedeltà API misurata su librerie nuove
+
+| Modifica | Dettaglio |
+|---|---|
+| `tools/gen_api_refs.py` | Output compatibile con `validate_refs.py`: header `# Modulo:`, `# Versione:` quando nota, `# Firma:` con i soli nomi dei parametri (evita virgole annidate nei default); nome file `<modulo>_api.md`, typo "Simbodo" corretto |
+| `GUI/refs/json_api.md`, `GUI/refs/csv_api.md` (nuovi) | Ref generati da modulo installato per due librerie fuori dai cheat sheet storici; 8 + 14 firme verificate, 0 discrepanze |
+| `CORE/tools.py` | `api_lookup(strict=True)` accetta le costanti reali come valori verificati via `getattr` (es. `csv.QUOTE_MINIMAL`): restano bloccati simboli assenti e callabili con firma non introspettabile |
+| `tools/api_fidelity_eval.py` (nuovo) | AST → usi `modulo.simbolo` → `api_lookup(strict=True)` + validazione ref; `--json`/`--out`, exit 0 solo con 0 indefiniti e ref validi |
+| `tests/test_api_fidelity_eval.py` (nuovo) | 8 test: casi reali, ref validi, determinismo del generatore, simbolo inventato, sintassi invalida, ref assente, costante strict, report riproducibile |
+| `DOCS/API_FIDELITY_REPORT.md`, `DOCS/BENCH.md` | Verdetto PASS: 7/7 simboli verificati, 0 indefiniti, 22 firme; report deterministico e metrics nel bench |
+| Radar | **Fedeltà API 3/4 → 4/4**; 39 meccanismi; grafico Cycle 97 |
+
+Verifiche: 24 test offline (eval + gate refs + validazione), zero LLM/rete/GPU;
+nessun changeset live. Il verdetto misura la fedeltà delle API, non la qualità
+delle risposte del modello.
+

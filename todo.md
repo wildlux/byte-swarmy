@@ -174,7 +174,7 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 | ID | Task atomico | Criterio done | Stato |
 |---|---|---|---|
 | E1 | Refactoring mecc.: guard deterministico AST + behavioral diff per ogni patch | `tools/refactor_guard.py`: 8/8 refactoring atomici con API pubblica preservata, comportamento identico e zero errori di sintassi; report in `DOCS/` | [x] |
-| E2 | Fedeltà API: ref generati per librerie nuove + validazione simboli | `tools/gen_api_refs.py` + `validate_refs.py` + `api_lookup(strict=True)` su ≥2 librerie fuori cheat sheet; 0 simboli indefiniti in output eval | [ ] |
+| E2 | Fedeltà API: ref generati per librerie nuove + validazione simboli | `tools/gen_api_refs.py` + `validate_refs.py` + `api_lookup(strict=True)` su ≥2 librerie fuori cheat sheet; 0 simboli indefiniti in output eval | [x] |
 | E3 | Task GUI: 3 template PyQt6 curati + skill `py-gui-scaffold` | `GUI/refs/templates/` con finestra/layout/segnali/thread + test snapshot offscreen; collaudo con LLM resta 🔒 termico | [ ] |
 | E4 | Memoria/contesto: preparare A/B 10 task con/senza contesto | Harness con retriever finto, task set congelato e soglia in `DOCS/BENCH.md`; esecuzione live resta 🔒 termico (C3) | [ ] |
 
@@ -185,7 +185,9 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 > C1 in Cycle 91: 4 test di coerenza docs; C2 in Cycle 92: 6 test report
 > + 6 subtest; D1 in Cycle 93: 6 test lint + snapshot
 > `DOCS/PROMPT_LINT_REPORT.md`; E1 in Cycle 96: 6 test guard + report
-> `DOCS/REFACTOR_GUARD_REPORT.md`, radar Refactoring 3/4 → 4/4. Registro:
+> `DOCS/REFACTOR_GUARD_REPORT.md`, radar Refactoring 3/4 → 4/4; E2 in Cycle 97:
+> 8 test eval + report `DOCS/API_FIDELITY_REPORT.md`, 0 simboli indefiniti su
+> `json`/`csv`, radar Fedeltà API 3/4 → 4/4. Registro:
 > [`DOCS/IMPLEMENTED.md`](DOCS/IMPLEMENTED.md).
 > C3 resta 🔒 bloccato finché la ventola non è verificata (≤60 °C, ventole al max).
 
