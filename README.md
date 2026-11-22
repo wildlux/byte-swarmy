@@ -930,8 +930,8 @@ Per dati reali è necessario aggiungere l'isolamento di sistema (utente dedicato
 cgroup, firewall):
 
 ```bash
-./setup-hardening.sh                  # diagnostica, nessuna modifica
-sudo ./setup-hardening.sh --all       # utente byteswarmy + cgroup + firewall
+scripts/setup/hardening.sh                  # diagnostica, nessuna modifica
+sudo scripts/setup/hardening.sh --all       # utente byteswarmy + cgroup + firewall
 ```
 
 Dettagli, modello di minaccia, rischi residui e rollback:
@@ -1046,7 +1046,7 @@ byte-swarmy/
 ├── backups/                 # tar.gz snapshots (ultimi 7)
 ├── main.py                  # CLI entry point
 ├── byte-swarmy              # CLI launcher (alias: bswarm)
-├── avvia.sh / ferma.sh / sync.sh / setup.sh / setup-hardening.sh
+├── avvia.sh / ferma.sh / sync.sh / setup.sh / scripts/setup/hardening.sh
 ├── SECURITY.md / IMPLEMENTED.md / SPECIFICATIONS.md / AGENT.md / todo.md
 ├── BYTE-SWARMY.desktop      # KDE menu entry
 ├── requirements.txt         # Dipendenze complete (GUI + RE)
@@ -1096,7 +1096,7 @@ Covers:
 
 ```bash
 python -m py_compile CORE/*.py INTENT/*.py SAFETY/*.py MONITORING/*.py GUI/*.py
-bash -n avvia.sh ferma.sh sync.sh setup.sh setup-hardening.sh
+bash -n avvia.sh ferma.sh sync.sh setup.sh scripts/setup/hardening.sh
 git diff --check
 ```
 

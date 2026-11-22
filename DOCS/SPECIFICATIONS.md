@@ -45,7 +45,7 @@ byte-swarmy/
 ├── logs/           byte-swarmy.log, byte-swarmy.jsonl, watchdog.log, security.log
 ├── project/        worker output (sandboxed)
 ├── backups/        auto-snapshot tar.gz
-├── avvia.sh / ferma.sh / sync.sh / setup.sh / setup-hardening.sh
+├── avvia.sh / ferma.sh / sync.sh / setup.sh / scripts/setup/hardening.sh
 └── main.py         CLI entry point
 ```
 

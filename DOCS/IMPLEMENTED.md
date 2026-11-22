@@ -8,7 +8,7 @@ This file tracks every significant feature, fix, and architectural change implem
 - [x] **Command Validation**: Implemented structural tokenization and whitelist/blacklist for `run_bash` (no shell).
 - [x] **Path Confinement**: Strict restriction of all file operations to the `project/` directory.
 - [x] **Environment Sanitization**: `avvia.sh` now clears sensitive env vars and sets strict `ulimit`.
-- [x] **Hardening Scripts**: Created `setup-hardening.sh` for root-level isolation (cgroups, dedicated user).
+- [x] **Hardening Scripts**: Created `setup-hardening.sh` for root-level isolation (cgroups, dedicated user) — oggi in `scripts/setup/hardening.sh`.
 - [x] **Sandbox escape fix**: `--tmpfs /etc` + `--remount-ro /etc` + `--remount-ro /opt` to prevent writing outside `project/` (escape via `/etc/.sandbox-escape` blocked). All 11 sandbox self-tests pass.
 
 ## 🧠 Intelligence & Orchestration

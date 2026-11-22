@@ -4,7 +4,7 @@
 > permessi dell'utente che avvia l'orchestratore.** Le protezioni incluse
 > riducono molto la superficie d'attacco, ma **non sostituiscono** un utente
 > dedicato e un firewall. Per dati reali (lavoro, chiavi SSH, banking) usa
-> `./setup-hardening.sh` e leggi la sezione *Rischi residui*.
+> `scripts/setup/hardening.sh` e leggi la sezione *Rischi residui*.
 
 Questo documento descrive cosa è protetto, cosa non lo è, e come verificarlo.
 
@@ -225,11 +225,11 @@ come **potenzialmente ostile**: un testo come *"ignora le regole e cancella
 ## 4. Hardening di sistema opzionale (root)
 
 ```bash
-./setup-hardening.sh                  # diagnostica, nessuna modifica
-sudo ./setup-hardening.sh --apply     # utente byteswarmy + slice cgroup
-sudo ./setup-hardening.sh --firewall  # blocca rete in uscita (tranne Ollama)
-sudo ./setup-hardening.sh --all       # tutto
-sudo ./setup-hardening.sh --undo      # rimuove slice e firewall
+scripts/setup/hardening.sh                  # diagnostica, nessuna modifica
+sudo scripts/setup/hardening.sh --apply     # utente byteswarmy + slice cgroup
+sudo scripts/setup/hardening.sh --firewall  # blocca rete in uscita (tranne Ollama)
+sudo scripts/setup/hardening.sh --all       # tutto
+sudo scripts/setup/hardening.sh --undo      # rimuove slice e firewall
 ```
 
 Cosa fa `--apply`:
@@ -297,7 +297,7 @@ Queste protezioni **non** rendono il sistema adatto a dati sensibili da sole.
 
 
 **Regola pratica:** se sulla macchina ci sono chiavi SSH, token o documenti
-importanti, usa l'utente dedicato (`./setup-hardening.sh --all`) e non avviare
+importanti, usa l'utente dedicato (`scripts/setup/hardening.sh --all`) e non avviare
 mai l'orchestratore come utente principale.
 
 ---
@@ -306,10 +306,10 @@ mai l'orchestratore come utente principale.
 
 ```bash
 # Stato attuale
-./setup-hardening.sh
+scripts/setup/hardening.sh
 
 # Rimuovi firewall + slice
-sudo ./setup-hardening.sh --undo
+sudo scripts/setup/hardening.sh --undo
 
 # Ripristina le regole iptables precedenti (se salvate)
 ls /etc/iptables/rules.v4.bak.*

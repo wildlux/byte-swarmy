@@ -60,8 +60,8 @@ commands but **do not replace system isolation**:
 For real data you need system isolation (dedicated user, cgroup, firewall):
 
 ```bash
-./setup-hardening.sh                  # diagnostic, no changes
-sudo ./setup-hardening.sh --all       # byteswarmy user + cgroup + firewall
+scripts/setup/hardening.sh                  # diagnostic, no changes
+sudo scripts/setup/hardening.sh --all       # byteswarmy user + cgroup + firewall
 ```
 
 Details, threat model, residual risks and rollback: **[SECURITY.md](SECURITY.md)**.
@@ -642,9 +642,9 @@ rules", the tool layer still applies the policy.
 ### System isolation (optional, requires root)
 
 ```bash
-./setup-hardening.sh                  # Diagnostic
-sudo ./setup-hardening.sh --all       # byteswarmy user + cgroup + firewall
-sudo ./setup-hardening.sh --undo      # Remove slice and firewall rules
+scripts/setup/hardening.sh                  # Diagnostic
+sudo scripts/setup/hardening.sh --all       # byteswarmy user + cgroup + firewall
+sudo scripts/setup/hardening.sh --undo      # Remove slice and firewall rules
 ```
 
 ### Residual risks
@@ -731,7 +731,7 @@ byte-swarmy/
 ├── backups/                 # tar.gz snapshots (last 7)
 ├── main.py                  # CLI entry point
 ├── byte-swarmy              # CLI launcher (alias: bswarm)
-├── avvia.sh / ferma.sh / sync.sh / setup.sh / setup-hardening.sh
+├── avvia.sh / ferma.sh / sync.sh / setup.sh / scripts/setup/hardening.sh
 ├── SECURITY.md / IMPLEMENTED.md / SPECIFICATIONS.md / AGENT.md / todo.md
 ├── BYTE-SWARMY.desktop      # KDE menu entry
 └── GUI/requirements_gui.txt
@@ -772,7 +772,7 @@ Covers:
 
 ```bash
 python -m py_compile CORE/*.py INTENT/*.py SAFETY/*.py MONITORING/*.py GUI/*.py
-bash -n avvia.sh ferma.sh sync.sh setup.sh setup-hardening.sh
+bash -n avvia.sh ferma.sh sync.sh setup.sh scripts/setup/hardening.sh
 git diff --check
 ```
 

@@ -160,7 +160,7 @@ reale. Nessun flake residuo: `test_functional_swarm` passa da solo
 |---|---|---|
 | Pannello Chat | `GUI/chat_panel.py` | sezione collassabile in Plancia; source combo, models combo, tool/skill pickers, chiave API |
 | Contesto selezionabile | `CORE/chat_context.py` | elenca tool (`TOOL_SIGNATURES`) e skill (`.opencode/skill/*/SKILL.md`), salva la selezione in `state/chat_tools_skills.json`, costruisce il blocco di system prompt (max 12k char) |
-| Auto-skill | `CORE/auto_skill.py` | 26 skill con keyword IT/EN (23 al Cycle 86), matching su parole intere, max 4 skill per prompt; anteprima live mentre si scrive; keyword extra da `state/auto_skill_keywords.json` |
+| Auto-skill | `CORE/auto_skill.py` | 27 skill con keyword IT/EN (23 al Cycle 86, 26 al Cycle 100), matching su parole intere, max 4 skill per prompt; anteprima live mentre si scrive; keyword extra da `state/auto_skill_keywords.json` |
 | Auto-tool | `CORE/auto_tool.py` | 36 tool di `TOOL_SIGNATURES` (30 al Cycle 86) con keyword IT/EN, stesso motore di matching, max 4 tool per prompt; anteprima separata 🛠️; keyword extra da `state/auto_tool_keywords.json` |
 | Client cloud | `CORE/cloud_client.py` | provider OpenAI-compatibili (Groq, Gemini, OpenRouter), `list_models`, `pick_default_model`, `chat`, chiavi in `state/cloud_api.json` (0600); User-Agent esplicito per aggirare il blocco Cloudflare 1010 |
 | CLI di test | `tools/test_cloud_api.py` | `--save-key`, `--list`, `--prompt`, misura latenza e stampa la risposta |

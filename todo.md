@@ -251,7 +251,8 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 | Ruotare/revocare il token GitHub esposto | [ ] 🔒 serve accesso web/API GitHub: `gh` installato ma **non autenticato** |
 | Cancellare `~/.git-credentials` | [ ] ⛔ non fatto: altri 4 repo usano HTTPS GitHub; va **aggiornato** dopo la rotazione, non rimosso |
 | Attivare utente dedicato + firewall: `scripts/setup/hardening.sh --all` | [ ] 🔒 root: sudo non passwordless; diagnostica → utente `byteswarmy` e slice cgroup assenti |
-| Aggiornare i 23 riferimenti a `./setup-hardening.sh` (script reale: `scripts/setup/hardening.sh`) | [ ] documentazione |
+| Aggiornare i riferimenti a `./setup-hardening.sh` (script reale: `scripts/setup/hardening.sh`) | [x] — 17 occorrenze con `./` + 6 bare in 6 file |
+| Allineare `DOCS/MIGLIORAMENTI.md` al conteggio skill live (26 → 27) | [x] |
 | Mantenere le difese deterministiche senza allargare l'allowlist | [x] |
 | Aggiungere un rilevatore AI-based | [ ] ⛔ non fare ora: troppo alto senza misure e gate termico |
 
@@ -260,6 +261,9 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 > rimossa perché usata da altri 4 repo. `gh` non è autenticato e sudo non è
 > passwordless: rotazione token e `--all` restano blocchi reali con rimedio
 > concreto (fare login GitHub e revocare il PAT; eseguire lo script come root).
+> Sistemate le incongruenze: path hardening corretto in `DOCS/SECURITY.md`,
+> `README.md`, `DOCS/README_EN.md`, `DOCS/SPECIFICATIONS.md` e
+> `DOCS/IMPLEMENTED.md`; conteggio auto-skill 26 → 27 in `DOCS/MIGLIORAMENTI.md`.
 >
 > Esito: il sistema è ben difeso **contro** l'AI locale, ma non **usa**
 > l'AI locale per difendersi. Il passo successivo consigliato è chiudere
