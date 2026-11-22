@@ -10,7 +10,7 @@ Scopo: dire cosa è **veramente verificabile** nei report e nei documenti di `DO
 |---|---|---|
 | Zero Warning (pyflakes) | ✅ PASS | 0 finding di pyflakes |
 | best-of-N 'attivo (fast lane)' | ⚠️ DISABILITATO | `fast_lane.enabled=false`, `best_of_n=1` |
-| First-try 0.958 come task reali | ⚠️ FIXTURE INTERNE | 72 triple, 24 uniche, 20 task distinti; 0.950 sugli unici |
+| First-try 0.958 come task reali | ⚠️ FIXTURE INTERNE | 77 triple, 25 uniche, 20 task distinti; 0.950 sugli unici |
 | Copertura retrieval 100% | ⚠️ DEFINIZIONE RISTRETTA | 20/20: solo presenza di testo indicizzabile, non qualità del retrieval |
 | Meccanismi 'attivi' (storico 41) | ⚠️ DOCUMENTATI/IMPLEMENTATI | 42 righe contate; non tutti abilitati a runtime |
 | Auto-skill 23 / auto-tool 30 (Cycle 86) | ⚠️ STALE | oggi 27 skill / 36 tool |
@@ -28,11 +28,11 @@ Scopo: dire cosa è **veramente verificabile** nei report e nei documenti di `DO
 
 ## Da dove viene il 0.958
 
-Il tasso `first_try` è `0.958` su 72 triple. Il corpus contiene **fixture interne** (test, adversarial, regressioni), non task utente reali: non può dimostrare la soglia '≥50% task chiusi al primo tentativo' del radar. Sugli unici task distinti il valore è `0.950`; il task GUI live resta 🔒 non misurato.
+Il tasso `first_try` è `0.896` su 77 triple. Il corpus contiene **fixture interne** (test, adversarial, regressioni), non task utente reali: non può dimostrare la soglia '≥50% task chiusi al primo tentativo' del radar. Sugli unici task distinti il valore è `0.950`; il task GUI live resta 🔒 non misurato.
 
 | File corpus | Triple | First-try |
 |---|---:|---:|
-| `m3-test.jsonl` | 25 | 25 |
+| `m3-test.jsonl` | 30 | 25 |
 | `adv-tests.test_security_hardcore.TestPromptInjectionAdversarial..jsonl` | 15 | 15 |
 | `inject-1.jsonl` | 7 | 5 |
 | `cb-1.jsonl` | 4 | 4 |

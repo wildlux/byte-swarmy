@@ -2779,3 +2779,25 @@ in corso.
 
 Verifiche: 9 test mirati verdi, `pyflakes` 0, YAML valido, `git diff --check`
 pulito. Nessuna suite locale, LLM, GPU o misura inventata.
+
+---
+
+## Cycle 127 (2026-11-22) — M6: corretti 10 failure ambientali del run #7
+
+Il run #7 (`45051444788`, commit `91bc272`) ha finalmente pubblicato i nomi dei
+test falliti tramite le annotations del Cycle 126. Tutti i 10 failure erano
+differenze tra l'ambiente di sviluppo e i runner hosted, non difetti della suite:
+
+| Test | Causa | Correzione |
+|---|---|---|
+| `test_api_fidelity_eval.py` ×4 | Ref `csv`/`json` generati su Python 3.14; CI usava 3.11 (firme diverse, `QUOTE_NOTNULL`/`QUOTE_STRINGS` assenti) | `python-version: "3.14"` in `profile.yml` |
+| `test_config_gates.py::test_remote_github_senza_token` | `checkout@v5` configura remote HTTPS, il test esigeva SSH | Accettare HTTPS e SSH; resta il divieto di token |
+| `test_remote_bridge.py::test_socket_path_resolution` | `/run/user/1000` non esiste sul runner; inoltre `BRIDGE_NAME` è alias del path, non del basename | `TemporaryDirectory()` come `XDG_RUNTIME_DIR` + `SOCKET_BASENAME` |
+| `test_repo_hygiene.py` ×2 | `tasks` è symlink a `data/tasks` (gitignored): `.gitkeep` non tracciato e cartella non attesa | `git add -f data/tasks/.gitkeep` + aggiunta `data/tasks` alle dir attese |
+| `test_swarm_refactor_session.py::test_wait_cold...` | Runner senza hwmon: `read_max_temp()` = 0.0 | Assert su temperatura ≥0 e attesa <0,5 s |
+| `test_refactoring_live.py::test_result_include_message_di_successo` | Mock emetteva result generico a sequenza finita | Messaggio del mock include `refactoring` |
+
+Verifiche locali: `pyflakes` 0 sui file toccati, 56 test mirati passati su 58,
+poi i 2 residui corretti e riverificati (2 passed), YAML valido,
+`git diff --check` pulito. Commit `11377e5` pushato; run #8 `45055387426`
+avviato. Nessuna suite completa locale, LLM, GPU o misura inventata.
