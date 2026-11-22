@@ -2486,3 +2486,16 @@ duplicati.
 Verifiche: 3 test mirati verdi, `pyflakes` 0. Nessuna ottimizzazione applicata
 “a occhio”: il miglioramento dichiarato è solo la verifica del comportamento
 già presente, non una stima di risparmio.
+
+---
+
+## Cycle 109 (2026-11-22) — Lock dei vincoli operativi + chiusura voci già risolte
+
+| Modifica | Dettaglio |
+|---|---|
+| `tests/test_config_gates.py` (nuovo) | 6 test offline: `fast_lane.enabled = false`, `best_of_n = 1`, gate termico attivo e `num_ctx` planner/orchestrator = 2048, remote SSH token-free, credenziali non tracciate con permessi 0600, config senza segreti in chiaro. Legge la config **committata** con `tomllib` (stdlib): nessun LLM, rete o scrittura |
+| `todo.md` | Chiuse per evidenza le voci duplicate/già risolte: toggle componenti (Cycle 67: Timestral ha `[thermal].enabled`, SystemMonitor/Lifecycle passivi), KV cache e batch write (fuori scope T23/T24); Fase D-15 portata a `[~]` (flag e gate-giudice presenti, benchmark 🔒) |
+
+Verifiche: 13 test mirati verdi (6 nuovi + 7 di `test_config_validation`),
+`pyflakes` 0. **Nessun valore di config modificato**: i test bloccano lo stato
+già documentato, non introducono ottimizzazioni stimate.

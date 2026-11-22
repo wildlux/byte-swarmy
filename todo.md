@@ -358,11 +358,14 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
       > Triple + dedup + stats (CORE/feedback_corpus.py, hook worker nel
       > done-branch), curate CLI (tools/curate_corpus.py, filtro SOLO done).
       > Rimasto solo il "contatore per-sessione" formale.
-2. [ ] **[Fase D-15] Best-of-N con gate come giudice** — per task hard
+2. [~] **[Fase D-15] Best-of-N con gate come giudice** — per task hard
       (GUI, architettura) e per slot hard: N=3 candidati in parallelo,
       il gate deterministico sceglie il migliore o rifiuta tutti.
       Criterio done: flag `best_of_n` in config + benchmark
       costo/qualità (3x token vs primo colpo %) in DOCS/BENCH.md.
+      ✅ Flag e gate-giudice già presenti (`CONFIG/config.toml:237`
+      `best_of_n = 1`, `CORE/best_of.py`, lock in `tests/test_config_gates.py`).
+      🔒 Resta il benchmark costo/qualità: richiede run LLM, non eseguito.
 3. [ ] **[SLOT-4] Prompt per-slot + benchmark 3 task reali** — cambia
       il prompt (non il motore): uno slot per chiamata, refs solo
       dello slot, output piccolo. ⚠ Richiede run LLM (ventole al max,
@@ -886,15 +889,21 @@ del modello nudo (192s vs 14s per task) — la vera leva è la semplificazione.
       subprocess costosi (nvidia-smi + ollama ps) da ogni 1.5s a ogni 3s,
       zoom catch-up solo se zoom != 100, timer SIGINT 200ms → 500ms.
       Stima ~5-10% CPU costante in meno a riposo.
-4. [ ] **Spegnere componenti inutili via config**: disabilitare Timestral,
+4. [x] **Spegnere componenti inutili via config**: disabilitare Timestral,
       SystemMonitor, LifecycleManager quando non necessari.
+      ✅ Risolto in Cycle 67 (vedi “Micro-ciclo config”): Timestral ha
+      `[thermal].enabled = true`, SystemMonitor e LifecycleManager sono
+      passivi (zero thread, zero costo a riposo) → toggle non necessari.
 5. [x] **Ridurre num_ctx del planner**: 3072 → 2048 (come orchestrator).
       ✅ Verificato: `CONFIG/config.toml:24` planner `num_ctx = 2048`,
       uguale a orchestrator (`:12`). Nessuna modifica necessaria.
-6. [ ] **Caching KV cache (llama.cpp)**: salvare il cache del system prompt
+6. [~] **Caching KV cache (llama.cpp)**: salvare il cache del system prompt
       e riutilizzarlo tra chiamate. Richiede passaggio a llama.cpp diretto.
-7. [ ] **Batch scritture disco**: batch delle write_file, commit solo alla
+      ⛔ Fuori scope (T23): Ollama gestisce già il KV cache del prefisso.
+7. [~] **Batch scritture disco**: batch delle write_file, commit solo alla
       fine del task.
+      ⛔ Fuori scope (T24): guadagno reale ma refactor e rischio di ordine
+      troppo alti; decisione documentata in “Token reduction — avanzate 2”.
   ✅ **Cycle 62** (semplificazione Fase 1): inventario CORE/, rimossi 3 moduli
   orfani (`sml_database`, `preflight_cli`, `loop_detector` fuso in
   `worker.py`), spostato `example_mcp_server.py` in `tests/`. CORE/ scende
