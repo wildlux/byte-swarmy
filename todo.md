@@ -205,6 +205,59 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 
 ---
 
+## 🛡️ Sessione 2026-11-22 — AI locale come sicurezza difensiva (verifica)
+
+> Richiesta: "come uso di AI locale come sicurezza difensiva come siamo messi?".
+> Interpretazione autonoma (nessuna domanda intermedia): separare *difesa
+> dell'AI locale* da *AI locale usata per difendersi*. Solo lettura di codice,
+> config e log: **nessun codice modificato**, nessun LLM/rete/GPU.
+
+| Domanda | Verdetto | Base |
+|---|---|---|
+| L'AI locale è contenuta in modo difensivo? | ✅ Bene: policy deterministica, sempre attiva, non delegata al modello | `SAFETY/security.py`, `tests/test_security.py` |
+| Usiamo l'AI locale per rilevare minacce? | ❌ No: non esiste un rilevatore basato su modello | ricerca in `CORE/`, `SAFETY/`, `tools/` |
+| Possiamo provarlo live ora? | 🔒 No: `data/state/fan_verified.json` assente | gate termico C3 |
+
+| Difesa presente | Evidenza |
+|---|---|
+| Sandbox bubblewrap fail-closed | `bwrap` installato; `check_isolation()` → `(True, 'Isolamento verificato.')` |
+| Niente shell: `shlex` + allowlist + blacklist sempre attive | `SAFETY/security.py`: `shell=False`, `SHELL_OPERATORS`, `BLOCKED_BASH_PATTERNS` |
+| Path confinati in `project/` | `safe_project_path()`: blocca `..`, symlink, `.ssh`, `.env`, `.git-credentials` |
+| Git senza egress per i worker | `git_push/pull/remote/clone` disabilitati; push solo manuale via `./sync.sh` |
+| Ambiente sanificato | `HOME` finto, niente `SSH_AUTH_SOCK`, niente `*_TOKEN` |
+| Risk gate umano, zero LLM | `SAFETY/risk_classifier.py`: `high/critical` → `awaiting_human_approval`; `orchestrator.py:755` esclude l'Audit Worker LLM |
+| Scansione statica + AST | `tools/security_scan.py` (S001–S031), `CORE/ast_scanner.py::detect_artifacts()` |
+| Audit log e test ostili | `logs/security.log` 1 MB × 5 (1.611 righe, 535 `CRITICAL` cumulativi; il campione è blocchi di test: `blocked_command`, `blocked_patch_scan`, `blocked_ast`, `blocked_escape_artifact`); 27 test in `tests/test_security.py`, incluso modello che obbedisce al prompt injection |
+
+| Gap / rischio residuo | Stato |
+|---|---|
+| Rilevamento anomalie/minacce con LLM | ❌ Assente e **non previsto ora**: il 3b non è un giudice attendibile |
+| Risposta automatica / quarantena / IDS | ❌ Assente |
+| seccomp / AppArmor / container | ❌ Assenti (`DOCS/SECURITY.md:281`) |
+| Hardening utente dedicato | ⚠️ Non attivo: processo come `wildlux`, non `byteswarmy` |
+| `~/.git-credentials` | ⚠️ 0600 ma con credenziali in chiaro: se è il token esposto, rotazione ancora da fare |
+
+| Cosa è già pulito | Verifica |
+|---|---|
+| Remote git | ✅ Token-free |
+| `state/cloud_api.json` | ✅ 0600 e gitignored (`state/` → `data/state/`) |
+| Token nella storia git | ✅ Nessuno (`git log --all -p` filtrato) |
+| Strumenti RE | ⚠️ `r2` installato ma non integrato in alcun gate AI |
+
+| Azione successiva | Stato |
+|---|---|
+| Chiudere questa verifica di sicurezza | [x] |
+| Ruotare il token GitHub esposto e aggiornare `~/.git-credentials` o passare a SSH | [ ] 🔒 credenziali |
+| Attivare utente dedicato + firewall: `./setup-hardening.sh --all` | [ ] 🔒 root |
+| Mantenere le difese deterministiche senza allargare l'allowlist | [x] |
+| Aggiungere un rilevatore AI-based | [ ] ⛔ non fare ora: troppo alto senza misure e gate termico |
+
+> Esito: il sistema è ben difeso **contro** l'AI locale, ma non **usa**
+> l'AI locale per difendersi. Il passo successivo consigliato è chiudere
+> rotazione token + utente dedicato prima di qualsiasi "difesa AI".
+
+---
+
 ## 🎯 Piano d'attacco — dalle voci più impattanti (2026-11-18)
 
 > **Criterio d'ordine**: impatto sul goal middle senior (radar grafico E)
