@@ -230,6 +230,9 @@ class FileTreeDrawer(QFrame):
         self.tree.setIconSize(QSize(16, 16))
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.tree.header().setStretchLastSection(False)
+        # Abilita i click sulle intestazioni: senza questo ``sectionClicked``
+        # era collegato ma non veniva mai emesso (codice morto, 2026-11-22).
+        self.tree.header().setSectionsClickable(True)
         self._apply_header_layout()
         self.tree.setIndentation(16)
         # Elimina padding/margini interni delle celle: checkbox piccole (13px)
@@ -250,7 +253,8 @@ class FileTreeDrawer(QFrame):
         self.tree.header().sectionResized.connect(self._save_column_widths)
         self._load_column_widths()
 
-        # Ordinamento automatico per colonna Name
+        # Ordinamento automatico per colonna Name / tipologia
+        self._name_sort_clicked = False  # primo click Name = A→Z esplicito
         self.tree.header().sectionClicked.connect(self._on_header_section_clicked)
 
         # Aggiorna l'icona del pulsante ordina secondo lo stato attuale
@@ -856,14 +860,21 @@ class FileTreeDrawer(QFrame):
           file mescolati, ordine alfabetico puro).
         - Icona 📄 (col 2): file raggruppati per estensione e cartelle in
           blocco; un nuovo click inverte il blocco (cartelle prima/dopo).
+
+        L'header deve essere ``sectionsClickable``: il segnale è collegato
+        nel costruttore ma i click reali non lo emettono se disabilitato.
         """
         if logicalIndex == 3:
-            if self.model._sort_mode != "name":
+            if not self._name_sort_clicked or self.model._sort_mode != "name":
                 self.model._sort_mode = "name"
                 self.model._sort_desc = False
             else:
                 self.model._sort_desc = not self.model._sort_desc
+            self._name_sort_clicked = True
             self._sort_loaded_tree()
+            self._show_sort_indicator(
+                3, Qt.SortOrder.DescendingOrder if self.model._sort_desc
+                else Qt.SortOrder.AscendingOrder)
         elif logicalIndex == 2:
             if self.model._sort_mode != "type":
                 self.model._sort_mode = "type"
@@ -872,7 +883,18 @@ class FileTreeDrawer(QFrame):
                 self.model._folders_first = not self.model._folders_first
             self.sort_btn.setText(
                 "📁📄" if self.model._folders_first else "📄📁")
+            self._name_sort_clicked = False
             self._sort_loaded_tree()
+            self._show_sort_indicator(
+                2, Qt.SortOrder.AscendingOrder if self.model._folders_first
+                else Qt.SortOrder.DescendingOrder)
+
+    def _show_sort_indicator(self, section: int, order) -> None:
+        """Freccetta sull'header come feedback visivo del ordinamento attivo."""
+        try:
+            self.tree.header().setSortIndicator(section, order)
+        except Exception:
+            pass
 
     def _sort_loaded_tree(self) -> None:
         """Riordina i figli già caricati secondo la modalità corrente."""
@@ -2236,22 +2258,11 @@ class FileTreeDrawer(QFrame):
                 labels_list, 0, False)
             if not (ok and name):
                 return
-            L.remove_label(name)
-            # Rimuove dai task
-            from GUI.task_queue import load_tasks, update_task_labels
-            project_path = self.main_win.get_current_project_path() if getattr(self, "main_win", None) else None
-            tasks = load_tasks(project_path)
-            for t in tasks:
-                tlabels = t.get("labels") or []
-                if isinstance(tlabels, str):
-                    import json as _j
-                    try:
-                        tlabels = _j.loads(tlabels)
-                    except Exception:
-                        tlabels = []
-                if name in tlabels:
-                    new_labels = [l for l in tlabels if l != name]
-                    update_task_labels(t.get("id"), new_labels, project_path)
+            from GUI.label_actions import delete_label_everywhere
+            project_path = (self.main_win.get_current_project_path()
+                            if getattr(self, "main_win", None) else None)
+            if not delete_label_everywhere(name, project_path):
+                return
             self._refresh_task_list()
         except Exception:
             pass

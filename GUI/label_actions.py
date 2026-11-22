@@ -48,3 +48,30 @@ def rename_label_everywhere(old: str, new: str,
     except Exception as exc:
         print(f"WARNING: aggiornamento task dopo rinomina etichetta: {exc}")
     return True
+
+
+def delete_label_everywhere(name: str,
+                            project_path: str | None = None) -> bool:
+    """Elimina l'etichetta dal registro e da tutti i task che la usano.
+
+    Unifica le quattro implementazioni duplicate nei pannelli (Impostazioni,
+    Archivio, Pianificatore, completamento etichette). Ritorna False se il
+    nome non era registrato. Le etichette di default vengono testamentate da
+    ``CORE.labels.remove_label`` per evitare che ricompaiano.
+    """
+    from CORE import labels as L
+
+    name = (name or "").strip()
+    if not name or not L.remove_label(name):
+        return False
+
+    try:
+        from GUI.task_queue import load_tasks, update_task_labels
+        for task in load_tasks(project_path):
+            current = _as_list(task.get("labels"))
+            if name in current:
+                updated = [item for item in current if item != name]
+                update_task_labels(task.get("id"), updated, project_path)
+    except Exception as exc:
+        print(f"WARNING: aggiornamento task dopo eliminazione etichetta: {exc}")
+    return True

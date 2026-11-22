@@ -576,8 +576,7 @@ class TaskSchedulerPanel(QWidget):
 
     def _handle_remove_label(self, project_path, all_labels) -> None:
         from PyQt6.QtWidgets import QInputDialog
-        from CORE import labels as L
-        from GUI.task_queue import update_task_labels, load_tasks
+        from GUI.label_actions import delete_label_everywhere
         labels_list = [l["name"] for l in all_labels]
         if not labels_list:
             return
@@ -586,19 +585,8 @@ class TaskSchedulerPanel(QWidget):
             labels_list, 0, False)
         if not (ok and name):
             return
-        L.remove_label(name)
-        tasks = load_tasks(project_path)
-        for t in tasks:
-            tlabels = t.get("labels") or []
-            if isinstance(tlabels, str):
-                import json as _j
-                try:
-                    tlabels = _j.loads(tlabels)
-                except Exception:
-                    tlabels = []
-            if name in tlabels:
-                nl = [l for l in tlabels if l != name]
-                update_task_labels(t.get("id"), nl, project_path)
+        if not delete_label_everywhere(name, project_path):
+            return
         self._refresh_list()
 
     def _start_edit_task(self, task: dict = None,

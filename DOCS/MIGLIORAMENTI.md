@@ -127,6 +127,7 @@ reale. Nessun flake residuo: `test_functional_swarm` passa da solo
 | v0.3.34 | 86 | Dotfile `.editorconfig`, `.gitattributes`, `.env.example` (variabili cloud documentate, `.env` gitignored) |
 | v0.3.34 | 86 | Riordino `TOOLS/REVERSE_ENGINEERING/` (refuso corretto, 14 riferimenti), regola cartelle in `AGENT.md` #11 + README, 0 file senza docstring in `CORE/GUI/tools` |
 | v0.3.34 | 86 | Fix dialog **Dettagli task** (`QWidget` non importato): la finestra si apre di nuovo; errori e task mancanti ora avvisano invece di fallire in silenzio; 4 test di regressione offscreen |
+| v0.3.34 | 86 | Fix eliminazione etichette (tombstone default) e ordinamento Archivio (header `sectionsClickable`): 5 test offscreen, logica delete unificata |
 
 ---
 
@@ -152,8 +153,8 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 | Miglioramento | Effetto |
 |---|---|
 | Toggle "Seleziona/deseleziona tutti" | glifo e stato coerenti (☐ vuoto / ☑ pieno) |
-| Archivio — click su **Name** | ordine alfabetico A→Z, secondo click Z→A |
-| Archivio — click su **📄** | raggruppa per estensione; secondo click inverte cartelle/file |
+| Archivio — click su **Name** | ordine alfabetico A→Z, secondo click Z→A — click collegato e header reso `sectionsClickable` (prima il segnale non veniva emesso) |
+| Archivio — click su **📄** | raggruppa per estensione; secondo click inverte cartelle/file; freccetta di ordinamento sull'header |
 | Dettaglio task | due colonne: metadati/log a sinistra, **Risultato** e **Progetti** a destra |
 | Codice prodotto | click sul file → codice effettivo nel viewer (con ▶ Esegui) |
 | Etichette | pallini colore nel menu contestuale, settings, completer `#`, colori rapidi |
@@ -163,6 +164,8 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 | Riordino tool RE | `REVERSE_ENGEREENING_TOOLS/` → `TOOLS/REVERSE_ENGINEERING/`; 14 riferimenti aggiornati, `$ROOT` nella copia di setup corretto |
 | Docstring di modulo | 0 file senza docstring in `CORE/GUI/tools` (completati i 3 `__init__.py` vuoti) |
 | Dettagli task | dialog ripristinato (`QWidget` importato); errori/task assenti mostrano un avviso; `tests/test_task_details_dialog.py` (4 test offscreen) |
+| Elimina etichetta | conferma "Sì" ora elimina davvero: tombstone `state/labels_deleted.json` impedisce la ricreazione dei default; logica unificata in `delete_label_everywhere()` usata da 4 pannelli |
+| Test regressione | `tests/test_labels_delete_sort.py`: 5 test offscreen (tombstone, ri-creazione, task, conferma dialog, click header) |
 
 ### Sicurezza dei segreti
 

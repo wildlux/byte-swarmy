@@ -20,6 +20,10 @@ from typing import Optional
 
 BASE_DIR = Path(__file__).parent.parent.resolve()
 LABELS_FILE = BASE_DIR / "state" / "labels.json"
+# Tombstone delle etichette di default eliminate dall'utente. senza questo
+# file ``ensure_default_labels()`` ricreerebbe "Test" subito dopo remove_label:
+# l'eliminazione sembrava funzionare ma l'etichetta ricompariva (2026-11-22).
+DELETED_FILE = BASE_DIR / "state" / "labels_deleted.json"
 
 # Mappa nome-colore (italiano + inglese) → hex.
 COLOR_NAMES = {
@@ -59,6 +63,22 @@ def _save(data: dict) -> None:
         json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
+def _deleted() -> set[str]:
+    """Nomi eliminati dall'utente (non devono essere ricreati dai default)."""
+    try:
+        value = json.loads(DELETED_FILE.read_text(encoding="utf-8"))
+        return {str(v) for v in value} if isinstance(value, list) else set()
+    except Exception:
+        return set()
+
+
+def _save_deleted(names: set[str]) -> None:
+    DELETED_FILE.parent.mkdir(parents=True, exist_ok=True)
+    DELETED_FILE.write_text(
+        json.dumps(sorted(names), indent=2, ensure_ascii=False),
+        encoding="utf-8")
+
+
 def _hash_color(name: str) -> str:
     """Colore deterministico per un nome non riconosciuto."""
     h = int(hashlib.sha256(name.lower().encode("utf-8")).hexdigest(), 16)
@@ -80,13 +100,21 @@ def get_color(name: str) -> str:
 
 
 def get_or_create_label(name: str) -> dict:
-    """Restituisce {name, color} creando l'etichetta se non esiste."""
+    """Restituisce {name, color} creando l'etichetta se non esiste.
+
+    La creazione esplicita rimuove l'eventuale tombstone: un'etichetta
+    eliminata e poi riaggiunta torna a essere un default normale.
+    """
     name = (name or "").strip()
     color = get_color(name)
     data = _load()
     if name not in data:
         data[name] = color
         _save(data)
+    deleted = _deleted()
+    if name in deleted:
+        deleted.discard(name)
+        _save_deleted(deleted)
     return {"name": name, "color": color}
 
 
@@ -125,11 +153,12 @@ DEFAULT_LABELS = {
 
 
 def ensure_default_labels() -> None:
-    """Crea le etichette di default mancanti (non sovrascrive quelle esistenti)."""
+    """Crea i default mancanti, saltando quelli eliminati dall'utente."""
     data = _load()
+    deleted = _deleted()
     changed = False
     for name, color in DEFAULT_LABELS.items():
-        if name not in data:
+        if name not in data and name not in deleted:
             data[name] = color
             changed = True
     if changed:
@@ -163,12 +192,25 @@ def set_color(name: str, color: str) -> None:
     _save(data)
 
 
-def remove_label(name: str) -> None:
-    """Rimuove un'etichetta dal registro."""
+def remove_label(name: str) -> bool:
+    """Rimuove un'etichetta dal registro e la testamenta se è un default.
+
+    Ritorna True se il nome era presente. La tombstone impedisce che
+    ``ensure_default_labels`` lo ricrei al successivo ``list_labels``.
+    """
+    name = (name or "").strip()
+    if not name:
+        return False
     data = _load()
-    if name in data:
-        del data[name]
-        _save(data)
+    if name not in data:
+        return False
+    del data[name]
+    _save(data)
+    if name in DEFAULT_LABELS:
+        deleted = _deleted()
+        deleted.add(name)
+        _save_deleted(deleted)
+    return True
 
 
 def rename_label(old: str, new: str) -> bool:

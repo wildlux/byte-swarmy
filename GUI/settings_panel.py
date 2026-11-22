@@ -483,7 +483,6 @@ class SettingsPanel(QWidget):
         self._refresh_labels_list()
 
     def _on_delete_label(self, name: str) -> None:
-        from CORE import labels as L
         from PyQt6.QtWidgets import QMessageBox
         reply = QMessageBox.question(
             self, "Elimina etichetta",
@@ -492,24 +491,12 @@ class SettingsPanel(QWidget):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply != QMessageBox.StandardButton.Yes:
             return
-        L.remove_label(name)
-        # Rimuove dai task
-        try:
-            from GUI.task_queue import load_tasks, update_task_labels
-            tasks = load_tasks(None)
-            for t in tasks:
-                tlabels = t.get("labels") or []
-                if isinstance(tlabels, str):
-                    import json as _j
-                    try:
-                        tlabels = _j.loads(tlabels)
-                    except Exception:
-                        tlabels = []
-                if name in tlabels:
-                    nl = [l for l in tlabels if l != name]
-                    update_task_labels(t.get("id"), nl, None)
-        except Exception:
-            pass
+        from GUI.label_actions import delete_label_everywhere
+        if not delete_label_everywhere(name):
+            QMessageBox.warning(
+                self, "Elimina etichetta",
+                f"Etichetta '{name}' non trovata nel registro.")
+            return
         self._refresh_labels_list()
 
     def _build_audit_section(self) -> QFrame:

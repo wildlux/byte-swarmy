@@ -80,7 +80,8 @@ class LabelMentionCompleter(QCompleter):
                 return
             self._refresh_model()
         elif chosen == act_remove:
-            L.remove_label(name)
+            from GUI.label_actions import delete_label_everywhere
+            delete_label_everywhere(name)
             self._refresh_model()
         else:
             # Controlla se è un colore rapido
