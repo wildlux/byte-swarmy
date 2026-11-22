@@ -1,0 +1,8 @@
+services:
+  tests:
+    build: .
+    image: byteswarmy-tests:local
+    environment:
+      QT_QPA_PLATFORM: offscreen
+      PYTHONUNBUFFERED: "1"
+    command: ["python", "-m", "pytest", "tests/", "-q", "-p", "no:cacheprovider"]

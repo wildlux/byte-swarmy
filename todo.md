@@ -594,9 +594,14 @@ compute grezzo.
   `QT_QPA_PLATFORM=offscreen`.
 
 ### Azioni
-- [ ] (prossima) Sviluppare compose/docker per la suite — STOP: spazio
-      disco PC insufficiente, nessun run previsto adesso.
-- [ ] (prossima) Documentare comandi container (pytest, lint, pyflakes).
+- [x] (fatto 2026-11-22) Compose/docker per la suite: `Dockerfile` +
+      `docker-compose.yml` + `.dockerignore`. Validati con
+      `docker compose config -q` e `docker buildx build --check .`
+      (0 warning). **Nessuna immagine costruita e nessun run**: resta il
+      vincolo disco e la regola termica sulla suite completa.
+- [x] (fatto 2026-11-22) Comandi container documentati in
+      `DOCS/DOCKER_TESTS.md` (pytest mirato, lint, pyflakes, compileall),
+      con stato esplicito di ciò che è stato validato e ciò che non lo è.
 
 ---
 

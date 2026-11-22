@@ -2499,3 +2499,20 @@ già presente, non una stima di risparmio.
 Verifiche: 13 test mirati verdi (6 nuovi + 7 di `test_config_validation`),
 `pyflakes` 0. **Nessun valore di config modificato**: i test bloccano lo stato
 già documentato, non introducono ottimizzazioni stimate.
+
+---
+
+## Cycle 110 (2026-11-22) — Test isolati: scaffold Docker validato, nessun run
+
+| Modifica | Dettaglio |
+|---|---|
+| `Dockerfile` (nuovo) | `python:3.11-slim` (allineato a CI), `QT_QPA_PLATFORM=offscreen`, `pause.flag` creato al build: nessun LLM e nessun e2e live dentro il container |
+| `docker-compose.yml` (nuovo) | Servizio `tests` con build locale, immagine `byteswarmy-tests:local`, comando pytest prefissato `-p no:cacheprovider` |
+| `.dockerignore` (nuovo) | Esclude `.venv`, `.git`, `state/`, `data/state/`, `logs/`, `project/` e cache: contesto di build piccolo e riproducibile |
+| `DOCS/DOCKER_TESTS.md` (nuovo) | Comandi per pytest mirato, lint, pyflakes e compileall, più distinzione esplicita travalidazione sintattica, build ed esecuzione |
+| `todo.md` | Chiuse entrambe le voci “Test isolati — avvio separato” con lo stato reale |
+
+Verifiche: `docker compose config -q` ✅, `docker buildx build --check .` →
+`Check complete, no warnings found`. **Nessuna immagine costruita, nessun
+pull, nessuna suite lanciata**: la regola termica del 2026-11-20 resta
+applicata e il profiling completo passa solo da GitHub Actions.

@@ -1,0 +1,12 @@
+.git
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+state
+data/state
+logs
+project
+backups
+tasks/queue.db
+DOCS/grafici
