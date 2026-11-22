@@ -143,5 +143,6 @@ def test_report_deterministico_e_dichiara_i_blocchi():
     for marker in ("M2 suite completa", "M3 ventole", "M4 credenziali",
                    "M5 hardening", "M6 profiling CI",
                    "Nessun asse del radar", "Nessun valore",
-                   "NON dimostra"):
+                   "NON dimostra", "misurare RPM con strumento esterno"):
         assert marker in text
+    assert "avviare nbfc con pkexec" not in text

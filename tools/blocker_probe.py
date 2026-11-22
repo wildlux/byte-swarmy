@@ -391,7 +391,8 @@ def markdown(result: dict) -> str:
         f"| M3 ventole | {'✅' if gate['verified'] else '🔒'} | "
         f"CPU {fan['cpu_temp_c']} °C, RPM {fan['fan_rpm']}, "
         f"nbfc `{fan['nbfc_service_state']}` | "
-        f"avviare nbfc con pkexec, poi `tools/blocker_probe.py --write-fan` |",
+        f"misurare RPM con strumento esterno (nbfc già attivo non basta), "
+        f"poi `tools/blocker_probe.py --write-fan` |",
         f"| M4 credenziali | {'✅' if creds['gh_auth_ok'] else '🔒'} | "
         f"gh: {creds['gh']['reason'] or 'ok'}; remote token-free: "
         f"{_yes_no(creds['remote_token_free'])} | "

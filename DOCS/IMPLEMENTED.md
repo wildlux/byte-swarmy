@@ -2557,3 +2557,17 @@ metadati pubblici e la collezione locale, che non esegue test.
 Verifiche: 3 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning,
 `bash -n` OK. **Nessuna modifica al sistema**: non sono stati creati utenti,
 slice o regole firewall, e non è stato usato `pkexec`.
+
+---
+
+## Cycle 114 (2026-11-22) — M3: azione delle sonde allineata al gate stretto
+
+| Modifica | Dettaglio |
+|---|---|
+| `tools/blocker_probe.py` | La riga M3 del report suggeriva "avviare nbfc con pkexec", ma il daemon è **già attivo** (duty 50%, `Current Fan Speed 0.00`): l'azione era fuorviante. Ora indica "misurare RPM con strumento esterno (nbfc già attivo non basta), poi `--write-fan`". Il corpo del report già documentava la decisione del 2026-11-22 |
+| `tests/test_blocker_probe.py` | Lock: il report contiene la nuova azione e **non** contiene più il vecchio suggerimento |
+| `DOCS/BLOCKER_PROBE_REPORT.md` | Rigenerato dalla fonte (CPU 67,0 °C, RPM 0, nbfc attivo) |
+
+Verifiche: 13 test mirati verdi, `pyflakes` 0. **Nessun gate indebolito**: il
+report continua a rifiutare RPM surrogati e il file `fan_verified.json` resta
+assente.
