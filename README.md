@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.3.33-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.3.34-blue">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-yellow">
   <img alt="Ollama" src="https://img.shields.io/badge/Ollama-required-orange">
@@ -31,7 +31,7 @@
 > con streaming token in tempo reale, selezione intelligente dei modelli e
 > ottimizzazione termica adattiva (Timestral LLM Tuner).
 
-**Versione:** 0.3.33 · **Licenza:** MIT · **Piattaforma:** Linux
+**Versione:** 0.3.34 · **Licenza:** MIT · **Piattaforma:** Linux
 
 ---
 
@@ -836,9 +836,10 @@ Serve a confrontare i modelli su prompt reali senza toccare la pipeline.
 | **Tools on/off** | checkbox sui tool di `CORE/tools.py`; le firme selezionate vengono iniettate nel system prompt |
 | **Skill on/off** | checkbox sulle skill di `.opencode/skill/`; il corpo (troncato) viene iniettato come contesto |
 | **Auto-skill** | attivo di default: le parole chiave nel prompt aggiungono da sole le skill pertinenti (max 4); altre keyword in `state/auto_skill_keywords.json` (esempio: `DOCS/auto_skill_keywords.example.json`) |
+| **Auto-tool** | attivo di default: le parole chiave aggiungono da sole le firme dei tool pertinenti (max 4); altre keyword in `state/auto_tool_keywords.json` (esempio: `DOCS/auto_tool_keywords.example.json`) |
 | **Persistenza** | `state/chat_tools_skills.json` (gitignored) |
 | **Chiave API** | pulsante **🔑 Incolla chiave API** → dialog mascherato (`EchoMode.Password`) → `state/cloud_api.json` con permessi `0600`, fuori da git |
-| **Errori** | il body HTTP reale del provider viene mostrato a schermo (`HTTP 402/410: …`), non un generico "HTTP error" |
+| **Errori** | il body HTTP reale del provider viene mostrato a schermo (`HTTP 403: error code: 1010`, `HTTP 402/410: …`), non un generico "HTTP error" |
 
 > La Chat **non esegue** i tool: li descrive nel prompt per misurare quanto il
 > modello ne comprende l'uso. La pipeline dei worker resta invariata e solo
@@ -849,6 +850,12 @@ tracciati, non viene mostrata a schermo e non compare nei log. Ordine di
 risoluzione: variabile d'ambiente del provider → `state/cloud_api.json`.
 Il remote git è configurato **senza token nell'URL** (le credenziali stanno nel
 credential helper dell'utente, fuori dal repo).
+
+**Test cloud completato**: Groq rispondeva `403 Cloudflare 1010` perché
+Cloudflare blocca lo User-Agent predefinito di `urllib`. Il client ora invia
+`User-Agent: byte-swarmy/0.3.34` e `Accept: application/json`. Verifica live:
+11 modelli Groq disponibili, `qwen/qwen3.8-27b` ha risposto in **0,78 s**
+(nessuna GPU locale coinvolta).
 
 ### Swarm commands (istantanei, no LLM)
 

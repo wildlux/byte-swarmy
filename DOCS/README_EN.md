@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.3.33-blue">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.3.34-blue">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-yellow">
   <img alt="Ollama" src="https://img.shields.io/badge/Ollama-required-orange">
@@ -30,7 +30,7 @@
 > documentation tasks under a deterministic orchestrator, with real-time token
 > streaming and intelligent model selection.
 
-**Version:** 0.3.33 · **License:** MIT · **Platform:** Linux
+**Version:** 0.3.34 · **License:** MIT · **Platform:** Linux
 
 ---
 
@@ -389,6 +389,7 @@ on real prompts without touching the pipeline.
 | **Tools on/off** | checkboxes over `CORE/tools.py`; selected signatures are injected into the system prompt |
 | **Skills on/off** | checkboxes over `.opencode/skill/`; the (truncated) body is injected as context |
 | **Auto-skill** | on by default: prompt keywords add the relevant skills automatically (max 4); extra keywords in `state/auto_skill_keywords.json` |
+| **Auto-tool** | on by default: prompt keywords add the relevant tool signatures automatically (max 4); extra keywords in `state/auto_tool_keywords.json` |
 | **Persistence** | `state/chat_tools_skills.json` (gitignored) |
 | **API key** | **🔑 Paste API key** button → masked dialog (`EchoMode.Password`) → `state/cloud_api.json`, mode `0600`, outside git |
 | **Errors** | the provider's real HTTP body is shown (`HTTP 402/410: …`) instead of a generic "HTTP error" |
@@ -402,6 +403,11 @@ the screen and never logged. Resolution order: provider env var →
 `state/cloud_api.json`. The git remote is configured **without a token in the
 URL** (credentials live in the user's credential helper, outside the repo), and
 `tools/security_scan.py` flags tokens in tracked files and remote URLs.
+
+**Cloud test**: Groq used to return `403 Cloudflare 1010` because Cloudflare
+blocks urllib's default User-Agent. The client now sends
+`User-Agent: byte-swarmy/0.3.34` and `Accept: application/json`. Live check:
+11 Groq models listed, `qwen/qwen3.8-27b` answered in **0.78 s** (no local GPU).
 
 The previous "7 tabs" (Task Queue, Models, MCP Servers, Logs, Timestral, Config, Test & Sandbox) are now reusable dialogs.
 

@@ -1,0 +1,8 @@
+{
+  "_comment": "Copia in state/auto_tool_keywords.json (gitignored). Le keyword si sommano a quelle di CORE/auto_tool.py.",
+  "git_commit": ["salva snapshot", "commento al commit"],
+  "git_push": ["pubblica su remoto", "sincronizza github"],
+  "run_test_suite": ["verifica i test", "pytest completo"],
+  "search": ["cerca la stringa", "trova occorrenze"],
+  "read_file": ["mostrami il contenuto", "apri il sorgente"]
+}

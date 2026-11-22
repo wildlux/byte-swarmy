@@ -102,6 +102,9 @@ def _headers(provider: str) -> dict:
     headers = {
         "Authorization": f"Bearer {get_api_key(provider)}",
         "Content-Type": "application/json",
+        # Cloudflare blocca lo User-Agent di default di urllib con 1010.
+        "User-Agent": "byte-swarmy/0.3.34 (+https://github.com/wildlux/byte-swarmy)",
+        "Accept": "application/json",
     }
     if provider == "openrouter":
         headers["HTTP-Referer"] = "https://github.com/wildlux/byte-swarmy"
@@ -119,13 +122,18 @@ def _request_json(url: str, headers: dict, payload: dict | None = None,
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
+        raw = ""
         try:
             raw = e.read().decode("utf-8", "replace")
             detail = json.loads(raw).get("error", raw)
             if isinstance(detail, dict):
                 detail = detail.get("message", detail)
         except Exception:
-            detail = str(e)
+            detail = ""
+        if isinstance(detail, str) and not detail.strip():
+            # Es. Cloudflare 1010 risponde con testo semplice, non JSON.
+            detail = f"HTTP Error {e.code}: {raw.strip()[:200]}"
+        detail = str(detail).replace("\n", " ")[:300]
         raise RuntimeError(f"HTTP {e.code}: {detail}") from e
 
 

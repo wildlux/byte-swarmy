@@ -116,17 +116,26 @@ def load_auto_skill() -> bool:
     return bool(_read_raw().get("auto_skill", True))
 
 
+def load_auto_tool() -> bool:
+    """Auto-tool attivo? Default: sì."""
+    return bool(_read_raw().get("auto_tool", True))
+
+
 def save_selection(tools: list[str], skills: list[str],
-                   auto_skill: bool | None = None) -> None:
-    """Salva tool/skill; ``auto_skill=None`` conserva il valore esistente."""
+                   auto_skill: bool | None = None,
+                   auto_tool: bool | None = None) -> None:
+    """Salva tool/skill; i flag ``None`` conservano il valore esistente."""
     data = _read_raw()
     if auto_skill is None:
         auto_skill = bool(data.get("auto_skill", True))
+    if auto_tool is None:
+        auto_tool = bool(data.get("auto_tool", True))
     SELECTION_FILE.parent.mkdir(parents=True, exist_ok=True)
     SELECTION_FILE.write_text(
         json.dumps({"tools": sorted(set(tools)),
                     "skills": sorted(set(skills)),
-                    "auto_skill": bool(auto_skill)},
+                    "auto_skill": bool(auto_skill),
+                    "auto_tool": bool(auto_tool)},
                    indent=2, ensure_ascii=False),
         encoding="utf-8")
 

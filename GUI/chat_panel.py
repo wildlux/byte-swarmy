@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
 )
 
 from CORE import auto_skill
+from CORE import auto_tool
 from CORE import chat_context as chat_ctx
 from CORE import cloud_client as cc
 from GUI.collapsible_section import CollapsibleSection
@@ -240,8 +241,16 @@ class ChatPanel(QWidget):
             "automaticamente al contesto (max 4). Parole chiave extra in "
             "state/auto_skill_keywords.json")
         self.auto_skill_cb.setChecked(chat_ctx.load_auto_skill())
-        self.auto_skill_cb.toggled.connect(self._on_auto_skill_toggled)
+        self.auto_skill_cb.toggled.connect(self._on_auto_toggled)
         top.addWidget(self.auto_skill_cb)
+        self.auto_tool_cb = QCheckBox("🛠️ Auto-tool per parole chiave")
+        self.auto_tool_cb.setToolTip(
+            "Se attivo, le firme dei tool pertinenti al prompt vengono "
+            "aggiunte da sole al contesto (max 4). Parole chiave extra in "
+            "state/auto_tool_keywords.json")
+        self.auto_tool_cb.setChecked(chat_ctx.load_auto_tool())
+        self.auto_tool_cb.toggled.connect(self._on_auto_toggled)
+        top.addWidget(self.auto_tool_cb)
         top.addStretch()
         lay.addLayout(top)
 
@@ -249,6 +258,10 @@ class ChatPanel(QWidget):
         self.auto_preview.setObjectName("chat_auto_preview")
         self.auto_preview.setWordWrap(True)
         lay.addWidget(self.auto_preview)
+        self.tool_preview = QLabel("")
+        self.tool_preview.setObjectName("chat_tool_preview")
+        self.tool_preview.setWordWrap(True)
+        lay.addWidget(self.tool_preview)
 
         cols = QHBoxLayout()
         cols.setSpacing(12)
@@ -260,7 +273,7 @@ class ChatPanel(QWidget):
         self.context_section.set_expanded(False)
         outer.addWidget(self.context_section)
         self._fill_context_lists()
-        self._update_auto_preview()
+        self._update_auto_previews()
 
     def _build_picker(self, title, kind):
         wrap = QWidget()
@@ -330,46 +343,55 @@ class ChatPanel(QWidget):
     def _on_context_changed(self) -> None:
         chat_ctx.save_selection(
             self._selected_tools(), self._selected_skills(),
-            auto_skill=self.auto_skill_cb.isChecked())
+            auto_skill=self.auto_skill_cb.isChecked(),
+            auto_tool=self.auto_tool_cb.isChecked())
         self._refresh_context_title()
 
-    def _on_auto_skill_toggled(self, checked: bool) -> None:
-        chat_ctx.save_selection(
-            self._selected_tools(), self._selected_skills(),
-            auto_skill=checked)
-        self._update_auto_preview()
-        self._refresh_context_title()
+    def _on_auto_toggled(self, checked: bool) -> None:
+        self._on_context_changed()
+        self._update_auto_previews()
 
-    def _update_auto_preview(self) -> None:
-        """Anteprima delle skill rilevate mentre si scrive il prompt."""
-        if not hasattr(self, "auto_preview") or not hasattr(self, "input_field"):
-            return
-        if not self.auto_skill_cb.isChecked():
-            self.auto_preview.setText("")
+    def _update_auto_previews(self) -> None:
+        """Anteprime live di skill/tool rilevati mentre si scrive il prompt."""
+        if not hasattr(self, "tool_preview") or not hasattr(self, "input_field"):
             return
         text = self.input_field.text().strip()
-        if not text:
-            self.auto_preview.setText(
-                "🧠 Auto-skill attivo: scrivi un prompt, le skill pertinenti "
-                "verranno aggiunte da sole.")
-            return
-        matches = auto_skill.detect(text)
-        if not matches:
-            self.auto_preview.setText(
-                "🧠 Auto-skill attivo: nessuna skill rilevata per questo "
+        self._fill_auto_preview(
+            self.auto_preview, self.auto_skill_cb.isChecked(),
+            auto_skill.detect(text) if text else [],
+            "skill", "🧠", bool(text))
+        self._fill_auto_preview(
+            self.tool_preview, self.auto_tool_cb.isChecked(),
+            auto_tool.detect(text) if text else [],
+            "tool", "🛠️", bool(text))
+
+    @staticmethod
+    def _fill_auto_preview(label, enabled: bool, matches: list[dict],
+                           kind: str, icon: str, typed: bool) -> None:
+        if not enabled:
+            label.setText("")
+        elif not typed:
+            label.setText(
+                f"{icon} Auto-{kind} attivo: scrivi un prompt per vedere "
+                f"i {kind} rilevati.")
+        elif not matches:
+            label.setText(
+                f"{icon} Auto-{kind}: nessuna corrispondenza per questo "
                 "prompt.")
-            return
-        names = ", ".join(m["name"] for m in matches)
-        words = sorted({w for m in matches for w in m["keywords"]})[:6]
-        self.auto_preview.setText(
-            f"🧠 Rilevate: {names}  ·  parole: {', '.join(words)}")
+        else:
+            names = ", ".join(m["name"] for m in matches)
+            words = sorted({w for m in matches for w in m["keywords"]})[:6]
+            label.setText(
+                f"{icon} Rilevati: {names}  ·  parole: {', '.join(words)}")
 
     def _refresh_context_title(self) -> None:
         nt, tt = len(self._selected_tools()), self._tools_list.count()
         ns, ts = len(self._selected_skills()), self._skills_list.count()
-        auto = "ON" if self.auto_skill_cb.isChecked() else "OFF"
+        sk = "ON" if self.auto_skill_cb.isChecked() else "OFF"
+        tl = "ON" if self.auto_tool_cb.isChecked() else "OFF"
         self.context_section.title_lbl.setText(
-            f"🧰 Tools e Skill ({nt}/{tt} tool · {ns}/{ts} skill · auto {auto})")
+            f"🧰 Tools e Skill ({nt}/{tt} tool · {ns}/{ts} skill · "
+            f"auto skill {sk} / tool {tl})")
 
     def _build_chat_area(self, outer):
         self.system_input = QLineEdit()
@@ -385,14 +407,14 @@ class ChatPanel(QWidget):
         self.input_field.setPlaceholderText(
             "Scrivi un prompt e premi Invia (o Enter)")
         self.input_field.returnPressed.connect(self._send)
-        self.input_field.textChanged.connect(self._update_auto_preview)
+        self.input_field.textChanged.connect(self._update_auto_previews)
         row.addWidget(self.input_field, stretch=1)
         self.send_btn = QPushButton("📤 Invia")
         self.send_btn.setObjectName("primary_btn")
         self.send_btn.clicked.connect(self._send)
         row.addWidget(self.send_btn)
         outer.addLayout(row)
-        self._update_auto_preview()
+        self._update_auto_previews()
 
     # ── sorgente / modelli ───────────────────────────────────────────
 
@@ -510,7 +532,7 @@ class ChatPanel(QWidget):
         self.output.append(f"\n👤 [{label}] {prompt}")
         self.output.append("⏳ Generazione in corso...")
         system = self.system_input.text().strip()
-        tools = self._selected_tools()
+        tools = list(self._selected_tools())
         skills = list(self._selected_skills())
         if self.auto_skill_cb.isChecked():
             auto_names = [n for n in auto_skill.detect_names(prompt)
@@ -519,6 +541,13 @@ class ChatPanel(QWidget):
                 skills.extend(auto_names)
                 self.output.append(
                     "🧠 Auto-skill: " + ", ".join(auto_names))
+        if self.auto_tool_cb.isChecked():
+            auto_names = [n for n in auto_tool.detect_names(prompt)
+                          if n not in tools]
+            if auto_names:
+                tools.extend(auto_names)
+                self.output.append(
+                    "🛠️ Auto-tool: " + ", ".join(auto_names))
         context = chat_ctx.build_context(tools, skills)
         if context:
             system = f"{system}\n\n{context}".strip() if system else context
