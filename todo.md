@@ -281,10 +281,10 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 |---|---|---|---|---|
 | M1 | Zero Warning riaperto: 23 finding pyflakes, 2 `undefined name: Path` | [x] Cycle 102 | Robustezza #10 + `DOCS/BRUTAL_HONESTY_REPORT.md` | Portato a 0 lo scope attivo: import `Path` aggiunto, import morti rimossi, `worker` senza assegnazione |
 | M2 | Suite completa non rieseguita dal 2026-11-19 | [ ] 🔒 termico | Domani #1 + incidente 2026-11-20 | Solo su GitHub Actions (`profile.yml`); locale vietata finché M3 non è chiuso |
-| M3 | Verifica ventole (`fan_verified.json` assente) | [ ] 🔒 termico | C3 + incidente 2026-11-20 | Sonda Cycle 103: CPU 65 °C, RPM 0, nbfc `inactive`. Avviare nbfc via pkexec, poi `tools/blocker_probe.py --write-fan` |
-| M4 | Token GitHub esposto da revocare | [ ] 🔒 credenziali | Sessione sicurezza 2026-11-22 | Sonda Cycle 103: `gh` rotto (shebang → `/usr/local/bin/python3.14` assente), remote token-free, 0600 OK. Riparare gh → login → revoca PAT su GitHub |
-| M5 | Utente dedicato + firewall | [ ] 🔒 root | Sessione sicurezza 2026-11-22 | Sonda Cycle 103: utente `byteswarmy` e slice cgroup assenti. `sudo scripts/setup/hardening.sh --all` |
-| M6 | Profiling CI: run #2 fallito al step 6 (`Profilazione completa`) | [ ] 🔒 UI | `.github/workflows/profile.yml` | Trigger manuale su GitHub Actions, artifact `--durations=0`; `gh workflow run profile.yml -R wildlux/byte-swarmy` dopo M4 |
+| M3 | Verifica ventole (`fan_verified.json` assente) | [ ] 🔒 termico | C3 + incidente 2026-11-20 | Cycle 104: daemon nbfc avviato via pkexec, ma `Current Fan Speed` 0.00 anche al 100% e nessun `fan*_input`: tachimetro non leggibile. Serve decisione su misura alternativa, non un valore inventato |
+| M4 | Token GitHub esposto da revocare | [ ] 🔒 credenziali | Sessione sicurezza 2026-11-22 | Cycle 104: `gh` trovato NON è GitHub CLI (script browser 0.0.4); CLI ufficiale assente (`apt-cache policy gh` → 2.46.0-4). `sudo apt install gh` → `gh auth login` → revoca PAT |
+| M5 | Utente dedicato + firewall | [ ] 🔒 root | Sessione sicurezza 2026-11-22 | Cycle 104: utente `byteswarmy` e slice cgroup assenti; `pkexec` autorizza root senza password (utente nel gruppo sudo). `sudo scripts/setup/hardening.sh --all` + rivedere polkit |
+| M6 | Profiling CI: run #2 fallito al step 6 (`Profilazione completa`) | [ ] 🔒 UI | `.github/workflows/profile.yml` | Trigger manuale su GitHub Actions; `gh workflow run profile.yml -R wildlux/byte-swarmy` solo dopo installazione CLI + M4 |
 | M7 | Middle non misurato (task reali, retrieval quality, A/B live, GUI live, build mobile) | [ ] 🔒 termico | Radar E + C3 + SLOT-3/4 | Corpus task utente + gate termico; nessun asse alzato senza misure |
 | M8 | Rilevatore AI-based | [ ] ⛔ non fare ora | Sessione sicurezza 2026-11-22 | Nessuna azione: servono misure e gate termico |
 

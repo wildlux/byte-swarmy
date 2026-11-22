@@ -2408,3 +2408,21 @@ negativo: `--write-fan` stampa `RIFIUTO` e non crea il file; `--check-fan` esce 
 Il dato termico è peggiorato rispetto al primo campione del giorno (53 °C → 65 °C),
 quindi la regola del 2026-11-20 resta applicata senza eccezioni.
 
+---
+
+## Cycle 104 (2026-11-22) — M3/M4/M6: false positivi corretti e blocco hardware del tachimetro
+
+| Modifica | Dettaglio |
+|---|---|
+| `tools/blocker_probe.py` | Corretti due falsi negativi/positivi emersi dal test reale: (1) l'unità systemd è `nbfc_service`, non `nbfc`; (2) `~/.local/bin/gh` non è la GitHub CLI ma uno script che apre il browser — ora classificato `script-browser` con hint `sudo apt install gh` invece di “riparare lo shebang”. Aggiunto il parser del formato nbfc 0.5.3 (`Current Fan Speed` / `Target Fan Speed`, senza unità RPM) e il duty cycle nel report |
+| Servizio ventole | Avviato il daemon nbfc via `pkexec --disable-internal-agent /usr/bin/nbfc start` (autorizzato senza password); test reversibile a duty 100% e ripristino `set -a`. **Non** abilitato persistentemente: l'unità systemd resta `inactive` |
+| M3 — evidenza hardware | `Current Fan Speed: 0.00` anche con `Target Fan Speed: 100.00`; nessun `/sys/class/hwmon/hwmon*/fan*_input`. Il tachimetro non è leggibile: `fan_rpm > 0` non è dimostrabile con i sensori disponibili. Il gate resta 🔒; **nessuna misura alternativa è stata introdotta autonomamente** |
+| M4/M6 — evidenza CLI | `apt-cache policy gh`: installato = nessuno, candidato 2.46.0-4. Serve installazione della CLI ufficiale + login + revoca PAT prima di qualsiasi trigger del workflow |
+| M5 — evidenza polkit | `pkexec id` restituisce `uid=0(root)` senza password (utente nel gruppo `sudo`): rilevante per la review di hardening, non risolto qui |
+
+Verifiche: 13 test mirati verdi, `pyflakes` 0, `compileall` OK.
+`DOCS/BLOCKER_PROBE_REPORT.md` rigenerato con duty, stato unità e nota sul
+tachimetro. **Nessun asse del radar toccato**, nessuna suite completa locale,
+nessun `fan_verified.json` scritto. La decisione su un'eventuale misura
+alternativa al conteggio RPM spetta all'utente: non viene presa di default.
+

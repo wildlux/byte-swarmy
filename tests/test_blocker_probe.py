@@ -24,6 +24,15 @@ def test_parse_nbfc_rpm():
     assert bp.parse_nbfc_rpm("") == 0
 
 
+def test_parse_nbfc_formato_053_senza_unita_rpm():
+    text = ("Current Fan Speed        : 0.00\n"
+            "Target Fan Speed         : 100.00\n")
+    assert bp.parse_nbfc_rpm(text) == 0
+    assert bp.parse_nbfc_duty(text) == 100.0
+    assert bp.parse_nbfc_rpm("Current Fan Speed : 3200.00") == 3200
+    assert bp.parse_nbfc_duty("nessun dato") is None
+
+
 def test_parse_hwmon_temp():
     assert bp.parse_hwmon_temp("53000\n") == 53.0
     assert bp.parse_hwmon_temp("N/A") == 0.0
@@ -99,6 +108,30 @@ def test_gh_health_rileva_interprete_shebang_assente(tmp_path):
     health = bp.gh_health(str(fake))
     assert health["ok"] is False
     assert "/usr/local/bin/python3.14" in health["reason"]
+
+
+def test_gh_health_non_confonde_script_browser_con_cli(tmp_path):
+    fake = tmp_path / "gh"
+    fake.write_text(
+        "#!/usr/bin/python3\n# Open your Github project in a browser\n",
+        encoding="utf-8")
+    health = bp.gh_health(str(fake))
+    assert health["ok"] is False
+    assert health["kind"] == "script-browser"
+    assert health["install_hint"] == "sudo apt install gh"
+
+
+def test_nbfc_probe_controlla_l_unita_giusta(monkeypatch):
+    calls = []
+
+    def fake_cmd(argv, timeout=8):
+        calls.append(argv)
+        return "active\n" if "is-active" in argv else ""
+
+    monkeypatch.setattr(bp, "_cmd", fake_cmd)
+    result = bp.nbfc_probe()
+    assert ["systemctl", "is-active", "nbfc_service"] in calls
+    assert result["service_state"] == "active"
 
 
 def test_report_deterministico_e_dichiara_i_blocchi():

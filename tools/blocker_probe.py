@@ -35,7 +35,10 @@ FAN_FILE = ROOT / "data" / "state" / "fan_verified.json"
 MAX_TEMP_C = 60.0
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 RPM_RE = re.compile(r"(?<![\d.])(\d{2,6})\s*RPM\b", re.IGNORECASE)
+SPEED_RE = re.compile(r"Current Fan Speed\s*:\s*(\d+(?:\.\d+)?)", re.IGNORECASE)
+DUTY_RE = re.compile(r"Target Fan Speed\s*:\s*(\d+(?:\.\d+)?)", re.IGNORECASE)
 TOKEN_URL_RE = re.compile(r"(https?://)[^/@\s]+@")
+GH_BROWSER_MARKER = "Open your Github project in a browser"
 
 
 def _cmd(argv: list[str], timeout: int = 8) -> str:
@@ -49,8 +52,20 @@ def _cmd(argv: list[str], timeout: int = 8) -> str:
 
 
 def parse_nbfc_rpm(text: str) -> int:
-    """RPM massimo riportato da `nbfc status`; 0 se il servizio non risponde."""
-    return max((int(v) for v in RPM_RE.findall(text or "")), default=0)
+    """RPM da `nbfc status`: sia '3200 RPM' sia 'Current Fan Speed: 0.00'.
+
+    nbfc 0.5.3 su questa macchina NON stampa l'unità RPM: ignorare il formato
+    vecchio sarebbe un falso '0 RPM' anche quando il valore è positivo.
+    """
+    vals = [int(v) for v in RPM_RE.findall(text or "")]
+    vals += [int(float(v)) for v in SPEED_RE.findall(text or "")]
+    return max(vals, default=0)
+
+
+def parse_nbfc_duty(text: str) -> float | None:
+    """Duty cycle richiesto ('Target Fan Speed'), se presente."""
+    found = DUTY_RE.findall(text or "")
+    return float(found[-1]) if found else None
 
 
 def parse_hwmon_temp(text: str) -> float:
@@ -107,18 +122,28 @@ def read_pwm(base: Path = Path("/sys")) -> list[dict]:
 
 def nbfc_probe() -> dict:
     """Stato reale del servizio nbfc (nessun root, nessun pkexec)."""
-    state = _cmd(["systemctl", "is-active", "nbfc"]).strip().splitlines()
+    state = _cmd(["systemctl", "is-active", "nbfc_service"]).strip().splitlines()
     status = _cmd(["nbfc", "status"], timeout=6)
     detail = ""
     for line in status.splitlines():
         if line.strip():
             detail = ANSI_RE.sub("", line).strip()[:160]
             break
+    unit_state = state[-1].strip() if state else "sconosciuto"
+    daemon_ok = "Current Fan Speed" in status
+    if daemon_ok:
+        rpm_source = "nbfc status (Current Fan Speed)" if SPEED_RE.search(status) \
+            else "nbfc status (RPM)" if RPM_RE.search(status) else None
+    else:
+        rpm_source = None
     return {
-        "service_state": state[-1].strip() if state else "sconosciuto",
+        "service_state": "daemon attivo" if daemon_ok else unit_state,
+        "unit_state": unit_state,
+        "daemon_running": daemon_ok,
         "rpm": parse_nbfc_rpm(status),
+        "fan_duty_pct": parse_nbfc_duty(status),
         "detail": detail,
-        "rpm_source": "nbfc status" if "RPM" in status.upper() else None,
+        "rpm_source": rpm_source,
     }
 
 
@@ -133,8 +158,10 @@ def fan_snapshot(base: Path = Path("/sys")) -> dict:
         "cpu_temp_c": round(temp_c, 1),
         "temp_source": source,
         "fan_rpm": rpm,
+        "fan_duty_pct": nbfc.get("fan_duty_pct"),
         "rpm_source": nbfc["rpm_source"],
         "nbfc_service_state": nbfc["service_state"],
+        "nbfc_unit_state": nbfc.get("unit_state"),
         "nbfc_detail": nbfc["detail"],
         "pwm": read_pwm(base),
         "gate": {
@@ -214,23 +241,50 @@ def hardening_probe(repo: Path = ROOT) -> dict:
 
 
 def gh_health(exe: str | None = None) -> dict:
-    """Verifica che gh sia eseguibile (shebang incluso) senza autenticarsi."""
+    """Distingue la GitHub CLI ufficiale da altri eseguibili chiamati `gh`.
+
+    Su questa macchina `~/.local/bin/gh` è uno script di 3,6 KB che apre il
+    progetto nel browser: segnalarlo come 'CLI da riparare' sarebbe un falso
+    positivo, perché non supporta `auth` né `workflow`.
+    """
     exe = exe or shutil.which("gh")
     if not exe:
-        return {"ok": False, "path": None, "reason": "gh non installato"}
+        return {
+            "ok": False, "path": None, "kind": "assente",
+            "reason": "GitHub CLI non installato",
+            "install_hint": "sudo apt install gh",
+        }
     try:
-        first = Path(exe).read_text(encoding="utf-8", errors="replace").splitlines()[0]
-    except (OSError, IndexError) as exc:
-        return {"ok": False, "path": exe, "reason": f"gh non leggibile: {exc}"}
+        with open(exe, "rb") as handle:
+            head = handle.read(4096).decode("utf-8", errors="replace")
+    except OSError as exc:
+        return {"ok": False, "path": exe, "kind": "illeggibile",
+                "reason": f"gh non leggibile: {exc}", "install_hint": None}
+    if GH_BROWSER_MARKER in head:
+        return {
+            "ok": False, "path": exe, "kind": "script-browser",
+            "reason": "`gh` trovato ma NON è GitHub CLI: apre solo il browser",
+            "install_hint": "sudo apt install gh",
+        }
+    first = head.splitlines()[0] if head.splitlines() else ""
     if first.startswith("#!"):
         interpreter = first[2:].strip().split()
         if interpreter and not Path(interpreter[0]).exists():
             return {
-                "ok": False,
-                "path": exe,
+                "ok": False, "path": exe, "kind": "shebang-rotto",
                 "reason": f"interprete shebang assente: {interpreter[0]}",
+                "install_hint": "sudo apt install gh",
             }
-    return {"ok": True, "path": exe, "reason": None}
+    version = _cmd([exe, "--version"], timeout=6)
+    if not re.search(r"gh version\s+\d", version, re.IGNORECASE):
+        return {
+            "ok": False, "path": exe, "kind": "sconosciuto",
+            "reason": "eseguibile gh non riconosciuto come GitHub CLI",
+            "install_hint": "sudo apt install gh",
+        }
+    return {"ok": True, "path": exe, "kind": "ufficiale",
+            "reason": None, "install_hint": None,
+            "version": version.strip().splitlines()[0][:60]}
 
 
 def mask_remote(url: str) -> str:
@@ -256,7 +310,7 @@ def credentials_probe(repo: Path = ROOT) -> dict:
     """Stato credenziali: nessun segreto viene letto o stampato."""
     health = gh_health()
     auth_ok = False
-    auth_hint = "gh non eseguibile: riparare shebang prima di autenticarsi"
+    auth_hint = "GitHub CLI assente: installarla prima di autenticarsi"
     if health["ok"]:
         out = _cmd([health["path"], "auth", "status", "--hostname", "github.com"])
         auth_ok = "logged in" in out.lower()
@@ -341,7 +395,7 @@ def markdown(result: dict) -> str:
         f"| M4 credenziali | {'✅' if creds['gh_auth_ok'] else '🔒'} | "
         f"gh: {creds['gh']['reason'] or 'ok'}; remote token-free: "
         f"{_yes_no(creds['remote_token_free'])} | "
-        "riparare gh, `gh auth login`, revocare la PAT su GitHub |",
+        "installare la CLI (`sudo apt install gh`), `gh auth login`, revocare la PAT |",
         f"| M5 hardening | {'✅' if not hard['needs_root'] else '🔒'} | "
         f"utente {_yes_no(hard['user_exists'])}, slice {_yes_no(hard['cgroup_slice_present'])} | "
         f"`{hard['command']}` |",
@@ -355,6 +409,8 @@ def markdown(result: dict) -> str:
         f"| Temperatura CPU (coretemp) | {fan['cpu_temp_c']} °C |",
         f"| Sorgente temperatura | `{fan['temp_source']}` |",
         f"| RPM ventola | {fan['fan_rpm']} ({fan['rpm_source'] or 'nessuna sorgente'}) |",
+        f"| Duty richiesto | {fan.get('fan_duty_pct')} % (Target Fan Speed) |",
+        f"| Unità systemd | `{fan.get('nbfc_unit_state')}` |",
         f"| Dettaglio nbfc | {fan['nbfc_detail'] or 'nessuna risposta'} |",
         f"| PWM sysfs | {len(fan['pwm'])} nodi (indizio, non RPM) |",
         f"| `fan_rpm > 0` | {_yes_no(gate['fan_rpm_positivo'])} |",
@@ -365,12 +421,21 @@ def markdown(result: dict) -> str:
         "Il file di gate non viene mai scritto con valori passati a mano:",
         "`--write-fan` rilegge i sensori e rifiuta se il gate non è verificato.",
         "",
+        "Su questa macchina il daemon nbfc è stato avviato via pkexec, ma",
+        "`Current Fan Speed` resta 0.00 anche con duty al 100% e non esiste",
+        "alcun `fan*_input` in sysfs: il tachimetro non è leggibile. Pertanto",
+        "`fan_rpm > 0` NON è dimostrabile con i sensori disponibili: il gate",
+        "resta chiuso finché non si decide una misura alternativa verificabile.",
+        "",
         "## Dettaglio credenziali (M4)",
         "",
         "| Controllo | Valore |",
         "|---|---|",
         f"| Eseguibile gh | `{creds['gh']['path'] or 'assente'}` — "
         f"{creds['gh']['reason'] or 'ok'} |",
+        f"| GitHub CLI ufficiale | {_yes_no(creds['gh']['ok'])} "
+        f"({creds['gh']['kind']}) |",
+        f"| Installazione suggerita | `{creds['gh'].get('install_hint') or '—'}` |",
         f"| Autenticazione gh | {_yes_no(creds['gh_auth_ok'])} |",
         f"| Remote origin | `{creds['remote_url']}` |",
         f"| Token nel remote | {_yes_no(not creds['remote_token_free'])} |",
