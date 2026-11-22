@@ -2516,3 +2516,16 @@ Verifiche: `docker compose config -q` ✅, `docker buildx build --check .` →
 `Check complete, no warnings found`. **Nessuna immagine costruita, nessun
 pull, nessuna suite lanciata**: la regola termica del 2026-11-20 resta
 applicata e il profiling completo passa solo da GitHub Actions.
+
+---
+
+## Cycle 111 (2026-11-22) — Eval suite interna: lock dello slice deterministico
+
+| Modifica | Dettaglio |
+|---|---|
+| `tests/test_eval_suite.py` (nuovo) | 5 test offline: `cases.json` caricabile e valido (13 casi), copertura esatta di 8 assi e 3 granularità, rilevamento id duplicati/asse sconosciuto, `--dry-run --json` deterministico e coerente con `summarize()`, file sotto versione. Nessun LLM/rete/scrittura |
+| `todo.md` | Fase A portata a `[~]`: lo slice deterministico (13 casi + runner + report per famiglia) è verificato e lockato; resta solo il pass@1 `--live`, che richiede run LLM con gate termico |
+
+Verifiche: 5 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning.
+**Nessun caso aggiunto e nessuna misura pass@1 prodotta**: i test bloccano la
+struttura già presente, non simulano risultati di modello.

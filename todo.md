@@ -382,7 +382,7 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
       deterministico in `backups/<ts>/<relpath>` (retention max N
       sessioni) prima di ogni scrittura; restore documentato; test
       roundtrip.
-6. [ ] **[Fase A] Eval suite interna (mini-SWE-bench)** — i task reali
+6. [~] **[Fase A] Eval suite interna (mini-SWE-bench)** — i task reali
       dei Cycle 70-85 diventano test-case con soluzione di riferimento;
       runner misura primo colpo % **per asse del radar** e **per
       granularità**. Criterio done: `evals/` con ≥12 casi + runner +
@@ -390,6 +390,10 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
       > ✅ **Slice Fase A fatta** (campagna 85n): `evals/cases.json`
       > (13 casi, 8 assi, 3 granularità) + `tools/run_eval.py` (dry-run
       > valida e riassume per asse/granularità; --live richiede LLM).
+      > ✅ **Lock Cycle 111**: `tests/test_eval_suite.py` (5 test) blocca
+      > copertura 8 assi/3 granularità, validazione casi corrotti e
+      > dry-run JSON deterministico. 🔒 Resta `--live` (pass@1): serve
+      > run LLM con gate termico, non eseguito.
 7. [ ] **[SLOT-5] Eval per-slot pass@1** — runner che misura il
       primo-colpo **per tipo di slot** (import/function/handler/widget)
       e per dimensione output: è il numero che dice se SLOT funziona.
