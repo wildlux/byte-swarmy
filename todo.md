@@ -191,7 +191,10 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 > PyQt6 + skill `py-gui-scaffold`, 7 test offscreen, radar Task GUI 1/4 → 2/4
 > (3/4 richiede task live 🔒 termico); E4 in Cycle 99: harness `tools/memory_ab.py`,
 > task set congelato `5e6051bfc33d`, soglie GO/NO-GO in `DOCS/BENCH.md`,
-> live 🔒 bloccato finché le ventole non sono verificate. Registro:
+> live 🔒 bloccato finché le ventole non sono verificate; Cycle 100: brutal
+> honesty — report deterministico `tools/brutal_honesty_report.py`, corrette
+> le frasi false in `DOCS/MIGLIORAMENTI.md` e le caveat in
+> `DOCS/SELF_IMPROVEMENT_REPORT.md`, radar invariato. Registro:
 > [`DOCS/IMPLEMENTED.md`](DOCS/IMPLEMENTED.md).
 > C3 resta 🔒 bloccato finché la ventola non è verificata (≤60 °C, ventole al max).
 
@@ -332,7 +335,7 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
       push → py_compile tutto-repo + pyflakes 0-undefined + test
       offscreen veloci (sottoinsieme, NON la suite 19min) su ubuntu +
       Python 3.11.
-15. [x] **[Robustezza #10] Campagna Zero Warning: pyflakes 474 → 0** —
+15. [x] **[Robustezza #10] Campagna Zero Warning: pyflakes 474 → 0 (storica, ⚠️ RIAPERTA in Cycle 100)** —
       regola nel goal (vedi header): codice pulito ed elegante.
       Baseline: 375 unused import + 39 variabili morte + 16
       redefinition + 44 altro. Criterio done: pyflakes 0 su
@@ -341,6 +344,8 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
       famiglia GUI/CORE per sessione) + baseline pytest-warning
       misurata e ridotta con `-W error` dove possibile. GO/NO-GO
       onesto se i warning Qt non sono sopprimibili.
+      ⚠️ Cycle 100: pyflakes oggi 23 finding sul codice attivo (no
+      `tests/archiviati`) — vedi `DOCS/BRUTAL_HONESTY_REPORT.md`.
 16. [x] **[Robustezza #7] security_scan.py in CI + verify_cycle** — lo
       scanner esiste (baseline storica 262 finding / 13 errori, di cui
       9 in GLM_SOLUZIONE_WEB; baseline UNICA aggiornata il 2026-11-22:

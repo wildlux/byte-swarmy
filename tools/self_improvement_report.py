@@ -98,6 +98,25 @@ def collect(state_dir=DEFAULT_STATE) -> dict:
     }
 
 
+def _first_try_caveat(c: dict, r: dict) -> str:
+    return (
+        "> ⚠️ **Brutal honesty**: il tasso primo colpo è calcolato sulle "
+        f"{c['samples']} triple del corpus ({c['unique']} uniche, "
+        f"{r['tasks']} task distinti). Sono **fixture interne** (test, "
+        "adversarial, regressioni), non task utente reali: non dimostra "
+        "la soglia '≥50% task chiusi al primo tentativo'. "
+        "Task GUI live: non misurato."
+    )
+
+
+def _retrieval_caveat() -> str:
+    return (
+        "> ⚠️ La copertura indica solo che `title`/`description` sono "
+        "indicizzabili; **non misura la qualità del retrieval** né che il "
+        "contesto migliori le risposte."
+    )
+
+
 def markdown(m: dict) -> str:
     c = m["corpus"]
     v = m["verdicts"]
@@ -134,6 +153,8 @@ def markdown(m: dict) -> str:
 
     lines += [
         "",
+        _first_try_caveat(c, r),
+        "",
         "## Gate e apprendimento",
         "",
         "| Metrica | Valore |",
@@ -151,6 +172,8 @@ def markdown(m: dict) -> str:
         "|---|---|",
         f"| Task con testo indicizzabile | {r['indexed']}/{r['tasks']} |",
         f"| Copertura | {r['coverage']:.1%} |",
+        "",
+        _retrieval_caveat(),
         "",
     ]
     return "\n".join(lines)

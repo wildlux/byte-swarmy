@@ -1,4 +1,4 @@
-# 📈 Miglioramenti implementati — Cycle 70 → 99 (v0.3.18 → v0.3.34)
+# 📈 Miglioramenti implementati — Cycle 70 → 100 (v0.3.18 → v0.3.34)
 
 ![Grafico miglioramenti](grafici/miglioramenti.svg)
 
@@ -20,9 +20,9 @@ Scala (grafico D, criteri misurabili):
 | Livello | Criterio | Stato |
 |---|---|---|
 | **Junior** — 1/4 | 3b nudo senza sistema: 0/4 task GUI, modifiche minime fallite, requirements sovrascritto | baseline (C72) |
-| **Junior+** — 2/4 | Sistema v0.3.34: 41 meccanismi attivi, gate per-slot + assembler + import-check, Zero Warning (0 pyflakes), corpus feedback, best-of-N configurabile, auto-skill/auto-tool validati, self-improvement misurabile | **◀ siamo qui** |
+| **Junior+** — 2/4 | Sistema v0.3.34: 41 meccanismi documentati/implementati (fast lane disabilitata: `enabled=false`, `best_of_n=1`), gate per-slot + assembler + import-check, corpus feedback, auto-skill/auto-tool validati, self-improvement misurabile. ⚠️ Zero Warning: 0 pytest warning al run3 2026-11-19, ma **pyflakes oggi in rosso** (conteggio nel [Brutal honesty](BRUTAL_HONESTY_REPORT.md)) | **◀ siamo qui** |
 | **Middle** — 3/4 | ≥50% dei task chiusi al primo tentativo (senza correction), task GUI ≥50% | target intermedio |
-| **Middle Senior** — 4/4 | **≥70% al primo tentativo; task GUI ≥75%; 0 simboli API inesistenti nei file scritti (gate import-check); 0 violazioni gate; 0 warning (pyflakes + pytest — regola Zero Warning) ✅ raggiunto (474 → 0)** | ★ GOAL |
+| **Middle Senior** — 4/4 | **≥70% al primo tentativo; task GUI ≥75%; 0 simboli API inesistenti nei file scritti (gate import-check); 0 violazioni gate; 0 warning (pyflakes + pytest)** — ⚠️ **non raggiunto**: il tasso del corpus è su fixture interne, task GUI live non misurato, pyflakes in rosso | ★ GOAL |
 
 Come si misura: la stessa suite (`verify_cycle.sh` + test di parità +
 benchmark di sessione). Ogni meccanismo della sezione B è un gradino
@@ -33,13 +33,30 @@ verso il goal; il progresso è un numero, non un'impressione.
 | Asse | Oggi | Goal | Gap → azione (todo.md) |
 |---|:-:|:-:|---|
 | Task GUI (creazione) | 2/4 | 3/4 | E3: 4 template in `GUI/refs/templates/` + skill `py-gui-scaffold`, snapshot offscreen verdi; 3/4 richiede 1 task GUI live 🔒 termico (SLOT-3) |
-| Modifiche minime | 3/4 | 4/4 | best-of-N attivo (fast lane), executor + disciplina |
+| Modifiche minime | 3/4 | 4/4 | best-of-N **configurabile ma runtime disabilitato** (`fast_lane.enabled=false`, `best_of_n=1`), executor + disciplina |
 | Refactoring mecc. | 4/4 | 4/4 | E1: `tools/refactor_guard.py` — AST + API pubblica + behavioral diff, 8/8 refactoring atomici verdi |
 | Gate / verifica | 4/4 | 4/4 | punto di forza: gate per-slot + import-check |
 | Fedeltà API | 4/4 | 4/4 | E2: ref `json`/`csv` generati e validati, 0 simboli indefiniti con `api_lookup(strict=True)` su 7 usi; costanti reali verificate come valori |
 | Chiarimenti ambigui | 3/4 | 4/4 | clarifier esteso (3 pattern nuovi) |
 | Architettura | 2/4 | 3/4 | SLOT: gate + assembler pronti, planner v2 (SLOT-3) |
-| Memoria / contesto | 3/4 | 4/4 | A2–A3 triple con `reason` + `corrected`, A4 retrieval chiamabile, C2 report (copertura 100%), E4 harness A/B pronto (10 task, soglie): impatto live resta 🔒 termico (C3) |
+| Memoria / contesto | 3/4 | 4/4 | A2–A3 triple con `reason` + `corrected`, A4 retrieval chiamabile, C2 report (copertura 100% = solo presenza di testo indicizzabile, **non** qualità del retrieval), E4 harness A/B pronto (10 task, soglie): impatto live resta 🔒 termico (C3) |
+
+---
+
+## 🧾 Brutal honesty — verifica dei report (Cycle 100)
+
+> Report deterministico: [`DOCS/BRUTAL_HONESTY_REPORT.md`](BRUTAL_HONESTY_REPORT.md).
+> Rigenera con `.venv/bin/python tools/brutal_honesty_report.py --out DOCS/BRUTAL_HONESTY_REPORT.md`.
+> Nessun LLM: i numeri vengono dal codice, dal TOML e dal corpus.
+
+| Voce | Correzione applicata |
+|---|---|
+| Zero Warning | **Non diciamo più “0 pyflakes raggiunto”**: il run3 2026-11-19 aveva 0 pytest warning, ma pyflakes oggi è in rosso. Campagna riaperta, conteggio nel report. |
+| First-try 0.958 | Il numero è su **fixture interne** (test/adversarial/regressioni), non task utente. Il task GUI live resta non misurato. |
+| Copertura retrieval 100% | Significa solo “testo indicizzabile presente”, non qualità del retrieval. |
+| Best-of-N | Configurabile, ma `fast_lane.enabled=false` e `best_of_n=1`: **non attivo a runtime**. |
+| 41 meccanismi | Sono **documentati/implementati**; non tutti abilitati o runtime, e alcuni sono report/harness. |
+| Radar | I valori restano **giudizi espliciti** in `tools/gen_grafici.py`: qui correggiamo le frasi, non alziamo gli assi. |
 
 ---
 
@@ -57,7 +74,7 @@ Commit: `4a1cb1a` (12 difetti) · `0bb4998` (parità GUI) · `72e1b71` (toolbar)
 
 ---
 
-## B. I 41 meccanismi di robustezza e anti-allucinazione attivi
+## B. I 41 meccanismi di robustezza e anti-allucinazione documentati/implementati
 
 | # | Meccanismo | Introdotto |
 |--:|---|---|
@@ -86,7 +103,7 @@ Commit: `4a1cb1a` (12 difetti) · `0bb4998` (parità GUI) · `72e1b71` (toolbar)
 | 23 | Watchdog backoff escalato + guardia crash-loop | v0.3.32 (C85l) |
 | 24 | Refs interni (orchestrator/ledger/scheduler) + validate_refs.py | v0.3.32 (C85l) |
 | 25 | Clarifier esteso (test runner, handler sistema, formato config) | v0.3.32 (C85l) |
-| 26 | Zero Warning: pyflakes 474 → 0 su CORE/GUI/tools/scripts/SAFETY/tests | v0.3.32 (C85m) |
+| 26 | Zero Warning (Cycle 85): pyflakes 474 → 0 **all'epoca**; oggi riaperto — vedi [Brutal honesty](BRUTAL_HONESTY_REPORT.md) | v0.3.32 (C85m) |
 
 ---
 
@@ -141,8 +158,8 @@ reale. Nessun flake residuo: `test_functional_swarm` passa da solo
 |---|---|---|
 | Pannello Chat | `GUI/chat_panel.py` | sezione collassabile in Plancia; source combo, models combo, tool/skill pickers, chiave API |
 | Contesto selezionabile | `CORE/chat_context.py` | elenca tool (`TOOL_SIGNATURES`) e skill (`.opencode/skill/*/SKILL.md`), salva la selezione in `state/chat_tools_skills.json`, costruisce il blocco di system prompt (max 12k char) |
-| Auto-skill | `CORE/auto_skill.py` | 23 skill con keyword IT/EN, matching su parole intere, max 4 skill per prompt; anteprima live mentre si scrive; keyword extra da `state/auto_skill_keywords.json` |
-| Auto-tool | `CORE/auto_tool.py` | 30 tool di `TOOL_SIGNATURES` con keyword IT/EN, stesso motore di matching, max 4 tool per prompt; anteprima separata 🛠️; keyword extra da `state/auto_tool_keywords.json` |
+| Auto-skill | `CORE/auto_skill.py` | 26 skill con keyword IT/EN (23 al Cycle 86), matching su parole intere, max 4 skill per prompt; anteprima live mentre si scrive; keyword extra da `state/auto_skill_keywords.json` |
+| Auto-tool | `CORE/auto_tool.py` | 36 tool di `TOOL_SIGNATURES` (30 al Cycle 86) con keyword IT/EN, stesso motore di matching, max 4 tool per prompt; anteprima separata 🛠️; keyword extra da `state/auto_tool_keywords.json` |
 | Client cloud | `CORE/cloud_client.py` | provider OpenAI-compatibili (Groq, Gemini, OpenRouter), `list_models`, `pick_default_model`, `chat`, chiavi in `state/cloud_api.json` (0600); User-Agent esplicito per aggirare il blocco Cloudflare 1010 |
 | CLI di test | `tools/test_cloud_api.py` | `--save-key`, `--list`, `--prompt`, misura latenza e stampa la risposta |
 
@@ -201,7 +218,7 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 
 ---
 
-*Documento aggiornato al Cycle 99 il 2026-11-22: il grafico legge ciclo e
+*Documento aggiornato al Cycle 100 il 2026-11-22: il grafico legge ciclo e
 conteggio meccanismi dai documenti, quindi basta premere 🔄 Rigenera nella
 Plancia (oppure `.venv/bin/python tools/gen_grafici.py`). I valori del radar
 restano giudizi espliciti in `tools/gen_grafici.py`.*

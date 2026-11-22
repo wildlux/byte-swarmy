@@ -479,10 +479,10 @@ def build_svg() -> str:
     y += 24
     s, y = step_section(
         CHART_B[:-1] + [("v0.3.34+", MECHANISMS)], x0, x1, y,
-        "B. Meccanismi di robustezza e anti-allucinazione attivi "
+        "B. Meccanismi di robustezza e anti-allucinazione documentati "
         "(cumulativo)",
-        f"Elenco completo dei {MECHANISMS} meccanismi in "
-        "DOCS/MIGLIORAMENTI.md",
+        f"Elenco completo dei {MECHANISMS} meccanismi documentati in "
+        "DOCS/MIGLIORAMENTI.md (non tutti attivi a runtime)",
         y_max=max(16, MECHANISMS))
     sections.append(s)
 

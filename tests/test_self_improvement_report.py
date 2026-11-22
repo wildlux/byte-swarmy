@@ -104,6 +104,13 @@ class TestSelfImprovementReport(unittest.TestCase):
             with self.subTest(section=section):
                 self.assertIn(section, md)
 
+    def test_markdown_dichiara_fixture_interne_e_limite_retrieval(self):
+        self._write("t1", [self._triple("t1", "done")])
+        md = markdown(collect(self.tmp))
+        self.assertIn("fixture interne", md)
+        self.assertIn("non misura la qualità del retrieval", md)
+        self.assertIn("Task GUI live: non misurato", md)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

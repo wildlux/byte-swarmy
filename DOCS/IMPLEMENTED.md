@@ -2329,3 +2329,20 @@ Verifiche: 8 test offline, zero LLM/rete/GPU. Il verdetto reale resta 🔒
 bloccato termicamente: serve la verifica ventole (≤60 °C) prima di qualsiasi
 task con modello. Nessun numero del dry-run viene usato per alzare il radar.
 
+---
+
+## Cycle 100 (2026-11-22) — brutal honesty: corretti i report, non i radar
+
+| Modifica | Dettaglio |
+|---|---|
+| `tools/brutal_honesty_report.py` (nuovo) | Report deterministico zero LLM: `pyflakes` sul codice attivo (no `tests/archiviati`), `CONFIG/config.toml` (`fast_lane.enabled`, `best_of_n`), corpus feedback (totali/unici/first-try/provenienza), contatori live di `gen_grafici`, e verifica che le correzioni siano nel markdown. Nessun timestamp |
+| `DOCS/BRUTAL_HONESTY_REPORT.md` (nuovo) | Verdetto sintetico: Zero Warning FAIL con conteggio reale, fast lane disabilitata, first-try su fixture interne, copertura retrieval come definizione ristretta, 41 meccanismi documentati non tutti attivi, numeri skill/tool aggiornati |
+| `tools/self_improvement_report.py` | Aggiunte due caveat generate: il tasso primo colpo è su **fixture interne** non task utente; la copertura retrieval non misura la qualità. Report `DOCS/SELF_IMPROVEMENT_REPORT.md` rigenerato |
+| `DOCS/MIGLIORAMENTI.md` | Rimosse le frasi false “0 pyflakes ✅ raggiunto”, “best-of-N attivo (fast lane)” e “41 meccanismi attivi”; aggiunta sezione `🧾 Brutal honesty` con link al report; numeri auto-skill/auto-tool 23/30 → 26/36; Goal Middle Senior dichiarato **non raggiunto** |
+| `tools/gen_grafici.py` | Caption chart B: “meccanismi documentati … (non tutti attivi a runtime)” |
+| Radar | **Nessun asse toccato**: i valori restano giudizi espliciti. 41 meccanismi documentati; grafico Cycle 100 |
+
+Verifiche: report deterministico (stesso output su due run), test dedicati e
+gate leggeri. Non è stata rieseguita la suite completa: resta valido il run3
+del 2026-11-19. Nessun LLM, rete, GPU o task live.
+
