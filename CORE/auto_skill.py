@@ -100,6 +100,10 @@ KEYWORDS: dict[str, list[str]] = {
         "derivata", "integrale", "limite", "simbolico", "algebra",
         "equazione", "calcolo matematico", "sympy", "matematica", "formula",
     ],
+    "mobile-scaffold": [
+        "swiftui", "kotlin", "jetpack compose", "app ios", "app android",
+        "crea app mobile", "sviluppo mobile", "android studio", "xcode",
+    ],
     "networking-cisco": [
         "cisco", "ios", "vlan", "acl", "nat", "ospf", "eigrp", "routing",
         "switch", "ccna", "configurazione rete", "trunk",

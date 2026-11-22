@@ -1,4 +1,4 @@
-# 📈 Miglioramenti implementati — Cycle 70 → 100 (v0.3.18 → v0.3.34)
+# 📈 Miglioramenti implementati — Cycle 70 → 101 (v0.3.18 → v0.3.34)
 
 ![Grafico miglioramenti](grafici/miglioramenti.svg)
 
@@ -20,7 +20,7 @@ Scala (grafico D, criteri misurabili):
 | Livello | Criterio | Stato |
 |---|---|---|
 | **Junior** — 1/4 | 3b nudo senza sistema: 0/4 task GUI, modifiche minime fallite, requirements sovrascritto | baseline (C72) |
-| **Junior+** — 2/4 | Sistema v0.3.34: 41 meccanismi documentati/implementati (fast lane disabilitata: `enabled=false`, `best_of_n=1`), gate per-slot + assembler + import-check, corpus feedback, auto-skill/auto-tool validati, self-improvement misurabile. ⚠️ Zero Warning: 0 pytest warning al run3 2026-11-19, ma **pyflakes oggi in rosso** (conteggio nel [Brutal honesty](BRUTAL_HONESTY_REPORT.md)) | **◀ siamo qui** |
+| **Junior+** — 2/4 | Sistema v0.3.34: 42 meccanismi documentati/implementati (fast lane disabilitata: `enabled=false`, `best_of_n=1`), gate per-slot + assembler + import-check, corpus feedback, auto-skill/auto-tool validati, self-improvement misurabile. ⚠️ Zero Warning: 0 pytest warning al run3 2026-11-19, ma **pyflakes oggi in rosso** (conteggio nel [Brutal honesty](BRUTAL_HONESTY_REPORT.md)) | **◀ siamo qui** |
 | **Middle** — 3/4 | ≥50% dei task chiusi al primo tentativo (senza correction), task GUI ≥50% | target intermedio |
 | **Middle Senior** — 4/4 | **≥70% al primo tentativo; task GUI ≥75%; 0 simboli API inesistenti nei file scritti (gate import-check); 0 violazioni gate; 0 warning (pyflakes + pytest)** — ⚠️ **non raggiunto**: il tasso del corpus è su fixture interne, task GUI live non misurato, pyflakes in rosso | ★ GOAL |
 
@@ -33,6 +33,7 @@ verso il goal; il progresso è un numero, non un'impressione.
 | Asse | Oggi | Goal | Gap → azione (todo.md) |
 |---|:-:|:-:|---|
 | Task GUI (creazione) | 2/4 | 3/4 | E3: 4 template in `GUI/refs/templates/` + skill `py-gui-scaffold`, snapshot offscreen verdi; 3/4 richiede 1 task GUI live 🔒 termico (SLOT-3) |
+| Mobile iOS/Android (creazione) | 2/4 | 3/4 | F1: template SwiftUI + Kotlin Compose, ref statici in `GUI/refs/mobile/`, skill `mobile-scaffold`, gate strutturale offline; **build non verificata** (SDK assenti), 3/4 richiede task live 🔒 termico |
 | Modifiche minime | 3/4 | 4/4 | best-of-N **configurabile ma runtime disabilitato** (`fast_lane.enabled=false`, `best_of_n=1`), executor + disciplina |
 | Refactoring mecc. | 4/4 | 4/4 | E1: `tools/refactor_guard.py` — AST + API pubblica + behavioral diff, 8/8 refactoring atomici verdi |
 | Gate / verifica | 4/4 | 4/4 | punto di forza: gate per-slot + import-check |
@@ -57,6 +58,7 @@ verso il goal; il progresso è un numero, non un'impressione.
 | Best-of-N | Configurabile, ma `fast_lane.enabled=false` e `best_of_n=1`: **non attivo a runtime**. |
 | 41 meccanismi | Sono **documentati/implementati**; non tutti abilitati o runtime, e alcuni sono report/harness. |
 | Radar | I valori restano **giudizi espliciti** in `tools/gen_grafici.py`: qui correggiamo le frasi, non alziamo gli assi. |
+| Mobile (F1) | Nuovo asse a **2/4** solo per scaffold strutturale offline: **non** build, **non** live. Non è una prova che il Middle sia raggiunto. |
 
 ---
 
@@ -74,7 +76,7 @@ Commit: `4a1cb1a` (12 difetti) · `0bb4998` (parità GUI) · `72e1b71` (toolbar)
 
 ---
 
-## B. I 41 meccanismi di robustezza e anti-allucinazione documentati/implementati
+## B. I 42 meccanismi di robustezza e anti-allucinazione documentati/implementati
 
 | # | Meccanismo | Introdotto |
 |--:|---|---|
@@ -215,10 +217,11 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 | API fidelity eval (E2) | `tools/api_fidelity_eval.py`: AST → `api_lookup(strict=True)` (stesso gate del worker) + ref `json`/`csv` validati; `strict` accetta costanti reali come valori, blocca callabili non introspettabili e simboli inventati | 7/7 simboli verificati, 0 indefiniti, 22 firme; 8 test, zero LLM; report `DOCS/API_FIDELITY_REPORT.md` |
 | Scaffolding GUI (E3) | `GUI/refs/templates/`: 4 template PyQt6 (finestra, layout, segnali, QThread con `DirectConnection` per `quit`); skill `py-gui-scaffold` + keyword auto; i simboli Qt si verificano con `api_lookup` non-strict (le classi C++ non hanno firma) | 7 test offscreen con snapshot struttura/segnali/thread; zero LLM; 3/4 resta 🔒 termico |
 | A/B memoria (E4) | `tools/memory_ab.py`: 10 task congelati (`5e6051bfc33d`), retriever/solver finti, due bracci con/senza contesto, soglie GO ≥0.60 e delta ≥0.20 fissate prima del live; gate termico `fan_rpm>0` e ≤60 °C | 8 test offline + report `DOCS/MEMORY_AB_REPORT.md`; il dry-run NON alza il radar, 4/4 richiede LLM live 🔒 termico |
+| Scaffold mobile (F1) | `GUI/refs/templates/mobile_ios.swift.tpl` + `mobile_android.kt.tpl`, ref statici `GUI/refs/mobile/`, skill `mobile-scaffold` + keyword auto, `tools/mobile_scaffold_check.py`; `api_lookup` non applicabile a Swift/Kotlin | 6 test offline + report `DOCS/MOBILE_SCAFFOLD_REPORT.md`; build NON verificata (SDK assenti), nuovo asse Mobile 2/4, 3/4 🔒 termico |
 
 ---
 
-*Documento aggiornato al Cycle 100 il 2026-11-22: il grafico legge ciclo e
+*Documento aggiornato al Cycle 101 il 2026-11-22: il grafico legge ciclo e
 conteggio meccanismi dai documenti, quindi basta premere 🔄 Rigenera nella
 Plancia (oppure `.venv/bin/python tools/gen_grafici.py`). I valori del radar
 restano giudizi espliciti in `tools/gen_grafici.py`.*

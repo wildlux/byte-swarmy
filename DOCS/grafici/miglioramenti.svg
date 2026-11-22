@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="940" height="1911" viewBox="0 0 940 1911">
 <rect width="940" height="1911" fill="#ffffff"/>
-<text x="20" y="38" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">byte-swarmy — Miglioramenti implementati (Cycle 70 → 100 — Nov 2026)</text>
+<text x="20" y="38" font-family="DejaVu Sans, sans-serif" font-size="20" font-weight="bold" fill="#0f172a">byte-swarmy — Miglioramenti implementati (Cycle 70 → 101 — Nov 2026)</text>
 <text x="20" y="60" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#64748b">Generato deterministicamente da tools/gen_grafici.py — dati: DOCS/IMPLEMENTED.md</text>
 <text x="20" y="92" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">A. Audit robustezza Cycle 85 — 15 difetti corretti, per categoria</text>
 <text x="20" y="112" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Rilevati da pyflakes + pytest + smoke sandbox; tutti corretti e su GitHub (commit 4a1cb1a / 0bb4998 / 72e1b71)</text>
@@ -25,30 +25,30 @@
 <rect x="249" y="286" width="104" height="26" rx="4" fill="#16a34a"/>
 <text x="361" y="304.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">1</text>
 <text x="20" y="358" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">B. Meccanismi di robustezza e anti-allucinazione documentati (cumulativo)</text>
-<text x="20" y="378" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Elenco completo dei 41 meccanismi documentati in DOCS/MIGLIORAMENTI.md (non tutti attivi a runtime)</text>
+<text x="20" y="378" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Elenco completo dei 42 meccanismi documentati in DOCS/MIGLIORAMENTI.md (non tutti attivi a runtime)</text>
 <line x1="245" y1="530" x2="870" y2="530" stroke="#e2e8f0" stroke-width="1"/>
 <text x="219" y="534" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">0</text>
 <line x1="245" y1="518" x2="870" y2="518" stroke="#e2e8f0" stroke-width="1"/>
 <text x="219" y="522" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">4</text>
-<line x1="245" y1="505" x2="870" y2="505" stroke="#e2e8f0" stroke-width="1"/>
-<text x="219" y="509" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">8</text>
-<line x1="245" y1="492" x2="870" y2="492" stroke="#e2e8f0" stroke-width="1"/>
-<text x="219" y="496" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">12</text>
-<line x1="245" y1="480" x2="870" y2="480" stroke="#e2e8f0" stroke-width="1"/>
-<text x="219" y="484" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">16</text>
-<line x1="245" y1="467" x2="870" y2="467" stroke="#e2e8f0" stroke-width="1"/>
-<text x="219" y="471" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">20</text>
-<line x1="245" y1="454" x2="870" y2="454" stroke="#e2e8f0" stroke-width="1"/>
-<text x="219" y="458" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">24</text>
-<line x1="245" y1="442" x2="870" y2="442" stroke="#e2e8f0" stroke-width="1"/>
-<text x="219" y="446" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">28</text>
-<line x1="245" y1="429" x2="870" y2="429" stroke="#e2e8f0" stroke-width="1"/>
-<text x="219" y="433" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">32</text>
-<line x1="245" y1="416" x2="870" y2="416" stroke="#e2e8f0" stroke-width="1"/>
-<text x="219" y="420" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">36</text>
-<line x1="245" y1="404" x2="870" y2="404" stroke="#e2e8f0" stroke-width="1"/>
-<text x="219" y="408" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">40</text>
-<path d="M 245 527 L 314 527 L 314 524 L 383 524 L 383 521 L 453 521 L 453 518 L 522 518 L 522 508 L 592 508 L 592 505 L 661 505 L 661 499 L 731 499 L 731 496 L 800 496 L 800 480 L 870 480 L 870 400" fill="none" stroke="#16a34a" stroke-width="2.5"/>
+<line x1="245" y1="506" x2="870" y2="506" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="510" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">8</text>
+<line x1="245" y1="493" x2="870" y2="493" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="497" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">12</text>
+<line x1="245" y1="481" x2="870" y2="481" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="485" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">16</text>
+<line x1="245" y1="469" x2="870" y2="469" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="473" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">20</text>
+<line x1="245" y1="456" x2="870" y2="456" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="460" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">24</text>
+<line x1="245" y1="444" x2="870" y2="444" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="448" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">28</text>
+<line x1="245" y1="431" x2="870" y2="431" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="435" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">32</text>
+<line x1="245" y1="419" x2="870" y2="419" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="423" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">36</text>
+<line x1="245" y1="407" x2="870" y2="407" stroke="#e2e8f0" stroke-width="1"/>
+<text x="219" y="411" font-family="DejaVu Sans, sans-serif" font-size="10" fill="#64748b">40</text>
+<path d="M 245 527 L 314 527 L 314 524 L 383 524 L 383 521 L 453 521 L 453 518 L 522 518 L 522 509 L 592 509 L 592 506 L 661 506 L 661 500 L 731 500 L 731 496 L 800 496 L 800 481 L 870 481 L 870 400" fill="none" stroke="#16a34a" stroke-width="2.5"/>
 <circle cx="245" cy="527" r="4" fill="#16a34a"/>
 <text x="245" y="517" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">1</text>
 <text x="245" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.18</text>
@@ -61,23 +61,23 @@
 <circle cx="453" cy="518" r="4" fill="#16a34a"/>
 <text x="453" y="508" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">4</text>
 <text x="453" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.24</text>
-<circle cx="522" cy="508" r="4" fill="#16a34a"/>
-<text x="522" y="498" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">7</text>
+<circle cx="522" cy="509" r="4" fill="#16a34a"/>
+<text x="522" y="499" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">7</text>
 <text x="522" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.25</text>
-<circle cx="592" cy="505" r="4" fill="#16a34a"/>
-<text x="592" y="495" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">8</text>
+<circle cx="592" cy="506" r="4" fill="#16a34a"/>
+<text x="592" y="496" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">8</text>
 <text x="592" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.26</text>
-<circle cx="661" cy="499" r="4" fill="#16a34a"/>
-<text x="661" y="489" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">10</text>
+<circle cx="661" cy="500" r="4" fill="#16a34a"/>
+<text x="661" y="490" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">10</text>
 <text x="661" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.27</text>
 <circle cx="731" cy="496" r="4" fill="#16a34a"/>
 <text x="731" y="486" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">11</text>
 <text x="731" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.28</text>
-<circle cx="800" cy="480" r="4" fill="#16a34a"/>
-<text x="800" y="470" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">16</text>
+<circle cx="800" cy="481" r="4" fill="#16a34a"/>
+<text x="800" y="471" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">16</text>
 <text x="800" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.30</text>
 <circle cx="870" cy="400" r="4" fill="#16a34a"/>
-<text x="870" y="390" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">41</text>
+<text x="870" y="390" font-family="DejaVu Sans, sans-serif" font-size="11" font-weight="bold" fill="#166534" text-anchor="middle">42</text>
 <text x="870" y="548" font-family="DejaVu Sans, sans-serif" font-size="10.5" fill="#64748b" text-anchor="middle">v0.3.34+</text>
 <text x="20" y="594" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">C. Crescita della suite di test (run completa)</text>
 <text x="20" y="614" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Durata: 387s (Cycle 75) → 1031s (ultima run completa, 2026-11-19); 888 test + 1055 subtest, 0 warning</text>
@@ -121,38 +121,41 @@
 <text x="768" y="938.72" font-family="DejaVu Sans, sans-serif" font-size="11.5" font-weight="bold" fill="#166534">★ GOAL · 4/4</text>
 <text x="20" y="992" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">E. Radar capacità — dove siamo deboli (→ todo.md)</text>
 <text x="20" y="1012" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Scala 0–4 per asse; i gap verso il poligono verde sono la roadmap prioritaria in todo.md</text>
-<polygon points="470.0,1164.5 493.0,1174.0 502.5,1197.0 493.0,1220.0 470.0,1229.5 447.0,1220.0 437.5,1197.0 447.0,1174.0" fill="none" stroke="#e2e8f0" stroke-width="1"/>
-<polygon points="470.0,1132.0 516.0,1151.0 535.0,1197.0 516.0,1243.0 470.0,1262.0 424.0,1243.0 405.0,1197.0 424.0,1151.0" fill="none" stroke="#e2e8f0" stroke-width="1"/>
-<polygon points="470.0,1099.5 538.9,1128.1 567.5,1197.0 538.9,1265.9 470.0,1294.5 401.1,1265.9 372.5,1197.0 401.1,1128.1" fill="none" stroke="#e2e8f0" stroke-width="1"/>
-<polygon points="470.0,1067.0 561.9,1105.1 600.0,1197.0 561.9,1288.9 470.0,1327.0 378.1,1288.9 340.0,1197.0 378.1,1105.1" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+<polygon points="470.0,1164.5 490.9,1172.1 502.0,1191.4 498.1,1213.2 481.1,1227.5 458.9,1227.5 441.9,1213.2 438.0,1191.4 449.1,1172.1" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+<polygon points="470.0,1132.0 511.8,1147.2 534.0,1185.7 526.3,1229.5 492.2,1258.1 447.8,1258.1 413.7,1229.5 406.0,1185.7 428.2,1147.2" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+<polygon points="470.0,1099.5 532.7,1122.3 566.0,1180.1 554.4,1245.8 503.3,1288.6 436.7,1288.6 385.6,1245.8 374.0,1180.1 407.3,1122.3" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+<polygon points="470.0,1067.0 553.6,1097.4 598.0,1174.4 582.6,1262.0 514.5,1319.2 425.5,1319.2 357.4,1262.0 342.0,1174.4 386.4,1097.4" fill="none" stroke="#e2e8f0" stroke-width="1"/>
 <line x1="470" y1="1197" x2="470.0" y2="1067.0" stroke="#e2e8f0" stroke-width="1"/>
 <text x="470.0" y="1054.6" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="middle">Task GUI (creazione)</text>
-<line x1="470" y1="1197" x2="561.9" y2="1105.1" stroke="#e2e8f0" stroke-width="1"/>
-<text x="579.2" y="1091.8" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="start">Modifiche minime</text>
-<line x1="470" y1="1197" x2="600.0" y2="1197.0" stroke="#e2e8f0" stroke-width="1"/>
-<text x="624.4" y="1201.0" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="start">Refactoring mecc.</text>
-<line x1="470" y1="1197" x2="561.9" y2="1288.9" stroke="#e2e8f0" stroke-width="1"/>
-<text x="579.2" y="1310.2" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="start">Gate / verifica</text>
-<line x1="470" y1="1197" x2="470.0" y2="1327.0" stroke="#e2e8f0" stroke-width="1"/>
-<text x="470.0" y="1367.4" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="middle">Fedeltà API</text>
-<line x1="470" y1="1197" x2="378.1" y2="1288.9" stroke="#e2e8f0" stroke-width="1"/>
-<text x="360.8" y="1310.2" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="end">Chiarimenti ambigui</text>
-<line x1="470" y1="1197" x2="340.0" y2="1197.0" stroke="#e2e8f0" stroke-width="1"/>
-<text x="315.6" y="1201.0" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="end">Architettura</text>
-<line x1="470" y1="1197" x2="378.1" y2="1105.1" stroke="#e2e8f0" stroke-width="1"/>
-<text x="360.8" y="1091.8" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="end">Memoria / contesto</text>
-<polygon points="470.0,1099.5 538.9,1128.1 600.0,1197.0 561.9,1288.9 470.0,1327.0 401.1,1265.9 405.0,1197.0 378.1,1105.1" fill="#16a34a" fill-opacity="0.25" stroke="#16a34a" stroke-width="2" stroke-dasharray="6,4" stroke-opacity="1"/>
-<polygon points="470.0,1132.0 538.9,1128.1 600.0,1197.0 561.9,1288.9 470.0,1327.0 401.1,1265.9 405.0,1197.0 401.1,1128.1" fill="#2563eb" fill-opacity="0.25" stroke="#2563eb" stroke-width="2.5" stroke-opacity="1"/>
+<line x1="470" y1="1197" x2="553.6" y2="1097.4" stroke="#e2e8f0" stroke-width="1"/>
+<text x="569.2" y="1090.7" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="start">Mobile iOS/Android</text>
+<line x1="470" y1="1197" x2="598.0" y2="1174.4" stroke="#e2e8f0" stroke-width="1"/>
+<text x="622.0" y="1174.2" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="start">Modifiche minime</text>
+<line x1="470" y1="1197" x2="582.6" y2="1262.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="603.7" y="1278.2" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="start">Refactoring mecc.</text>
+<line x1="470" y1="1197" x2="514.5" y2="1319.2" stroke="#e2e8f0" stroke-width="1"/>
+<text x="522.8" y="1358.1" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="start">Gate / verifica</text>
+<line x1="470" y1="1197" x2="425.5" y2="1319.2" stroke="#e2e8f0" stroke-width="1"/>
+<text x="417.2" y="1358.1" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="end">Fedeltà API</text>
+<line x1="470" y1="1197" x2="357.4" y2="1262.0" stroke="#e2e8f0" stroke-width="1"/>
+<text x="336.3" y="1278.2" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="end">Chiarimenti ambigui</text>
+<line x1="470" y1="1197" x2="342.0" y2="1174.4" stroke="#e2e8f0" stroke-width="1"/>
+<text x="318.0" y="1174.2" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="end">Architettura</text>
+<line x1="470" y1="1197" x2="386.4" y2="1097.4" stroke="#e2e8f0" stroke-width="1"/>
+<text x="370.8" y="1090.7" font-family="DejaVu Sans, sans-serif" font-size="12" fill="#334155" text-anchor="end">Memoria / contesto</text>
+<polygon points="470.0,1099.5 532.7,1122.3 566.0,1180.1 582.6,1262.0 514.5,1319.2 425.5,1319.2 385.6,1245.8 406.0,1185.7 386.4,1097.4" fill="#16a34a" fill-opacity="0.25" stroke="#16a34a" stroke-width="2" stroke-dasharray="6,4" stroke-opacity="1"/>
+<polygon points="470.0,1132.0 511.8,1147.2 566.0,1180.1 582.6,1262.0 514.5,1319.2 425.5,1319.2 385.6,1245.8 406.0,1185.7 407.3,1122.3" fill="#2563eb" fill-opacity="0.25" stroke="#2563eb" stroke-width="2.5" stroke-opacity="1"/>
 <circle cx="470.0" cy="1132.0" r="3.5" fill="#2563eb"/>
-<circle cx="538.9" cy="1128.1" r="3.5" fill="#2563eb"/>
-<circle cx="600.0" cy="1197.0" r="3.5" fill="#2563eb"/>
-<circle cx="561.9" cy="1288.9" r="3.5" fill="#2563eb"/>
-<circle cx="470.0" cy="1327.0" r="3.5" fill="#2563eb"/>
-<circle cx="401.1" cy="1265.9" r="3.5" fill="#2563eb"/>
-<circle cx="405.0" cy="1197.0" r="3.5" fill="#2563eb"/>
-<circle cx="401.1" cy="1128.1" r="3.5" fill="#2563eb"/>
+<circle cx="511.8" cy="1147.2" r="3.5" fill="#2563eb"/>
+<circle cx="566.0" cy="1180.1" r="3.5" fill="#2563eb"/>
+<circle cx="582.6" cy="1262.0" r="3.5" fill="#2563eb"/>
+<circle cx="514.5" cy="1319.2" r="3.5" fill="#2563eb"/>
+<circle cx="425.5" cy="1319.2" r="3.5" fill="#2563eb"/>
+<circle cx="385.6" cy="1245.8" r="3.5" fill="#2563eb"/>
+<circle cx="406.0" cy="1185.7" r="3.5" fill="#2563eb"/>
+<circle cx="407.3" cy="1122.3" r="3.5" fill="#2563eb"/>
 <rect x="350" y="1379" width="12" height="12" rx="2" fill="#2563eb" fill-opacity="0.25" stroke="#2563eb" stroke-width="2"/>
-<text x="368" y="1389" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">oggi (Cycle 100)</text>
+<text x="368" y="1389" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">oggi (Cycle 101)</text>
 <rect x="480" y="1379" width="12" height="12" rx="2" fill="#16a34a" fill-opacity="0.25" stroke="#16a34a" stroke-width="2" stroke-dasharray="6,4"/>
 <text x="498" y="1389" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">goal middle senior</text>
 <text x="20" y="1433" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">F. Skill operative attive — famiglia di skill del sistema</text>
@@ -160,7 +163,7 @@
 <text x="20" y="1485.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Skill operative nel repo</text>
 <rect x="249" y="1467" width="621" height="26" rx="4" fill="#e2e8f0"/>
 <rect x="249" y="1467" width="621" height="26" rx="4" fill="#9333ea"/>
-<text x="878" y="1485.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">26</text>
+<text x="878" y="1485.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">27</text>
 <text x="20" y="1539" font-family="DejaVu Sans, sans-serif" font-size="16" font-weight="bold" fill="#0f172a">G. Novità Nov 2026 — banco di test e organizzazione</text>
 <text x="20" y="1559" font-family="DejaVu Sans, sans-serif" font-size="11.5" fill="#64748b">Chat con tools/skill on-off, auto-skill e auto-tool per parole chiave, client Groq/Gemini/OpenRouter, etichette (rinomina/colore/elimina), dotfile, cartelle ordinate (TOOLS/), 0 docstring mancanti</text>
 <text x="20" y="1591.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Tool selezionabili in Chat</text>
@@ -169,12 +172,12 @@
 <text x="878" y="1591.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">36</text>
 <text x="20" y="1631.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Skill attivabili in Chat</text>
 <rect x="249" y="1613" width="621" height="26" rx="4" fill="#e2e8f0"/>
-<rect x="249" y="1613" width="448" height="26" rx="4" fill="#9333ea"/>
-<text x="705" y="1631.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">26</text>
+<rect x="249" y="1613" width="466" height="26" rx="4" fill="#9333ea"/>
+<text x="723" y="1631.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">27</text>
 <text x="20" y="1671.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Skill con auto-keyword</text>
 <rect x="249" y="1653" width="621" height="26" rx="4" fill="#e2e8f0"/>
-<rect x="249" y="1653" width="448" height="26" rx="4" fill="#16a34a"/>
-<text x="705" y="1671.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">26</text>
+<rect x="249" y="1653" width="466" height="26" rx="4" fill="#16a34a"/>
+<text x="723" y="1671.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" font-weight="bold" fill="#0f172a">27</text>
 <text x="20" y="1711.72" font-family="DejaVu Sans, sans-serif" font-size="12.5" fill="#334155">Tool con auto-keyword</text>
 <rect x="249" y="1693" width="621" height="26" rx="4" fill="#e2e8f0"/>
 <rect x="249" y="1693" width="621" height="26" rx="4" fill="#16a34a"/>

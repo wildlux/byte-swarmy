@@ -170,6 +170,8 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 > poi la preparazione GUI (E3), infine l'unico blocco termico (E4).
 > Ogni voce ha un criterio `done` numerico: senza numero l'asse del radar
 > non si alza (i valori restano giudizi espliciti in `tools/gen_grafici.py`).
+> F1 (Cycle 101) è il passo successivo, non un quinto asse "chiuso": aggiunge
+> Mobile 2/4 come preparazione offline, senza dichiarare il Middle raggiunto.
 
 | ID | Task atomico | Criterio done | Stato |
 |---|---|---|---|
@@ -177,6 +179,7 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 | E2 | Fedeltà API: ref generati per librerie nuove + validazione simboli | `tools/gen_api_refs.py` + `validate_refs.py` + `api_lookup(strict=True)` su ≥2 librerie fuori cheat sheet; 0 simboli indefiniti in output eval | [x] |
 | E3 | Task GUI: 3 template PyQt6 curati + skill `py-gui-scaffold` | `GUI/refs/templates/` con finestra/layout/segnali/thread + test snapshot offscreen; collaudo con LLM resta 🔒 termico | [x] |
 | E4 | Memoria/contesto: preparare A/B 10 task con/senza contesto | Harness con retriever finto, task set congelato e soglia in `DOCS/BENCH.md`; esecuzione live resta 🔒 termico (C3) | [x] |
+| F1 | Aggiungere possibilità iOS/Android (scaffold offline) | 2 template (SwiftUI/Kotlin Compose) + skill `mobile-scaffold` + `tools/mobile_scaffold_check.py`; build con SDK e task live restano 🔒 termico | [x] |
 
 > Eseguito il 2026-11-22: A1–A4 chiusi in Cycle 87, 28 test mirati verdi,
 > 82 test di regressione verdi (110 subtests). B1 chiuso in Cycle 88:
@@ -194,7 +197,9 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 > live 🔒 bloccato finché le ventole non sono verificate; Cycle 100: brutal
 > honesty — report deterministico `tools/brutal_honesty_report.py`, corrette
 > le frasi false in `DOCS/MIGLIORAMENTI.md` e le caveat in
-> `DOCS/SELF_IMPROVEMENT_REPORT.md`, radar invariato. Registro:
+> `DOCS/SELF_IMPROVEMENT_REPORT.md`, radar invariato; Cycle 101: F1 aggiunge
+> scaffold iOS/Android offline (2 template, skill, gate strutturale), nuovo
+> asse Mobile 2/4 con build/live 🔒 bloccati. Registro:
 > [`DOCS/IMPLEMENTED.md`](DOCS/IMPLEMENTED.md).
 > C3 resta 🔒 bloccato finché la ventola non è verificata (≤60 °C, ventole al max).
 

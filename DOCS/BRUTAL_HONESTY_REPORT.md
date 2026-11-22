@@ -12,8 +12,8 @@ Scopo: dire cosa è **veramente verificabile** nei report e nei documenti di `DO
 | best-of-N 'attivo (fast lane)' | ⚠️ DISABILITATO | `fast_lane.enabled=false`, `best_of_n=1` |
 | First-try 0.958 come task reali | ⚠️ FIXTURE INTERNE | 72 triple, 24 uniche, 20 task distinti; 0.950 sugli unici |
 | Copertura retrieval 100% | ⚠️ DEFINIZIONE RISTRETTA | 20/20: solo presenza di testo indicizzabile, non qualità del retrieval |
-| 41 meccanismi 'attivi' | ⚠️ DOCUMENTATI/IMPLEMENTATI | 41 righe contate; non tutti abilitati a runtime |
-| Auto-skill 23 / auto-tool 30 (Cycle 86) | ⚠️ STALE | oggi 26 skill / 36 tool |
+| Meccanismi 'attivi' (storico 41) | ⚠️ DOCUMENTATI/IMPLEMENTATI | 42 righe contate; non tutti abilitati a runtime |
+| Auto-skill 23 / auto-tool 30 (Cycle 86) | ⚠️ STALE | oggi 27 skill / 36 tool |
 
 ## Correzione applicata ai documenti
 
@@ -41,6 +41,6 @@ Il tasso `first_try` è `0.958` su 72 triple. Il corpus contiene **fixture inter
 
 ## Limiti che NON sono stati toccati
 
-- I valori del radar restano **giudizi espliciti**, non misure derivate: questo report corregge le frasi, non alza o abbassa gli assi.
+- I valori del radar restano **giudizi espliciti**, non misure derivate: il Cycle 100 ha corretto le frasi; il Cycle 101 ha aggiunto l'asse Mobile a 2/4 come scaffold offline, non come build verificata.
 - La suite completa non è stata rieseguita in questo ciclo: l'ultima green resta il run3 del 2026-11-19.
 - E1/E2 sono gate validati su campioni sintetici, non una garanzia repo-wide; E3 live e A/B live restano 🔒 bloccati termicamente.

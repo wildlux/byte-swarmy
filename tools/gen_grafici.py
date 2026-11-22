@@ -376,7 +376,7 @@ def ladder_section(items, x0, x1, top, title, subtitle):
 
 
 def radar_section(axes, oggi, goal, cx, cy, R, top, title, subtitle):
-    """Grafico a ragnatela: capacità su 8 assi, oggi vs goal.
+    """Grafico a ragnatela: capacità su N assi, oggi vs goal.
 
     axes: etichette; oggi/goal: valori per asse (0..4).
     """
@@ -508,11 +508,11 @@ def build_svg() -> str:
 
     y += 24
     s, y = radar_section(
-        ["Task GUI (creazione)", "Modifiche minime", "Refactoring mecc.",
-         "Gate / verifica", "Fedeltà API", "Chiarimenti ambigui",
-         "Architettura", "Memoria / contesto"],
-        [2, 3, 4, 4, 4, 3, 2, 3],
-        [3, 3, 4, 4, 4, 3, 2, 4],
+        ["Task GUI (creazione)", "Mobile iOS/Android", "Modifiche minime",
+         "Refactoring mecc.", "Gate / verifica", "Fedeltà API",
+         "Chiarimenti ambigui", "Architettura", "Memoria / contesto"],
+        [2, 2, 3, 4, 4, 4, 3, 2, 3],
+        [3, 3, 3, 4, 4, 4, 3, 2, 4],
         cx=W // 2, cy=y + 205, R=130, top=y,
         title="E. Radar capacità — dove siamo deboli (→ todo.md)",
         subtitle="Scala 0–4 per asse; i gap verso il poligono verde "

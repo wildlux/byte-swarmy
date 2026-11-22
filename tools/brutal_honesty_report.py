@@ -224,7 +224,7 @@ def _verdict_rows(s: dict) -> list:
         ("Copertura retrieval 100%", "⚠️ DEFINIZIONE RISTRETTA",
          f"{ret['indexed']}/{ret['tasks']}: solo presenza di testo "
          "indicizzabile, non qualità del retrieval"),
-        ("41 meccanismi 'attivi'", "⚠️ DOCUMENTATI/IMPLEMENTATI",
+        ("Meccanismi 'attivi' (storico 41)", "⚠️ DOCUMENTATI/IMPLEMENTATI",
          f"{counts['mechanisms']} righe contate; non tutti abilitati a runtime"),
         ("Auto-skill 23 / auto-tool 30 (Cycle 86)", "⚠️ STALE",
          f"oggi {counts['skills']} skill / {counts['auto_tools']} tool"),
@@ -280,7 +280,9 @@ def markdown(s: dict) -> str:
         "## Limiti che NON sono stati toccati",
         "",
         "- I valori del radar restano **giudizi espliciti**, non misure "
-        "derivate: questo report corregge le frasi, non alza o abbassa gli assi.",
+        "derivate: il Cycle 100 ha corretto le frasi; il Cycle 101 ha "
+        "aggiunto l'asse Mobile a 2/4 come scaffold offline, non come "
+        "build verificata.",
         "- La suite completa non è stata rieseguita in questo ciclo: "
         "l'ultima green resta il run3 del 2026-11-19.",
         "- E1/E2 sono gate validati su campioni sintetici, non una garanzia "

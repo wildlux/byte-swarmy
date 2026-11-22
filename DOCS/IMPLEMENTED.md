@@ -2346,3 +2346,29 @@ Verifiche: report deterministico (stesso output su due run), test dedicati e
 gate leggeri. Non è stata rieseguita la suite completa: resta valido il run3
 del 2026-11-19. Nessun LLM, rete, GPU o task live.
 
+---
+
+## Cycle 101 (2026-11-22) — F1: scaffold iOS/Android offline, non build
+
+Risposta alla richiesta “scrivere app iOS/Android” e al dubbio sul passo
+successivo: il passo **non è troppo alto come preparazione**, ma **lo è come
+dichiarazione di maturità**. Quindi aggiungiamo scaffolding verificabile
+offline e non tocchiamo il livello Middle (che resta non misurato).
+
+| Modifica | Dettaglio |
+|---|---|
+| `GUI/refs/templates/mobile_ios.swift.tpl` + `mobile_android.kt.tpl` (nuovi) | Schermate minime SwiftUI (`ContentView`, `@State`) e Kotlin/Jetpack Compose (`MainActivity`, `@Composable`), con soli marker `# SLOT:` da sostituire |
+| `GUI/refs/mobile/swiftui.md` + `android_compose.md` (nuovi) | Ref statici: simboli ammessi e regole per il modello 3b. `api_lookup(strict=True)` **non si applica** (gate Python, non introspetta Swift/Kotlin) |
+| `tools/mobile_scaffold_check.py` (nuovo) | Gate deterministico: marker, import, costrutti, copertura ref, assenza timestamp; rileva simboli inventati. Scrive `DOCS/MOBILE_SCAFFOLD_REPORT.md`, `--json` per l'uso nei gate |
+| `.opencode/skill/mobile-scaffold/SKILL.md` (nuovo) + `CORE/auto_skill.py` | Skill con keyword IT/EN (`swiftui`, `kotlin`, `jetpack compose`, `app ios`, `app android`, …) e rilevamento automatico nei prompt |
+| `DOCS/MIGLIORAMENTI.md` | Nuova riga radar **Mobile iOS/Android 2/4**, sezione brute honesty aggiornata, 41 → 42 meccanismi documentati, Cycle 101 |
+| `tools/gen_grafici.py` | Radar a 9 assi: aggiunto Mobile a 2/4; **nessun asse esistente alzato** |
+| `tools/brutal_honesty_report.py` | Nota esplicita: Cycle 101 aggiunge Mobile come scaffold offline, non build verificata |
+
+Verifiche: 6 test offline, report PASS con toolchain `ASSENTE` per Swift e
+Kotlin, gate leggeri. **Build NON verificata** (Xcode/iOS SDK e Android SDK
+non presenti) e task live 🔒 bloccato termicamente: serve
+`data/state/fan_verified.json` con `fan_rpm > 0` e `temp_c <= 60`. L'asse
+Mobile resta 2/4; 3/4 richiede build reale + task live. Nessun LLM, rete,
+GPU, emulatore o `app.exec()`.
+
