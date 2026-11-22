@@ -97,6 +97,19 @@ jobs:
           echo "EXIT=$code" >> pytest_profile.log
           echo "--- ultime righe ---"
           tail -80 pytest_profile.log
+          # Cycle 126: come per la collezione, il log del job è privato (403).
+          # Pubblicare i test falliti come annotations permette di diagnosticare
+          # senza credenziali e senza scaricare l'artifact. Nomi di test e
+          # traceback non contengono segreti (i live sono già in pausa).
+          if [ "$code" -ne 0 ]; then
+            echo "::error title=pytest_exit::EXIT=$code"
+            grep -E '^FAILED ' pytest_profile.log | head -20 | while IFS= read -r line; do
+              echo "::error::${line}"
+            done
+            tail -20 pytest_profile.log | grep -v '^$' | while IFS= read -r line; do
+              echo "::error::${line}"
+            done
+          fi
           exit $code
 
       - name: Upload report

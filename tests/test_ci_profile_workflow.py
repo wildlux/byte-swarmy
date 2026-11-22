@@ -42,6 +42,14 @@ def test_errore_collezione_esposto_in_annotations_pubbliche():
     assert "check-runs/{id}/annotations" in text
 
 
+def test_fallimento_suite_esposto_in_annotations_pubbliche():
+    """Cycle 126: EXIT=1 della suite deve mostrare i FAILED senza auth."""
+    text = _text()
+    assert "::error title=pytest_exit::EXIT=$code" in text
+    assert "grep -E '^FAILED ' pytest_profile.log" in text
+    assert "tail -20 pytest_profile.log" in text
+
+
 def test_librerie_qt_headless_installate_sul_runner():
     """Run #4: EXIT=2 per `ImportError: libEGL.so.1` in PyQt6.QtWidgets."""
     text = _text()
