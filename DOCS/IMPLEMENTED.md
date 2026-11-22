@@ -2646,3 +2646,18 @@ privato letto: la diagnosi in `DOCS/CI_PROFILE_DIAGNOSIS.md` resta invariata.
 Verifiche: 9 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning.
 **Nessun LLM, rete o GPU**: i prompt sono generati dal piano deterministico;
 il benchmark con 3 task reali resta 🔒 termico.
+
+---
+
+## Cycle 120 (2026-11-22) — Fase H: giudice di qualità mai sovrano
+
+| Modifica | Dettaglio |
+|---|---|
+| `tools/quality_judge.py` (nuovo) | Riceve pareri di un giudice esterno e applica l'invariante `final == gate_pass` sempre: gate FAIL + `approve` resta FAIL, gate PASS + `reject` resta PASS (solo dissenso loggato). Override espliciti bloccati e segnalati. Classificazione accordo/dissenso (`not_consulted`, `judge_ignored_gate_fail`, `concur_pass`, `judge_dissent`), report con tasso accordo, verifica runtime dell'invariante. Pareri `source: "live"` accettati solo con `fan_rpm > 0`, `temp_c <= 60`; altrimenti exit 2. Nessun client LLM |
+| `tests/test_quality_judge.py` (nuovo) | 21 test offline: non-sovranità parametrizzata su 6 combinazioni gate×giudice, classificazione accordo, override bloccati, verdetto sconosciuto, gate termico (incluso casi `"1800"`/`"x"`), record non validi, live con evidenza, determinismo/onestà del report, CLI JSON/blocco live, assenza client LLM |
+| `DOCS/QUALITY_JUDGE_REPORT.md` (nuovo) | Generato dal tool: 13 casi sintetici (7 consultati, 4 concordi, 2 override bloccati), dichiarato SIMULAZIONE |
+| `DOCS/BENCH.md`, `todo.md` | Sezione Fase H con stato `[~]`; restano 20 casi reali da misurare |
+
+Verifiche: 21 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning.
+**Nessun LLM, rete o GPU**: i pareri sono sintetici e il report lo dichiara;
+servono 20 casi reali con pareri live per chiudere la voce.

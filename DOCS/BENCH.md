@@ -513,3 +513,21 @@ Il builder cambia **solo il prompt**, non il motore: ogni chiamata vede le ref
 del proprio slot e l'anchor del template, senza le ref degli altri slot. Nessun
 modello è stato invocato: il pass@1 per tipo di slot richiede il benchmark live
 con ventole verificate.
+
+---
+
+## Giudice di qualità non sovrano (Fase H) — Cycle 120, harness pronto (2026-11-22)
+
+| Parametro | Valore |
+|---|---|
+| Strumento | `tools/quality_judge.py` + `tests/test_quality_judge.py` (21 test) |
+| Invariante | `final == gate_pass` sempre: il giudice è consultivo, mai sovrano in nessuna direzione |
+| Override | Richieste esplicite di override bloccate e segnalate, mai applicate |
+| Classificazioni | `not_consulted`, `judge_ignored_gate_fail`, `concur_pass`, `judge_dissent` |
+| Gate pareri live | `source: "live"` accettato solo con `fan_rpm > 0`, `temp_c ≤ 60`; altrimenti exit 2 |
+| Report | `DOCS/QUALITY_JUDGE_REPORT.md` (13 casi sintetici, dichiarati SIMULAZIONE) |
+| Stato | `[~]`: invariante e report verificati; 🔒 restano 20 casi reali con pareri live |
+
+L'harness NON chiama il decision model: riceve pareri già prodotti esternamente
+e verifica a runtime che nessun parere possa ribaltare il gate. L'invariante è
+lockata da test parametrizzati su tutte le 6 combinazioni gate×giudice.

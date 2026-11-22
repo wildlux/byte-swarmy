@@ -528,11 +528,19 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
       > `DOCS/PROMPT_VARIANTS_REPORT.md`. 🔒 Resta l'esperimento reale:
       > serve solver LLM con ventole verificate; il dry-run **non promuove
       > nulla** ed è dichiarato simulazione.
-21. [ ] **[Fase H] Timestral giudice di qualità (mai sovrano)** —
+21. [~] **[Fase H] Timestral giudice di qualità (mai sovrano)** —
       quando il gate passa ma la qualità è dubbia, il decision model
       valuta; logga accordo/disaccordo. MAI override automatico: il
       gate resta l'unica autorità. Criterio done: giudice opzionale +
       report accordo gate↔giudice su 20 casi.
+      > ✅ **Slice Fase H fatta (Cycle 120)**: `tools/quality_judge.py`
+      > applica l'invariante di non-sovranità in ogni direzione (gate FAIL
+      > + giudice `approve` resta FAIL; gate PASS + `reject` resta PASS),
+      > blocca e segnala i tentativi di override, classifica accordo/
+      > dissenso e rifiuta i pareri `source: "live"` senza `fan_rpm > 0`,
+      > `temp_c ≤ 60`. `DOCS/QUALITY_JUDGE_REPORT.md` + 21 test offline.
+      > 🔒 Restano i **20 casi reali** con pareri live: il dry-run è
+      > simulazione esplicita e non chiude la voce.
 22. [ ] **[P3-8] Modello più forte per le task GUI** — confronto
       qwen2.5-coder:7b/14b SOLO per il routing GUI (macchina fredda,
       ventole al max, sessione corta). Criterio done: tabella
