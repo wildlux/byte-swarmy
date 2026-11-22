@@ -2854,3 +2854,19 @@ Nessun LLM, GPU o dato ventola fabbricato.
 alcuna sorgente RPM leggibile, quindi il tachometro esterno resta l'unico
 canale ammesso. Nessun valore inventato, nessun surrogato da duty-cycle,
 nessuna suite locale, LLM o GPU.
+
+---
+
+## Cycle 131 (2026-11-23) — M4: CLI ufficiale `gh` installata in userspace
+
+| Azione | Dettaglio |
+|---|---|
+| Audit | `~/.local/bin/gh` era uno script Python browser 0.0.4 con interprete `/usr/local/bin/python3.14` inesistente → comando non funzionante. `~/.config/gh/hosts.yml` contiene solo `user: wildlux`, nessun token leggibile |
+| Download | `gh_2.46.0_linux_amd64.tar.gz` dalla release ufficiale `cli/cli`, SHA256 `c671d450d7c0e95c84fbc6996591fc851d396848acd53e589ee388031cee9330` verificato contro `gh_2.46.0_checksums.txt` |
+| Installazione | `~/.local/bin/gh-official` (ELF Go statico, 0755); `~/.local/bin/gh` ora symlink all'ufficiale; vecchio script preservato come `gh-browser-legacy` (rename reversibile, non eliminato) |
+| Verifica | `gh --version` → `gh version 2.46.0`; `gh auth status` → token in `hosts.yml` invalido, richiede `gh auth login -h github.com` |
+| `todo.md` | M4 aggiornato con progresso e blocco residuo |
+
+Nessun root, nessuna modifica a `.git-credentials` (usato da altri repo HTTPS),
+nessun token committato. Il login resta un'azione dell'utente nel browser: è
+il dato oggettivo mancante, non deducibile dal repo.
