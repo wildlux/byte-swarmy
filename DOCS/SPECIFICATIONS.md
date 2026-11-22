@@ -133,7 +133,7 @@ Security is enforced at the **Tool Layer**, not the Prompt Layer.
 ## 7. Performance Constraints
 - **Memory Ceiling**: Total system footprint must not exceed 4 GB RAM. Models are rotated to fit in 4 GB VRAM.
 - **Thermal Throttling**: The system monitors CPU + GPU temperature and adjusts the orchestrator tick rate or pauses execution to prevent overheating.
-- **Token Budget**: `MAX_STEPS = 6` per task, `max_tokens = 400` per step, `num_ctx = 3072`, `num_predict = 512` — tuned for small models on CPU/GPU-constrained hardware.
+- **Token Budget**: `MAX_STEPS = 10` per task (valore effettivo in `CORE/worker.py`; i profili `llm_tuner` possono ridurlo dinamicamente), `max_tokens = 400` per step, `num_ctx = 3072`, `num_predict = 512` — tuned for small models on CPU/GPU-constrained hardware.
 - **Disk Quota**: The project directory should be limited to prevent disk saturation attacks (planned, not yet enforced).
 
 ## 8. Error Handling

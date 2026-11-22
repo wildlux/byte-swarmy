@@ -2178,3 +2178,20 @@ markdown, wiring dei due loader). Regressione dead-code/refactor/retrieval/
 subagent: 36 passed + 4 subtest. Nessun LLM. Le keyword valide continuano a
 funzionare: il validatore scarta solo le voci non conformi.
 
+---
+
+## Cycle 91 (2026-11-22) — C1: documentazione allineata al codice
+
+| Contraddizione | Correzione |
+|---|---|
+| `AGENT.md` e `DOCS/SPECIFICATIONS.md`: `MAX_STEPS = 6` | `MAX_STEPS = 10` (valore effettivo di `CORE/worker.py`); i profili `llm_tuner` possono ridurlo dinamicamente |
+| Baseline security 15 / 7 / 13 in `verify_cycle.sh`, `todo.md`, `AGENT.md` | **Baseline unica 7 errori** (273 finding totali, misurata il 2026-11-22) dichiarata in `AGENT.md` regola 13 e usata da `verify_cycle.sh`; `todo.md` conserva il 13 solo come "baseline storica" |
+| `GUI/IMPLEMENTED.md` copia identica delle prime 107 righe di `DOCS/IMPLEMENTED.md` | Sostituito da uno stub di indirizzo: registro canonico = `DOCS/IMPLEMENTED.md`, nessun contenuto perso |
+| `state → data/state` non dichiarato | `AGENT.md` regola 12: symlink per-install gitignored, artefatti runtime via `state/`, mai committare credenziali |
+
+Verifiche: `tests/test_docs_consistency.py` 4 test (valore `Worker.MAX_STEPS`,
+assenza di `MAX_STEPS = 6`, baseline unica, assenza di righe duplicate,
+dichiarazione symlink con controllo condizionale del target). `bash -n
+tools/verify_cycle.sh` OK, `git diff --check` OK. Nessun codice runtime
+modificato.
+

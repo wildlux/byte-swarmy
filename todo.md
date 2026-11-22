@@ -159,7 +159,7 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 | B1 | `best_of_n` configurabile + gate-giudice testato con candidati finti | [x] |
 | B2 | Skill proposer: auto-approvazione solo con gate verde, altrimenti bozza | [x] |
 | B3 | Validatore deterministico degli override auto-skill/auto-tool | [x] |
-| C1 | Allineare docs al codice (MAX_STEPS, baseline security, duplicati, symlink `state`) | [ ] |
+| C1 | Allineare docs al codice (MAX_STEPS, baseline security, duplicati, symlink `state`) | [x] |
 | C2 | `tools/self_improvement_report.py`: report misure del loop, zero LLM | [ ] |
 | C3 | A/B memoria, eval per-slot, sweep `num_ctx`, distillazione, giudice | [ ] 🔒 termico |
 | D1 | `tools/prompt_lint.py`: misura offline del prompt effettivo (istruzioni, tool esposti, lunghezza frasi, quota token non-inglesi, "1 azione per turno"). Verifica l'ipotesi "LLM piccoli = bambini, istruzioni in inglese": struttura sì, tono no; A/B live resta 🔒 termico | [ ] |
@@ -167,8 +167,9 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 > Eseguito il 2026-11-22: A1–A4 chiusi in Cycle 87, 28 test mirati verdi,
 > 82 test di regressione verdi (110 subtests). B1 chiuso in Cycle 88:
 > 8 test best-of + 55 regressioni verdi; B2 in Cycle 89: 14 test proposer
-> + 22 regressioni; B3 in Cycle 90: 10 test guard + 26 regressioni. Registro:
-> [`DOCS/IMPLEMENTED.md`](DOCS/IMPLEMENTED.md). C1–C2/D1 restano pending;
+> + 22 regressioni; B3 in Cycle 90: 10 test guard + 26 regressioni;
+> C1 in Cycle 91: 4 test di coerenza docs. Registro:
+> [`DOCS/IMPLEMENTED.md`](DOCS/IMPLEMENTED.md). C2/D1 restano pending;
 > C3 resta 🔒 bloccato finché la ventola non è verificata (≤60 °C, ventole al max).
 
 ---
@@ -318,7 +319,9 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
       misurata e ridotta con `-W error` dove possibile. GO/NO-GO
       onesto se i warning Qt non sono sopprimibili.
 16. [x] **[Robustezza #7] security_scan.py in CI + verify_cycle** — lo
-      scanner esiste (262 finding, 13 errori: 9 in GLM_SOLUZIONE_WEB)
+      scanner esiste (baseline storica 262 finding / 13 errori, di cui
+      9 in GLM_SOLUZIONE_WEB; baseline UNICA aggiornata il 2026-11-22:
+      273 finding / **7 errori**, vedi `AGENT.md` regola 13)
       ma NON gira in nessuna pipeline. Criterio done: security_scan
       nel workflow CI e in verify_cycle.sh con baseline (errori
       CORE/GUI = 3, falsi positivi documentati) → new-error = fail.

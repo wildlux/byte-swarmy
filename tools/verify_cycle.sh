@@ -6,7 +6,7 @@
 #   2) test mirati (via CORE.test_runner, con timeout per file)
 #   3) boot smoke (orchestrator in pausa: exit 124 = OK atteso)
 #   4) metrica primo colpo % (P1-1, zero LLM: legge tasks/queue.db)
-#   5) security scan (baseline 15 errori, falsi positivi documentati)
+#   5) security scan (baseline unica: 7 errori, falsi positivi documentati)
 #
 # Automazione deterministica, NON un LLM che genera comandi:
 # zero LLM, zero calore, stessa disciplina rigorosa.

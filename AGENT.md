@@ -205,7 +205,7 @@ The worker can call any of these tools through the sandboxed `ToolSet`:
 6. **No-Shell**: `run_bash` tokenises the command and executes with
    `shell=False`. Pipes, redirects, `&&`, backticks, `sudo`, `curl`, `wget`,
    `ssh`, `nc`, `rm -rf`, `chmod` are forbidden.
-7. **Token Budget**: `MAX_STEPS = 6`, `max_tokens = 400`/step, `num_ctx =
+7. **Token Budget**: `MAX_STEPS = 10` (valore effettivo in `CORE/worker.py`), `max_tokens = 400`/step, `num_ctx =
    3072`, `num_predict = 512` — tuned for small models on constrained
    hardware. The worker must converge quickly.
 8. **Streaming Transparency**: tokens are streamed to
@@ -223,6 +223,12 @@ The worker can call any of these tools through the sandboxed `ToolSet`:
     one folder per category, no misspellings, no duplicates. Put new tools
     in the existing category folder instead of creating another one.
     Registered 2026-11-22.
+12. **Runtime State Path**: `state/` è un symlink a `data/state/` (entrambi
+    gitignored). Scrivere artefatti runtime sempre via `state/` per
+    compatibilità; mai committare `state/cloud_api.json` o credenziali.
+13. **Security Baseline**: `tools/security_scan.py` ha come baseline unica
+    **7 errori** (falsi positivi documentati) — verificata il 2026-11-22.
+    Un ottavo errore è una regressione e blocca il ciclo.
 
 ## 🔒 Sicurezza — Threat Model e Procedure
 
@@ -236,7 +242,7 @@ The worker can call any of these tools through the sandboxed `ToolSet`:
 | Compromissione modello Ollama | Model file manomessi | Verifica header GGUF; `hf_weights` importa solo GGUF da HF |
 | Segreti esposti | Token in config/log | `security.py` maschera i segreti; nessun segreto in chiaro nei log |
 | Supply chain | Dipendenze esterne | `requirements*.txt` pinned; `security_scan.py` pattern pericolosi |
-| Loop infinito LLM | Codice generato ripetitivo | `repeat_penalty`, `max_steps=6`, circuit breaker (3 chiamate identiche) |
+| Loop infinito LLM | Codice generato ripetitivo | `repeat_penalty`, `MAX_STEPS=10`, circuit breaker (3 chiamate identiche) |
 
 ### Principi di sicurezza (hard rules)
 1. **Fail-Closed**: se un tool fallisce o bubblewrap non è disponibile, il comando NON viene eseguito.
