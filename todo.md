@@ -139,6 +139,32 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 > creazione di nuovi ruoli modello, credenziali cloud. Esecuzione live solo
 > dopo la verifica della ventola (incidente termico 2026-11-20).
 
+## 📈 Sessione 2026-11-22 — piano auto-miglioramento (pianificata)
+
+> Piano completo: [`DOCS/PIANO_AUTO_MIGLIORAMENTO.md`](DOCS/PIANO_AUTO_MIGLIORAMENTO.md).
+> Interpretazione autonoma: rendere il loop di auto-miglioramento esistente
+> **verificabile e misurabile**, non aggiungere un secondo meccanismo di
+> apprendimento. Base: mappatura deterministica del codice (gate, worker,
+> corpus, skill proposer, retrieval, eval) con 10 gap documentati nel piano.
+> Tutto offline con fake client finché la ventola non è verificata.
+
+| ID | Task atomico (dettaglio nel piano) | Stato |
+|---|---|---|
+| A1 | `verification_status` esplicito (`verified`/`failed`/`not_tested`); `done` non verificato richiede override tracciato | [ ] |
+| A2 | Triple nel corpus anche per `corrected`/`failed_definitively`, con `reason` popolato | [ ] |
+| A3 | `curate_corpus.py`: include `corrected` come hard negatives, `--only-done` per il vecchio comportamento | [ ] |
+| A4 | Collegare `retrieve_similar_task` al dispatch/prompt del worker | [ ] |
+| B1 | `best_of_n` configurabile + gate-giudice testato con candidati finti | [ ] |
+| B2 | Skill proposer: auto-approvazione solo con gate verde, altrimenti bozza | [ ] |
+| B3 | Validatore deterministico degli override auto-skill/auto-tool | [ ] |
+| C1 | Allineare docs al codice (MAX_STEPS, baseline security, duplicati, symlink `state`) | [ ] |
+| C2 | `tools/self_improvement_report.py`: report misure del loop, zero LLM | [ ] |
+| C3 | A/B memoria, eval per-slot, sweep `num_ctx`, distillazione, giudice | [ ] 🔒 termico |
+
+> Criterio di done: ogni ID chiuso con test offline verde, registrato in
+> `DOCS/IMPLEMENTED.md` con Cycle number e spuntato qui. C3 resta bloccato
+> finché la ventola non è verificata (≤60 °C, ventole al max).
+
 ---
 
 ## 🎯 Piano d'attacco — dalle voci più impattanti (2026-11-18)
