@@ -8,6 +8,7 @@ Controlli statici (solo stdlib, ast) su tutti i .py del repo:
   - funzioni >60 righe (warn), nesting >4 (warn)
   - moduli pubblici senza docstring (info)
   - colori hardcoded inline nei pannelli GUI (guardia anti-regressione tema)
+  - segnali di sezione header collegati senza click abilitati (W011)
   - import potenzialmente inutilizzati (euristica)
   - marcatori TODO/FIXME/HACK/XXX (info)
 
@@ -40,6 +41,15 @@ _COLOR_INLINE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 _COLOR_WITH_BG = re.compile(r"background(?:-color)?\s*:", re.IGNORECASE)
+
+# W011: header di QTreeView/QTableView con signal di click collegato ma
+# sectionsClickable non abilitato → il segnale non viene mai emesso (bug
+# reale dell'Archivio, 2026-11-22).
+_HEADER_CLICK_SIGNALS = {
+    "sectionClicked", "sectionDoubleClicked", "sectionPressed",
+    "sectionEntered",
+}
+_HEADER_CLICKABLE_RE = re.compile(r"setSectionsClickable\s*\(\s*True\s*\)")
 
 # File esclusi dall'audit (debito noto, junk candidate — non riparare a
 # mano: decidere la cancellazione con l'utente, vedi DOCS/AGENT.md).
@@ -197,6 +207,28 @@ def _check_file(path: Path, findings: List[Finding]) -> None:
                                     "setStyleSheet con colore hardcodato "
                                     "senza background → non sincronizzato "
                                     "col tema"))
+
+        # W011: `header().sectionClicked.connect(...)` senza
+        # `setSectionsClickable(True)` → click reali muti (solo il
+        # controllo statico intercetta la regressione).
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "connect"):
+                continue
+            signal = node.func.value
+            if not (isinstance(signal, ast.Attribute)
+                    and signal.attr in _HEADER_CLICK_SIGNALS):
+                continue
+            if _HEADER_CLICKABLE_RE.search(src):
+                continue
+            ln = node.lineno
+            if "# nolint" in lines[ln - 1]:
+                continue
+            findings.append(Finding(rel, ln, "warn", "W011",
+                                    f"{signal.attr}.connect senza "
+                                    "setSectionsClickable(True): i click "
+                                    "dell'utente non emettono il segnale"))
 
     # import potenzialmente inutilizzati (euristica, solo nomi semplici)
     imported: List[tuple] = []

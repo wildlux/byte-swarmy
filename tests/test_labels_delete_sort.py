@@ -10,12 +10,9 @@ i click dell'utente non emettevano mai il segnale.
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
@@ -24,15 +21,13 @@ if str(ROOT) not in sys.path:
 import pytest  # noqa: E402
 from PyQt6.QtCore import QPoint, Qt  # noqa: E402
 from PyQt6.QtTest import QTest  # noqa: E402
-from PyQt6.QtWidgets import QApplication, QMessageBox  # noqa: E402
+from PyQt6.QtWidgets import QMessageBox  # noqa: E402
 
 from CORE import labels as L  # noqa: E402
 from GUI import label_actions  # noqa: E402
 from GUI import task_queue  # noqa: E402
 from GUI.file_tree_drawer import FileTreeDrawer  # noqa: E402
 from GUI.settings_panel import SettingsPanel  # noqa: E402
-
-_APP = QApplication.instance() or QApplication(sys.argv[:1])
 
 
 @pytest.fixture
@@ -100,7 +95,7 @@ def test_settings_confirm_deletes_label(labels_files, monkeypatch):
     assert "Test" not in _names()
 
 
-def _tree_with_files(tmp_path):
+def _tree_with_files(tmp_path, qapp):
     """Drawer con una cartella di esempio (file + cartelle) già popolata."""
     for name in ("zeta.txt", "Alpha.py", "beta.md"):
         (tmp_path / name).write_text("x")
@@ -110,17 +105,17 @@ def _tree_with_files(tmp_path):
     drawer.resize(360, 600)
     drawer.show()
     drawer.model.set_root_path(str(tmp_path))
-    _APP.processEvents()
+    qapp.processEvents()
     return drawer
 
 
-def _click_header(drawer, section):
+def _click_header(drawer, section, qapp):
     """Click REALE sul viewport dell'header (non emissione manuale)."""
     header = drawer.tree.header()
     x = header.sectionViewportPosition(section) + header.sectionSize(section) // 2
     QTest.mouseClick(header.viewport(), Qt.MouseButton.LeftButton,
                      pos=QPoint(x, 10))
-    _APP.processEvents()
+    qapp.processEvents()
 
 
 def _names_tree(drawer):
@@ -128,25 +123,25 @@ def _names_tree(drawer):
     return [root.child(row, 3).text() for row in range(root.rowCount())]
 
 
-def test_header_clicks_are_connected(tmp_path):
+def test_header_clicks_are_connected(tmp_path, qapp):
     """I click su Name e 📄 devono ordinare: prima A→Z, poi Z→A, poi tipologia."""
-    drawer = _tree_with_files(tmp_path)
+    drawer = _tree_with_files(tmp_path, qapp)
     assert drawer.tree.header().sectionsClickable() is True
 
-    _click_header(drawer, 3)
+    _click_header(drawer, 3, qapp)
     assert drawer.model._sort_mode == "name"
     assert drawer.model._sort_desc is False
     assert drawer.tree.header().sortIndicatorSection() == 3
 
-    _click_header(drawer, 3)
+    _click_header(drawer, 3, qapp)
     assert drawer.model._sort_desc is True
     assert _names_tree(drawer)[0] == "zeta.txt"
 
-    _click_header(drawer, 2)
+    _click_header(drawer, 2, qapp)
     assert drawer.model._sort_mode == "type"
     assert drawer.model._folders_first is True
     assert _names_tree(drawer)[:2] == ["Cartella_A", "Cartella_Z"]
 
-    _click_header(drawer, 2)
+    _click_header(drawer, 2, qapp)
     assert drawer.model._folders_first is False
     assert _names_tree(drawer)[-2:] == ["Cartella_A", "Cartella_Z"]

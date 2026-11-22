@@ -381,6 +381,15 @@ The env var takes **priority** over any token saved in `CONFIG/settings.json`; `
 `find_dead_code(path='.')` tool provide a deterministic AST **report only** —
 they never delete anything. Verify each candidate with `find_references` first.
 
+**API fidelity**: `api_lookup(module, symbol, strict=True)` returns the real
+signature and blocks on unknown symbols; `tools/validate_refs.py` checks
+`# Versione:` / `# Firma:` headers against the installed package.
+
+**Mechanical refactoring**: `rename_symbol(old, new)` is preview-only by
+default; `apply=True` writes with a snapshot in `state/refactor_snapshots/`
+and `restore_snapshot(id)` rolls back. GUI signals wired without
+`setSectionsClickable(True)` are flagged by lint rule W011.
+
 ### 💬 Chat — model test bench (local + cloud)
 
 The Dashboard has a collapsible **💬 Chat - Test models** section: compare models

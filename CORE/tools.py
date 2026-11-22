@@ -18,10 +18,13 @@ Sicurezza (vedi security.py e sandbox.py):
 
 from __future__ import annotations
 
+import difflib
+import io
 import os
 import re
 import json
 import resource
+import tokenize
 import shlex
 import shutil
 import signal
@@ -66,7 +69,7 @@ TOOL_SIGNATURES = {
     "read_file": "read_file(path) -> str: legge un file dentro project/",
     "read_document": "read_document(path) -> str: legge un documento (.txt/.md/.py/.pdf via pdftotext) e restituisce il testo estratto (troncato)",
     "list_refs": "list_refs() -> str: elenca i cheat sheet disponibili in GUI/refs/ (PyQt6, ToolSet API, debt ledger). Leggili con read_file per ridurre allucinazioni.",
-    "api_lookup": "api_lookup(module, symbol='') -> str: introspezione per API nuove.",
+    "api_lookup": "api_lookup(module, symbol='', strict=False) -> str: firma reale via introspezione; strict=True blocca se non verificabile.",
     "read_file_slice": "read_file_slice(path, start_line, end_line) -> str: legge max 200 righe di un file grande (righe 1-based)",
     "write_file": "write_file(path, content) -> str: scrive atomicamente in project/",
     "patch_code": "patch_code(path, old_text, new_text) -> str: sostituisce una porzione di testo in un file",
@@ -76,7 +79,8 @@ TOOL_SIGNATURES = {
     "analyze_project": "analyze_project() -> str: restituisce la mappa di classi e funzioni del progetto",
     "find_references": "find_references(symbol) -> str: cerca tutte le occorrenze di una funzione/variabile",
     "lint_code": "lint_code(path) -> str: verifica errori di sintassi e stile in un file",
-    "rename_symbol": "rename_symbol(old, new) -> str: rinomina un simbolo in tutto il progetto",
+    "rename_symbol": "rename_symbol(old, new, apply=False) -> str: anteprima diff; apply=True scrive con snapshot",
+    "restore_snapshot": "restore_snapshot(id) -> str: ripristina i file di un rename precedente (rollback)",
     "analyze_complexity": "analyze_complexity(path) -> str: stima la complessità di un file",
     "get_call_graph": "get_call_graph(symbol) -> str: mappa chi chiama la funzione/classe",
     "find_dead_code": "find_dead_code(path='.') -> str: report SOLO LETTURA di funzioni/classi/import non referenziati (non cancella nulla)",
@@ -108,6 +112,19 @@ _REGEX = RegexController(DEFAULT_PATTERNS)
 
 # Branch che i worker non possono cancellare.
 PROTECTED_BRANCHES = frozenset({"main", "master", "develop", "trunk"})
+
+# Directory escluse dal rename simbolico (generate/dati/ambienti).
+_RENAME_SKIP_DIRS = frozenset({
+    ".git", ".venv", "venv", "__pycache__", "data", "state",
+    "node_modules", "build", "dist", ".pytest_cache", ".mypy_cache",
+})
+
+
+def _as_bool(value) -> bool:
+    """Flag dei tool passati anche come stringa ('true'/'false')."""
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "y", "si", "sì"}
+    return bool(value)
 
 # 🆕 Cycle 79: file di infrastruttura critica. Il worker NON può
 # sovrascriverli/cancellarli con write_file/delete_file/move_file:
@@ -359,8 +376,8 @@ class ToolSet:
             "delete_file", "move_file", "list_files",
             "run_bash", "search",
             "analyze_project", "find_references", "lint_code",
-            "rename_symbol", "analyze_complexity", "get_call_graph",
-            "find_dead_code", "extract_method",
+            "rename_symbol", "restore_snapshot", "analyze_complexity",
+            "get_call_graph", "find_dead_code", "extract_method",
             "git_commit", "git_diff", "git_status", "git_log",
             "git_branch", "git_merge", "git_pull", "git_push", "git_remote",
             "run_test_suite", "list_refs", "list_tools", "diary_llm", "retrieve_similar_task",
@@ -468,25 +485,37 @@ class ToolSet:
             "  - GUI/refs/%s" % f for f in files)
 
     # ----- api_lookup: introspezione runtime di un pacchetto installato -----
-    def api_lookup(self, module: str, symbol: str = "") -> str:
+    def api_lookup(self, module: str, symbol: str = "",
+                   strict: bool = False) -> str:
         """Introspezione runtime di un pacchetto installato (anti-allucinazione).
 
         Restituisce la firma + docstring di `symbol` in `module`, oppure
         l'elenco dei simbodo pubblici se `symbol` è vuoto. Funziona per
-        qualsiasi pacchetto installato, incluse API nuove. Fail-open.
+        qualsiasi pacchetto installato, incluse API nuove. Con `strict=True`
+        import falliti, simboli assenti e firme non introspettabili bloccano
+        la generazione invece di lasciare un elenco generico.
         """
         import importlib
         import inspect
+        strict = _as_bool(strict)
+
+        def blocked(msg: str) -> str:
+            if strict:
+                return (f"ERROR: {msg} — API NON VERIFICATA (strict): "
+                        "generazione bloccata.")
+            return f"ERROR: {msg}"
 
         if not isinstance(module, str) or not module.strip():
-            return "ERROR: module richiesto (es. 'json', 'pathlib')."
+            return blocked("module richiesto (es. 'json', 'pathlib').")
         try:
             mod = importlib.import_module(module.strip())
         except Exception as e:
-            return f"ERROR: impossibile importare '{module}': {e}"
+            return blocked(f"impossibile importare '{module}': {e}")
 
         if not symbol or not str(symbol).strip():
-            # Elenco simbodo pubblici
+            if strict:
+                return blocked(
+                    "elenco pubblico non verifica una firma: specificare un simbolo.")
             names = [n for n in dir(mod) if not n.startswith("_")]
             return ("SIMBODI PUBBLICI di %s (%d):\n" % (module, len(names)) +
                     ", ".join(names[:80]) +
@@ -497,8 +526,9 @@ class ToolSet:
         obj = mod
         for part in sym.split("."):
             if not hasattr(obj, part):
-                return ("ERROR: simbodo '%s' non trovato in '%s'. "
-                        "Usa api_lookup('%s') per l'elenco." % (sym, module, module))
+                return blocked(
+                    f"simbolo '{sym}' non trovato in '{module}'. "
+                    f"Usa api_lookup('{module}') per l'elenco.")
             obj = getattr(obj, part)
 
         lines = [f"{module}.{sym}"]
@@ -506,10 +536,14 @@ class ToolSet:
             sig = inspect.signature(obj)
             lines.append(f"  firma: {sym}{sig}")
         except (TypeError, ValueError):
+            if strict:
+                return blocked(f"firma di '{sym}' non introspettabile")
             lines.append("  firma: (non disponibile)")
         doc = inspect.getdoc(obj)
         if doc:
             lines.append("  doc: " + doc.splitlines()[0][:200])
+        if strict:
+            lines.append(f"  stato: VERIFICATO via inspect su {module}")
         return "\n".join(lines)
 
     # ----- 2. write_file (transazionale: tmp nella stessa dir, poi rename) -----
@@ -1035,30 +1069,152 @@ class ToolSet:
         )
 
     # ----- 19. rename_symbol -----
-    def rename_symbol(self, old_symbol: str, new_symbol: str) -> str:
-        """Rinomina un simbolo in tutto il progetto.
+    @staticmethod
+    def _rename_occurrences(text: str, old: str):
+        """Posizioni token NAME + occorrenze in stringhe/commenti."""
+        positions = []
+        text_hits = 0
+        try:
+            stream = io.StringIO(text).readline
+            for tok in tokenize.generate_tokens(stream):
+                if tok.type == tokenize.NAME and tok.string == old:
+                    positions.append((tok.start[0], tok.start[1], tok.end[1]))
+                elif tok.type in (tokenize.STRING, tokenize.COMMENT):
+                    text_hits += len(re.findall(
+                        r"\b" + re.escape(old) + r"\b", tok.string))
+        except (tokenize.TokenError, IndentationError, SyntaxError):
+            positions = []
+            text_hits = 0
+            for row, line in enumerate(text.splitlines(), 1):
+                for m in re.finditer(r"\b" + re.escape(old) + r"\b", line):
+                    positions.append((row, m.start(), m.end()))
+        return positions, text_hits
 
-        Cerca l'occorrenza esatta del simbolo e la sostituisce in tutti i file .py.
-        Usa regex per evitare di sostituire parti di altre parole.
+    def _rename_plan(self, old: str, new: str) -> list[dict]:
+        """Piano di rename senza scritture: testo nuovo per ogni file."""
+        plan = []
+        root = Path(self.project_root)
+        for path in sorted(root.rglob("*.py")):
+            if any(part in _RENAME_SKIP_DIRS for part in path.parts):
+                continue
+            text = path.read_text(encoding="utf-8", errors="replace")
+            positions, text_hits = self._rename_occurrences(text, old)
+            if not positions:
+                continue
+            lines = text.splitlines(keepends=True)
+            for row, start, end in sorted(positions, reverse=True):
+                line = lines[row - 1]
+                lines[row - 1] = line[:start] + new + line[end:]
+            plan.append({
+                "path": path,
+                "rel": str(path.relative_to(root)),
+                "old": text,
+                "new": "".join(lines),
+                "hits": len(positions),
+                "text_hits": text_hits,
+            })
+        return plan
+
+    @staticmethod
+    def _format_rename_diff(plan: list[dict], limit: int = 160) -> list[str]:
+        """Righe di diff unificato per l'anteprima del rename."""
+        lines = []
+        shown = 0
+        for item in plan:
+            lines.append(f"--- {item['rel']} ({item['hits']})")
+            diff = difflib.unified_diff(
+                item["old"].splitlines(), item["new"].splitlines(),
+                fromfile=item["rel"], tofile=item["rel"], lineterm="")
+            for line in diff:
+                if shown >= limit:
+                    lines.append("... (diff troncato)")
+                    return lines
+                lines.append(line)
+                shown += 1
+        return lines
+
+    def rename_symbol(self, old_symbol: str, new_symbol: str,
+                      apply: bool = False) -> str:
+        """Rinomina un simbolo nei .py: default = solo anteprima.
+
+        Usa i token NAME (non regex): stringhe e commenti non vengono toccati.
+        Con `apply=True` scrive in modo transazionale e salva uno snapshot
+        ripristinabile con `restore_snapshot(id)`.
         """
         try:
-            files = sorted(self.project_root.glob("**/*.py"))
-            count = 0
-            pattern = rf"\b{re.escape(old_symbol)}\b"
+            valid = re.compile(r"^[A-Za-z_]\w*$")
+            if (not isinstance(old_symbol, str)
+                    or not isinstance(new_symbol, str)
+                    or not valid.match(old_symbol)
+                    or not valid.match(new_symbol)):
+                return "ERROR: simboli non validi ([A-Za-z_][A-Za-z0-9_]*)."
+            if old_symbol == new_symbol:
+                return "ERROR: old e new sono uguali."
+            apply = _as_bool(apply)
 
-            for f in files:
-                content = f.read_text(encoding="utf-8", errors="replace")
-                if re.search(pattern, content):
-                    new_content = re.sub(pattern, new_symbol, content)
-                    # Scrittura transazionale
-                    tmp = f.parent / _tmp_name(f.name, ".rename")
-                    tmp.write_text(new_content, encoding="utf-8")
-                    os.replace(tmp, f)
-                    count += 1
+            plan = self._rename_plan(old_symbol, new_symbol)
+            code_hits = sum(p["hits"] for p in plan)
+            text_hits = sum(p["text_hits"] for p in plan)
+            header = (f"RENAME {old_symbol} -> {new_symbol}\n"
+                      f"File: {len(plan)} | occorrenze codice: {code_hits} | "
+                      f"in stringhe/commenti (non toccate): {text_hits}")
+            if not plan:
+                return header + "\nNessuna occorrenza: nessuna modifica."
 
-            return f"OK: renamed symbol '{old_symbol}' to '{new_symbol}' in {count} files."
+            if not apply:
+                lines = ["RENAME — ANTEPRIMA (nessun file modificato)", header,
+                         "Per applicare: rename_symbol(old, new, apply=True)"]
+                lines.extend(self._format_rename_diff(plan))
+                return "\n".join(lines)
+
+            sid = time.strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6]
+            base = Path(self.project_root) / "state" / "refactor_snapshots" / sid
+            base.mkdir(parents=True, exist_ok=True)
+            manifest = {"id": sid, "old": old_symbol, "new": new_symbol,
+                        "files": [p["rel"] for p in plan]}
+            for item in plan:
+                snap = base / item["rel"]
+                snap.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(item["path"], snap)
+            (base / "manifest.json").write_text(
+                json.dumps(manifest, indent=2, ensure_ascii=False),
+                encoding="utf-8")
+
+            for item in plan:
+                tmp = item["path"].parent / _tmp_name(item["path"].name, ".rename")
+                tmp.write_text(item["new"], encoding="utf-8")
+                os.replace(tmp, item["path"])
+            return (f"OK: {code_hits} occorrenze in {len(plan)} file. "
+                    f"Snapshot '{sid}' — rollback: restore_snapshot('{sid}')")
         except Exception as e:
             return f"ERROR renaming symbol: {e}"
+
+    def restore_snapshot(self, snapshot_id: str) -> str:
+        """Ripristina i file di uno snapshot di rename precedente."""
+        try:
+            sid = str(snapshot_id).strip()
+            if not re.fullmatch(r"[A-Za-z0-9_-]+", sid):
+                return "ERROR: snapshot_id non valido."
+            root = Path(self.project_root).resolve()
+            base = root / "state" / "refactor_snapshots" / sid
+            manifest_path = base / "manifest.json"
+            if not manifest_path.is_file():
+                return f"ERROR: snapshot '{sid}' non trovato."
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            restored = 0
+            for rel in manifest.get("files", []):
+                source = (base / rel).resolve()
+                dest = (root / rel).resolve()
+                if not str(dest).startswith(str(root) + os.sep):
+                    return "ERROR: percorso snapshot fuori dal progetto."
+                if not source.is_file():
+                    continue
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, dest)
+                restored += 1
+            return f"OK: ripristinati {restored} file dallo snapshot '{sid}'."
+        except Exception as e:
+            return f"ERROR restore snapshot: {e}"
 
     # ----- 20. analyze_complexity -----
     def analyze_complexity(self, path: str) -> str:

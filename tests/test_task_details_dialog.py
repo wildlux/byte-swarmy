@@ -11,11 +11,8 @@ sostituito da una lambda che registra il titolo.
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
-
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
@@ -23,12 +20,10 @@ if str(ROOT) not in sys.path:
 
 from PyQt6.QtCore import QPoint, Qt  # noqa: E402
 from PyQt6.QtWidgets import (  # noqa: E402
-    QApplication, QDialog, QListWidget, QListWidgetItem, QMenu, QMessageBox,
+    QDialog, QListWidget, QListWidgetItem, QMenu, QMessageBox,
 )
 
 from GUI import file_tree_drawer as ftd  # noqa: E402
-
-_APP = QApplication.instance() or QApplication(sys.argv[:1])
 
 _TASK = {
     "id": "task-test-123",

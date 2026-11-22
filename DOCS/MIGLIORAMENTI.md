@@ -129,6 +129,7 @@ reale. Nessun flake residuo: `test_functional_swarm` passa da solo
 | v0.3.34 | 86 | Fix dialog **Dettagli task** (`QWidget` non importato): la finestra si apre di nuovo; errori e task mancanti ora avvisano invece di fallire in silenzio; 4 test di regressione offscreen |
 | v0.3.34 | 86 | Fix eliminazione etichette (tombstone default) e ordinamento Archivio (header `sectionsClickable`): 5 test offscreen, logica delete unificata |
 | v0.3.34 | 86 | Skill `codice-morto` + tool `find_dead_code` (AST deterministico, report-only): registrato in firme/allowlist/dispatch/auto-tool, 7 test dedicati |
+| v0.3.34 | 86 | Qualità: W011 (segnali header non cliccabili), fixture `qapp` condivisa, firme/versioni API verificate, `api_lookup(strict)`, rename in anteprima con snapshot/rollback, skill `refactoring-mecc` |
 
 ---
 
@@ -156,6 +157,7 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 | Toggle "Seleziona/deseleziona tutti" | glifo e stato coerenti (☐ vuoto / ☑ pieno) |
 | Archivio — click su **Name** | ordine alfabetico A→Z, secondo click Z→A — click collegato e header reso `sectionsClickable` (prima il segnale non veniva emesso) |
 | Archivio — click su **📄** | raggruppa per estensione; secondo click inverte cartelle/file; freccetta di ordinamento sull'header |
+| Guardia W011 | il lint segnala `sectionClicked.connect` senza `setSectionsClickable(True)`: il bug non può più tornare silently |
 | Dettaglio task | due colonne: metadati/log a sinistra, **Risultato** e **Progetti** a destra |
 | Codice prodotto | click sul file → codice effettivo nel viewer (con ▶ Esegui) |
 | Etichette | pallini colore nel menu contestuale, settings, completer `#`, colori rapidi |

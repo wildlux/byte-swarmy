@@ -15,14 +15,14 @@ Flusso: **identifica libreria → introspezione/ref → inietta nel prompt → g
 ## 2. Strategie (dal più forte al più debole)
 
 1. **Introspezione runtime**: `api_lookup(module, symbol)` usa `inspect.signature`/`dir()` sul pacchetto installato → firma reale. Funziona per qualsiasi libreria installata.
-2. **Refs (cheat sheet)**: file in `GUI/refs/` o `CORE/refs/` con firme API. Iniettati nel prompt. Per API nuove, creare il ref manualmente o con `tools/gen_api_refs.py`.
+2. **Refs (cheat sheet)**: file in `GUI/refs/` o `CORE/refs/` con firme API. Iniettati nel prompt. Per API nuove, creare il ref manualmente o con `tools/gen_api_refs.py`. Le intestazioni `# Versione: pkg==x.y` e `# Firma: `foo(a, b)`` vengono verificate da `tools/validate_refs.py` contro il pacchetto installato.
 3. **Compile gate**: `py_compile`/`make` rifiuta simbodo inesistenti → correction prompt con l'errore + lista tool/API.
 4. **Correction loop**: fino a 3 retry con prompt di correzione.
 
 ## 3. Workflow
 
 1. Identifica la libreria e il simbodo necessario.
-2. Chiama `api_lookup(module, symbol)` per ottenere firma + docstring reali.
+2. Chiama `api_lookup(module, symbol, strict=True)` per ottenere firma + docstring reali: se il simbolo non esiste la generazione viene bloccata.
 3. Se il pacchetto non è installato, cerca/crea un ref in `CORE/refs/` o `GUI/refs/`.
 4. Inietta le firme nel prompt (sezione `## API REFS`).
 5. Genera il codice.

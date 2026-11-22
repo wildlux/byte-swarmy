@@ -824,6 +824,9 @@ Le vecchie "7 tab" (Coda Task, Modelli, MCP Servers, Logs, Timestral, Config, Te
 - **Rinomina etichetta**: pulsante **✏️ Rinomina** aggiunto accanto a **🎨 Cambia colore** e **🗑️ Elimina** in Impostazioni e nel menu contestuale del completer `#`; il vecchio nome viene aggiornato anche nei task.
 - **Plancia — sezione "Skill"**: pannello per vedere e attivare/disattivare le skill del repo (`.opencode/skill/`), con stato persistito in `state/skills_enabled.json`.
 - **Codice morto**: skill `.opencode/skill/codice-morto/` + tool `find_dead_code(path='.')` (AST deterministico, **solo report**); i candidati vanno verificati con `find_references` prima di qualsiasi rimozione.
+- **Fedeltà API**: `api_lookup(module, symbol, strict=True)` restituisce la firma reale e blocca se il simbolo non esiste; `tools/validate_refs.py` confronta `# Versione:` e `# Firma:` dei cheat sheet con il pacchetto installato.
+- **Refactoring meccanico**: skill `.opencode/skill/refactoring-mecc/` + `rename_symbol(old, new)` in anteprima (default); `apply=True` scrive con snapshot in `state/refactor_snapshots/`, `restore_snapshot(id)` fa il rollback.
+- **W011**: `tools/lint_style.py` segnala i segnali di sezione header collegati senza `setSectionsClickable(True)` (il bug dell'Archivio); test Qt con fixture `qapp` condivisa e offscreen.
 
 ### 💬 Chat — banco di prova modelli (locale + cloud)
 

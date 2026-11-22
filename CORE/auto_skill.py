@@ -52,6 +52,10 @@ KEYWORDS: dict[str, list[str]] = {
         "codice morto", "dead code", "codice inutilizzato", "funzioni non usate",
         "import inutilizzati", "rimuovi codice morto", "pulizia codebase",
     ],
+    "refactoring-mecc": [
+        "refactoring", "refactor", "rinomina funzione", "rinomina variabile",
+        "rinomina simbolo", "anteprima rename", "rollback rename",
+    ],
     "current-time": [
         "che ore sono", "che ora e", "ora corrente", "data di oggi",
         "data odierna", "current time", "utc", "fuso orario", "giorno attuale",

@@ -13,6 +13,24 @@ todo è **ordinato per impatto**: prima ciò che sblocca la misura e chiude
 i gap più grandi del radar, poi il motore del miglioramento, poi i gap
 medi, infine sottofondi e igiene.
 
+## ⚙️ Regola operativa — autonomia su richieste non sicure (2026-11-22)
+
+**ByteSwarmy non fa domande all'utente su ciò che vuole quando non è sicuro:
+prende la decisione più sicura e coerente con le regole del progetto ed
+esegue direttamente il task.**
+
+| Situazione | Comportamento |
+|---|---|
+| Richiesta ambigua o multi-interpretabile | Sceglie l'interpretazione più conservativa, la dichiara in una riga e procede |
+| Opzioni multiple senza risposta | Decide in autonomia: report-only > modifica, gate deterministici prima di tutto |
+| Conflitto tra istruzioni | Applica la regola più restrittiva (sicurezza/termica/cartelle) e continua |
+| Dubbio su percorso o nome file | Usa la convenzione "stessi cartelle, sempre"; nessuna duplicazione |
+| Blocco reale (credenziali, hardware, permessi) | Segnala il blocco **dopo** aver eseguito tutto il resto, con rimedio concreto |
+
+Il chiarimento resta riservato ai soli casi in cui manca un dato oggettivo
+non deducibile dal repo (es. una chiave API). Ogni scelta autonoma viene
+registrata qui o in `DOCS/MIGLIORAMENTI.md`, mai demandata all'utente.
+
 ## 🗂️ Sessione 2026-11-22 — riordino cartelle e commenti (pianificata)
 
 Regola condivisa: **stessi cartelle, sempre** — nomi maiuscoli per i contenitori
@@ -50,6 +68,29 @@ modulo dedicato, riutilizzabile da tool e future analisi.
 > 5 punti (firma, allowlist, prompt/mapping/dispatch worker, auto-tool) e skill
 > agente con auto-skill. `tests/test_dead_code.py`: 7 test offline. Nessuna
 > rimozione automatica: il report va verificato con `find_references`.
+
+## 🛠️ Sessione 2026-11-22 — qualità: API, refactoring, GUI (autonoma)
+
+Decisioni autonome (regola "non chiedere, esegui"): report prima della
+modifica, snapshot prima del rename, versione/firma verificate prima di
+generare codice, Qt sempre offscreen con un solo `QApplication`.
+
+| # | Task (atomico, verificabile) | Stato |
+|---|---|---|
+| 1 | W011 in `tools/lint_style.py`: `.connect` su segnale di sezione senza `setSectionsClickable(True)` | [x] |
+| 2 | `tests/conftest.py`: fixture `qapp` session-scoped; migrazione dei test Qt | [x] |
+| 3 | `validate_refs.py`: header `# Versione:`/`# Firma:` verificati contro pacchetto installato | [x] |
+| 4 | `api_lookup(..., strict=True)`: fallimento = blocco esplicito, non elenco generico | [x] |
+| 5 | `rename_symbol(apply=False)` default + snapshot in `state/refactor_snapshots/` + `restore_snapshot()` | [x] |
+| 6 | Skill `refactoring-mecc` + keyword auto-skill/auto-tool | [x] |
+| 7 | Test offline dedicati, docs IT/EN, gate deterministici | [x] |
+
+> Eseguito il 2026-11-22 in autonomia (nessuna domanda intermedia): W011 e
+> `qapp` chiudono il bug dell'Archivio e i Qt abort; `validate_refs` confronta
+> firme/versioni, `api_lookup(strict=True)` blocca le API non verificate;
+> `rename_symbol` è report-only fino ad `apply=True` e crea snapshot
+> ripristinabile. Nuovi test: `test_gui_wiring_lint.py` (5),
+> `test_api_refs_gate.py` (11), `test_refactor_rename.py` (7).
 
 ---
 

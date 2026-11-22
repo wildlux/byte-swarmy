@@ -133,10 +133,12 @@ class Worker:
         "  delete=delete_file(path)           move=move_file(path,new_path)\n"
         "  list=list_files(path,pattern)      search=search(pattern,glob)\n"
         "  analyze=analyze_project()          refs=find_references(symbol)\n"
+        "  api=api_lookup(module, symbol, strict=True)  # firma verificata\n"
         "  complex=analyze_complexity(path)   graph=get_call_graph(symbol)\n"
         "  dead=find_dead_code(path)  # report only, NON cancella\n"
         "  extract=extract_method(path,s,e,name,body)\n"
-        "  rename=rename_symbol(old,new)\n"
+        "  rename=rename_symbol(old,new,apply=True)  # default: anteprima\n"
+        "  restore=restore_snapshot(id)  # rollback del rename\n"
         "  bash=run_bash(cmd)                 test=run_test_suite()\n"
         "  lint=lint_code(path)\n"
         "  git_status  git_diff(rev)  git_commit(msg)  git_log(n)\n"
@@ -191,11 +193,13 @@ class Worker:
         "search": "search",
         "analyze": "analyze_project",
         "refs": "find_references",
+        "api": "api_lookup",
         "complex": "analyze_complexity",
         "graph": "get_call_graph",
         "dead": "find_dead_code",
         "extract": "extract_method",
         "rename": "rename_symbol",
+        "restore": "restore_snapshot",
         "bash": "run_bash",
         "test": "run_test_suite",
         "lint": "lint_code",
@@ -247,8 +251,8 @@ class Worker:
         # Gruppi tematici
         git = {"git_status", "git_diff", "git_commit", "git_log",
                "git_branch", "git_merge"}
-        analysis = {"analyze", "refs", "complex", "graph", "dead",
-                    "extract", "rename"}
+        analysis = {"analyze", "refs", "api", "complex", "graph", "dead",
+                    "extract", "rename", "restore"}
         usb = set()
         try:
             from GUI.settings_store import get_usb_tools_enabled
@@ -263,7 +267,7 @@ class Worker:
         if any(k in text for k in ("refactor", "rename", "extract", "complex",
                                     "analyze", "reference", "call graph", "architettura",
                                     "struttura", "complessità", "codice morto",
-                                    "dead code")):
+                                    "dead code", "firma api", "libreria")):
             return core | analysis | git
         if any(k in text for k in ("usb", "device", "hardware", "periferica")):
             return core | usb if usb else core
@@ -326,11 +330,13 @@ class Worker:
             "search": "  search=search(pattern,glob)",
             "analyze": "  analyze=analyze_project()",
             "refs": "  refs=find_references(symbol)",
+            "api": "  api=api_lookup(module, symbol, strict=True)",
             "complex": "  complex=analyze_complexity(path)",
             "graph": "  graph=get_call_graph(symbol)",
             "dead": "  dead=find_dead_code(path)  # solo report, non cancella",
             "extract": "  extract=extract_method(path,s,e,name,body)",
-            "rename": "  rename=rename_symbol(old,new)",
+            "rename": "  rename=rename_symbol(old,new,apply=True)",
+            "restore": "  restore=restore_snapshot(id)  # rollback",
             "bash": "  bash=run_bash(cmd)",
             "test": "  test=run_test_suite()",
             "lint": "  lint=lint_code(path)",
@@ -1719,7 +1725,8 @@ class Worker:
             elif name == "api_lookup":
                 return self.tools.api_lookup(
                     args[0] if args else "",
-                    args[1] if len(args) > 1 else "")
+                    args[1] if len(args) > 1 else "",
+                    args[2] if len(args) > 2 else False)
             elif name == "write_file":
                 return self.tools.write_file(args[0], args[1])
             elif name == "patch_code":
@@ -1733,7 +1740,10 @@ class Worker:
             elif name == "lint_code":
                 return self.tools.lint_code(args[0])
             elif name == "rename_symbol":
-                return self.tools.rename_symbol(args[0], args[1])
+                return self.tools.rename_symbol(
+                    args[0], args[1], args[2] if len(args) > 2 else False)
+            elif name == "restore_snapshot":
+                return self.tools.restore_snapshot(args[0] if args else "")
             elif name == "analyze_complexity":
                 return self.tools.analyze_complexity(args[0])
             elif name == "get_call_graph":
