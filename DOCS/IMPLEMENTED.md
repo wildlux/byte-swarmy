@@ -2473,3 +2473,16 @@ compilazione anche con Python 3.11 (CI). **Nessun task GUI reale eseguito**,
 nessun `insmod`/LLM/rete, nessun asse del radar alzato. I template PyQt6, la
 skill `py-gui-scaffold` e gli snapshot offscreen esistevano già: non sono stati
 duplicati.
+
+---
+
+## Cycle 108 (2026-11-22) — Igiene performance: prefill del worker verificato
+
+| Modifica | Dettaglio |
+|---|---|
+| `tests/test_worker_prefill.py` (nuovo) | 3 test offline: T1 seleziona solo i tool rilevanti (creazione → 12 core, nessun git/analysis), il SYSTEM prompt risultante è più corto del fallback, T10 riutilizza lo stesso oggetto prompt per task della stessa famiglia. Nessun LLM/rete/benchmark |
+| `todo.md` | Voce “Igiene performance” portata a `[~]`: la riduzione del prefill tramite selezione tool è verificata; compressione descrizioni, batch write e KV cache restano aperti perché richiedono misure reali |
+
+Verifiche: 3 test mirati verdi, `pyflakes` 0. Nessuna ottimizzazione applicata
+“a occhio”: il miglioramento dichiarato è solo la verifica del comportamento
+già presente, non una stima di risparmio.

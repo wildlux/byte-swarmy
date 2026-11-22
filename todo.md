@@ -517,11 +517,17 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
       S010 in codice esperimento nel repo: decidere archivio o
       rimozione; oggi è superficie di audit rumorosa. Criterio done:
       directory spostata/taggata, scanner ripulito.
-29. [ ] **[Storico residuo] Igiene performance** — ridurre il prefill
+29. [~] **[Storico residuo] Igiene performance** — ridurre il prefill
       del worker (comprimere descrizioni tool, ~30-50%/step); batch
       delle write_file con commit a fine task; caching KV via
       llama.cpp diretto (solo se il carico reale lo chiede). Nota:
       num_ctx planner 3072→2048 già fatto (Cycle 67).
+      > ✅ **Parte verificata (Cycle 108)**: T1 `_classify_task_tools`
+      > riduce i tool del prompt (creazione = solo 12 core vs fallback 28+)
+      > e T10 cacha il SYSTEM prompt per famiglia. 3 test offline in
+      > `tests/test_worker_prefill.py`. Restano aperti: compressione
+      > descrizioni, batch write e KV cache — tutti richiedono benchmark
+      > o carico reale, non applicabili alla cieca.
 
 **Cosa NON facciamo (onestà):** PPO/RL infrastrutturale, reward-model
 training, cluster multi-GPU — fuori dai vincoli hardware e termici.
