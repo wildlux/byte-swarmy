@@ -271,6 +271,28 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 
 ---
 
+## 📋 Sessione 2026-11-22 — "cosa manca" messo a sistema
+
+> Indice unico: **nessuna nuova voce**, solo collegamento a quelle già
+> esistenti, con stato e prossima azione. Serve a non perdere i blocchi reali
+> dietro al backlog storico. Fonti: report deterministici e todo stesso.
+
+| ID | Cosa manca | Stato | Voce di riferimento | Prossima azione |
+|---|---|---|---|---|
+| M1 | Zero Warning riaperto: 23 finding pyflakes, 2 `undefined name: Path` | [ ] | Robustezza #10 + `DOCS/BRUTAL_HONESTY_REPORT.md` | Portare a 0 lo scope attivo; prima `GUI/center_area.py:278,288` |
+| M2 | Suite completa non rieseguita dal 2026-11-19 | [ ] | Domani #1 | `pytest --ignore=project -q -p no:cacheprovider --durations=0` |
+| M3 | Verifica ventole (`fan_verified.json` assente) | [ ] 🔒 termico | C3 + incidente termico 2026-11-20 | Misurare `fan_rpm > 0`, `temp_c <= 60` |
+| M4 | Token GitHub esposto da revocare | [ ] 🔒 credenziali | Sessione sicurezza 2026-11-22 | Login GitHub → revoca PAT → aggiorna `~/.git-credentials` |
+| M5 | Utente dedicato + firewall | [ ] 🔒 root | Sessione sicurezza 2026-11-22 | `sudo scripts/setup/hardening.sh --all` |
+| M6 | Profiling CI: run #2 fallito al step 6 | [ ] 🔒 UI | `.github/workflows/profile.yml` | Trigger manuale su GitHub Actions, artifact `--durations=0` |
+| M7 | Middle non misurato (task reali, retrieval quality, A/B live, GUI live, build mobile) | [ ] 🔒 termico | Radar E + C3 + SLOT-3/4 | Corpus task utente + gate termico; nessun asse alzato senza misure |
+| M8 | Rilevatore AI-based | [ ] ⛔ non fare ora | Sessione sicurezza 2026-11-22 | Nessuna azione: servono misure e gate termico |
+
+> Ordine: M3 sblocca M7; M4 e M5 sono indipendenti ma prioritari per i dati
+> reali; M1 e M2 sono verificabili offline e non richiedono il gate termico.
+
+---
+
 ## 🎯 Piano d'attacco — dalle voci più impattanti (2026-11-18)
 
 > **Criterio d'ordine**: impatto sul goal middle senior (radar grafico E)
