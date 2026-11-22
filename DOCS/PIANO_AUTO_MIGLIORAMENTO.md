@@ -6,8 +6,8 @@
 > eval e gate. Il piano rende quel loop **verificabile e misurabile**, non
 > aggiunge un secondo meccanismo di apprendimento.
 >
-> **Stato aggiornato 2026-11-22: Onda 1 (A1–A4) implementata in Cycle 87.**
-> B1–C2 restano pianificati; C3 è 🔒 bloccato termicamente. Il piano
+> **Stato aggiornato 2026-11-22: Onda 1 (A1–A4) in Cycle 87 e B1 in Cycle 88.**
+> B2–C2 e D1 restano pianificati; C3 è 🔒 bloccato termicamente. Il piano
 > agenti/subagenti è una voce separata in `todo.md` (chiusa in Cycle 86).
 > Nessun run LLM, nessuna rete, nessun benchmark: dopo lo shutdown termico del
 > 2026-11-20 la ventola non è ancora verificata (≤60 °C, ventole al max).

@@ -135,6 +135,20 @@ class RoutingConfig:
 
 
 @dataclass
+class OrchestratorConfig:
+    """B1 (2026-11-22): parametri dell'orchestratore tipizzati.
+
+    `best_of_n=1` mantiene il comportamento storico; valori >1 abilitano
+    il gate-giudice deterministico (primo candidato che passa il gate).
+    Il valore è clampato a 1..8 per evitare run LLM many-shot non voluti.
+    """
+    max_task_retries: int = 3
+    retry_cooldown_sec: int = 30
+    sticky_models: bool = True
+    best_of_n: int = 1
+
+
+@dataclass
 class FastLaneConfig:
     """🆕 Cycle 64: corsia veloce (single-shot) per task con UN solo file target.
 
@@ -263,6 +277,7 @@ class AppConfig:
     safety: SafetyConfig = field(default_factory=SafetyConfig)
     security: SecurityConfig = field(default_factory=SecurityConfig)
     routing: RoutingConfig = field(default_factory=RoutingConfig)
+    orchestrator: OrchestratorConfig = field(default_factory=OrchestratorConfig)
     fast_lane: FastLaneConfig = field(default_factory=FastLaneConfig)
     paths: PathsConfig = field(default_factory=PathsConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
@@ -404,6 +419,15 @@ def load_typed_config(path: str | Path = "CONFIG/config.toml") -> AppConfig:
         timeout_bash=int(ro.get("timeout_bash", 30)),
         worker_coder_keywords=list(dk.get("worker_coder", [])),
         worker_general_keywords=list(dk.get("worker_general", [])),
+    )
+
+    # B1: orchestratore (best_of_n è il flag del gate-giudice)
+    oc = _get("orchestrator") or {}
+    config.orchestrator = OrchestratorConfig(
+        max_task_retries=int(oc.get("max_task_retries", 3)),
+        retry_cooldown_sec=int(oc.get("retry_cooldown_sec", 30)),
+        sticky_models=bool(oc.get("sticky_models", True)),
+        best_of_n=min(8, max(1, int(oc.get("best_of_n", 1)))),
     )
 
     # 🆕 Cycle 64: corsia veloce (single-shot) — default conservativo False

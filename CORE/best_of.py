@@ -26,6 +26,45 @@ class Candidate:
     verdict: SlotVerdict
 
 
+@dataclass(frozen=True)
+class JudgeResult:
+    """Esito deterministico del gate-giudice (nessuna preferenza umana)."""
+    selected_index: int | None
+    selected_code: str
+    reason: str
+    verdicts: tuple[SlotVerdict, ...]
+    evaluated: int
+    limit: int
+
+    @property
+    def ok(self) -> bool:
+        return self.selected_index is not None
+
+
+def judge_candidates(codes: list[str], refs_by_index: dict[int, list[str]],
+                     kinds: list[str], best_of: int = 1) -> JudgeResult:
+    """B1: gate-giudice con N candidati finti o reali — zero LLM.
+
+    Valuta al massimo `best_of` candidati, nell'ordine dato; vince il primo
+    che passa il gate. Se nessuno passa, `selected_index=None` e
+    `reason='all_rejected'`. La scelta è una funzione pura degli argomenti.
+    """
+    limit = min(8, max(1, int(best_of)))
+    subset = list(codes[:limit])
+    try:
+        evaluated_candidates = evaluate_candidates(
+            subset, refs_by_index, kinds[:limit])
+    except ValueError:
+        return JudgeResult(None, "", "kinds_mismatch", (), len(subset), limit)
+    winner = select_passing(evaluated_candidates)
+    verdicts = tuple(c.verdict for c in evaluated_candidates)
+    if winner is None:
+        return JudgeResult(None, "", "all_rejected", verdicts,
+                           len(evaluated_candidates), limit)
+    return JudgeResult(winner.index, winner.code, "first_passing", verdicts,
+                       len(evaluated_candidates), limit)
+
+
 def evaluate_candidates(codes: list[str], refs_by_index: dict[int, list[str]],
                        kinds: list[str]) -> list[Candidate]:
     """Valuta una lista di candidati in ordine (indice 0 = primo)."""

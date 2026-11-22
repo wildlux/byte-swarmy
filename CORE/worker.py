@@ -1215,34 +1215,39 @@ class Worker:
             from CORE.config_model import FastLaneConfig
             return FastLaneConfig()
 
-    def _best_of_n(self, task: dict, cfg) -> int:
-        """Best-of-N per questo task (Fase D-15).
+    MAX_BEST_OF = 8
 
-        Precedenza: campo `best_of` del task (se intero > 0) →
-        `orchestrator.best_of_n` del config → 1 (stato attuale).
+    def _best_of_n(self, task: dict, cfg=None) -> int:
+        """Best-of-N per questo task (Fase D-15, B1).
+
+        Precedenza: campo `best_of` del task → `orchestrator.best_of_n`
+        tipizzato → TOML grezzo → 1. Valori clampati a 1..MAX_BEST_OF.
         """
+        def clamp(v):
+            if isinstance(v, bool) or not isinstance(v, int):
+                return None
+            return min(self.MAX_BEST_OF, max(1, v))
+
         try:
-            val = task.get("best_of")
-            if isinstance(val, int) and val > 0:
-                return val
+            v = clamp(task.get("best_of"))
+            if v is not None:
+                return v
         except Exception:
             pass
         try:
             from CORE.config_model import load_typed_config
-            cfg_all = load_typed_config()
-            n = getattr(cfg_all, "orchestrator", None)
-            if n is not None:
-                v = getattr(n, "best_of_n", None)
-                if isinstance(v, int) and v > 0:
-                    return v
+            v = clamp(getattr(load_typed_config().orchestrator,
+                              "best_of_n", None))
+            if v is not None:
+                return v
         except Exception:
             pass
-        # fallback su config.toml grezzo
         try:
             import tomllib
-            raw = tomllib.load(open("CONFIG/config.toml", "rb"))
-            v = raw.get("orchestrator", {}).get("best_of_n", 1)
-            if isinstance(v, int) and v > 0:
+            with open("CONFIG/config.toml", "rb") as f:
+                raw = tomllib.load(f)
+            v = clamp(raw.get("orchestrator", {}).get("best_of_n"))
+            if v is not None:
                 return v
         except Exception:
             pass

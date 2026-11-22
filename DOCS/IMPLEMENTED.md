@@ -2123,3 +2123,24 @@ aggiornato dal contratto `execute()`: marker rimosso dal result), compileall,
 lint 0 errori, security S030/S031 puliti, `git diff --check` OK. Nessun LLM,
 nessuna rete, ventola non verificata → C3 resta 🔒 termico.
 
+---
+
+## Cycle 88 (2026-11-22) — B1: `best_of_n` configurabile e gate-giudice
+
+| Modifica | Dettaglio |
+|---|---|
+| `CORE/config_model.py` | Nuovo `OrchestratorConfig` (`max_task_retries`, `retry_cooldown_sec`, `sticky_models`, `best_of_n`) esposto come `AppConfig.orchestrator` e popolato da `[orchestrator]`; `best_of_n` clampato a 1..8 |
+| `CORE/best_of.py` | `JudgeResult` + `judge_candidates(codes, refs_by_index, kinds, best_of)`: funzione pura, valuta ≤N candidati, vince il primo che passa il gate, `all_rejected`/`kinds_mismatch` come reason |
+| `CORE/worker.py` | `_best_of_n` riscritto: precedentza task → config tipizzata → TOML grezzo → 1, con clamp `MAX_BEST_OF=8`; firma `cfg=None` retrocompatibile |
+
+Verifiche: `tests/test_best_of.py` 8 test (3 candidati finti, scelta
+deterministica, rifiuto di tutti, cap N, flag letto da config con 5/99/0,
+precedenza e clamp). Regressione `test_reuse`/`test_config_validation`/
+`test_fast_lane`/`test_best_of`: 55 passed. Nessun LLM: il loop live resta a
+`best_of_n=1` e la ventola non è verificata.
+
+Nota: l'ipotesi "trattare i modelli piccoli come bambini, istruzioni in
+inglese" è stata registrata come **D1** (`tools/prompt_lint.py`, misura
+offline del prompt). La leva è la struttura (una azione per turno, poche
+scelte, formato esplicito), non il tono; A/B live resta 🔒 termico.
+
