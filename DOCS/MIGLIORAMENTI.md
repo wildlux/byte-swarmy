@@ -193,6 +193,7 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 | Override guard (B3) | `CORE/override_guard.py`: chiavi note, max 4 keyword, dedup accent-insensitive, null/duplicati/JSON rotti scartati con codice+report; collegato a entrambi i loader | 10 test + 4 subtest + 26 regressioni |
 | Coerenza docs (C1) | MAX_STEPS=10 e baseline security=7 unica in `AGENT.md`/`SPECIFICATIONS`/`verify_cycle.sh`; `GUI/IMPLEMENTED.md` ridotto a stub; symlink `state→data/state` dichiarato | 4 test di coerenza, zero codice runtime toccato |
 | Report self-improvement (C2) | `tools/self_improvement_report.py`: corpus/verdetti/first-try, gate skill, override invalidi, copertura retrieval; snapshot rigenerabile in `DOCS/SELF_IMPROVEMENT_REPORT.md` | 6 test + 6 subtest, zero LLM |
+| Prompt lint (D1) | `tools/prompt_lint.py`: misura struttura del prompt reale (regole, tool, frasi, lingua, 1 azione/turno, tono); snapshot `DOCS/PROMPT_LINT_REPORT.md`. Ipotesi: struttura sì, tono no | 6 test, zero LLM; A/B live resta 🔒 termico |
 | Prompts per modelli piccoli (D1, pianificato) | Struttura "bambino" (una azione per turno, poche scelte, formato esplicito) e istruzioni in inglese; il tono offensivo è escluso. Misura offline in `tools/prompt_lint.py` | 🔒 A/B live dopo verifica ventola |
 
 ---

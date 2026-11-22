@@ -2210,3 +2210,21 @@ override invalidi, fail-open, markdown). Nessun LLM, rete o GPU: il report è
 il quadro deterministico che rende verificabile il miglioramento, non una
 nuova euristica. Snapshot rigenerabile con un comando.
 
+---
+
+## Cycle 93 (2026-11-22) — D1: lint offline del prompt effettivo
+
+| Modifica | Dettaglio |
+|---|---|
+| `tools/prompt_lint.py` (nuovo) | `analyze_prompt` misura caratteri/parole/frasi, media e max parole/frase, regole numerate, tool esposti, quota token non-inglesi (euristica dichiarata), presenza di "una azione per turno" + formato JSON, marcatori offensivi. `effective_prompt` riusa `Worker._build_system` su un probe: zero LLM, zero thread. `--family`, `--prompt-file`, `--json`, `--out` |
+| `DOCS/PROMPT_LINT_REPORT.md` (generato) | Snapshot reale family `compact`: 1302 char / 187 parole, 7 regole, 13 tool, 3.6 parole/frase (max 11), 2.7% non-inglese (commenti `# righe`, `# se dubbi`), 0 marcatori offensivi, status `OK` |
+
+Verifiche: `tests/test_prompt_lint.py` 6 test: prompt reale compatto/llama/
+deepseek, prompt cattivo (`FAIL` con tono offensivo e nessuna azione), prompt
+buono, stringa vuota fail-open, quota non-inglese sui commenti. Risposta
+all'ipotesi "LLM piccoli = bambini, istruzioni in inglese": **struttura sì
+(regole, tool limitati, JSON esplicito), tono no (0 marcatori offensivi)**;
+l'inglese aiuta il codice ma non va imposto a ogni testo utente. A/B live
+resta 🔒 bloccato termicamente: qui si misura la struttura, non la qualità
+delle risposte.
+
