@@ -145,7 +145,8 @@ def test_surriscaldamento_interrompe_e_non_puo_essere_accettato(tmp_path):
     temps = iter([44.0] * 5 + [44.0, 45.0, 61.0, 46.0, 45.0])
 
     data = reval.run_live(cases, g, fake_factory(tmp_path),
-                          temp_fn=lambda: next(temps), out_path=out, interval=0)
+                          temp_fn=lambda: next(temps), out_path=out,
+                          interval=0, cooldown_max_s=0)
     assert data["aborted"] is True
     assert "61.0" in data["abort_reason"]
     assert "picco" in data["abort_reason"]
@@ -156,6 +157,51 @@ def test_surriscaldamento_interrompe_e_non_puo_essere_accettato(tmp_path):
     # Campioni coerenti con il picco che ha interrotto il run.
     assert data["thermal"]["temp_samples"] == [44.0, 45.0, 61.0, 46.0, 45.0]
     assert data["abort_thermal"]["temp_max_c"] == 61.0
+    with pytest.raises(ValueError) as exc:
+        es.load_results(out, es.load_cases())
+    assert "surrogato" in str(exc)
+
+
+def test_cooldown_attende_e_fa_partire_il_caso(tmp_path):
+    """Se la CPU è calda tra due casi, si attende: la soglia non cambia."""
+    g = reval.require_gate(gate(tmp_path), temp_fn=lambda: 44, interval=0)
+    out = tmp_path / "cooldown.json"
+    temps = iter([65.0] * 5 + [50.0] * 5)
+    sleeps: list[float] = []
+
+    data = reval.run_live(
+        reval.load_cases()[:1], g, fake_factory(tmp_path),
+        temp_fn=lambda: next(temps), out_path=out, interval=0,
+        sleep_fn=sleeps.append, cooldown_max_s=30, cooldown_poll_s=10)
+
+    assert data["aborted"] is False
+    assert data["executed_cases"] == 1
+    assert data["records"][0]["passed"] is True
+    assert sleeps == [10.0]
+    assert data["thermal"]["cooldown_waited_s"] == 10.0
+    # La media include anche il campione freddo del pre-flight (44 °C).
+    assert data["thermal"]["temp_c"] == 47.0
+    # Nessun campione sopra 60 può entrare nell'evidenza finale.
+    assert data["thermal"]["temp_max_c"] == 50.0
+    es.load_results(out, es.load_cases())
+
+
+def test_cooldown_esaurito_interrompe_e_reporter_rifiuta(tmp_path):
+    """Attesa limitata: se non raffredda, il run resta non misurato."""
+    g = reval.require_gate(gate(tmp_path), temp_fn=lambda: 44, interval=0)
+    out = tmp_path / "cooldown_hot.json"
+    sleeps: list[float] = []
+
+    data = reval.run_live(
+        reval.load_cases(), g, fake_factory(tmp_path),
+        temp_fn=lambda: 66, out_path=out, interval=0,
+        sleep_fn=sleeps.append, cooldown_max_s=20, cooldown_poll_s=10)
+
+    assert data["aborted"] is True
+    assert data["executed_cases"] == 0
+    assert "esaurita" in data["abort_reason"]
+    assert sleeps == [10.0, 10.0]
+    assert data["thermal"]["temp_c"] == 66.0
     with pytest.raises(ValueError) as exc:
         es.load_results(out, es.load_cases())
     assert "surrogato" in str(exc)

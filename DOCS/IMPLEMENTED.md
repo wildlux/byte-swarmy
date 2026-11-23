@@ -3026,3 +3026,20 @@ verdetto Middle è stato scritto.
 
 M3 chiuso non equivale a M7 misurato: i quattro tentativi live restano
 interrotti a 67 °C sotto inferenza. Nessun verdetto Middle scritto.
+
+---
+
+## Cycle 142 (2026-11-23) — ottimizzazioni offline: cooldown, circuit breaker, ledger
+
+| Azione | Dettaglio |
+|---|---|
+| **1) `tools/run_eval.py`** | Nuovo `wait_for_thermal()`: se la CPU è calda tra un caso e l'altro il runner attende fino a 900 s (poll 10 s) e ricampiona. La soglia **non cambia**: media e picco devono restare in `(0, 60]` prima di ogni caso. Su timeout il run resta `aborted` con `temp_c` = picco e il reporter lo rifiuta. L'evidenza registra `cooldown_waited_s` / `cooldown_max_s`; la stampa finale mostra l'attesa. `require_gate()` resta immediato e invariato |
+| **2) `CORE/worker.py`** | Circuit breaker indurito: dopo 3 ripetizioni lo strumento viene **bloccato** per il task (confronto sull'alias canonicale `TOOL_CODE_MAP`, così `analyze` e `analyze_project` sono lo stesso tool). Se il modello lo richiama, il worker chiude subito con `ERROR: circuit breaker: …` invece di consumare tutti gli step; limite di 2 pivot forzati senza progresso |
+| Motivo | Nel run live `eval-gui-01` il breaker scattava su `analyze` e poi il worker finiva in `max steps reached without completion`: passi e calore sprecati senza diagnosi |
+| **3) Debt ledger** | Chiusi #1 (pausa `cooldown_s` tra fast lane e naked già implementata in `CORE/external_benchmark.py:486-494`, Cycle 69) e #2/#3 (duplicati stale). **Non applicata** la deduplica proposta da #2/#3: `_max_temp()` usa `_cpu_temp_now()` che esclude B0D4, mentre `_thermal_pause()` legge tutte le zone termiche — deduplicare reintrodurrebbe l'incidente UEFI thermal lock. `stats`: 6 done, coda vuota |
+| Test / gate | **77 passed**, 17 subtests (`test_run_eval_live.py`, `test_usability_hardcore.py`, `test_blocker_probe.py`, `test_eval_by_slot.py`, `test_eval_suite.py`). `pyflakes`, `compileall`, `git diff --check` puliti. Nessuna suite completa locale, nessun LLM/GPU |
+| Documentazione | `DOCS/RPM_MEASUREMENT_PROCEDURE.md` descrive la pausa di raffreddamento |
+
+Le ottimizzazioni 4 (sweep `num_ctx`) e 5 (`model_unload_idle`) restano
+**non eseguite**: richiedono inferenza o misure GPU, vietate dal gate termico.
+M7 resta **non misurato**: nessun verdetto Middle scritto.

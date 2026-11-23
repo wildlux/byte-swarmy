@@ -50,6 +50,11 @@ MAX_TEMP_C = 60.0
 TEMP_SAMPLES = 5
 TEMP_INTERVAL_S = 0.2
 TEMP_POLICY = "media_con_picco_le_60"
+# Pausa adattiva TRA i casi: se la CPU è calda dopo un caso, si attendono
+# fino a 900 s che raffreddi. NON abbassa la soglia: il caso parte solo
+# quando una nuova misura (media E picco) è di nuovo entro 60 °C.
+COOLDOWN_MAX_S = 900.0
+COOLDOWN_POLL_S = 10.0
 VALID_AXES = {
     "Task GUI (creazione)", "Modifiche minime", "Refactoring mecc.",
     "Gate / verifica", "Fedeltà API", "Chiarimenti ambigui",
@@ -136,6 +141,33 @@ def thermal_ok(sample: dict) -> bool:
             and 0.0 < float(sample["temp_max_c"]) <= MAX_TEMP_C)
 
 
+def wait_for_thermal(case_id: str, temp_fn=None, *,
+                     samples: int = TEMP_SAMPLES,
+                     interval: float = TEMP_INTERVAL_S,
+                     sleep_fn=None,
+                     max_wait_s: float = COOLDOWN_MAX_S,
+                     poll_s: float = COOLDOWN_POLL_S) -> tuple[dict, float]:
+    """Attende il raffreddamento prima di un caso, senza alleggerire il gate.
+
+    Ritorna `(sample, secondi_attesi)`. Se il tempo è esaurito ritorna
+    l'ultimo campione caldo: il chiamante interrompe e il reporter rifiuta.
+    `sleep_fn` serve solo ai test offline.
+    """
+    waited = 0.0
+    poll = max(0.0, float(poll_s))
+    limit = max(0.0, float(max_wait_s))
+    while True:
+        sample = sample_thermal(temp_fn, samples=samples, interval=interval,
+                                sleep_fn=sleep_fn)
+        if thermal_ok(sample) or limit <= 0 or poll <= 0 or waited >= limit:
+            return sample, waited
+        print(f"[termico] {case_id}: media {sample['temp_c']:.1f} °C, "
+              f"picco {sample['temp_max_c']:.1f} °C → attesa {poll:.0f}s "
+              f"({waited:.0f}/{limit:.0f}s)", file=sys.stderr, flush=True)
+        (sleep_fn or time.sleep)(poll)
+        waited += poll
+
+
 def require_gate(fan_file: Path | None = None, temp_fn=None, *,
                  samples: int = TEMP_SAMPLES, interval: float = TEMP_INTERVAL_S,
                  sleep_fn=None) -> dict:
@@ -208,13 +240,16 @@ def run_live(cases: list[dict], gate: dict, worker_factory,
              temp_fn=None, out_path: Path = DEFAULT_RESULTS,
              project_root: Path = PROJECT_ROOT, *,
              samples: int = TEMP_SAMPLES, interval: float = TEMP_INTERVAL_S,
-             sleep_fn=None) -> dict:
+             sleep_fn=None, cooldown_max_s: float = COOLDOWN_MAX_S,
+             cooldown_poll_s: float = COOLDOWN_POLL_S) -> dict:
     """Esegue i casi con un factory iniettato e scrive i risultati live.
 
     Il worker viene creato per caso (memoria isolata). Prima di OGNI caso
     vengono campionati 5 valori: la media guida la misura, ma un solo picco
-    sopra 60 °C interrompe il run. I risultati parziali restano marcati
-    `aborted` con `temp_c` pari al picco, così `eval_by_slot.py` li rifiuta.
+    sopra 60 °C blocca il caso. Se la macchina è calda, il runner ATTENDE
+    (al massimo `cooldown_max_s`) e ricampiona: la soglia non cambia mai.
+    Solo con tempo esaurito il run viene interrotto e marcato `aborted`
+    con `temp_c` pari al picco, così `eval_by_slot.py` lo rifiuta.
     Nessun esito viene mai sintetizzato.
     """
     from tools.eval_by_slot import classify
@@ -237,10 +272,13 @@ def run_live(cases: list[dict], gate: dict, worker_factory,
     aborted = False
     abort_reason: str | None = None
     last_sample: dict | None = None
+    cooldown_total = 0.0
 
     for case in marker_cases:
-        sample = sample_thermal(temp_fn, samples=samples, interval=interval,
-                                sleep_fn=sleep_fn)
+        sample, waited = wait_for_thermal(
+            case["id"], temp_fn, samples=samples, interval=interval,
+            sleep_fn=sleep_fn, max_wait_s=cooldown_max_s, poll_s=cooldown_poll_s)
+        cooldown_total += waited
         last_sample = sample
         means.append(sample["temp_c"])
         worst = max(worst, sample["temp_max_c"])
@@ -248,7 +286,8 @@ def run_live(cases: list[dict], gate: dict, worker_factory,
             aborted = True
             abort_reason = (
                 f"temperatura media {sample['temp_c']:.1f} °C, "
-                f"picco {sample['temp_max_c']:.1f} °C prima del caso {case['id']}")
+                f"picco {sample['temp_max_c']:.1f} °C prima del caso {case['id']}"
+                f" (attesa raffreddamento esaurita: {waited:.0f}s)")
             break
         verdict = {
             "case_id": case["id"],
@@ -283,6 +322,8 @@ def run_live(cases: list[dict], gate: dict, worker_factory,
     thermal["temp_c"] = round(worst if aborted else sum(means) / len(means), 1)
     thermal["temp_max_c"] = round(worst, 1)
     thermal["temp_policy"] = TEMP_POLICY
+    thermal["cooldown_waited_s"] = round(cooldown_total, 1)
+    thermal["cooldown_max_s"] = COOLDOWN_MAX_S
     if aborted and last_sample is not None:
         # L'evidenza deve mostrare i campioni CHE HANNO fatto scattare
         # l'interruzione, non quelli (freddi) del pre-flight.
@@ -337,6 +378,8 @@ def _live_text(data: dict, out_path: Path) -> str:
         f"Gate: RPM {data['thermal']['fan_rpm']} (attestati), "
         f"T media {data['thermal']['temp_c']:.1f} °C / "
         f"picco {data['thermal'].get('temp_max_c', data['thermal']['temp_c']):.1f} °C",
+        f"Raffreddamento tra casi: {data['thermal'].get('cooldown_waited_s', 0):.0f}s "
+        f"attesi (max {data['thermal'].get('cooldown_max_s', 0):.0f}s, gate invariato)",
         f"Casi: {data['executed_cases']}/{data['total_cases']} con marker; "
         f"{len(data['excluded_cases'])} esclusi",
         "",

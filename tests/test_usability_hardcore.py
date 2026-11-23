@@ -514,6 +514,27 @@ class TestHappyWorkflowE2E(unittest.TestCase):
         self.assertEqual(result, "DONE-OK")
         # e NON deveARE andare in loop infinito (MAX_STEPS fa bound)
 
+    def test_circuit_breaker_blocca_ripetizione_dopo_pivot(self):
+        # Dopo aver forzato il pivot, lo stesso tool (anche con alias)
+        # deve chiudere subito con un errore diagnosticabile: non può
+        # consumare tutti gli step inutilmente.
+        memory = AgentMemory("cb-block", self.tmp / "state", None, logger)
+        plan = [
+            {"thought": "analizzo", "action": "analyze", "args": [], "done": False}
+            for _ in range(3)
+        ]
+        plan.append(
+            {"thought": "analizzo ancora", "action": "analyze_project",
+             "args": [], "done": False})
+        worker = Worker("cb-block", "worker_coder", self.tools, memory,
+                        _ScriptedModel(plan), logger)
+        result = worker.execute({
+            "id": "cb-block-1", "title": "breaker bloccato",
+            "description": "nessun progresso dopo il pivot"})
+        self.assertTrue(result.startswith("ERROR: circuit breaker"), result)
+        self.assertIn("analyze_project", result)
+        self.assertNotIn("max steps reached", result)
+
     def test_injection_envelope_ships_properly(self):
         # Modelli piccoli emettono "path, content": l'envelope deve raffrontare → write_file
         memory = AgentMemory("envelope", self.tmp / "state", None, logger)

@@ -594,6 +594,13 @@ class Worker:
         self.last_code = ""      # ultimo codice scritto (feedback loop T2)
         # --- CIRCUIT BREAKER STATE ---
         repeated_actions = {}
+        # Dopo un pivot forzato lo strumento resta BLOCCATO per questo task:
+        # se il modello lo richiama (anche con alias o argomenti diversi),
+        # si chiude subito con un errore esplicito invece di consumare tutti
+        # gli step (calore inutile + "max steps reached" senza diagnosi).
+        blocked_actions: set[str] = set()
+        forced_pivots = 0
+        max_forced_pivots = 2
         test_fail_retries = 0  # 🆕 Cycle 78: test results → feedback loop
         import_fail_retries = 0  # P1-2: nomi indefiniti → feedback loop
         verification_retries = 0  # A1: retry dedicati a `not_tested`
@@ -920,9 +927,29 @@ class Worker:
                 tool_name, args = "write_file", list(args)
 
             # --- CIRCUIT BREAKER CHECK ---
-            action_key = f"{tool_name}:{json.dumps(args)}"
+            canonical_tool = str(self.TOOL_CODE_MAP.get(str(tool_name),
+                                                        tool_name))
+            if canonical_tool in blocked_actions:
+                reason = (
+                    f"circuit breaker: {canonical_tool} bloccato dopo 3 "
+                    "tentativi; il cambio di approccio richiesto non e' "
+                    "stato rispettato")
+                self.log.warning(f"[{self.agent_id}] {reason}")
+                self.memory.add_event({
+                    "type": "circuit_breaker_stop", "content": reason})
+                return f"ERROR: {reason}"
+            action_key = f"{canonical_tool}:{json.dumps(args)}"
             repeated_actions[action_key] = repeated_actions.get(action_key, 0) + 1
             if repeated_actions[action_key] >= 3:
+                blocked_actions.add(canonical_tool)
+                forced_pivots += 1
+                if forced_pivots > max_forced_pivots:
+                    reason = (f"circuit breaker: {forced_pivots} pivot "
+                              "forzati senza progresso")
+                    self.log.warning(f"[{self.agent_id}] {reason}")
+                    self.memory.add_event({
+                        "type": "circuit_breaker_stop", "content": reason})
+                    return f"ERROR: {reason}"
                 self.log.warning(f"[{self.agent_id}] CIRCUIT BREAKER: Action {tool_name} repeated 3x with same args. Forcing pivot.")
                 prompt = (
                     f"ERROR: you tried {tool_name}({args}) 3 times with the same result. "

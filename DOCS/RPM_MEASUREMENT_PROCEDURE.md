@@ -111,6 +111,15 @@ Il file risultati registra `temp_policy=media_con_picco_le_60`, la media,
 il picco e i campioni. Se il run viene interrotto, `temp_c` assume il valore
 del picco, così `eval_by_slot.py` rifiuta i risultati parziali.
 
+### Pausa di raffreddamento tra i casi (Cycle 142)
+
+Se la CPU è calda **dopo** un caso, il runner non interrompe subito: attende
+fino a 900 s (controlli ogni 10 s) e ricampiona prima del caso successivo.
+Questo **non abbassa la soglia**: ogni caso parte solo con una nuova misura
+con media e picco in `(0, 60]`. Se il tempo scade, il run viene marcato
+`aborted` con il picco come `temp_c` e `eval_by_slot.py` lo rifiuta.
+L'evidenza registra `cooldown_waited_s` e `cooldown_max_s`.
+
 Se la CPU è sopra 60 °C al momento della registrazione, il tool rifiuta e
 non scrive nulla: in quel caso attendi il raffreddamento e ripeti la misura.
 
