@@ -40,6 +40,24 @@ valori dedotti da duty, tensione, corrente o rumore.
 
 ## Procedura
 
+### Via rapida — un solo comando (Cycle 136)
+
+Dopo aver letto il tachometro, tutto il resto è automatico:
+
+```bash
+cd /home/wildlux/Desktop/byte-swarmy
+./tools/attest_rpm.py
+```
+
+Lo script chiede RPM, strumento, metodo, operatore e note; poi scrive la
+ricevuta in `data/state/rpm_attestation.json` (0600, gitignored), la valida
+con le stesse regole del probe, rilegge la temperatura CPU **live** e scrive
+`fan_verified.json` solo se RPM > 0 e 0 < T ≤ 60 °C. Stampa `Gate VALIDO`
+e il comando successivo. Non accetta RPM da argomenti: il valore viene solo
+digitato dall'operatore. Se la CPU è sopra 60 °C rifiuta e non scrive il gate.
+
+I passi manuali qui sotto restano la via alternativa equivalente.
+
 1. **Fai girare la ventola** in modo stabile (carico CPU moderato, non oltre
    la soglia termica; se la CPU supera 60 °C il tool rifiuterà comunque).
 2. **Misura i RPM** con lo strumento esterno. Annota il valore intero.

@@ -2938,3 +2938,19 @@ mirati verdi, `pyflakes` 0, `git diff --check` pulito.
 prodotta**. M3 (tachometro) e M7 (task GUI live) restano bloccati: questo
 commit non alza nessun asse del radar e non dichiara il Middle raggiunto.
 Nessuna suite completa locale, nessun LLM, GPU o benchmark eseguiti.
+
+---
+
+## Cycle 136 (2026-11-23) — attestazione RPM in un solo comando
+
+| Azione | Dettaglio |
+|---|---|
+| `tools/attest_rpm.py` | Nuovo script eseguibile: chiede RPM + strumento + metodo + operatore + note al terminale, costruisce la ricevuta con `measured_at` UTC generato al momento, la scrive in `data/state/rpm_attestation.json` (0600, gitignored) e delega tutta la validazione a `blocker_probe.load_rpm_attestation`. Poi `attested_rpm_snapshot` (temperatura **live**) e `write_fan_verification`: il gate viene scritto solo con RPM > 0 e 0 < T ≤ 60 °C |
+| Sicurezza | Nessun RPM passabile da CLI: l'unico ingresso è l'input dell'operatore. Loop su valore non numerico/fuori range 300–6000; campo obbligatorio vuoto → annullo senza file scritti. Nessun import CORE/LLM nel modulo |
+| Comando | `cd /home/wildlux/Desktop/byte-swarmy && ./tools/attest_rpm.py` — stampa `Gate VALIDO` e il successivo `tools/run_eval.py --live` |
+| Documentazione | `DOCS/RPM_MEASUREMENT_PROCEDURE.md` aggiornata con la via rapida; il flusso manuale resta come alternativa equivalente |
+| Test | `tests/test_attest_rpm.py` (6 test): deterministicità ricevuta, validazione input, permessi 0600, gate valido, rifiuto sopra 60 °C, rifiuto RPM fuori range, flusso "un solo comando". Con blocker/RPM/run_eval: **52 passed** |
+
+**Limite dichiarato**: la misura fisica non è stata presa. Lo script è pronto
+ma `fan_verified.json` resta assente; nessun gate è stato aperto e nessun
+`--live` è stato eseguito in questo ciclo.
