@@ -93,6 +93,21 @@ class TestParseAnswer(unittest.TestCase):
         ans = parse_answer("0", qs)
         self.assertEqual(ans["Q1"], "free")
 
+    def test_testo_libero_preservato_con_virgole(self):
+        qs = [Question(id="Q1", text="Test?", options=["a", "b"])]
+        ans = parse_answer("0: voglio PyQt6, con Designer", qs)
+        self.assertEqual(ans["Q1"], "voglio PyQt6, con Designer")
+        # Formato prodotto dal dialog PyQt6 (testo senza prefisso "0:")
+        ans = parse_answer("voglio tkinter, con ttk", qs)
+        self.assertEqual(ans["Q1"], "voglio tkinter, con ttk")
+
+    def test_testo_libero_multi_domanda_non_mangia_le_altre(self):
+        qs = [Question(id="Q1", text="Uno?", options=["a", "b"]),
+              Question(id="Q2", text="Due?", options=["c", "d"])]
+        ans = parse_answer("0: primo, con virgola,2", qs)
+        self.assertEqual(ans["Q1"], "primo, con virgola")
+        self.assertEqual(ans["Q2"], "d")
+
     def test_parsing_vuoto(self):
         qs = [Question(id="Q1", text="Test?", options=["a", "b"])]
         ans = parse_answer("", qs)
@@ -128,29 +143,49 @@ class TestClarifyLoop(unittest.TestCase):
 
     def test_loop_con_risposte(self):
         # Simula un utente che risponde "1" a tutte le domande
+        calls = []
+
         def ask_fn(text):
-            return "1,1,1,1,1,1,1,1"
+            calls.append(text)
+            return "1,1,1"
+
         r = clarify_loop("rifattorizza il modulo auth per usare OAuth2",
                          ask_fn=ask_fn)
+        self.assertEqual(len(calls), 1, "la stessa domanda non va ripetuta")
         self.assertTrue(r.is_clear)
         self.assertIn("Chiarimenti dell'utente", r.enriched_description)
+
+    def test_loop_risposta_libera_non_richiede_e_arriva_al_modello(self):
+        calls = []
+
+        def ask_fn(text):
+            calls.append(text)
+            return "0: mantieni l'attuale, con pytest"
+
+        r = clarify_loop("rifattorizza il modulo", ask_fn=ask_fn)
+        self.assertEqual(len(calls), 1)
+        self.assertTrue(r.is_clear)
+        self.assertIn("mantieni l'attuale, con pytest", r.enriched_description)
 
     def test_loop_interrotto(self):
         def ask_fn(text):
             raise EOFError()
         r = clarify_loop("rifattorizza il modulo auth per usare OAuth2",
                          ask_fn=ask_fn)
-        # Procede senza chiarimento
-        self.assertFalse(r.is_clear) or True  # fail-open: non crasha
+        self.assertFalse(r.is_clear)  # fail-open: non crasha, ma non dichiara clear
 
-    def test_loop_max_rounds(self):
-        # L'utente risponde sempre "0" (libero) → mai chiarito → max_rounds
+    def test_risposte_vuote_non_fanno_loop(self):
+        calls = []
+
         def ask_fn(text):
-            return "0,0,0,0,0,0,0,0"
+            calls.append(text)
+            return "0,0,0"
+
         r = clarify_loop("rifattorizza il modulo auth per usare OAuth2",
                          ask_fn=ask_fn)
-        # Dopo max_rounds, procede comunque
-        self.assertTrue(r.is_clear or r.enriched_description != "")
+        self.assertEqual(len(calls), 1)
+        self.assertFalse(r.is_clear)
+        self.assertIn("Chiarimenti dell'utente", r.enriched_description)
 
 
 class TestFormatQuestions(unittest.TestCase):

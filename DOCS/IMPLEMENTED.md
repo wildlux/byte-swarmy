@@ -2966,3 +2966,17 @@ ma `fan_verified.json` resta assente; nessun gate è stato aperto e nessun
 
 Nessuna misura fisica presa, nessun gate aperto: i test simulano input e
 sensore. Il comando resta `./tools/attest_rpm.py`.
+
+---
+
+## Cycle 138 (2026-11-23) — clarifier: domanda ripetuta e testo libero perso
+
+| Azione | Dettaglio |
+|---|---|
+| Bug riprodotto | `clarify_loop()` con `ask_fn` che risponde `1` a tutto: **5 richieste identiche** della stessa domanda, anche con risposta valida. Causa: `clarify()` ri-appende il testo originale alla descrizione e `detect_ambiguity()` lo ri-scansionava a ogni giro, trovando sempre lo stesso trigger |
+| `CORE/clarifier.py` | `clarify_loop()` calcola le domande **una sola volta** sul task originale, fa un solo `ask_fn`, arricchisce il task con tutte le risposte e ritorna `is_clear=False` se mancano risposte utilizzabili (fail-open: il worker prosegue comunque). Nessun giro ripetuto |
+| `CORE/clarifier.py` | `parse_answer()`: il testo libero è preservato integralmente, virgole incluse, sia nel formato `0: testo` (CLI) sia nel testo semplice prodotto da `GUI/clarification_dialog.py`. Con più domande, i pezzi successivi sono consumati come testo libero solo se non assomigliano alla risposta della domanda successiva: `0: primo, con virgola,2` → Q1="primo, con virgola", Q2=opzione 2 |
+| Verifica | Riproduzione: 5 → **1** domanda. `tests/test_clarifier.py` aggiornato (conteggio chiamate, testo libero con virgole, risposte vuote senza loop); con `test_refs_injection.py`: **41 passed**. `pyflakes`, `compileall`, `git diff --check` puliti |
+
+Nessun LLM, GPU o benchmark eseguito. Gate termico invariato (M3 resta
+bloccato).

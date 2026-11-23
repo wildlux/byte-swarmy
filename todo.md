@@ -692,6 +692,12 @@ compute grezzo.
       (`GUI/center_area.py:268-300`). 3 test offline verdi. Nota: il widget
       alternativo `show_clarification()` resta non usato; il bridge è
       file-based, non un signal/slot diretto — nessuna finestra avviata nei test.
+- [x] (Cycle 138) Ripetizione infinita della stessa domanda: `clarify_loop`
+      rilevava le ambiguità sul testo già arricchito, quindi la frase originale
+      faceva ri-apparire la domanda per 5 giri anche dopo una risposta valida.
+      Ora il set di domande è calcolato una volta sul task originale e il
+      testo libero (`0: ...` o campo del dialog) arriva integro al modello;
+      41 test offline verdi.
 
 ---
 

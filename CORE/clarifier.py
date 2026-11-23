@@ -183,6 +183,16 @@ def format_questions(questions: list[Question]) -> str:
     return "\n".join(lines)
 
 
+def _is_real_answer(value: object) -> bool:
+    """Vero solo se l'utente ha dato un contenuto utilizzabile.
+
+    'free' e 'non specificato' sono segnaposto: non devono essere
+    spacciati per risposte, ma NON devono nemmeno innescare un nuovo giro
+    di domande (il clarifier chiede ogni domanda una sola volta).
+    """
+    return bool(value) and str(value) not in {"free", "non specificato"}
+
+
 def parse_answer(answer: str, questions: list[Question]) -> dict:
     """Parsa la risposta dell'utente in un dict {question_id: selected_option}.
 
@@ -190,22 +200,47 @@ def parse_answer(answer: str, questions: list[Question]) -> dict:
       - "1,3,1" → seleziona l'opzione 1 per Q1, 3 per Q2, 1 per Q3
       - "1" → seleziona l'opzione 1 per Q1 (solo se una domanda)
       - "0: testo libero" → risposta libera per la domanda corrispondente
+      - "testo libero" → risposta libera (formato del dialog PyQt6)
+
+    Il testo libero viene preservato integralmente, virgole incluse: è il
+    valore che `clarify()` inietta nella descrizione passata al modello.
     """
+    def looks_like_answer(value: str, question: Question) -> bool:
+        return value == "0" or (
+            value.isdigit() and 1 <= int(value) <= len(question.options))
+
     result: dict[str, str] = {}
-    parts = [p.strip() for p in str(answer).split(",")]
-    for i, q in enumerate(questions):
-        if i < len(parts):
-            val = parts[i]
-            if not val:
-                result[q.id] = "non specificato"
-            elif val == "0":
-                result[q.id] = "free"
-            elif val.isdigit() and 1 <= int(val) <= len(q.options):
-                result[q.id] = q.options[int(val) - 1]
-            else:
-                result[q.id] = val  # testo libero
-        else:
+    raw = str(answer).strip()
+    # Con una sola domanda l'intera risposta è il valore: non spezzare
+    # una frase libera sulle virgole.
+    parts = [p.strip() for p in raw.split(",")] if len(questions) > 1 else [raw]
+    idx = 0
+    for q in questions:
+        if idx >= len(parts):
             result[q.id] = "non specificato"
+            continue
+        val = parts[idx]
+        idx += 1
+        if not val:
+            result[q.id] = "non specificato"
+        elif val == "0":
+            result[q.id] = "free"
+        elif re.match(r"^0\s*[:.)\-]\s*", val):
+            result[q.id] = re.sub(r"^0\s*[:.)\-]\s*", "", val).strip() or "free"
+        elif val.isdigit() and 1 <= int(val) <= len(q.options):
+            result[q.id] = q.options[int(val) - 1]
+        else:
+            result[q.id] = val
+        # Il testo libero può contenere virgole: consuma i pezzi seguenti
+        # finché non assomigliano alla risposta della domanda successiva.
+        if not _is_real_answer(result[q.id]):
+            continue
+        if result[q.id] in q.options:
+            continue
+        while (idx < len(parts) and idx < len(questions)
+               and not looks_like_answer(parts[idx], questions[idx])):
+            result[q.id] = f"{result[q.id]}, {parts[idx]}"
+            idx += 1
     return result
 
 
@@ -250,56 +285,51 @@ def clarify(task_title: str, task_description: str = "",
 
 def clarify_loop(task_title: str, task_description: str = "",
                  ask_fn=None) -> "ClarificationResult":
-    """Loop di chiarimento: continua a chiedere finché non è chiaro.
+    """Chiede le ambiguità relative al task, una sola volta ciascuna.
 
     ask_fn: callable che riceve il testo formattato delle domande e
     restituisce la risposta dell'utente (str). Se None, usa input().
 
-    Fail-open: se ask_fn è None e non c'è stdin, restituisce il task
-    originale senza chiarimento.
+    Il vecchio ciclo ri-rilevava le ambiguità sul testo *arricchito*: la
+    frase originale restava presente, quindi la stessa domanda veniva
+    riposta fino a 5 volte anche dopo una risposta valida. Ora il set di
+    domande è calcolato una sola volta sul task originale e arricchito con
+    le risposte; il testo libero dell'utente arriva così al modello senza
+    ripetizioni.
+
+    Fail-open: senza stdin (o su EOF/KeyboardInterrupt) restituisce il task
+    originale senza chiarimento. `is_clear` resta False se mancano risposte
+    utilizzabili, ma l'esecuzione procede comunque.
     """
+    questions = detect_ambiguity(task_title, task_description)
+    if not questions:
+        return ClarificationResult(
+            questions=[], is_clear=True,
+            enriched_title=task_title,
+            enriched_description=task_description)
+
     if ask_fn is None:
         try:
             ask_fn = lambda text: input(text)
         except Exception:
-            # No stdin: procedi senza chiarimento
             return ClarificationResult(
                 questions=[], is_clear=True,
                 enriched_title=task_title,
                 enriched_description=task_description)
 
-    current_title = task_title
-    current_desc = task_description
-    max_rounds = 5
+    try:
+        answer = ask_fn(format_questions(questions))
+    except (EOFError, KeyboardInterrupt):
+        return ClarificationResult(
+            questions=questions, is_clear=False,
+            enriched_title=task_title,
+            enriched_description=task_description)
 
-    for _ in range(max_rounds):
-        questions = detect_ambiguity(current_title, current_desc)
-        if not questions:
-            return ClarificationResult(
-                questions=[], is_clear=True,
-                enriched_title=current_title,
-                enriched_description=current_desc)
-
-        text = format_questions(questions)
-        try:
-            answer = ask_fn(text)
-        except (EOFError, KeyboardInterrupt):
-            # Utente interrompe: procedi senza chiarimento
-            return ClarificationResult(
-                questions=questions, is_clear=False,
-                enriched_title=current_title,
-                enriched_description=current_desc)
-
-        answers = parse_answer(answer, questions)
-        enriched = clarify(current_title, current_desc, answers)
-        current_title = enriched.enriched_title
-        current_desc = enriched.enriched_description
-
-    # Dopo max_rounds, procedi comunque
-    return ClarificationResult(
-        questions=[], is_clear=True,
-        enriched_title=current_title,
-        enriched_description=current_desc)
+    answers = parse_answer(answer, questions)
+    result = clarify(task_title, task_description, answers)
+    result.questions = questions
+    result.is_clear = all(_is_real_answer(answers.get(q.id)) for q in questions)
+    return result
 
 
 def cli_interactive(task_title: str, task_description: str = "") -> None:
