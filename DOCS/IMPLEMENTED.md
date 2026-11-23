@@ -2954,3 +2954,15 @@ Nessuna suite completa locale, nessun LLM, GPU o benchmark eseguiti.
 **Limite dichiarato**: la misura fisica non è stata presa. Lo script è pronto
 ma `fan_verified.json` resta assente; nessun gate è stato aperto e nessun
 `--live` è stato eseguito in questo ciclo.
+
+---
+
+## Cycle 137 (2026-11-23) — procedura RPM guidata, senza annulli accidentali
+
+| Azione | Dettaglio |
+|---|---|
+| `tools/attest_rpm.py` | Prompt riscritti: avviso esplicito "misura con tachometro fisico, non digitare un valore stimato"; RPM con esempio (`2400`) e ripetizione su valore non numerico/fuori range; campi obbligatori che si ripetono se vuoti; `q`/`quit`/`esci` per annullare; riepilogo di tutti i campi + conferma `s/N` prima di qualsiasi scrittura |
+| Test | `tests/test_attest_rpm.py` aggiornato: campo vuoto ripetuto, conferma negativa → nessun file scritto, flusso completo con riepilogo. 22 test verdi (attest + blocker) |
+
+Nessuna misura fisica presa, nessun gate aperto: i test simulano input e
+sensore. Il comando resta `./tools/attest_rpm.py`.

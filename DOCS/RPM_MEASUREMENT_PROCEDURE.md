@@ -49,7 +49,9 @@ cd /home/wildlux/Desktop/byte-swarmy
 ./tools/attest_rpm.py
 ```
 
-Lo script chiede RPM, strumento, metodo, operatore e note; poi scrive la
+Lo script chiede RPM, strumento, metodo, operatore e note: i campi
+obbligatori si ripetono se lasciati vuoti, `q` annulla, e prima di scrivere
+mostra un riepilogo con conferma `s/N`. Poi scrive la
 ricevuta in `data/state/rpm_attestation.json` (0600, gitignored), la valida
 con le stesse regole del probe, rilegge la temperatura CPU **live** e scrive
 `fan_verified.json` solo se RPM > 0 e 0 < T ≤ 60 °C. Stampa `Gate VALIDO`

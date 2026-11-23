@@ -56,9 +56,13 @@ def test_modulo_senza_llm_e_rpm_interattivo_validato(monkeypatch):
     monkeypatch.setattr("builtins.input", lambda _: next(values))
     assert ar.prompt_rpm() == 1800
 
-    monkeypatch.setattr("builtins.input", lambda _: "")
+    monkeypatch.setattr("builtins.input", lambda _: "q")
     with pytest.raises(SystemExit):
         ar.prompt_rpm()
+
+    values = iter(["", "wildlux"])
+    monkeypatch.setattr("builtins.input", lambda _: next(values))
+    assert ar.prompt_field("Operatore", "wildlux") == "wildlux"
 
 
 def test_build_attestation_deterministico():
@@ -111,12 +115,26 @@ def test_attest_rifiuta_rpm_fuori_range(tmp_path, monkeypatch):
 def test_un_solo_comando_apre_il_gate(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(bp, "fan_snapshot", fake_snapshot(51.0))
     values = iter(["1800", "tachometro ottico X", "lettura su paletta",
-                   "wildlux", "note"])
+                   "wildlux", "note", "s"])
     monkeypatch.setattr("builtins.input", lambda _: next(values))
 
     rc = ar.main(["--state-dir", str(tmp_path / "state"),
                   "--gate-file", str(tmp_path / "fan.json")])
     out = capsys.readouterr().out
     assert rc == 0
+    assert "Riepilogo" in out
     assert "Gate VALIDO" in out
     assert "run_eval.py --live" in out
+
+
+def test_conferma_negativa_non_scrive_nulla(tmp_path, monkeypatch):
+    monkeypatch.setattr(bp, "fan_snapshot", fake_snapshot(50.0))
+    values = iter(["1800", "tachometro ottico X", "lettura su paletta",
+                   "wildlux", "note", "n"])
+    monkeypatch.setattr("builtins.input", lambda _: next(values))
+
+    with pytest.raises(SystemExit):
+        ar.main(["--state-dir", str(tmp_path / "state"),
+                 "--gate-file", str(tmp_path / "fan.json")])
+    assert not (tmp_path / "fan.json").exists()
+    assert not (tmp_path / "state" / "rpm_attestation.json").exists()

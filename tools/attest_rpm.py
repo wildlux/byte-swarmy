@@ -28,36 +28,47 @@ MIN_RPM = bp.MIN_ATTESTED_RPM
 MAX_RPM = bp.MAX_ATTESTED_RPM
 
 
+def _ask(prompt: str) -> str:
+    try:
+        return input(prompt).strip()
+    except EOFError:
+        raise SystemExit("Annullato: nessuna ricevuta scritta")
+
+
+def _cancel(value: str) -> bool:
+    return value.lower() in {"q", "quit", "esci"}
+
+
 def prompt_rpm() -> int:
-    """Chiede l'RPM letto: loop finché è un intero plausibile, Invio annulla."""
+    """Chiede l'RPM letto al tachometro; 'q' annulla, valori errati si ripetono."""
+    print("Prima misura i giri della ventola CPU con un tachometro fisico.")
+    print("Non digitare un valore stimato: serve la lettura dello strumento.")
     while True:
-        try:
-            raw = input(f"RPM letti al tachometro "
-                        f"({MIN_RPM}-{MAX_RPM}, Invio per annullare): ").strip()
-        except EOFError:
-            raise SystemExit("Annullato: nessuna ricevuta scritta")
-        if not raw:
+        raw = _ask("RPM letti (es. 2400) o 'q' per annullare: ")
+        if _cancel(raw):
             raise SystemExit("Annullato: nessuna ricevuta scritta")
         try:
             rpm = int(raw)
         except ValueError:
-            print("  valore non numerico, ripeti")
+            print("  non è un numero: ripeti (es. 2400)")
             continue
         if not MIN_RPM <= rpm <= MAX_RPM:
-            print(f"  fuori dal range fisico {MIN_RPM}-{MAX_RPM}, ripeti")
+            print(f"  fuori dal range fisico {MIN_RPM}-{MAX_RPM}: ripeti")
             continue
         return rpm
 
 
-def prompt_field(label: str, *, required: bool = True) -> str:
-    """Un campo obbligatorio vuoto annulla: nessun file scritto a metà."""
-    try:
-        value = input(f"{label}: ").strip()
-    except EOFError:
-        raise SystemExit("Annullato: nessuna ricevuta scritta")
-    if required and not value:
-        raise SystemExit(f"Annullato: '{label}' obbligatorio, nessuna ricevuta")
-    return value
+def prompt_field(label: str, example: str, *, required: bool = True) -> str:
+    """Campo obbligatorio: se vuoto si ripete; 'q' annulla senza scrivere."""
+    if not required:
+        return _ask(f"{label} (opzionale, Invio per saltare): ")
+    while True:
+        value = _ask(f"{label} (es. {example}) o 'q' per annullare: ")
+        if _cancel(value):
+            raise SystemExit("Annullato: nessuna ricevuta scritta")
+        if value:
+            return value
+        print("  campo obbligatorio: scrivi una risposta oppure 'q' per annullare")
 
 
 def build_attestation(rpm: int, instrument: str, method: str, operator: str,
@@ -111,11 +122,18 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     rpm = prompt_rpm()
-    instrument = prompt_field("Strumento (es. tachometro ottico modello X)")
-    method = prompt_field("Metodo (es. lettura ottica su paletta ventola)")
-    operator = prompt_field("Operatore")
-    notes = prompt_field("Note (anche vuote)", required=False)
+    instrument = prompt_field("Strumento", "tachometro ottico DT-6234B")
+    method = prompt_field("Metodo", "lettura ottica su paletta attraverso griglia")
+    operator = prompt_field("Operatore", "wildlux")
+    notes = prompt_field("Note", "3 letture consecutive", required=False)
     attestation = build_attestation(rpm, instrument, method, operator, notes)
+
+    print("\nRiepilogo di quanto verra' registrato:")
+    for key, value in attestation.items():
+        print(f"  {key}: {value}")
+    confirm = _ask("\nRegistrare e aprire il gate? (s/N): ")
+    if confirm.lower() != "s":
+        raise SystemExit("Annullato: nessun file scritto")
 
     try:
         result = attest(attestation, state_dir=args.state_dir,
