@@ -153,6 +153,9 @@ def test_surriscaldamento_interrompe_e_non_puo_essere_accettato(tmp_path):
     # Il PICCO finisce in temp_c: il reporter deve rifiutare il risultato.
     assert data["thermal"]["temp_c"] == 61.0
     assert data["thermal"]["temp_max_c"] == 61.0
+    # Campioni coerenti con il picco che ha interrotto il run.
+    assert data["thermal"]["temp_samples"] == [44.0, 45.0, 61.0, 46.0, 45.0]
+    assert data["abort_thermal"]["temp_max_c"] == 61.0
     with pytest.raises(ValueError) as exc:
         es.load_results(out, es.load_cases())
     assert "surrogato" in str(exc)

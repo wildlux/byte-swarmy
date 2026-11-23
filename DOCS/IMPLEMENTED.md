@@ -2996,3 +2996,18 @@ bloccato).
 I tentativi precedenti restano **non misurati**: tre run interrotti per calore,
 ultimo con 1 caso GUI fallito (`max steps reached`) e reporter exit 2. Nessun
 verdetto Middle scritto. Gate RPM invariato (2400 attestati).
+
+---
+
+## Cycle 140 (2026-11-23) — evidenza termica coerente sui run interrotti
+
+| Azione | Dettaglio |
+|---|---|
+| Difetto trovato | Nel risultato del run interrotto a 67 °C, `thermal.temp_c` e `temp_max_c` riportavano 67 mentre `temp_samples` conteneva ancora i 5 campioni freddi del pre-flight (60 °C): evidenza interna incoerente |
+| `tools/run_eval.py` | Su interruzione, `thermal.temp_samples` viene sostituito con i campioni del giro che ha fatto scattare lo stop e viene aggiunto `abort_thermal` con media e picco di quel giro. Il reporter continua a rifiutare il risultato (exit 2) |
+| Test | `tests/test_run_eval_live.py` verifica la coerenza campioni ↔ picco; **46 passed** sugli stessi gate di Cycle 139 |
+
+Nuovo tentativo reale ( Cycle 139 ): pre-flight 42,6 °C medio / 43 °C picco,
+poi CPU a 67 °C durante il primo caso GUI → interruzione prima del secondo.
+La media non ha masking il calore: il run resta **non misurato** e nessun
+verdetto Middle è stato scritto.

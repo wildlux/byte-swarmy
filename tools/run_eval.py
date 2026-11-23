@@ -236,10 +236,12 @@ def run_live(cases: list[dict], gate: dict, worker_factory,
     worst = float(gate.get("temp_max_c", gate["temp_c"]))
     aborted = False
     abort_reason: str | None = None
+    last_sample: dict | None = None
 
     for case in marker_cases:
         sample = sample_thermal(temp_fn, samples=samples, interval=interval,
                                 sleep_fn=sleep_fn)
+        last_sample = sample
         means.append(sample["temp_c"])
         worst = max(worst, sample["temp_max_c"])
         if not thermal_ok(sample):
@@ -281,6 +283,16 @@ def run_live(cases: list[dict], gate: dict, worker_factory,
     thermal["temp_c"] = round(worst if aborted else sum(means) / len(means), 1)
     thermal["temp_max_c"] = round(worst, 1)
     thermal["temp_policy"] = TEMP_POLICY
+    if aborted and last_sample is not None:
+        # L'evidenza deve mostrare i campioni CHE HANNO fatto scattare
+        # l'interruzione, non quelli (freddi) del pre-flight.
+        thermal["temp_samples"] = last_sample["temp_samples"]
+        data_abort = {
+            "temp_c": last_sample["temp_c"],
+            "temp_max_c": last_sample["temp_max_c"],
+        }
+    else:
+        data_abort = None
     data = {
         "source": "live",
         "thermal": thermal,
@@ -288,6 +300,7 @@ def run_live(cases: list[dict], gate: dict, worker_factory,
         "excluded_cases": excluded,
         "aborted": aborted,
         "abort_reason": abort_reason,
+        "abort_thermal": data_abort,
         "total_cases": len(cases),
         "executed_cases": len(records),
     }
