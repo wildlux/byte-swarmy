@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from collections import defaultdict
 from pathlib import Path
 
@@ -43,6 +44,12 @@ CASES = ROOT / "evals" / "cases.json"
 DEFAULT_RESULTS = ROOT / "data" / "state" / "eval_live_results.json"
 PROJECT_ROOT = ROOT / "project"
 MAX_TEMP_C = 60.0
+# Il sensore coretemp di questo modello oscilla di parecchi gradi in un
+# secondo. La media riduce il rumore, ma il PICCO resta un freno duro:
+# un solo campione sopra 60 °C blocca il run, anche se la media è bassa.
+TEMP_SAMPLES = 5
+TEMP_INTERVAL_S = 0.2
+TEMP_POLICY = "media_con_picco_le_60"
 VALID_AXES = {
     "Task GUI (creazione)", "Modifiche minime", "Refactoring mecc.",
     "Gate / verifica", "Fedeltà API", "Chiarimenti ambigui",
@@ -102,12 +109,41 @@ def _sample_temp(temp_fn=None) -> float:
     return float(bp.read_cpu_temp_c()[0])
 
 
-def require_gate(fan_file: Path | None = None, temp_fn=None) -> dict:
+def sample_thermal(temp_fn=None, *, samples: int = TEMP_SAMPLES,
+                   interval: float = TEMP_INTERVAL_S, sleep_fn=None) -> dict:
+    """Campiona la CPU più volte: media per il rumore, picco per la sicurezza.
+
+    `temp_fn` e `sleep_fn` servono solo ai test offline: con i sensori reali
+    vengono usati `blocker_probe.read_cpu_temp_c` e `time.sleep`.
+    """
+    n = max(1, int(samples))
+    values = []
+    for i in range(n):
+        values.append(float(_sample_temp(temp_fn)))
+        if i + 1 < n and interval > 0:
+            (sleep_fn or time.sleep)(interval)
+    return {
+        "temp_c": round(sum(values) / len(values), 1),
+        "temp_max_c": round(max(values), 1),
+        "temp_samples": [round(v, 1) for v in values],
+        "temp_policy": TEMP_POLICY,
+    }
+
+
+def thermal_ok(sample: dict) -> bool:
+    """Gate stretto: media E picco devono stare in (0, 60]."""
+    return (0.0 < float(sample["temp_c"]) <= MAX_TEMP_C
+            and 0.0 < float(sample["temp_max_c"]) <= MAX_TEMP_C)
+
+
+def require_gate(fan_file: Path | None = None, temp_fn=None, *,
+                 samples: int = TEMP_SAMPLES, interval: float = TEMP_INTERVAL_S,
+                 sleep_fn=None) -> dict:
     """Rifiuta il run se il gate salvato non è valido o se è già caldo.
 
     Riutilizza `blocker_probe.read_stored_fan` come source of truth: nessun
     RPM viene letto da riga di comando e la temperatura NON viene presa dal
-    gate file, ma riletta dai sensori live.
+    gate file, ma riletta dai sensori live con media + picco.
     """
     from tools import blocker_probe as bp
     path = fan_file or bp.FAN_FILE
@@ -116,13 +152,19 @@ def require_gate(fan_file: Path | None = None, temp_fn=None) -> dict:
         checks = ", ".join(f"{k}={v}" for k, v in
                            stored.get("checks", {}).items()) or stored["reason"]
         raise GateError(f"fan_verified.json NON VALIDO ({checks})")
-    temp_c = _sample_temp(temp_fn)
-    if not 0.0 < temp_c <= MAX_TEMP_C:
-        raise GateError(f"temperatura live {temp_c:.1f} °C fuori dal gate "
-                        f"(0 < T <= {MAX_TEMP_C:.0f})")
+    sample = sample_thermal(temp_fn, samples=samples, interval=interval,
+                            sleep_fn=sleep_fn)
+    if not thermal_ok(sample):
+        raise GateError(
+            f"temperatura live media {sample['temp_c']:.1f} °C, "
+            f"picco {sample['temp_max_c']:.1f} °C fuori dal gate "
+            f"(0 < media e picco <= {MAX_TEMP_C:.0f})")
     return {
         "fan_rpm": int(stored["fan_rpm"]),
-        "temp_c": round(temp_c, 1),
+        "temp_c": sample["temp_c"],
+        "temp_max_c": sample["temp_max_c"],
+        "temp_samples": sample["temp_samples"],
+        "temp_policy": TEMP_POLICY,
         "gate_measured_at": stored.get("measured_at"),
         "gate_sources": stored.get("sources", {}),
         "gate_file": str(path),
@@ -164,19 +206,25 @@ def verify_case(case: dict, worker, result: str,
 
 def run_live(cases: list[dict], gate: dict, worker_factory,
              temp_fn=None, out_path: Path = DEFAULT_RESULTS,
-             project_root: Path = PROJECT_ROOT) -> dict:
+             project_root: Path = PROJECT_ROOT, *,
+             samples: int = TEMP_SAMPLES, interval: float = TEMP_INTERVAL_S,
+             sleep_fn=None) -> dict:
     """Esegue i casi con un factory iniettato e scrive i risultati live.
 
-    Il worker viene creato per caso (memoria isolata). Se la temperatura
-    sale oltre il gate, il run si interrompe e i risultati parziali restano
-    marcati `aborted`: `eval_by_slot.py` li rifiuterà perché l'evidenza
-    termica non è più entro 60 °C. Nessun esito viene mai sintetizzato.
+    Il worker viene creato per caso (memoria isolata). Prima di OGNI caso
+    vengono campionati 5 valori: la media guida la misura, ma un solo picco
+    sopra 60 °C interrompe il run. I risultati parziali restano marcati
+    `aborted` con `temp_c` pari al picco, così `eval_by_slot.py` li rifiuta.
+    Nessun esito viene mai sintetizzato.
     """
     from tools.eval_by_slot import classify
 
     if int(gate.get("fan_rpm") or 0) <= 0:
         raise GateError("fan_rpm mancante nel gate")
-    if not 0.0 < float(gate.get("temp_c", 0)) <= MAX_TEMP_C:
+    if not thermal_ok({
+        "temp_c": gate.get("temp_c", 0),
+        "temp_max_c": gate.get("temp_max_c", gate.get("temp_c", 0)),
+    }):
         raise GateError("temperatura iniziale fuori dal gate")
 
     marker_cases = [c for c in cases if c.get("expected_marker")]
@@ -184,16 +232,21 @@ def run_live(cases: list[dict], gate: dict, worker_factory,
                  "reason": "nessun expected_marker: pass@1 non applicabile"}
                 for c in cases if not c.get("expected_marker")]
     records: list[dict] = []
-    max_temp = float(gate["temp_c"])
+    means: list[float] = [float(gate["temp_c"])]
+    worst = float(gate.get("temp_max_c", gate["temp_c"]))
     aborted = False
     abort_reason: str | None = None
 
     for case in marker_cases:
-        temp_c = _sample_temp(temp_fn)
-        max_temp = max(max_temp, temp_c)
-        if not 0.0 < temp_c <= MAX_TEMP_C:
+        sample = sample_thermal(temp_fn, samples=samples, interval=interval,
+                                sleep_fn=sleep_fn)
+        means.append(sample["temp_c"])
+        worst = max(worst, sample["temp_max_c"])
+        if not thermal_ok(sample):
             aborted = True
-            abort_reason = f"temperatura {temp_c:.1f} °C prima del caso {case['id']}"
+            abort_reason = (
+                f"temperatura media {sample['temp_c']:.1f} °C, "
+                f"picco {sample['temp_max_c']:.1f} °C prima del caso {case['id']}")
             break
         verdict = {
             "case_id": case["id"],
@@ -224,7 +277,10 @@ def run_live(cases: list[dict], gate: dict, worker_factory,
         records.append(verdict)
 
     thermal = dict(gate)
-    thermal["temp_c"] = round(max_temp, 1)
+    # Se interrotto, esponi il PICCO come temp_c: il reporter lo rifiuta.
+    thermal["temp_c"] = round(worst if aborted else sum(means) / len(means), 1)
+    thermal["temp_max_c"] = round(worst, 1)
+    thermal["temp_policy"] = TEMP_POLICY
     data = {
         "source": "live",
         "thermal": thermal,
@@ -265,8 +321,9 @@ def build_default_worker_factory(model_key: str = "worker_coder"):
 def _live_text(data: dict, out_path: Path) -> str:
     lines = [
         "Esecuzione LIVE — solo risultati prodotti da worker reale.",
-        f"Gate: RPM {data['thermal']['fan_rpm']} "
-        f"(attestati), T max {data['thermal']['temp_c']:.1f} °C",
+        f"Gate: RPM {data['thermal']['fan_rpm']} (attestati), "
+        f"T media {data['thermal']['temp_c']:.1f} °C / "
+        f"picco {data['thermal'].get('temp_max_c', data['thermal']['temp_c']):.1f} °C",
         f"Casi: {data['executed_cases']}/{data['total_cases']} con marker; "
         f"{len(data['excluded_cases'])} esclusi",
         "",

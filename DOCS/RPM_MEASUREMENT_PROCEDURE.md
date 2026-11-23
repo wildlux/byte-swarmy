@@ -101,6 +101,16 @@ stare in `data/state/` o fuori dal repo. La temperatura è **sempre** riletta
 da sysfs e deve essere `0 < temp_c <= 60`. Il duty resta registrato come
 contesto (`fan_duty_pct_context_only`) e non entra nel gate.
 
+### Policy termica del run live (Cycle 139)
+
+`tools/run_eval.py --live` campiona 5 letture coretemp (intervallo 0,2 s)
+prima di ogni caso: la **media** riduce il rumore del sensore, ma il **picco**
+resta un freno duro. Il gate passa solo se `0 < media <= 60` **e**
+`0 < picco <= 60`: una media bassa non può mascherare un picco a 68 °C.
+Il file risultati registra `temp_policy=media_con_picco_le_60`, la media,
+il picco e i campioni. Se il run viene interrotto, `temp_c` assume il valore
+del picco, così `eval_by_slot.py` rifiuta i risultati parziali.
+
 Se la CPU è sopra 60 °C al momento della registrazione, il tool rifiuta e
 non scrive nulla: in quel caso attendi il raffreddamento e ripeti la misura.
 

@@ -80,10 +80,10 @@ def test_gate_assente_o_freddo_rifiuta():
 def test_run_live_produce_records_live_e_wiring_con_eval_by_slot(tmp_path):
     cases = reval.load_cases()
     out = tmp_path / "results.json"
-    g = reval.require_gate(gate(tmp_path), temp_fn=lambda: 44)
+    g = reval.require_gate(gate(tmp_path), temp_fn=lambda: 44, interval=0)
 
     data = reval.run_live(cases, g, fake_factory(tmp_path),
-                          temp_fn=lambda: 46, out_path=out)
+                          temp_fn=lambda: 46, out_path=out, interval=0)
 
     assert data["source"] == "live"
     assert data["aborted"] is False
@@ -93,7 +93,11 @@ def test_run_live_produce_records_live_e_wiring_con_eval_by_slot(tmp_path):
     assert all(r["error"] is None for r in data["records"])
     assert all(r["output_lines"] > 0 for r in data["records"])
     assert data["thermal"]["fan_rpm"] == 1800
-    assert data["thermal"]["temp_c"] == 46
+    # La media include anche il campione del pre-flight (44 °C).
+    assert data["thermal"]["temp_c"] == 45.8
+    assert data["thermal"]["temp_max_c"] == 46
+    assert data["thermal"]["temp_policy"] == "media_con_picco_le_60"
+    assert g["temp_samples"] == [44.0] * 5
 
     # il file è davvero accettato dal reporter SLOT-5, senza surrogati
     loaded, live = es.load_results(out, es.load_cases())
@@ -103,13 +107,13 @@ def test_run_live_produce_records_live_e_wiring_con_eval_by_slot(tmp_path):
 
 def test_fallimento_worker_e_error_non_diventa_pass(tmp_path):
     cases = reval.load_cases()
-    g = reval.require_gate(gate(tmp_path), temp_fn=lambda: 44)
+    g = reval.require_gate(gate(tmp_path), temp_fn=lambda: 44, interval=0)
     out = tmp_path / "fail.json"
 
     data = reval.run_live(cases[:1], g,
                           fake_factory(tmp_path, write_marker=False,
                                        error="ERROR: boom"),
-                          temp_fn=lambda: 44, out_path=out)
+                          temp_fn=lambda: 44, out_path=out, interval=0)
     row = data["records"][0]
     assert row["passed"] is False
     assert row["marker_found"] is False
@@ -117,37 +121,69 @@ def test_fallimento_worker_e_error_non_diventa_pass(tmp_path):
 
     data = reval.run_live(cases[:1], g,
                           lambda case: (_ for _ in ()).throw(ValueError("nope")),
-                          temp_fn=lambda: 44, out_path=out)
+                          temp_fn=lambda: 44, out_path=out, interval=0)
     assert data["records"][0]["passed"] is False
     assert "ValueError: nope" in data["records"][0]["error"]
 
 
 def test_retry_interno_non_e_primo_colpo(tmp_path):
     cases = reval.load_cases()
-    g = reval.require_gate(gate(tmp_path), temp_fn=lambda: 44)
+    g = reval.require_gate(gate(tmp_path), temp_fn=lambda: 44, interval=0)
     out = tmp_path / "retry.json"
     data = reval.run_live(cases[:1], g,
                           fake_factory(tmp_path, attempts=3),
-                          temp_fn=lambda: 44, out_path=out)
+                          temp_fn=lambda: 44, out_path=out, interval=0)
     assert data["records"][0]["marker_found"] is True
     assert data["records"][0]["passed"] is False
 
 
 def test_surriscaldamento_interrompe_e_non_puo_essere_accettato(tmp_path):
     cases = reval.load_cases()
-    g = reval.require_gate(gate(tmp_path), temp_fn=lambda: 44)
+    g = reval.require_gate(gate(tmp_path), temp_fn=lambda: 44, interval=0)
     out = tmp_path / "hot.json"
-    temps = iter([44.0, 61.0])
+    # 5 campioni per caso: il primo giro è freddo, il secondo ha un picco.
+    temps = iter([44.0] * 5 + [44.0, 45.0, 61.0, 46.0, 45.0])
 
     data = reval.run_live(cases, g, fake_factory(tmp_path),
-                          temp_fn=lambda: next(temps), out_path=out)
+                          temp_fn=lambda: next(temps), out_path=out, interval=0)
     assert data["aborted"] is True
     assert "61.0" in data["abort_reason"]
+    assert "picco" in data["abort_reason"]
     assert data["executed_cases"] == 1
+    # Il PICCO finisce in temp_c: il reporter deve rifiutare il risultato.
     assert data["thermal"]["temp_c"] == 61.0
+    assert data["thermal"]["temp_max_c"] == 61.0
     with pytest.raises(ValueError) as exc:
         es.load_results(out, es.load_cases())
     assert "surrogato" in str(exc)
+
+
+def test_media_sotto_60_con_picco_sopra_60_blocca_comunque(tmp_path):
+    """La media non deve poter mascherare un picco termico."""
+    values = iter([48.0, 49.0, 68.0, 50.0, 49.0])
+    sample = reval.sample_thermal(lambda: next(values), interval=0)
+    assert sample["temp_c"] == 52.8
+    assert sample["temp_max_c"] == 68.0
+    assert reval.thermal_ok(sample) is False
+
+    vals = iter([48.0, 49.0, 68.0, 50.0, 49.0])
+    with pytest.raises(reval.GateError) as exc:
+        reval.require_gate(gate(tmp_path), temp_fn=lambda: next(vals),
+                           interval=0)
+    assert "picco 68.0" in str(exc)
+
+
+def test_media_e_picco_entro_60_accetta(tmp_path):
+    values = iter([52.0, 55.0, 54.0, 53.0, 56.0])
+    sample = reval.sample_thermal(lambda: next(values), interval=0)
+    assert sample["temp_c"] == 54.0
+    assert sample["temp_max_c"] == 56.0
+    assert reval.thermal_ok(sample) is True
+    vals = iter([52.0, 55.0, 54.0, 53.0, 56.0])
+    g = reval.require_gate(gate(tmp_path), temp_fn=lambda: next(vals),
+                           interval=0)
+    assert g["temp_c"] == 54.0
+    assert g["temp_max_c"] == 56.0
 
 
 def test_cli_live_senza_gate_rifiuta_con_exit_2(tmp_path, capsys,

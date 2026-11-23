@@ -2980,3 +2980,19 @@ sensore. Il comando resta `./tools/attest_rpm.py`.
 
 Nessun LLM, GPU o benchmark eseguito. Gate termico invariato (M3 resta
 bloccato).
+
+---
+
+## Cycle 139 (2026-11-23) — media termica con freno sul picco
+
+| Azione | Dettaglio |
+|---|---|
+| Decisione | L'utente ha scelto "media + picco ≤60": la media stabilizza la lettura del sensore coretemp (che oscilla di 10+ °C in pochi secondi), ma **un solo campione sopra 60 °C blocca comunque il run**. La regola del gate non è stata abbassata |
+| `tools/run_eval.py` | Nuovo `sample_thermal()`: 5 campioni a 0,2 s → `temp_c` (media), `temp_max_c` (picco), `temp_samples`, `temp_policy=media_con_picco_le_60`. `thermal_ok()` richiede media **e** picco in `(0, 60]`. `require_gate()` e il controllo prima di ogni caso usano la nuova policy; `run_live()` registra media e picco nell'evidenza |
+| Risultati parziali | Su interruzione, `thermal.temp_c` viene impostato al **picco** (non alla media): `eval_by_slot.py` continua a rifiutare i run interrotti con exit 2 — nessun surrogato accettato |
+| Test | `tests/test_run_eval_live.py` aggiornato e ampliato: media 52,8 °C con picco 68 °C → gate chiuso; media 54 °C con picco 56 °C → gate aperto; interruzione con picco 61 °C → reporter rifiuta. Con attest/blocker/eval: **46 passed**. `pyflakes`, `compileall`, `git diff --check` puliti |
+| Documentazione | `DOCS/RPM_MEASUREMENT_PROCEDURE.md` descrive la policy termica del run live |
+
+I tentativi precedenti restano **non misurati**: tre run interrotti per calore,
+ultimo con 1 caso GUI fallito (`max steps reached`) e reporter exit 2. Nessun
+verdetto Middle scritto. Gate RPM invariato (2400 attestati).
