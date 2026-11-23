@@ -3011,3 +3011,18 @@ Nuovo tentativo reale ( Cycle 139 ): pre-flight 42,6 °C medio / 43 °C picco,
 poi CPU a 67 °C durante il primo caso GUI → interruzione prima del secondo.
 La media non ha masking il calore: il run resta **non misurato** e nessun
 verdetto Middle è stato scritto.
+
+---
+
+## Cycle 141 (2026-11-23) — source of truth: M3 chiuso nel probe e nella roadmap
+
+| Azione | Dettaglio |
+|---|---|
+| Difetto | `tools/blocker_probe.py` marcava M3 🔒 guardando solo i RPM live (0 su questo modello), anche con `fan_verified.json` valido: il report diceva `fan_verified.json salvato ✅` e M3 🔒 nello stesso documento |
+| Fix | La riga M3 usa `gate.verified OR fan_stored.valid`; l'evidenza distingue `RPM live 0 (nessun sensore)` da `gate attestato 2400 RPM del …`. Il paragrafo termico dichiara la misura fisica esterna come prova dei giri solo quando la ricevuta è valida. Aggiunta riga `RPM attestati (gate)` nel dettaglio |
+| Report rigenerato | `DOCS/BLOCKER_PROBE_REPORT.md`: `| M3 ventole | ✅ |` con azione `tools/run_eval.py --live` con CPU ≤60 °C |
+| Roadmap | `todo.md`: M3 `[x] Cycle 136/141`; M7 rietichettato `🔒 calore sotto carico (M3 chiuso)` |
+| Test | `tests/test_blocker_probe.py` aggiornato per entrambi gli stati del gate: **55 passed** (blocker + RPM + run_eval + attest) |
+
+M3 chiuso non equivale a M7 misurato: i quattro tentativi live restano
+interrotti a 67 °C sotto inferenza. Nessun verdetto Middle scritto.

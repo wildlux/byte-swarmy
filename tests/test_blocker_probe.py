@@ -170,7 +170,22 @@ def test_report_deterministico_e_dichiara_i_blocchi():
     for marker in ("M2 suite completa", "M3 ventole", "M4 credenziali",
                    "M5 hardening", "M6 profiling CI",
                    "Nessun asse del radar", "Nessun valore",
-                   "NON dimostra", "misurare RPM con tachometro esterno",
                    "--attest-rpm", "RPM_MEASUREMENT_PROCEDURE.md"):
         assert marker in text
+    # M3 dipende dallo stato del gate salvato: il report deve dirlo in
+    # entrambi i casi, senza mai inventare RPM.
+    closed = dict(first)
+    closed["fan_stored"] = {"valid": False}
+    closed_text = bp.markdown(closed)
+    assert "misurare RPM con tachometro esterno" in closed_text
+    assert "NON dimostra" in closed_text
+    opened = dict(first)
+    opened["fan_stored"] = {
+        "valid": True, "fan_rpm": 2400,
+        "measured_at": "2026-11-23T00:08:25+00:00",
+    }
+    opened_text = bp.markdown(opened)
+    assert "gate attestato 2400 RPM" in opened_text
+    assert "gate valido" in opened_text
+    assert "| M3 ventole | ✅ |" in opened_text
     assert "avviare nbfc con pkexec" not in text

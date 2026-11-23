@@ -490,6 +490,20 @@ def markdown(result: dict) -> str:
     ci = result["ci"]
     stored = result["fan_stored"]
     suite = result["suite"]
+    # M3 è chiuso se i sensori mostrano RPM oppure se esiste un gate
+    # attestato valido su disco: il tachometro esterno è una misura reale,
+    # non un surrogato (i sensori di questo modello non leggono i giri).
+    m3_ok = bool(gate["verified"]) or bool(stored["valid"])
+    if stored["valid"]:
+        m3_ev = (f"CPU {fan['cpu_temp_c']} °C, RPM live {fan['fan_rpm']}"
+                 f" (nessun sensore), gate attestato {stored['fan_rpm']} RPM"
+                 f" del {stored.get('measured_at', '—')}")
+        m3_action = "gate valido: `tools/run_eval.py --live` con CPU <=60 °C"
+    else:
+        m3_ev = (f"CPU {fan['cpu_temp_c']} °C, RPM {fan['fan_rpm']}, "
+                 f"nbfc `{fan['nbfc_service_state']}`")
+        m3_action = ("misurare RPM con tachometro esterno (nbfc già attivo non basta), "
+                     "poi `tools/blocker_probe.py --attest-rpm data/state/rpm_attestation.json`")
     lines = [
         "# 🔍 Sonde di sblocco — M2…M6",
         "",
@@ -503,11 +517,7 @@ def markdown(result: dict) -> str:
         "|---|---|---|---|",
         f"| M2 suite completa | 🔒 | {suite['local_full_run']} | "
         f"trigger CI: `{ci['command']}` |",
-        f"| M3 ventole | {'✅' if gate['verified'] else '🔒'} | "
-        f"CPU {fan['cpu_temp_c']} °C, RPM {fan['fan_rpm']}, "
-        f"nbfc `{fan['nbfc_service_state']}` | "
-        f"misurare RPM con tachometro esterno (nbfc già attivo non basta), "
-        f"poi `tools/blocker_probe.py --attest-rpm data/state/rpm_attestation.json` |",
+        f"| M3 ventole | {'✅' if m3_ok else '🔒'} | {m3_ev} | {m3_action} |",
         f"| M4 credenziali | {'✅' if creds['gh_auth_ok'] else '🔒'} | "
         f"gh: {creds['gh']['reason'] or 'ok'}; remote token-free: "
         f"{_yes_no(creds['remote_token_free'])} | " +
@@ -545,6 +555,7 @@ def markdown(result: dict) -> str:
         f"| `temp_c <= 60` | {_yes_no(gate['temp_entro_60c'])} |",
         f"| Gate verificabile | {_yes_no(gate['verified'])} |",
         f"| `fan_verified.json` salvato | {_yes_no(stored['valid'])} |",
+        f"| RPM attestati (gate) | {stored.get('fan_rpm', '—')} |",
         "",
         "Il file di gate non viene mai scritto con valori passati a mano:",
         "`--write-fan` rilegge i sensori e rifiuta se il gate non è verificato.",
@@ -554,10 +565,13 @@ def markdown(result: dict) -> str:
         "",
         "Su questa macchina il daemon nbfc è stato avviato via pkexec, ma",
         "`Current Fan Speed` resta 0.00 anche con duty al 100% e non esiste",
-        "alcun `fan*_input` in sysfs: il tachimetro non è leggibile. Pertanto",
-        "`fan_rpm > 0` NON è dimostrabile con i sensori disponibili: il gate",
-        "resta chiuso **per decisione esplicita del 2026-11-22** (gate stretto",
-        "mantenuto): nessun duty cycle o altra misura sostituisce i RPM.",
+        "alcun `fan*_input` in sysfs: il tachimetro non è leggibile via software.",
+        ("I RPM sono pero' dimostrati da misura fisica esterna attestata,"
+         " registrata con provenienza, operatore e timestamp: il gate e' valido."
+         if stored["valid"] else
+         "`fan_rpm > 0` NON e' dimostrabile con i sensori disponibili: il gate"
+         " resta chiuso **per decisione esplicita del 2026-11-22** (gate stretto"
+         " mantenuto): nessun duty cycle o altra misura sostituisce i RPM."),
         "Procedura operativa: `DOCS/RPM_MEASUREMENT_PROCEDURE.md`.",
         "",
         "## Dettaglio credenziali (M4)",
