@@ -14,11 +14,11 @@ _Fonte: `data/state` — generato deterministicamente, zero LLM._
 
 | Verdetto | Conteggio | Quota |
 |---|---|---|
-| `done` | 69 | 84.1% |
 | `corrected` | 13 | 15.9% |
+| `done` | 69 | 84.1% |
 | `failed_definitively` | 0 | 0.0% |
 
-> ⚠️ **Brutal honesty**: il tasso primo colpo è calcolato sulle 82 triple del corpus (26 uniche, 20 task distinti). Sono **fixture interne** (test, adversarial, regressioni), non task utente reali: non dimostra la soglia '≥50% task chiusi al primo tentativo'. Task GUI live: misurato 0/3 (0%); sotto la soglia del 50%.
+> ⚠️ **Brutal honesty**: il tasso primo colpo è calcolato sulle 82 triple del corpus (26 uniche, 20 task distinti). Sono **fixture interne** (test, adversarial, regressioni), non task utente reali: non dimostra la soglia '≥50% task chiusi al primo tentativo'. Task GUI live: misurato 1/3 (33%); sotto la soglia del 50%.
 
 ## Gate e apprendimento
 

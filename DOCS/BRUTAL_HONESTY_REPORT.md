@@ -11,7 +11,7 @@ Scopo: dire cosa è **veramente verificabile** nei report e nei documenti di `DO
 | Zero Warning (pyflakes) | ✅ PASS | 0 finding di pyflakes |
 | best-of-N 'attivo (fast lane)' | ⚠️ DISABILITATO | `fast_lane.enabled=false`, `best_of_n=1` |
 | First-try 0.958 come task reali | ⚠️ FIXTURE INTERNE | 82 triple, 26 uniche, 20 task distinti; 0.950 sugli unici |
-| Pass@1 live (SLOT-5) | ❌ MISURATO / SOTTO SOGLIA | 3/11 casi (27%); widget 0/3 (0%); T max 60.0 °C |
+| Pass@1 live (SLOT-5) | ❌ MISURATO / SOTTO SOGLIA | 4/11 casi (36%); widget 1/3 (33%); T max 60.0 °C |
 | Copertura retrieval 100% | ⚠️ DEFINIZIONE RISTRETTA | 20/20: solo presenza di testo indicizzabile, non qualità del retrieval |
 | Meccanismi 'attivi' (storico 41) | ⚠️ DOCUMENTATI/IMPLEMENTATI | 42 righe contate; non tutti abilitati a runtime |
 | Auto-skill 23 / auto-tool 30 (Cycle 86) | ⚠️ STALE | oggi 27 skill / 36 tool |
@@ -29,7 +29,7 @@ Scopo: dire cosa è **veramente verificabile** nei report e nei documenti di `DO
 
 ## Da dove viene il 0.958
 
-Il tasso `first_try` è `0.841` su 82 triple. Il corpus contiene **fixture interne** (test, adversarial, regressioni), non task utente reali: non può dimostrare la soglia '≥50% task chiusi al primo tentativo' del radar. Sugli unici task distinti il valore è `0.950`. Il task GUI live è **misurato**: widget 0/3 (0%); complessivi 3/11 (27%).
+Il tasso `first_try` è `0.841` su 82 triple. Il corpus contiene **fixture interne** (test, adversarial, regressioni), non task utente reali: non può dimostrare la soglia '≥50% task chiusi al primo tentativo' del radar. Sugli unici task distinti il valore è `0.950`. Il task GUI live è **misurato**: widget 1/3 (33%); complessivi 4/11 (36%).
 
 | File corpus | Triple | First-try |
 |---|---:|---:|

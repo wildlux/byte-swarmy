@@ -282,7 +282,34 @@ class Worker:
     # Nomi completi accettati come fallback (guardia)
     TOOL_CODE_MAP.update({v: v for v in set(TOOL_CODE_MAP.values())})
 
+    # Cycle 146: tool senza effetti collaterali. Un ripetuto read/analyze
+    # non può essere bloccato per il resto del task: dopo il pivot il
+    # modello deve poter cambiare approccio e rileggere. Il blocco duro
+    # resta per write/patch/delete/move e per gli altri tool che mutano.
+    READ_ONLY_TOOLS = frozenset({
+        "read_file", "read_file_slice", "read_document", "list_files",
+        "list_refs", "list_tools", "list_subagents", "get_subagent_report",
+        "search", "analyze_project", "find_references", "analyze_complexity",
+        "get_call_graph", "find_dead_code", "git_status", "git_log",
+        "git_branch", "git_diff", "retrieve_similar_task", "api_lookup",
+    })
+
     MAX_STEPS = 10  # aumentato per dare più chance al modello di scrivere codice (era 6)
+
+    def _reset_task_memory(self) -> None:
+        """Cycle 147 — azzera TUTTA la memoria di task prima dell'inferenza.
+
+        `build_context()` legge `self.working` e `self.long_term`, non
+        `self.events`. I vecchi reset toccavano solo `events`, `long_term`
+        e `short_term`: `working` restava popolato con gli eventi dei run
+        precedenti dello stesso agent_id (caricati dal provider SQLite) e
+        finiva nel prompt iniziale. Qui puliamo anche `working`.
+        """
+        for attr in ("events", "working", "long_term"):
+            if hasattr(self.memory, attr):
+                setattr(self.memory, attr, [])
+        if hasattr(self.memory, "reset_short_term"):
+            self.memory.reset_short_term()
 
     def __init__(self, agent_id: str, model_key: str,
                  tools: ToolSet, memory: AgentMemory,
@@ -506,16 +533,9 @@ class Worker:
         # P1-2: i file .py toccati sono per-task (non ereditati).
         if hasattr(self.tools, "reset_touched"):
             self.tools.reset_touched()
-        # 🆕 Fix: reset completo memoria per evitare eredità da task precedenti
-        try:
-            if hasattr(self.memory, 'events'):
-                self.memory.events = []
-            if hasattr(self.memory, 'long_term'):
-                self.memory.long_term = []
-            if hasattr(self.memory, 'reset_short_term'):
-                self.memory.reset_short_term()
-        except Exception:
-            pass
+        # 🆕 Fix Cycle 147: reset completo memoria, `working` incluso.
+        # Senza questo, build_context() leggeva gli eventi dei run precedenti.
+        self._reset_task_memory()
         # 🆕 Q6 — Chiarimento interattivo (Fase 9): se il task è ambiguo,
         # rileva le domande e arricchisce il task con le risposte (se
         # disponibili), PRIMA di scegliere il percorso di esecuzione
@@ -941,7 +961,9 @@ class Worker:
             action_key = f"{canonical_tool}:{json.dumps(args)}"
             repeated_actions[action_key] = repeated_actions.get(action_key, 0) + 1
             if repeated_actions[action_key] >= 3:
-                blocked_actions.add(canonical_tool)
+                read_only = canonical_tool in self.READ_ONLY_TOOLS
+                if not read_only:
+                    blocked_actions.add(canonical_tool)
                 forced_pivots += 1
                 if forced_pivots > max_forced_pivots:
                     reason = (f"circuit breaker: {forced_pivots} pivot "
@@ -951,10 +973,21 @@ class Worker:
                         "type": "circuit_breaker_stop", "content": reason})
                     return f"ERROR: {reason}"
                 self.log.warning(f"[{self.agent_id}] CIRCUIT BREAKER: Action {tool_name} repeated 3x with same args. Forcing pivot.")
+                if read_only:
+                    # Nessun blocco permanente: il tool resta disponibile,
+                    # ma il contatore riparte per costringere a un approccio
+                    # diverso. Il guardiano dei pivot limita comunque i loop.
+                    for key in [k for k in repeated_actions
+                                if k.split(":", 1)[0] == canonical_tool]:
+                        repeated_actions.pop(key, None)
+                    hint = ("The tool is read-only and stays available, but "
+                            "repeating it is not helping. Change approach.")
+                else:
+                    hint = ("The system blocked this action. ANALYZE why it "
+                            "fails and change approach completely.")
                 prompt = (
                     f"ERROR: you tried {tool_name}({args}) 3 times with the same result. "
-                    "The system blocked this action. ANALYZE why it fails and change approach completely. "
-                    "Do not repeat the action.\n\n"
+                    f"{hint} Do not repeat the action.\n\n"
                     "Next step (JSON only):"
                 )
                 continue
@@ -1595,18 +1628,6 @@ class Worker:
         "GUI/refs/debt_ledger.md": [
             "ledger", "debt", "refactor", "next", "mark", "done",
             "item", "coda", "stale", "context",
-        ],
-        "GUI/refs/orchestrator_api.md": [
-            "orchestrator", "preflight", "queue", "swarm_status",
-            "run_direct", "bootstrap",
-        ],
-        "GUI/refs/ledger_api.md": [
-            "ledger", "debt", "add", "next", "mark", "stats",
-            "item", "coda",
-        ],
-        "GUI/refs/task_queue.md": [
-            "taskqueue", "task queue", "coda", "queue",
-            "claim_by_id", "mark_done", "tasks_count",
         ],
     }
 

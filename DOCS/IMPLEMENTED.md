@@ -3088,4 +3088,29 @@ un'ipotesi da A/B a freddo. L'A/B live non è stato eseguito.
 | Leva A/B unica | Solo i ref API: `orchestrator_api.md`, `ledger_api.md`, `task_queue.md` nel prompt quando i relativi simboli compaiono nel task. `GUI/refs/task_queue.md` è validato da `tools/validate_refs.py` (0 discrepanze) |
 | Bug tenuto | Fix `--dry-run` (`by_granularity.items()`) perché è fuori dall'ipotesi A/B e non tocca l'inferenza |
 | Gate | **58 test mirati passati**, `pyflakes`, `dry-run`, `validate_refs`, `git diff --check` puliti. Nessuna modifica a prompt, marker o soglia termica |
-| Stato | ⏳ misura live A/B in corso col gate invariato: il confronto è contro Cycle 143 (5/11, GUI 1/3), non contro Cycle 144 |
+| Misura | ❌ A/B **negativo**: `eval_by_slot.py` EXIT 0, Modalità LIVE, **3/11 (27%)** e widget **1/3 (33%)**. Rispetto a Cycle 143 i widget sono invariati e il totale è peggiorato; non c'è evidenza di beneficio |
+| Decisione | Revert della leva ref API: si torna al comportamento Cycle 143. Prossima singola leva: circuit breaker sui tool ripetuti, perché in questo run ha chiuso 4 casi (`write_file`, `analyze_project`) |
+
+---
+
+## Cycle 146 (2026-11-24) — A/B: breaker soft sui tool read-only
+
+| Azione | Dettaglio |
+|---|---|
+| Revert | Rimossi i tre ref API da `_REF_KEYWORDS`, `GUI/refs/task_queue.md` e il test dedicato; CI aggiornata di conseguenza. Harness resta Cycle 143 |
+| Leva A/B unica | `Worker.READ_ONLY_TOOLS`: `read_file`, `analyze_project`, `list_files`, `git_status` ecc. non vengono più **bloccati** dopo 3 chiamate identiche: il pivot resta obbligatorio e il contatore riparte, mentre il guardiano dei pivot (max 2) ferma i loop persistenti. Scritture/spostamenti/cancellazioni restano bloccate come prima |
+| Motivo misurato | Cycle 145: 4 chiusure per circuit breaker, di cui `analyze_project` in `eval-api-01` e `eval-gui-03`; Cycle 144: `read_file` in `eval-gui-02`. Confronto: Cycle 143 5/11 e GUI 1/3 |
+| Test | 3 test su breaker: scritture bloccate, read-only disponibile dopo il pivot, loop persistente fermato. **89 passed**, 17 subtests; `pyflakes`, `git diff --check` puliti |
+| Misura | ⚠️ A/B **inconclusivo**: EXIT 0, Modalità LIVE, **4/11 (36%)** e widget **1/3 (33%)**. +1 caso vs Cycle 145 (`refactor-01`), ma −1 vs baseline 143 e GUI invariata |
+| Decisione | Nessuna prova di beneficio: la leva resta in attesa di confronto ripetuto o di una leva successiva. Nessun verdetto Middle alzato; prossima ipotesi in coda: contesto/overflow (`CORE/memory.py`, item #7 del ledger) |
+
+---
+
+## Cycle 147 (2026-11-25) — A/B: contesto iniziale senza eventi dei run precedenti
+
+| Azione | Dettaglio |
+|---|---|
+| Premessa misurata | 836 eventi accumulati nel DB per gli `agent_id` `eval-*`; es. `eval-eval-gui-01` ne ha 163. `build_context()` legge `self.working`, ma `execute()` azzerava solo `events`, `long_term`, `short_term`: gli ultimi 10 eventi del run precedente (`parse_error`, `max_steps_reached`, `fallback_done`, tool allucinati) entravano nel prompt iniziale |
+| Leva A/B unica | Nuovo `Worker._reset_task_memory()`: azzera anche `self.working` prima dell'inferenza. Tutto il resto (breaker soft del Cycle 146, harness Cycle 143, prompt, marker, soglia termica) resta identico al Cycle 146, che è il confronto |
+| Test | `tests/test_context_reset.py`: reset di `working`/`long_term` e prompt iniziale senza eventi stale. **52 passed**, 17 subtests; `pyflakes` e `git diff --check` puliti. Aggiunti a CI `test_usability_hardcore.py` e `test_context_reset.py` |
+| Stato | ⏳ misura live A/B in corso, gate invariato; confronto contro Cycle 146 (4/11, GUI 1/3). Nessun verdetto fino ad accettazione da `eval_by_slot.py` |

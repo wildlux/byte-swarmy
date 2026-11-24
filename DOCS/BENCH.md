@@ -610,3 +610,44 @@ risultato, non per mancata misura.
 Il verdetto è rigenerato dalle source of truth: `DOCS/SLOT5_EVAL_REPORT.md`,
 `DOCS/BRUTAL_HONESTY_REPORT.md`, `DOCS/SELF_IMPROVEMENT_REPORT.md`,
 `DOCS/BLOCKER_PROBE_REPORT.md` e `DOCS/grafici/miglioramenti.svg`.
+
+---
+
+## Middle M7 — Cycle 145, A/B solo ref API (2026-11-24)
+
+| Parametro | Valore |
+|---|---|
+| Harness | Cycle 143 ripristinato: `project/` e `state/` condivisi, routing attivo, nessun `factory.harness` |
+| Leva A/B | Solo iniezione ref API: `orchestrator_api.md`, `ledger_api.md`, `task_queue.md` |
+| Gate | 2400 RPM attestati; media 57.7 °C / picco 60.0 °C, 350 s di cooldown, soglia invariata |
+| Accettazione | `eval_by_slot.py --results ... --out DOCS/SLOT5_EVAL_REPORT.md` → **EXIT 0**, Modalità **LIVE**, `aborted=false` |
+| Verdetto | ❌ **Middle NON raggiunto**: 3/11 (27%) e widget 1/3 (33%) |
+
+| Tipo slot | Passati | Totale | pass@1 | vs 143 | vs 144 |
+|---|---:|---:|---:|---:|---:|
+| `class` | 0 | 1 | 0.00 | = | = |
+| `function` | 2 | 5 | 0.40 | −0.20 | −0.20 |
+| `statement` | 0 | 2 | 0.00 | = | = |
+| `widget` | 1 | 3 | 0.33 | = | +0.33 |
+
+**Lettura onesta**: la leva ref **non ha migliorato i widget** (1/3 come Cycle 143) e il totale è peggiorato (3/11 contro 5/11). È un singolo campione: il dato non dimostra che i ref abbiano causato il calo, ma non c'è evidenza di beneficio. I 4 casi chiusi con errore sono circuit breaker su `write_file` (`eval-minimal-02`) e `analyze_project` (`eval-api-01`, `eval-gui-03`). Nessun asse del radar alzato, nessun verdetto Middle.
+
+---
+
+## Middle M7 — Cycle 146, A/B breaker read-only (2026-11-24)
+
+| Parametro | Valore |
+|---|---|
+| Leva A/B | Tool read-only non bloccati permanentemente dopo 3 chiamate identiche; pivot obbligatorio e contatore ripartito; guardiano dei pivot e blocco duro delle scritture invariati |
+| Gate | 2400 RPM attestati; media 57.9 °C / picco 60.0 °C, 310 s di cooldown, soglia invariata |
+| Accettazione | `eval_by_slot.py --results ... --out DOCS/SLOT5_EVAL_REPORT.md` → **EXIT 0**, Modalità **LIVE**, `aborted=false` |
+| Verdetto | ❌ **Middle NON raggiunto**: 4/11 (36%) e widget 1/3 (33%) |
+
+| Tipo slot | Passati | Totale | pass@1 | vs 143 | vs 145 |
+|---|---:|---:|---:|---:|---:|
+| `class` | 0 | 1 | 0.00 | = | = |
+| `function` | 3 | 5 | 0.60 | −0.20 | +0.20 |
+| `statement` | 0 | 2 | 0.00 | = | = |
+| `widget` | 1 | 3 | 0.33 | = | = |
+
+**Lettura onesta**: +1 caso rispetto a Cycle 145 (`eval-refactor-01`), ma ancora 1 caso sotto il baseline Cycle 143 e **nessun miglioramento GUI**. I tool read-only non vengono più chiusi con errore specifico: `eval-api-01` e `eval-gui-03` ora finiscono in `max steps reached`. `eval-minimal-02` resta bloccato su `write_file`, come previsto dal blocco duro mantenuto. Con un solo campione per configurazione non si può attribuire il delta alla leva; non c'è evidenza che raggiunga il 50%.

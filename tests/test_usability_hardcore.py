@@ -514,26 +514,53 @@ class TestHappyWorkflowE2E(unittest.TestCase):
         self.assertEqual(result, "DONE-OK")
         # e NON deveARE andare in loop infinito (MAX_STEPS fa bound)
 
-    def test_circuit_breaker_blocca_ripetizione_dopo_pivot(self):
-        # Dopo aver forzato il pivot, lo stesso tool (anche con alias)
-        # deve chiudere subito con un errore diagnosticabile: non può
+    def test_circuit_breaker_blocca_scritture_dopo_pivot(self):
+        # Le scritture restano bloccate dopo il pivot: non possono
         # consumare tutti gli step inutilmente.
         memory = AgentMemory("cb-block", self.tmp / "state", None, logger)
         plan = [
-            {"thought": "analizzo", "action": "analyze", "args": [], "done": False}
-            for _ in range(3)
+            {"thought": "scrivo", "action": "write",
+             "args": ["nota.py", "x = 1\n"], "done": False}
+            for _ in range(4)
         ]
-        plan.append(
-            {"thought": "analizzo ancora", "action": "analyze_project",
-             "args": [], "done": False})
         worker = Worker("cb-block", "worker_coder", self.tools, memory,
                         _ScriptedModel(plan), logger)
         result = worker.execute({
             "id": "cb-block-1", "title": "breaker bloccato",
             "description": "nessun progresso dopo il pivot"})
         self.assertTrue(result.startswith("ERROR: circuit breaker"), result)
-        self.assertIn("analyze_project", result)
+        self.assertIn("write_file", result)
         self.assertNotIn("max steps reached", result)
+
+    def test_circuit_breaker_read_only_non_blocca_dopo_pivot(self):
+        # Cycle 146: analyze_project è read-only. Dopo il pivot il tool
+        # resta disponibile e il worker può finire il task.
+        memory = AgentMemory("cb-read", self.tmp / "state", None, logger)
+        plan = [
+            {"thought": "analizzo", "action": "analyze", "args": [], "done": False}
+            for _ in range(4)
+        ]
+        worker = Worker("cb-read", "worker_coder", self.tools, memory,
+                        _ScriptedModel(plan), logger)
+        result = worker.execute({
+            "id": "cb-read-1", "title": "breaker read-only",
+            "description": "il tool resta disponibile dopo il pivot"})
+        self.assertEqual(result, "DONE-OK")
+
+    def test_circuit_breaker_read_only_ferma_i_loop_persistenti(self):
+        # Niente blocco del tool, ma il guardiano dei pivot ferma i loop.
+        memory = AgentMemory("cb-loop", self.tmp / "state", None, logger)
+        plan = [
+            {"thought": "analizzo", "action": "analyze", "args": [], "done": False}
+            for _ in range(10)
+        ]
+        worker = Worker("cb-loop", "worker_coder", self.tools, memory,
+                        _ScriptedModel(plan), logger)
+        result = worker.execute({
+            "id": "cb-loop-1", "title": "breaker loop",
+            "description": "troppi pivot forzati senza progresso"})
+        self.assertTrue(result.startswith("ERROR: circuit breaker"), result)
+        self.assertIn("pivot forzati", result)
 
     def test_injection_envelope_ships_properly(self):
         # Modelli piccoli emettono "path, content": l'envelope deve raffrontare → write_file
