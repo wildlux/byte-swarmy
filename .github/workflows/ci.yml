@@ -51,6 +51,12 @@ jobs:
             tests/test_feedback_corpus.py \
             tests/test_curate_corpus.py \
             tests/test_clarifier.py \
+            tests/test_routing.py \
+            tests/fuzz_security.py \
+            tests/test_regex_inventory.py \
+            tests/test_subagent.py \
+            tests/test_ref_api_injection.py \
+            tests/test_run_eval_live.py \
             -q -p no:cacheprovider --no-header
 
       - name: "Security scan (baseline: 7 errori)"
