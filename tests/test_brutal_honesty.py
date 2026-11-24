@@ -5,6 +5,7 @@ Nessun LLM, rete o GPU: legge pyflakes, TOML, corpus e documenti locali.
 """
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -64,3 +65,56 @@ def test_modulo_non_importa_client_llm():
     for forbidden in ("import requests", "import urllib", "from CORE.models",
                       "OllamaClient", "generate_response"):
         assert forbidden not in src
+
+
+def _live_file(tmp_path: Path, *, fan_rpm: int = 2400,
+               aborted: bool = False) -> Path:
+    from tools import eval_by_slot as es
+
+    cases = es.load_cases()
+    records = [{
+        "case_id": c["id"],
+        "slot_kind": es.classify(c),
+        "output_lines": 10,
+        "passed": i % 2 == 0,
+    } for i, c in enumerate(cases)]
+    payload = {
+        "source": "live",
+        "thermal": {"fan_rpm": fan_rpm, "temp_c": 58.3,
+                    "temp_max_c": 60.0},
+        "records": records,
+        "aborted": aborted,
+    }
+    path = tmp_path / "eval_live_results.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
+def test_live_snapshot_accetta_solo_evidenza_termica(tmp_path):
+    ok = bh.live_snapshot(_live_file(tmp_path))
+    assert ok["accepted"] is True
+    assert ok["cases"] >= 10
+    assert ok["passed"] > 0
+
+    rejected = bh.live_snapshot(_live_file(tmp_path / "sub", fan_rpm=0))
+    assert rejected["accepted"] is False
+    assert "nessun surrogato" in rejected["reason"]
+
+    aborted = bh.live_snapshot(
+        _live_file(tmp_path / "abort", aborted=True))
+    assert aborted["accepted"] is False
+    assert aborted["aborted"] is True
+
+
+def test_report_racconta_live_misurato_o_non_misurato(tmp_path):
+    snap = bh.collect_all()
+    snap["live"] = bh.live_snapshot(_live_file(tmp_path))
+    text = bh.markdown(snap)
+    assert "Pass@1 live (SLOT-5)" in text
+    assert "Il task GUI live è **misurato**" in text
+    assert "E3 live è misurato" in text
+
+    snap["live"] = bh.live_snapshot(_live_file(tmp_path / "sub", fan_rpm=0))
+    text = bh.markdown(snap)
+    assert "Il task GUI live resta 🔒 non misurato." in text

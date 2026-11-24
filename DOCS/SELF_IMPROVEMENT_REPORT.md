@@ -6,19 +6,19 @@ _Fonte: `data/state` — generato deterministicamente, zero LLM._
 
 | Metrica | Valore |
 |---|---|
-| Triple totali | 72 |
-| Triple uniche | 24 |
+| Triple totali | 82 |
+| Triple uniche | 26 |
 | Task distinti | 20 |
-| Tasso primo colpo | 0.958 |
-| Tasso correzione | 0.042 |
+| Tasso primo colpo | 0.841 |
+| Tasso correzione | 0.159 |
 
 | Verdetto | Conteggio | Quota |
 |---|---|---|
-| `done` | 69 | 95.8% |
+| `done` | 69 | 84.1% |
+| `corrected` | 13 | 15.9% |
 | `failed_definitively` | 0 | 0.0% |
-| `corrected` | 3 | 4.2% |
 
-> ⚠️ **Brutal honesty**: il tasso primo colpo è calcolato sulle 72 triple del corpus (24 uniche, 20 task distinti). Sono **fixture interne** (test, adversarial, regressioni), non task utente reali: non dimostra la soglia '≥50% task chiusi al primo tentativo'. Task GUI live: non misurato.
+> ⚠️ **Brutal honesty**: il tasso primo colpo è calcolato sulle 82 triple del corpus (26 uniche, 20 task distinti). Sono **fixture interne** (test, adversarial, regressioni), non task utente reali: non dimostra la soglia '≥50% task chiusi al primo tentativo'. Task GUI live: misurato 0/3 (0%); sotto la soglia del 50%.
 
 ## Gate e apprendimento
 

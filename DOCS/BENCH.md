@@ -472,11 +472,12 @@ prompt viene promosso finché non arriva un esperimento reale con gate termico.
 | Accettazione risultati live | Richiede `source: "live"` **e** `fan_rpm > 0`, `temp_c ≤ 60`; altrimenti exit 2 |
 | Esito dry-run | tabelle per slot e per dimensione da hash del `case_id` — **simulazione, non misura** |
 | Report | `DOCS/SLOT5_EVAL_REPORT.md` (rigenerato dal tool) |
-| Criterio done | 🔒 incompleto: servono 12+ casi reali con modello e ventole verificate |
+| Criterio done | ✅ misurato il 2026-11-24: 11 casi con worker reale; ❌ soglia Middle non raggiunta |
 
 Il reporter rifiuta `case_id` sconosciuti/duplicati, `slot_kind` non ammessi e
-qualsiasi `source` diverso da `live`/`simulation`. Nessun asse del radar viene
-alzato: SLOT-5 resta `[~]` finché la tabella non contiene dati misurati.
+qualsiasi `source` diverso da `live`/`simulation`. La tabella contiene ora dati
+misurati (vedi "Middle M7" in fondo): SLOT-5 è `[x]` come **misura**, ma nessun
+asse del radar viene alzato perché la soglia resta sotto il 50%.
 
 ---
 
@@ -531,3 +532,81 @@ con ventole verificate.
 L'harness NON chiama il decision model: riceve pareri già prodotti esternamente
 e verifica a runtime che nessun parere possa ribaltare il gate. L'invariante è
 lockata da test parametrizzati su tutte le 6 combinazioni gate×giudice.
+
+---
+
+## Middle M7 — Cycle 143, misura live accettata (2026-11-24)
+
+| Parametro | Valore |
+|---|---|
+| Esecuzione | `tools/run_eval.py --live`, worker reale, un caso per volta |
+| Gate | `fan_verified.json` VALIDO, 2400 RPM attestati; media 58.3 °C / picco 60.0 °C su 5 campioni |
+| Policy termica | media **e** picco ≤ 60 °C; raffreddamento 180 s tra i casi (max 900 s, poll 10 s), soglia invariata |
+| Accettazione | `tools/eval_by_slot.py --results data/state/eval_live_results.json` → **EXIT 0**, Modalità **LIVE** |
+| Casi | 13 totali: 11 con `expected_marker` eseguiti, 2 gate/chiarimento esclusi |
+| Completezza | `aborted=false`; nessun risultato parziale o surrogato accettato |
+| Regola pass@1 | marker presente nei file toccati, nessun prefisso `ERROR`, `last_attempts <= 1` |
+| Verdetto | ❌ **Middle NON raggiunto**: 5/11 complessivi (45%) e widget 1/3 (33%), entrambi < 50% |
+
+| Tipo slot | Passati | Totale | pass@1 |
+|---|---:|---:|---:|
+| `class` | 0 | 1 | 0.00 |
+| `function` | 4 | 5 | 0.80 |
+| `statement` | 0 | 2 | 0.00 |
+| `widget` | 1 | 3 | 0.33 |
+
+| Dimensione output | Passati | Totale | pass@1 |
+|---|---:|---:|---:|
+| `small` (0-40 righe) | 5 | 11 | 0.45 |
+
+Le righe derivano da `tools/eval_by_slot.py --results ... --out
+DOCS/SLOT5_EVAL_REPORT.md`: non sono scritte a mano. I dettagli per caso
+(`marker_found`, `attempts`, `error`, righe) sono in
+`data/state/eval_live_results.json` (gitignored). Il Circuit breaker ha forzato
+il pivot in `eval-gui-02`, `eval-minimal-01` e altri casi: quei tentativi
+rientrano nel conteggio reale, non sono stati ritentati per gonfiare pass@1.
+
+Nessun asse del radar viene alzato: la soglia "≥50% task chiusi al primo
+tentativo" e quella GUI "≥50%" non sono soddisfatte. L'A/B live resta 🔒 non
+eseguito e il prompt «situazione critica/apocalisse» non è stato adottato senza
+misura. M7 resta aperto per insufficienza del risultato, non per mancata misura.
+
+---
+
+## Middle M7 — Cycle 144, misura live accettata (2026-11-24)
+
+| Parametro | Valore |
+|---|---|
+| Esecuzione | `tools/run_eval.py --live`, worker reale, un caso per volta, `run_id=a1cc645c` |
+| Gate | `fan_verified.json` VALIDO, 2400 RPM attestati; media 57.9 °C / picco 60.0 °C su 5 campioni |
+| Policy termica | media **e** picco ≤ 60 °C, invariata; 430 s di cooldown tra i casi (max 900 s, poll 10 s) |
+| Preflight | Primo avvio rifiutato a 62 °C; secondo tentativo partito solo dopo due campioni con picco ≤58 °C e modello idle |
+| Accettazione | `tools/eval_by_slot.py --results data/state/eval_live_results.json --out DOCS/SLOT5_EVAL_REPORT.md` → **EXIT 0**, Modalità **LIVE** |
+| Harness | `isolated_workspaces=True`, `isolated_memory=True`, `routing_disabled=True` |
+| Casi | 13 totali: 11 con `expected_marker` eseguiti, 2 gate/chiarimento esclusi; `aborted=false` |
+| Verdetto | ❌ **Middle NON raggiunto**: 3/11 complessivi (27%) e widget 0/3 (0%), entrambi < 50% |
+
+| Tipo slot | Passati | Totale | pass@1 | vs Cycle 143 |
+|---|---:|---:|---:|---:|
+| `class` | 0 | 1 | 0.00 | = |
+| `function` | 3 | 5 | 0.60 | −0.20 |
+| `statement` | 0 | 2 | 0.00 | = |
+| `widget` | 0 | 3 | 0.00 | −0.33 |
+
+| Dimensione output | Passati | Totale | pass@1 |
+|---|---:|---:|---:|
+| `small` (0-40 righe) | 3 | 10 | 0.30 |
+| `medium` (41-120 righe) | 0 | 1 | 0.00 |
+
+**Lettura onesta**: è una **regressione** rispetto a Cycle 143 (5/11, GUI 1/3),
+non un miglioramento. Le tre leve P0/P1 sono state misurate insieme: non si può
+attribuire la regressione a una singola leva. `eval-gui-02`, che era passato,
+ora chiude con `ERROR: circuit breaker: read_file bloccato dopo 3 tentativi`;
+`eval-gui-01` produce 2 righe e `eval-gui-03` 61 righe senza il marker. Nessun
+asse del radar viene alzato; l'A/B live resta non eseguito e il prompt
+«apocalisse» non è stato adottato. M7 resta aperto per insufficienza del
+risultato, non per mancata misura.
+
+Il verdetto è rigenerato dalle source of truth: `DOCS/SLOT5_EVAL_REPORT.md`,
+`DOCS/BRUTAL_HONESTY_REPORT.md`, `DOCS/SELF_IMPROVEMENT_REPORT.md`,
+`DOCS/BLOCKER_PROBE_REPORT.md` e `DOCS/grafici/miglioramenti.svg`.

@@ -3043,3 +3043,49 @@ interrotti a 67 °C sotto inferenza. Nessun verdetto Middle scritto.
 Le ottimizzazioni 4 (sweep `num_ctx`) e 5 (`model_unload_idle`) restano
 **non eseguite**: richiedono inferenza o misure GPU, vietate dal gate termico.
 M7 resta **non misurato**: nessun verdetto Middle scritto.
+
+---
+
+## Cycle 143 (2026-11-24) — M7 misurato live, sotto soglia
+
+| Azione | Dettaglio |
+|---|---|
+| Run live | `tools/run_eval.py --live` completato con worker reale: 11 casi con marker su 13, `aborted=false`; picco 60,0 °C e media 58,3 °C, 180 s di cooldown tra i casi. Nessuna soglia termica abbassata |
+| Accettazione | `tools/eval_by_slot.py --results data/state/eval_live_results.json` → **EXIT 0**, Modalità **LIVE** (prima misura accettata); i run parziali/surriscaldati restano rifiutati con exit 2 |
+| Misura | 5/11 pass@1 (45%); per slot: `function` 4/5, `widget` 1/3, `class` 0/1, `statement` 0/2. Nessun asse del radar alzato |
+| Verdetto | ❌ **Middle NON raggiunto**: complessivi 45% < 50% e GUI 33% < 50%. M7 resta aperto per risultato insufficiente, non per mancata misura |
+| Source of truth | `tools/brutal_honesty_report.py` legge ora il risultato live accettato (con rifiuto di `aborted`/surrogati); `tools/self_improvement_report.py` non dice più "GUI live non misurato". Report rigenerati: `DOCS/BRUTAL_HONESTY_REPORT.md`, `DOCS/SELF_IMPROVEMENT_REPORT.md`, `DOCS/SLOT5_EVAL_REPORT.md`, `DOCS/BLOCKER_PROBE_REPORT.md`, `DOCS/grafici/miglioramenti.svg` |
+| Test / gate | **64 passed**, 23 subtests su honesty/run_eval/usability/self-improvement. `pyflakes`, `compileall`, `git diff --check` puliti. Nessuna suite completa locale, nessun LLM/GPU extra |
+| Roadmap | `todo.md`: M7 `misurato, sotto soglia`; M8 resta `⛔ non fare ora` |
+
+Il prompt «situazione critica/apocalisse» non è stato adottato: resta solo
+un'ipotesi da A/B a freddo. L'A/B live non è stato eseguito.
+
+---
+
+## Cycle 144 (2026-11-24) — harness benchmark isolato (modifiche offline, da misurare)
+
+| Azione | Dettaglio |
+|---|---|
+| Analisi | Nei 6 casi falliti del run accettato: `marker_found=false`, `attempts=1`, `error=null`. Non sono errori di esecuzione ma contenuto scritto nel posto sbagliato. `worker_granite` (routing sticky) 2/7, `worker_coder` 3/4; i GUI passati sono quelli rimasti sul modello dichiarato |
+| **1) Isolamento per caso** | `tools/run_eval.py::prepare_eval_workspace()` copia `evals/project_seed/` e le cheat sheet reali da `GUI/refs/` in una workspace dedicata per ogni caso; niente più `project/` condiviso con `PR_TEST_*`, `test2_math_utils` o `__pycache__` di altri task. `_IsolatedWorker` isola anche `persistent_memory.json` e `state/`, ripristinando il path globale alla fine |
+| **2) Routing disattivato nel solo benchmark** | `Worker(..., no_routing=False)` default; il factory live passa `no_routing=True`, quindi nessun passaggio a `worker_granite` e nessuna isteresi tra casi. `--allow-routing` è opt-in esplicito e ripristina il comportamento storico. Il routing globale dell'applicazione non cambia |
+| **3) Ref API mancanti** | `_REF_KEYWORDS` ora include `orchestrator_api.md`, `ledger_api.md` e il nuovo `GUI/refs/task_queue.md` (API corrette: `add`, `claim_by_id`, `mark_done`, `tasks_count`). I ref vengono copiati nella workspace, quindi `_build_refs_block()` li trova davvero |
+| Anti-falso-positivo | Il seed NON contiene i marker specifici dei casi: `utils/greet.py` e `main.py` sono solo commenti. Test dedicato blocca ogni futura contaminazione dei marker (tranne il generico `def `, già presente nel seed storico) |
+| Bug corretto | `--dry-run` stampava `by_granularity` come tupla invece che come dict: `ValueError` a fine stampa. Ora `for g, n in sorted(...items())` |
+| Test / gate | Suite completa: **1218 passed**, 3 skipped, 1 xfailed, 1071 subtests (1 failure su `GUI/refs/task_queue.md`, corretto e riverificato: `validate_refs.py` → 0 discrepanze). **106 passed** sui test mirati; `pyflakes`, `compileall`, `git diff --check` puliti. Nessun LLM o GPU in questa fase |
+| Misura | ⛔ **Regressione misurata**: `eval_by_slot.py` → EXIT 0, Modalità LIVE, ma **3/11 (27%)** e widget **0/3 (0%)** contro 5/11 e 1/3 di Cycle 143. Primo avvio rifiutato a 62 °C, poi partito dopo raffreddamento ≤58 °C; gate e soglia invariati, `aborted=false` |
+| Lettura | Le tre leve sono state misurate insieme: il dato non isola la causa. `eval-gui-02` è peggiorato per circuit breaker su `read_file`; `gui-01` e `gui-03` non contengono il marker. Nessun verdetto Middle alzato; report rigenerati da source of truth |
+
+---
+
+## Cycle 145 (2026-11-24) — ripristino Cycle 143, A/B una leva sola
+
+| Azione | Dettaglio |
+|---|---|
+| Decisione | Dopo la regressione misurata, l'utente ha scelto: ripristinare l'harness Cycle 143 e testare **una leva alla volta** |
+| Ripristino | `CORE/worker.py` e `tools/run_eval.py` riportati a `19c6c47`: niente `no_routing`, niente workspace/state/memory isolate, `project/` condiviso, routing attivo. Rimossi `evals/project_seed/` e `tests/test_eval_isolation.py`; `tests/test_run_eval_live.py` ripristinato |
+| Leva A/B unica | Solo i ref API: `orchestrator_api.md`, `ledger_api.md`, `task_queue.md` nel prompt quando i relativi simboli compaiono nel task. `GUI/refs/task_queue.md` è validato da `tools/validate_refs.py` (0 discrepanze) |
+| Bug tenuto | Fix `--dry-run` (`by_granularity.items()`) perché è fuori dall'ipotesi A/B e non tocca l'inferenza |
+| Gate | **58 test mirati passati**, `pyflakes`, `dry-run`, `validate_refs`, `git diff --check` puliti. Nessuna modifica a prompt, marker o soglia termica |
+| Stato | ⏳ misura live A/B in corso col gate invariato: il confronto è contro Cycle 143 (5/11, GUI 1/3), non contro Cycle 144 |

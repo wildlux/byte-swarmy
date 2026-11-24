@@ -457,7 +457,7 @@ def main(argv=None) -> int:
         for axis, n in sorted(s["by_axis"].items()):
             print(f"  {axis}: {n}")
         print("\nPer granularità:")
-        for g, n in sorted(s["by_granularity"]):
+        for g, n in sorted(s["by_granularity"].items()):
             print(f"  {g}: {n}")
     return 1 if errors else 0
 

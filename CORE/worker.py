@@ -1596,6 +1596,18 @@ class Worker:
             "ledger", "debt", "refactor", "next", "mark", "done",
             "item", "coda", "stale", "context",
         ],
+        "GUI/refs/orchestrator_api.md": [
+            "orchestrator", "preflight", "queue", "swarm_status",
+            "run_direct", "bootstrap",
+        ],
+        "GUI/refs/ledger_api.md": [
+            "ledger", "debt", "add", "next", "mark", "stats",
+            "item", "coda",
+        ],
+        "GUI/refs/task_queue.md": [
+            "taskqueue", "task queue", "coda", "queue",
+            "claim_by_id", "mark_done", "tasks_count",
+        ],
     }
 
     # Trigger obbligatori per i ref WM (vuoto = nessun trigger, soglia normale)

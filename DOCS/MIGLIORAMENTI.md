@@ -55,7 +55,7 @@ verso il goal; il progresso è un numero, non un'impressione.
 | Voce | Correzione applicata |
 |---|---|
 | Zero Warning | **Storia onesta**: il run3 2026-11-19 ebbe 0 pytest warning; al Cycle 100 pyflakes era riaperto con 23 finding. Ora (Cycle 102) è **0 finding sul codice attivo**, verdetto ✅ nel [report deterministico](BRUTAL_HONESTY_REPORT.md). |
-| First-try 0.958 | Il numero è su **fixture interne** (test/adversarial/regressioni), non task utente. Il task GUI live resta non misurato. |
+| First-try 0.958 | Il numero è su **fixture interne** (test/adversarial/regressioni), non task utente. Il task GUI live è ora **misurato** (1/3, 33%): sotto soglia, nessun asse alzato. |
 | Copertura retrieval 100% | Significa solo “testo indicizzabile presente”, non qualità del retrieval. |
 | Best-of-N | Configurabile, ma `fast_lane.enabled=false` e `best_of_n=1`: **non attivo a runtime**. |
 | 41 meccanismi | Sono **documentati/implementati**; non tutti abilitati o runtime, e alcuni sono report/harness. |

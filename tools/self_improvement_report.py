@@ -99,13 +99,25 @@ def collect(state_dir=DEFAULT_STATE) -> dict:
 
 
 def _first_try_caveat(c: dict, r: dict) -> str:
+    from tools import brutal_honesty_report as bh
+
+    live = bh.live_snapshot()
+    if live["accepted"] and live["cases"]:
+        widget = live["by_slot"].get("widget", {})
+        p, t = widget.get("passed", 0), widget.get("total", 0)
+        rate = float(widget.get("rate", 0))
+        gui = (f"Task GUI live: misurato {p}/{t} ({rate:.0%}); "
+               + ("sopra" if rate >= 0.5 else "sotto")
+               + " la soglia del 50%.")
+    else:
+        gui = "Task GUI live: 🔒 non misurato."
     return (
         "> ⚠️ **Brutal honesty**: il tasso primo colpo è calcolato sulle "
         f"{c['samples']} triple del corpus ({c['unique']} uniche, "
         f"{r['tasks']} task distinti). Sono **fixture interne** (test, "
         "adversarial, regressioni), non task utente reali: non dimostra "
         "la soglia '≥50% task chiusi al primo tentativo'. "
-        "Task GUI live: non misurato."
+        + gui
     )
 
 

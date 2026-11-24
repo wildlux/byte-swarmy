@@ -159,6 +159,44 @@ def docs_snapshot() -> dict:
     }
 
 
+def live_snapshot(results_path: Path | None = None) -> dict:
+    """Misura SLOT-5 live: solo se `eval_by_slot` accetta l'evidenza termica.
+
+    Nessun numero viene scritto a mano: il file parziale o surriscaldato è
+    rifiutato dal reporter e resta 'non misurato'.
+    """
+    from tools import eval_by_slot as es
+
+    path = Path(results_path or (ROOT / "data" / "state" /
+                                 "eval_live_results.json"))
+    empty = {"accepted": False, "cases": 0, "passed": 0, "by_slot": {},
+             "by_size": {}, "temp_c": None, "temp_max_c": None,
+             "fan_rpm": None, "cooldown_waited_s": None,
+             "aborted": None, "reason": ""}
+    if not path.is_file():
+        return {**empty, "reason": "file risultati assente"}
+    try:
+        data, live = es.load_results(path, es.load_cases())
+        summary = es.summarize(data)
+        thermal = data.get("thermal") or {}
+        aborted = bool(data.get("aborted"))
+        return {
+            "accepted": bool(live and not aborted),
+            "cases": summary["total"],
+            "passed": sum(1 for r in data["records"] if r.get("passed")),
+            "by_slot": summary["by_slot"],
+            "by_size": summary["by_size"],
+            "temp_c": thermal.get("temp_c"),
+            "temp_max_c": thermal.get("temp_max_c"),
+            "fan_rpm": thermal.get("fan_rpm"),
+            "cooldown_waited_s": thermal.get("cooldown_waited_s"),
+            "aborted": aborted,
+            "reason": "",
+        }
+    except Exception as exc:
+        return {**empty, "reason": f"{type(exc).__name__}: {exc}"[:160]}
+
+
 def collect_all(state_dir=None) -> dict:
     from tools import gen_grafici as g
 
@@ -168,6 +206,7 @@ def collect_all(state_dir=None) -> dict:
         "corpus": corpus_snapshot(state_dir),
         "retrieval": retrieval_snapshot(state_dir),
         "docs": docs_snapshot(),
+        "live": live_snapshot(),
         "counters": {
             "mechanisms": g.mechanism_count(),
             "skills": g.skill_count(),
@@ -214,6 +253,23 @@ def _verdict_rows(s: dict) -> list:
     lane_detail = (f"`fast_lane.enabled={str(cfg['fast_lane_enabled']).lower()}`, "
                    f"`best_of_n={cfg['best_of_n']}`")
 
+    live = s["live"]
+    if live["accepted"] and live["cases"]:
+        widget = live["by_slot"].get("widget", {})
+        overall = live["passed"] / live["cases"]
+        widget_rate = float(widget.get("rate", 0))
+        if overall >= 0.5 and widget_rate >= 0.5:
+            live_verdict = "✅ MISURATO / SOGLIA RAGGIUNTA"
+        else:
+            live_verdict = "❌ MISURATO / SOTTO SOGLIA"
+        live_detail = (
+            f"{live['passed']}/{live['cases']} casi ({overall:.0%}); "
+            f"widget {widget.get('passed', 0)}/{widget.get('total', 0)} "
+            f"({widget_rate:.0%}); T max {live['temp_max_c']} °C")
+    else:
+        live_verdict = "🔒 NON MISURATO"
+        live_detail = live["reason"] or "nessuna evidenza live accettata"
+
     return [
         ("Zero Warning (pyflakes)", *zero),
         ("best-of-N 'attivo (fast lane)'", lane, lane_detail),
@@ -221,6 +277,7 @@ def _verdict_rows(s: dict) -> list:
          f"{corpus['total']} triple, {corpus['unique']} uniche, "
          f"{corpus['tasks']} task distinti; "
          f"{corpus['unique_first_try_rate']:.3f} sugli unici"),
+        ("Pass@1 live (SLOT-5)", live_verdict, live_detail),
         ("Copertura retrieval 100%", "⚠️ DEFINIZIONE RISTRETTA",
          f"{ret['indexed']}/{ret['tasks']}: solo presenza di testo "
          "indicizzabile, non qualità del retrieval"),
@@ -234,6 +291,20 @@ def _verdict_rows(s: dict) -> list:
 def _doc_rows(docs: dict) -> list:
     return [(label, "✅" if docs[key] else "❌")
             for key, label in DOC_LABELS.items()]
+
+
+def _live_note(s: dict) -> str:
+    live = s["live"]
+    if not (live["accepted"] and live["cases"]):
+        return "Il task GUI live resta 🔒 non misurato."
+    widget = live["by_slot"].get("widget", {})
+    return (
+        f"Il task GUI live è **misurato**: widget "
+        f"{widget.get('passed', 0)}/{widget.get('total', 0)} "
+        f"({float(widget.get('rate', 0)):.0%}); "
+        f"complessivi {live['passed']}/{live['cases']} "
+        f"({live['passed'] / live['cases']:.0%})."
+    )
 
 
 def _corpus_rows(corpus: dict) -> list:
@@ -269,8 +340,7 @@ def markdown(s: dict) -> str:
         "(test, adversarial, regressioni), non task utente reali: "
         "non può dimostrare la soglia '≥50% task chiusi al primo tentativo' "
         "del radar. Sugli unici task distinti il valore è "
-        f"`{corpus['unique_first_try_rate']:.3f}`; il task GUI live resta "
-        "🔒 non misurato.",
+        f"`{corpus['unique_first_try_rate']:.3f}`. {_live_note(s)}",
         "",
     ]
     lines += _table(("File corpus", "Triple", "First-try"),
@@ -286,7 +356,10 @@ def markdown(s: dict) -> str:
         "- La suite completa non è stata rieseguita in questo ciclo: "
         "l'ultima green resta il run3 del 2026-11-19.",
         "- E1/E2 sono gate validati su campioni sintetici, non una garanzia "
-        "repo-wide; E3 live e A/B live restano 🔒 bloccati termicamente.",
+        "repo-wide; "
+        + ("E3 live è misurato; A/B live resta 🔒 non eseguito."
+           if s["live"]["accepted"] else
+           "E3 live e A/B live restano 🔒 bloccati termicamente."),
         "",
     ]
     return "\n".join(lines)

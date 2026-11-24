@@ -10,6 +10,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -109,7 +110,24 @@ class TestSelfImprovementReport(unittest.TestCase):
         md = markdown(collect(self.tmp))
         self.assertIn("fixture interne", md)
         self.assertIn("non misura la qualità del retrieval", md)
-        self.assertIn("Task GUI live: non misurato", md)
+        self.assertIn("Task GUI live:", md)
+
+    def test_caveat_gui_live_segue_le_misure(self):
+        self._write("t1", [self._triple("t1", "done")])
+        measured = {"accepted": True, "cases": 11, "passed": 5,
+                    "by_slot": {"widget": {"passed": 2, "total": 3,
+                                           "rate": 0.6667}}}
+        with patch("tools.brutal_honesty_report.live_snapshot",
+                   return_value=measured):
+            md = markdown(collect(self.tmp))
+        self.assertIn("Task GUI live: misurato 2/3 (67%); sopra", md)
+
+        unmeasured = {"accepted": False, "cases": 0, "passed": 0,
+                      "by_slot": {}}
+        with patch("tools.brutal_honesty_report.live_snapshot",
+                   return_value=unmeasured):
+            md = markdown(collect(self.tmp))
+        self.assertIn("Task GUI live: 🔒 non misurato", md)
 
 
 if __name__ == "__main__":
