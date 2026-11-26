@@ -39,3 +39,21 @@ def get_tool(name: str) -> Optional[Callable]:
 def list_tools() -> list:
     """Lista dei nomi dei tool registrati."""
     return sorted(TOOL_REGISTRY)
+
+
+# Caricamento dinamico dei tool generati (approvati via tool_proposer).
+try:
+    import importlib.util
+    from pathlib import Path
+    _gen = Path(__file__).resolve().parent / "generated_tools.py"
+    if _gen.exists():
+        _spec = importlib.util.spec_from_file_location("CORE.generated_tools", _gen)
+        if _spec and _spec.loader:
+            _mod = importlib.util.module_from_spec(_spec)
+            _spec.loader.exec_module(_mod)
+            for _name in getattr(_mod, "__all__", []):
+                _obj = getattr(_mod, _name, None)
+                if callable(_obj):
+                    TOOL_REGISTRY[_name] = _obj
+except Exception:
+    pass
