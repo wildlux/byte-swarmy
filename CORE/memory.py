@@ -115,10 +115,34 @@ class AgentMemory:
                 for e in self.short_term
             ))
 
-        ctx = "\n\n".join(parts)
-        # Stima token ~ 4 char
-        if len(ctx) > max_tokens * 4:
-            ctx = ctx[-(max_tokens * 4):]
+        # Budget per sezione (priorita': CURRENT > RECENT > PAST).
+        # Evita il troncamento cieco che tagliava le info piu' recenti.
+        budget = max_tokens * 4
+        sections = []
+        for text in parts:
+            if text.startswith("## PAST"):
+                sections.append(("PAST", text))
+            elif text.startswith("## RECENT"):
+                sections.append(("RECENT", text))
+            elif text.startswith("## CURRENT"):
+                sections.append(("CURRENT", text))
+            else:
+                sections.append(("OTHER", text))
+        if not sections:
+            ctx = "\n\n".join(parts)
+            if len(ctx) > budget:
+                ctx = ctx[-budget:]
+            return ctx
+
+        weights = {"CURRENT": 0.5, "RECENT": 0.3, "PAST": 0.2, "OTHER": 0.1}
+        total_w = sum(weights.get(s[0], 0.1) for s in sections)
+        result_parts = []
+        for label, text in sections:
+            share = int(budget * (weights.get(label, 0.1) / total_w))
+            if len(text) > share:
+                text = text[:share] + "\n...[truncated]"
+            result_parts.append(text)
+        ctx = "\n\n".join(result_parts)
         return ctx
 
     def compact(self) -> None:
