@@ -20,7 +20,7 @@ User (IT/EN/ZH)
    ▼
 ┌──────────────────────────────────────────────────────┐
 │ Intent Router (INTENT/router.py)                     │
-│ 28 intents × 3 languages, rapidfuzz fuzzy match      │
+│ 29 intents × 3 languages, rapidfuzz fuzzy match      │
 │ → {intent, lang, params, confidence}                 │
 └──────────────────────────────────────────────────────┘
    │
@@ -39,7 +39,7 @@ User (IT/EN/ZH)
 ┌──────────────────────────────────────────────────────┐
 │ Worker (ReAct loop, MAX_STEPS = 10)                  │
 │ Thought → Action (tool) → Observation → Thought      │
-│ 21 tools, sandboxed via bubblewrap                   │
+│ 36 tools, sandboxed via bubblewrap                   │
 │ Streaming tokens → state/streaming.txt               │
 └──────────────────────────────────────────────────────┘
    │
@@ -69,7 +69,7 @@ lifecycle of all other agents.
 ### 1.2 The Intent Router (The Polyglot Greeter)
 
 First line of contact. Classifies free-form user input in Italian, English or
-Chinese into one of 28 intents (314 triggers total) using `rapidfuzz` with a
+Chinese into one of 29 intents (331 triggers total) using `rapidfuzz` with a
 hybrid scorer (subset token match + token_set_ratio + partial_ratio + CJK
 char-coverage + length bonus). Returns `{intent, lang, params, confidence}` with
 a fallback to `generic` when confidence is below threshold.
@@ -157,7 +157,7 @@ Agents use a tiered persistence system:
 
 ---
 
-## 3. Toolset (21 tools)
+## 3. Toolset (36 tools)
 
 The worker can call any of these tools through the sandboxed `ToolSet`:
 

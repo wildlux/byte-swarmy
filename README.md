@@ -284,7 +284,7 @@ Prima di ogni esecuzione, il sistema sceglie il modello worker:
 | **Orchestratore** | Loop principale, dispatch, safety check, swarm commands, execute handler | Python |
 | **Planner** | Scompone i task complessi | Ollama |
 | **Decision Model** | Scompone i task generici in 2–8 sottotask atomici | Ollama (`tev1:4b`) |
-| **Worker** | Esegue il task atomico: 21 tool, ReAct loop, streaming token | Ollama |
+| **Worker** | Esegue il task atomico: 36 tool, ReAct loop, streaming token | Ollama |
 | **Audit Worker** | Reviewer: approva/rifiuta il lavoro del worker | Ollama |
 | **Execute Handler** | Esegue task `type=execute` (gcc/python/make) deterministicamente senza LLM | Python |
 | **Decision Validator** | Pre-flight gate + persistenza feedback SQLite (`CORE/decision_feedback.py`) | Python |
@@ -336,7 +336,7 @@ Prima di ogni esecuzione, il sistema sceglie il modello worker:
 
 Free-form input (Quick Command Bar) passes through `INTENT/router.py` before
 entering the queue: the text is classified with fuzzy matching (`rapidfuzz`)
-against 28 intents in `INTENT/intents.json` (314 triggers total), the language
+against 29 intents in `INTENT/intents.json` (331 triggers total), the language
 is detected (Italian, English, Chinese) and extracted parameters end up in the
 task metadata. If the intent is not recognised with sufficient confidence, the
 task degrades to `generic` and goes through the Decision Model.
@@ -974,7 +974,7 @@ byte-swarmy/
 │   │                          exception_handler, state_recovery,
 │   │                          decision_feedback, correction
 │   ├── orchestrator.py      # Orchestratore, Planner, Worker, Auditor
-│   ├── tools.py             # ToolSet: 21 tools, sandboxed execution
+│   ├── tools.py             # ToolSet: 36 tools, sandboxed execution
 │   ├── sandbox.py           # bubblewrap builder
 │   ├── memory.py            # AgentMemory: short/working/long_term
 │   ├── memory_provider.py   # SQLite event sourcing
@@ -994,7 +994,7 @@ byte-swarmy/
 │   └── constants.py
 ├── INTENT/                  # Router multilingue + metrics
 │   ├── router.py            # IT/EN/ZH classification (rapidfuzz)
-│   ├── intents.json         # 28 intent, 314 trigger
+│   ├── intents.json         # 29 intent, 331 trigger
 │   ├── bridge.py            # Bridge router ↔ GUI/orchestratore
 │   └── metrics.py           # Metriche Ollama + KV cache dinamica
 ├── SAFETY/                  # security.py + watchdog
@@ -1031,7 +1031,7 @@ byte-swarmy/
 ├── SKILLS/                  # Skill Python/PyQt per i worker
 ├── main.py                  # CLI entry point
 ├── byte-swarm.sh            # CLI launcher (alias: bswarm)
-├── avvia.sh / ferma.sh      # Wrapper deprecated (usare byte-swarm.sh)
+├── avvia.sh / ferma.sh      # Wrapper di compatibilità (usati da bswarm.sh)
 ├── AGENT.md / todo.md       # Regole agenti + stato corrente
 ├── Dockerfile / docker-compose.yml
 ├── requirements.txt         # Dipendenze complete (GUI + RE)

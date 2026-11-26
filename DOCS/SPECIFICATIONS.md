@@ -107,7 +107,7 @@ Security is enforced at the **Tool Layer**, not the Prompt Layer.
 - **Circuit Breaker**: 3 identical tool calls (same name + args) force a mandatory prompt pivot.
 
 ### 6.3 Multilingual Intent Routing
-- 28 intents × 3 languages (IT/EN/ZH), 314 triggers in `INTENT/intents.json`.
+- 29 intents × 3 languages (IT/EN/ZH), 331 triggers in `INTENT/intents.json`.
 - Hybrid scoring: subset token match + token_set_ratio + partial_ratio + length bonus; CJK char-coverage fallback.
 - Swarm commands (`swarm_status`, `list_tasks`, `show_logs`, `pause_swarm`, `resume_swarm`, `inspect_memory`, `cancel_task`, `run_audit`) are handled directly by the orchestrator without invoking any LLM.
 

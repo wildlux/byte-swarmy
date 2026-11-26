@@ -2,11 +2,15 @@
 test_docs_consistency.py — C1: le regole scritte devono combaciare col codice.
 
 Controlli puramente testuali/filesystem: nessun LLM, rete o scrittura.
-Protegge le quattro correzioni del Cycle 91: MAX_STEPS, baseline security,
-duplicate GUI/IMPLEMENTED, symlink state → data/state.
+Protegge le correzioni del Cycle 91 (MAX_STEPS, baseline security, duplicate
+GUI/IMPLEMENTED, symlink state → data/state) e i gate successivi: budget di
+AGENT.md, doc estese linkate, conteggi tool/intent allineati al codice,
+link locali risolti, markdown non schiacciato.
 """
 from __future__ import annotations
 
+import json
+import re
 import sys
 from pathlib import Path
 
@@ -86,3 +90,68 @@ def test_docs_estese_esistono_e_sono_linkate():
     for doc in (ARCHITECTURE, OPERATIONS):
         assert doc.exists(), f"documento mancante: {doc.relative_to(ROOT)}"
         assert doc.name in agent, f"{doc.name} non è linkato da AGENT.md"
+
+
+def _conteggi_codice():
+    """Numeri autorevoli: tool signatures e trigger dell'intent router."""
+    from CORE.tools import TOOL_SIGNATURES
+
+    data = json.loads((ROOT / "INTENT" / "intents.json").read_text(
+        encoding="utf-8"))
+    intents = data["intents"]
+    triggers = sum(len(v) for item in intents
+                   for v in item.get("triggers", {}).values())
+    return len(TOOL_SIGNATURES), len(intents), triggers
+
+
+def test_conteggi_tool_e_intent_allineati_al_codice():
+    tools, intents, triggers = _conteggi_codice()
+    readme = ROOT / "README.md"
+    readme_en = ROOT / "DOCS" / "README_EN.md"
+
+    for doc in (readme, readme_en, ARCHITECTURE):
+        text = doc.read_text(encoding="utf-8")
+        assert re.search(rf"\b{tools} tools?\b", text), (
+            f"{doc.name}: numero tool outdated (atteso {tools})"
+        )
+        assert not re.search(r"\b21 tools?\b", text)
+
+    for doc in (readme, readme_en, ARCHITECTURE, SPEC):
+        text = doc.read_text(encoding="utf-8")
+        assert f"{intents} intent" in text, (
+            f"{doc.name}: numero intent outdated (atteso {intents})"
+        )
+        assert f"{triggers} trigger" in text, (
+            f"{doc.name}: numero trigger outdated (atteso {triggers})"
+        )
+        assert not re.search(r"\b28 intents?\b", text)
+        assert not re.search(r"\b314 triggers?\b", text)
+
+
+def test_link_locali_nelle_doc_risolti():
+    docs = [ROOT / "README.md", AGENT] + sorted(
+        (ROOT / "DOCS").glob("*.md"))
+    for doc in docs:
+        text = doc.read_text(encoding="utf-8")
+        for target in re.findall(r"\[[^\]]*\]\(([^)]+)\)", text):
+            target = target.strip().split("#")[0]
+            if not target or target.startswith(
+                    ("http://", "https://", "mailto:")):
+                continue
+            resolved = (doc.parent / target).resolve()
+            assert resolved.exists(), (
+                f"{doc.relative_to(ROOT)}: link rotto → {target}"
+            )
+
+
+def test_markdown_non_schiacciato():
+    docs = [ROOT / "README.md", AGENT] + sorted(
+        (ROOT / "DOCS").glob("*.md"))
+    for doc in docs:
+        longest = max((len(line) for line in
+                       doc.read_text(encoding="utf-8").splitlines()),
+                      default=0)
+        assert longest <= 1000, (
+            f"{doc.relative_to(ROOT)}: riga da {longest} caratteri "
+            "(contenuto schiacciato da una perdita di newlines)"
+        )

@@ -154,7 +154,7 @@ What you can see:
 | **Planner** | Decomposes complex tasks | Ollama |
 | **Decision Model** | Decomposes generic tasks into 2–8 atomic subtasks | Ollama (`tev1:4b`) |
 | **Complexity Router** | Picks heavy vs base coding model by keywords + real impact from the code_map graph | Python |
-| **Worker** | Executes the atomic task: 21 tools, ReAct loop, token streaming | Ollama |
+| **Worker** | Executes the atomic task: 36 tools, ReAct loop, token streaming | Ollama |
 | **Audit Worker** | Reviewer: approves/rejects the worker's output | Ollama |
 | **Model Selector** | 0–100 algorithm to pick the best model per role | Python |
 | **Persistent Memory** | Cross-task memory: files, errors, preferences | Python (JSON) |
@@ -514,7 +514,7 @@ discussion: *"Quanto lontano potrebbe andare il tuo agente in Locale?"*
 
 Free-form input (Quick Command Bar) passes through `INTENT/router.py` before
 entering the queue: the text is classified with fuzzy matching (`rapidfuzz`)
-against 28 intents in `INTENT/intents.json` (314 triggers total), the language
+against 29 intents in `INTENT/intents.json` (331 triggers total), the language
 is detected (Italian, English, Chinese) and extracted parameters end up in the
 task metadata. If the intent is not recognised with sufficient confidence, the
 task degrades to `generic` and goes through the Decision Model.
@@ -667,7 +667,7 @@ byte-swarmy/
 │   │                          execute_handler, decision_feedback,
 │   │                          correction, preflight_cli
 │   ├── orchestrator.py      # Orchestrator, Planner, Worker, Auditor
-│   ├── tools.py             # ToolSet: 21 tools, sandboxed execution
+│   ├── tools.py             # ToolSet: 36 tools, sandboxed execution
 │   ├── sandbox.py           # bubblewrap builder
 │   ├── memory.py            # AgentMemory: short/working/long_term
 │   ├── memory_provider.py   # SQLite event sourcing
@@ -682,7 +682,7 @@ byte-swarmy/
 │   └── constants.py
 ├── INTENT/                  # Multilingual router + metrics
 │   ├── router.py            # IT/EN/ZH classification (rapidfuzz)
-│   ├── intents.json         # 28 intents, 314 triggers
+│   ├── intents.json         # 29 intents, 331 triggers
 │   ├── bridge.py            # Router ↔ GUI/orchestrator bridge
 │   └── metrics.py           # Ollama metrics + dynamic KV cache
 ├── SAFETY/                  # security.py + watchdog
@@ -718,7 +718,7 @@ byte-swarmy/
 ├── SKILLS/                  # Python/PyQt skills for workers
 ├── main.py                  # CLI entry point
 ├── byte-swarm.sh            # CLI launcher (alias: bswarm)
-├── avvia.sh / ferma.sh      # Deprecated wrappers (use byte-swarm.sh)
+├── avvia.sh / ferma.sh      # Compatibility wrappers (used by bswarm.sh)
 ├── AGENT.md / todo.md       # Agent rules + current state
 ├── Dockerfile / docker-compose.yml
 ├── requirements.txt         # Full dependencies (GUI + RE)
@@ -869,7 +869,7 @@ For changes touching security, also update `SECURITY.md` and the
 
 ## License
 
-Released under the MIT license. See [LICENSE](LICENSE).
+Released under the MIT license. See [LICENSE](../LICENSE).
 
 ---
 
