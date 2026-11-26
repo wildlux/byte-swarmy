@@ -1,13 +1,9 @@
 """
 lifecycle_manager.py — Manages system startup, shutdown, backups and git.
 """
-import os
 import tarfile
-import signal
 import subprocess
 from pathlib import Path
-from typing import Optional
-from CORE.constants import DEFAULT_PATHS
 
 class LifecycleManager:
     def __init__(self, config, logger):

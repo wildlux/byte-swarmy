@@ -7,8 +7,8 @@ le property del tema app-level (role=..., banner=...) via
 GUI/theme/theme.py (set_prop / set_banner).
 
 Due livelli:
-  1. Statico: regex sui sorgenti dei pannelli (esclusi control_center.py
-     e TEST_GUI_QT_12.py, debito noto documentato).
+  1. Statico: regex sui sorgenti dei pannelli (escluso control_center.py,
+     debito noto documentato).
   2. Runtime: ogni pannello si istanzia in tema scuro E chiaro senza
      crash (offscreen) — guardia contro regressioni del costruttore.
 """

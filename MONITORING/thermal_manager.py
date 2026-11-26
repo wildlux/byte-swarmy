@@ -23,12 +23,11 @@ Uso:
 from __future__ import annotations
 
 import json
-import os
 import time
 import subprocess
 import threading
 from collections import deque
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Optional
 

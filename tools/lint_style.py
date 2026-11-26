@@ -53,7 +53,7 @@ _HEADER_CLICKABLE_RE = re.compile(r"setSectionsClickable\s*\(\s*True\s*\)")
 
 # File esclusi dall'audit (debito noto, junk candidate — non riparare a
 # mano: decidere la cancellazione con l'utente, vedi AGENT.md).
-SKIP_FILES: set = {"GUI/TEST_GUI_QT_12.py"}
+SKIP_FILES: set = set()
 
 
 @dataclass
