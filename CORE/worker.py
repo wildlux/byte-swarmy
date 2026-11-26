@@ -1580,7 +1580,18 @@ class Worker:
         mk = model_key or self.model_key
         try:
             import hashlib
-            key = (hashlib.sha1(ctx.encode("utf-8", "ignore")).hexdigest()[:16], mk)
+            # Cache invalidation intelligente: include mtime del project/
+            # per invalidare quando i file cambiano.
+            try:
+                from pathlib import Path as _P
+                _mtimes = tuple(sorted(
+                    (f.name, f.stat().st_mtime_ns)
+                    for f in _P("project").rglob("*") if f.is_file()
+                ))[:50] if _P("project").exists() else ()
+            except Exception:
+                _mtimes = ()
+            key = (hashlib.sha1(ctx.encode("utf-8", "ignore")).hexdigest()[:16],
+                   mk, hash(_mtimes))
             cached = Worker._CONTEXT_COMPRESSION_CACHE.get(key)
             if cached is not None:
                 return cached

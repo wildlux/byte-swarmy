@@ -100,9 +100,17 @@ class AgentMemory:
                 f"- {e.get('summary', str(e))}" for e in recent_summary
             ))
 
-        # 2. Eventi working recenti (ultimi 10)
+        # 2. Eventi working recenti (ultimi 10), dedup per (type+content)
         if self.working:
-            recent = self.working[-10:]
+            seen = set()
+            deduped = []
+            for e in reversed(self.working):
+                key = (e.get('type', '?'), (e.get('content', '') or '')[:120])
+                if key in seen:
+                    continue
+                seen.add(key)
+                deduped.insert(0, e)
+            recent = deduped[-10:]
             parts.append("## RECENT SESSION EVENTS\n" + "\n".join(
                 f"- [{e.get('ts', 0):.0f}] {e.get('type', '?')}: {e.get('content', '')[:200]}"
                 for e in recent
