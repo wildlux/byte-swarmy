@@ -118,9 +118,6 @@ CONFIG/*.local.json
 !IMG/SCHERMATE/**
 analisi-e-sicurezza-codice.json
 *.json.bak
-analisi-e-sicurezza-codice.json
-feature_m1_2_anti_escape.py
-feature_m1_2_anti_escape.py
 
 # File temporanei feature_m1 (NON tracciare)
 feature_m1_anti_escape.py
@@ -128,22 +125,14 @@ feature_m1_2_anti_escape.py
 feature_m1_anti_escape*
 _archivio_root_duplicates/
 
-# setup-dual-gpu temporanei
 # Runtime data (in data/ via symlink)
 data/
 tasks/queue.db
 logs/*.log
 state/*.flag
 state/*.pid
-project/
 
 # Symlinks legacy per data/ (per-install, non committare)
-/logs
-/state
-/tasks
-/backups
-
-# Symlinks legacy per data/ (per-install)
 /logs
 /state
 /tasks
