@@ -57,3 +57,15 @@ try:
                     TOOL_REGISTRY[_name] = _obj
 except Exception:
     pass
+
+# Registrazione on-demand di re_tools (reverse engineering).
+try:
+    from CORE.re_tools import call_re_tool, get_re_tool_descriptions
+
+    def _re_tool(name: str, *args) -> str:
+        return call_re_tool(name, list(args))
+
+    TOOL_REGISTRY["re_tool"] = _re_tool
+    TOOL_REGISTRY["re_tools_list"] = lambda *a, **k: get_re_tool_descriptions()
+except Exception:
+    pass
