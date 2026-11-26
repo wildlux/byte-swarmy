@@ -418,6 +418,28 @@ class Orchestrator:
         self.monitor = SystemMonitor(self.config, self.log, self.timestral)
         self.dispatcher = TaskDispatcher(self.queue, self.planner, self.generic_planner, self.models, self.tools, self.log)
 
+        # MCP client (opzionale): polling task esterni se configurato.
+        self.mcp_client = None
+        try:
+            from CORE.mcp_client import MCPClient, McpServerConfig
+            mcp_cfg = self.config.get("mcp", {}) or {}
+            servers = mcp_cfg.get("servers", []) or []
+            if servers:
+                def _on_task(title, payload):
+                    try:
+                        self.queue.add_task(title, str(payload), priority=5)
+                        self.log.info("[mcp] task ricevuto: %s", title)
+                    except Exception as _e:
+                        self.log.debug("[mcp] add_task fallito: %s", _e)
+                self.mcp_client = MCPClient(on_task_received=_on_task, logger=self.log)
+                for s in servers:
+                    self.mcp_client.add_server(McpServerConfig.from_dict(s))
+                self.mcp_client.start()
+                self.log.info("[mcp] client avviato (%d server)", len(servers))
+        except Exception as _e:
+            self.log.debug("[mcp] non disponibile: %s", _e)
+            self.mcp_client = None
+
         self.memories = {}
         self.running = True
         # Timer di manutenzione usati dal loop principale (_tick)
@@ -1152,6 +1174,14 @@ class Orchestrator:
                 model_client=self.models,
                 logger=self.log,
             )
+            # Resilienza: ripristina stato worker dall'event store (una sola volta).
+            if not getattr(self, "_state_recovered", False):
+                try:
+                    from CORE.resilience import recover_worker_state
+                    recover_worker_state(self.memories, self.config, self.log)
+                except Exception as _e:
+                    self.log.debug("[resilience] recover fallito: %s", _e)
+                self._state_recovered = True
         return Worker(
             agent_id=agent_id,
             model_key=model_key,
@@ -1488,6 +1518,11 @@ class Orchestrator:
         self.log.info("stopping timestral...")
         if self.timestral:
             self.timestral.stop()
+        if getattr(self, "mcp_client", None):
+            try:
+                self.mcp_client.stop()
+            except Exception:
+                pass
         self.log.info("unloading models...")
         self.models.unload_all()
         self.log.info("=== BYTE-SWARMY swarm stopped ===")

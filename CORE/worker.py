@@ -536,6 +536,22 @@ class Worker:
         # 🆕 Fix Cycle 147: reset completo memoria, `working` incluso.
         # Senza questo, build_context() leggeva gli eventi dei run precedenti.
         self._reset_task_memory()
+        # 🆕 Auto-tool: rileva tool pertinenti al task (keyword) e li
+        # aggiunge al contesto come suggerimento. Fail-open.
+        try:
+            from CORE.auto_tool import detect_names
+            _auto = detect_names(
+                str(task.get("title", "")) + " " + str(task.get("description", "")),
+                available=list(self.tools.allowed_tools()) if hasattr(self.tools, "allowed_tools") else None)
+            if _auto:
+                self.log.info("[auto_tool] suggeriti per il task: %s", _auto)
+                task = dict(task)
+                task["description"] = (
+                    str(task.get("description", ""))
+                    + "\n\nTool suggeriti (auto): " + ", ".join(_auto))
+        except Exception as _e:
+            self.log.debug("[auto_tool] fallito: %s", _e)
+
         # 🆕 Q6 — Chiarimento interattivo (Fase 9): se il task è ambiguo,
         # rileva le domande e arricchisce il task con le risposte (se
         # disponibili), PRIMA di scegliere il percorso di esecuzione
