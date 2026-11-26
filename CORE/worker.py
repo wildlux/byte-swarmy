@@ -1204,6 +1204,55 @@ class Worker:
                 return ""
         return _file
 
+    def _record_tool_gap(self, name: str) -> None:
+        """Registra un gap di tool e, se ricorrente, propone una bozza skeleton.
+
+        Ibrido: rilevamento automatico + bozza skeleton; raffinamento e
+        approvazione restano manuali via CLI (complessi/ripetitivi).
+        Fail-open: mai bloccare un task.
+        """
+        try:
+            import json
+            from pathlib import Path
+            state = Path("state")
+            state.mkdir(parents=True, exist_ok=True)
+            gaps_file = state / "tool_gaps.json"
+            gaps = {}
+            if gaps_file.exists():
+                try:
+                    gaps = json.loads(gaps_file.read_text(encoding="utf-8"))
+                except Exception:
+                    gaps = {}
+            entry = gaps.get(name, {"count": 0})
+            entry["count"] = int(entry.get("count", 0)) + 1
+            gaps[name] = entry
+            gaps_file.write_text(json.dumps(gaps, indent=2, ensure_ascii=False),
+                                encoding="utf-8")
+
+            if entry["count"] >= 3:
+                try:
+                    from CORE.tool_proposer import propose
+                    skeleton = (
+                        f"def {name}(*args, **kwargs):\n"
+                        f'    """TODO: implementare {name}.\n\n'
+                        f"    Bozza generata automaticamente dal Worker dopo "
+                        f"{entry['count']} richieste di un tool inesistente.\n"
+                        f"    Raffinare e approvare via:\n"
+                        f"      python -m CORE.tool_proposer gate {name}\n"
+                        f"      python -m CORE.tool_proposer approve {name}\n"
+                        f'    """\n'
+                        f"    raise NotImplementedError('{name} non implementato')\n"
+                        f"\n__all__ = ['{name}']\n"
+                    )
+                    propose(name, skeleton)
+                    self.log.info(
+                        "[tool_gap] proposta skeleton creata per '%s' "
+                        "(occorrenze=%d)", name, entry["count"])
+                except Exception as _e:
+                    self.log.debug("[tool_gap] propose fallito: %s", _e)
+        except Exception as _e:
+            self.log.debug("[tool_gap] record fallito: %s", _e)
+
     def _execute_direct(self, task: dict) -> str:
         """Generazione DIRETTA per modelli senza tool (CORE.skill_executor).
 
@@ -1893,6 +1942,8 @@ class Worker:
                 "WARNING",
                 worker=self.agent_id,
             )
+            if isinstance(name, str) and name.strip():
+                self._record_tool_gap(name.strip())
             return (f"ERROR: unknown tool '{name}'. Use only the listed tools. "
                     f"Call list_tools() to see the available tools.")
         if not isinstance(args, list):
@@ -1998,6 +2049,8 @@ class Worker:
             elif name == "read_file_slice":
                 return self.tools.read_file_slice(args[0], args[1], args[2])
             else:
+                if isinstance(name, str) and name.strip():
+                    self._record_tool_gap(name.strip())
                 return f"ERROR: unknown tool '{name}'"
         except IndexError:
             return f"ERROR: missing args for {name}"
