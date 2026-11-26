@@ -935,12 +935,12 @@ sudo scripts/setup/hardening.sh --all       # utente byteswarmy + cgroup + firew
 ```
 
 Dettagli, modello di minaccia, rischi residui e rollback:
-**[SECURITY.md](SECURITY.md)**.
+**[DOCS/SECURITY.md](DOCS/SECURITY.md)**.
 
 Verifica della policy:
 
 ```bash
-python -m pytest tests/ -v            # 226 test + 131 subtest: security, sandbox, escape-gate, intent, execute, decision-feedback, correction, thermal-gate, repo-hygiene, dotfile-security, scheduler, settings, actors-panel, MCP E2E, USB protocol/differential, Timestral E2E (+3 E2E live)
+python -m pytest tests/ -v            # 1220 test raccolti: security, sandbox, escape-gate, intent, execute, decision-feedback, correction, thermal-gate, repo-hygiene, scheduler, GUI offscreen (+ E2E live con skip)
 tail -f logs/security.log
 ```
 
@@ -1010,50 +1010,38 @@ byte-swarmy/
 │   ├── control_center.py      # Nuova interfaccia modulare (plancia, card, pannelli)
 │   ├── task_queue.py          # I/O coda task e configurazione MCP
 │   └── theme/               # QSS theme system (light.qss, dark.qss, theme.py)
-├── CONFIG/                  # config.toml
-├── tests/                   # 226 test pytest: security, sandbox, escape-gate, intent,
-│   │                        #   execute-handler, decision-feedback, correction,
-│   │                        #   thermal-gatekeeper, repo-hygiene,
-│   │                        #   dotfile-security
-│   ├── test_security.py       # 27 test
-│   ├── test_sandbox.py        # 22 test (11 subtest)
-│   ├── test_escape_gate.py    # 3 test (anti-escape)
-│   ├── test_intent_integration.py  # 6 test
-│   ├── test_execute_handler.py     # 9 test (handler deterministico)
-│   ├── test_decision_feedback.py   # 7 test (pre-flight)
-│   ├── test_correction.py          # 7 test (feedback loop)
-│   ├── test_thermal_gatekeeper.py  # 6 test (gate termico)
-│   ├── test_repo_hygiene.py        # 14 test (igiene repo, riusabile)
-│   ├── test_scheduler.py           # 20 test (logica scheduler, T2.3)
-│   ├── test_settings_store.py      # 6 test (settings GUI)
-│   ├── test_actors_panel.py        # 6 test (pannello Attori, offscreen)
-│   ├── test_dotfile_security.py    # 18 test (sicurezza dotfile)
-│   ├── test_e2e.py                 # E2E reale (skip senza Ollama)
+├── CONFIG/                  # config.toml + config locale (gitignored)
+├── tests/                   # 1220 test raccolti: security, sandbox, escape-gate,
+│   │                        #   intent, execute, decision-feedback, correction,
+│   │                        #   thermal-gate, repo-hygiene, scheduler, GUI offscreen
+│   ├── test_security.py     # security
+│   ├── test_sandbox.py      # sandbox bwrap
+│   ├── test_repo_hygiene.py # igiene repo
+│   ├── test_e2e.py          # E2E reale (skip senza Ollama)
 │   └── run_tests.py         # Runner JSON per GUI
-├── state/                   # Stato persistente
-│   ├── timestral_history.json       # 24h campioni CPU/GPU
-│   ├── timestral_advice.json        # Ultimo advice (per GUI)
-│   ├── persistent_memory.json       # Memoria cross-task + preferenze
-│   ├── last_metrics.json            # Metriche ultima call
-│   ├── model_benchmarks.json        # Risultati benchmark
-│   ├── streaming.txt                # Token streaming live
-│   └── orchestrator.pid
-├── tasks/                   # Coda task
-│   ├── queue.db             # SQLite (fonte di verità orchestratore)
-│   └── queue.json           # Mirror per GUI
-├── logs/                    # Log applicativo, JSONL, audit, watchdog
-├── project/                 # Codice prodotto dai worker (sandboxed)
-├── backups/                 # tar.gz snapshots (ultimi 7)
+├── data/                    # Runtime (gitignored): log, state, tasks, backups
+│   ├── logs/                # Log applicativo, JSONL, audit, watchdog
+│   ├── state/               # Stato persistente (memoria, metriche, snapshot)
+│   ├── tasks/               # queue.db (SQLite) + mirror JSON
+│   └── backups/             # tar.gz snapshots (ultimi 7)
+├── project/                 # Codice prodotto dai worker (sandboxed, gitignored)
+├── tools/                   # Tool operativi (repo_map, lint, security, eval)
+├── scripts/                 # Setup, hardening, sync, migrazioni
+├── DOCS/                    # Architettura, operations, report, IMPLEMENTED
+├── SKILLS/                  # Skill Python/PyQt per i worker
 ├── main.py                  # CLI entry point
-├── byte-swarmy              # CLI launcher (alias: bswarm)
-├── avvia.sh / ferma.sh / sync.sh / setup.sh / scripts/setup/hardening.sh
-├── SECURITY.md / IMPLEMENTED.md / SPECIFICATIONS.md / AGENT.md / todo.md
-├── BYTE-SWARMY.desktop      # KDE menu entry
+├── byte-swarm.sh            # CLI launcher (alias: bswarm)
+├── avvia.sh / ferma.sh      # Wrapper deprecated (usare byte-swarm.sh)
+├── AGENT.md / todo.md       # Regole agenti + stato corrente
+├── Dockerfile / docker-compose.yml
 ├── requirements.txt         # Dipendenze complete (GUI + RE)
-├── TOOLS/                   # Strumenti ordinati per categoria (maiuscolo)
-│   └── REVERSE_ENGINEERING/ # Setup RE: requirements_re.txt + setup_re_tools.sh
-└── GUI/requirements_gui.txt
+└── TOOLS/                   # Strumenti ordinati per categoria (maiuscolo)
+    └── REVERSE_ENGINEERING/ # Setup RE: requirements_re.txt + setup_re_tools.sh
 ```
+
+> `data/` è la cartella runtime reale. In root, `logs/`, `state/`, `tasks/` e
+> `backups/` sono symlink per-install a `data/*` (gitignored): il codice può
+> continuare a usare i path storici.
 
 **Regola delle cartelle**: i contenitori di primo livello sono sempre in
 MAIUSCOLO (`CORE/`, `GUI/`, `CONFIG/`, `TOOLS/`, `SAFETY/`, `INTENT/`) e ogni
@@ -1065,7 +1053,7 @@ in `AGENT.md` (#11) così vale anche per gli agenti.
 
 ## Sviluppo e test
 
-### Test suite (226 test pytest + 131 subtest)
+### Test suite (1220 test raccolti)
 
 ```bash
 source .venv/bin/activate

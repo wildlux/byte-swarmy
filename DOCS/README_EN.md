@@ -69,7 +69,7 @@ Details, threat model, residual risks and rollback: **[SECURITY.md](SECURITY.md)
 Policy verification:
 
 ```bash
-python -m pytest tests/ -v            # 226 tests + 131 subtests: security, sandbox, escape-gate, intent, execute, decision-feedback, correction, thermal-gate, repo-hygiene, dotfile-security, scheduler, settings, actors-panel, MCP E2E, USB protocol/differential, Timestral E2E (+3 live E2E)
+python -m pytest tests/ -v            # 1220 collected tests: security, sandbox, escape-gate, intent, execute, decision-feedback, correction, thermal-gate, repo-hygiene, scheduler, GUI offscreen (+ live E2E with skip)
 tail -f logs/security.log
 ```
 
@@ -184,7 +184,7 @@ What you can see:
 │  7. THERMAL GATE?  → Gatekeeper pause ≥ 75/80 CPU/GPU?       │
 │  8. GENERIC?       → Decision Model decomposes               │
 │  9. COMPLEX?       → Planner decomposes                      │
-│ 10. EXECUTE        → Worker ReAct (6 steps, streaming)       │
+│ 10. EXECUTE        → Worker ReAct (10 steps, streaming)      │
 │ 11. AUDIT          → auto-APPROVE if useful tool called      │
 │ 12. CORRECTION?    → feedback loop (retry ≤ 3, prompt fix)   │
 │ 13. PERSIST        → memory, events, state to disk           │
@@ -697,51 +697,44 @@ byte-swarmy/
 │   ├── control_center.py      # Nuova interfaccia modulare (plancia, card, pannelli)
 │   ├── task_queue.py          # I/O coda task e configurazione MCP
 │   └── theme/               # QSS theme system (light.qss, dark.qss, theme.py)
-├── CONFIG/                  # config.toml
-├── tests/                   # 226 tests: security, sandbox, escape-gate, intent,
-│   │                        #   execute-handler, decision-feedback, correction,
-│   │                        #   thermal-gatekeeper, repo-hygiene,
-│   │                        #   dotfile-security
-│   ├── test_security.py     # 27 tests
-│   ├── test_sandbox.py      # 22 tests (11 subtests)
-│   ├── test_escape_gate.py  # 3 tests (anti-escape)
-│   ├── test_intent_integration.py  # 6 tests
-│   ├── test_execute_handler.py     # 9 tests (deterministic handler)
-│   ├── test_decision_feedback.py   # 7 tests (pre-flight)
-│   ├── test_correction.py          # 7 tests (feedback loop)
-│   ├── test_thermal_gatekeeper.py  # 6 tests (thermal gatekeeper)
-│   ├── test_repo_hygiene.py        # 14 tests (repository hygiene, reusable)
-│   ├── test_scheduler.py           # 20 tests (scheduler logic, T2.3)
-│   ├── test_settings_store.py      # 6 tests (GUI settings)
-│   ├── test_actors_panel.py        # 6 tests (Actors panel, offscreen)
-│   ├── test_dotfile_security.py    # 18 tests (dotfile security)
-│   ├── test_e2e.py                 # real E2E (skipped without Ollama)
+├── CONFIG/                  # config.toml + local config (gitignored)
+├── tests/                   # 1220 collected tests: security, sandbox, escape-gate,
+│   │                        #   intent, execute, decision-feedback, correction,
+│   │                        #   thermal-gate, repo-hygiene, scheduler, GUI offscreen
+│   ├── test_security.py     # security
+│   ├── test_sandbox.py      # bwrap sandbox
+│   ├── test_repo_hygiene.py # repository hygiene
+│   ├── test_e2e.py          # real E2E (skipped without Ollama)
 │   └── run_tests.py         # JSON runner for GUI
-├── state/                   # Persistent state
-│   ├── timestral_history.json       # 24h CPU/GPU samples
-│   ├── persistent_memory.json       # Cross-task memory
-│   ├── last_metrics.json            # Last call metrics
-│   ├── streaming.txt                # Live token streaming
-│   └── orchestrator.pid
-├── tasks/                   # Task queue
-│   ├── queue.db             # SQLite (orchestrator source of truth)
-│   └── queue.json           # Mirror for GUI
-├── logs/                    # App log, JSONL, audit, watchdog
-├── project/                 # Worker output (sandboxed)
-├── backups/                 # tar.gz snapshots (last 7)
+├── data/                    # Runtime (gitignored): logs, state, tasks, backups
+│   ├── logs/                # App log, JSONL, audit, watchdog
+│   ├── state/               # Persistent state (memory, metrics, snapshots)
+│   ├── tasks/               # queue.db (SQLite) + JSON mirror
+│   └── backups/             # tar.gz snapshots (last 7)
+├── project/                 # Worker output (sandboxed, gitignored)
+├── tools/                   # Operational tools (repo_map, lint, security, eval)
+├── scripts/                 # Setup, hardening, sync, migrations
+├── DOCS/                    # Architecture, operations, reports, IMPLEMENTED
+├── SKILLS/                  # Python/PyQt skills for workers
 ├── main.py                  # CLI entry point
-├── byte-swarmy              # CLI launcher (alias: bswarm)
-├── avvia.sh / ferma.sh / sync.sh / setup.sh / scripts/setup/hardening.sh
-├── SECURITY.md / IMPLEMENTED.md / SPECIFICATIONS.md / AGENT.md / todo.md
-├── BYTE-SWARMY.desktop      # KDE menu entry
-└── GUI/requirements_gui.txt
+├── byte-swarm.sh            # CLI launcher (alias: bswarm)
+├── avvia.sh / ferma.sh      # Deprecated wrappers (use byte-swarm.sh)
+├── AGENT.md / todo.md       # Agent rules + current state
+├── Dockerfile / docker-compose.yml
+├── requirements.txt         # Full dependencies (GUI + RE)
+└── TOOLS/                   # Tools grouped by category (uppercase)
+    └── REVERSE_ENGINEERING/ # RE setup: requirements_re.txt + setup_re_tools.sh
 ```
+
+> `data/` is the real runtime directory. At repo root, `logs/`, `state/`,
+> `tasks/` and `backups/` are per-install symlinks to `data/*` (gitignored):
+> code can keep using the historical paths.
 
 ---
 
 ## Development and testing
 
-### Test suite (226 pytest tests + 131 subtests)
+### Test suite (1220 collected tests)
 
 ```bash
 source .venv/bin/activate
@@ -819,7 +812,7 @@ for the full capability table, limitations, and conditions.
 - **One model loaded at a time**: rotation is explicit (4 GB VRAM constraint).
 - **Sequential workers**: no parallelism, one task at a time.
 - **Limited context** (3072 tokens): large tasks are decomposed.
-- **Limited LLM output** (512 tokens/step, 6 steps max): large files need multiple tasks.
+- **Limited LLM output** (512 tokens/step, 10 steps max): large files need multiple tasks.
 - **1.5 B–4 B models**: effective on discrete tasks, unreliable on complex architectures.
 - **TDD relaxed**: the TDD check is warning-only (small models struggle with test-first).
 - **No kernel sandbox**: full isolation requires system hardening.

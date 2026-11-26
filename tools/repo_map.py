@@ -39,7 +39,7 @@ AREA_ROLES: Dict[str, str] = {
     "INTENT": "router 28 intent × 3 lingue (rapidfuzz)",
     "CONFIG": "config runtime (actors.json, scheduled_tasks.json, …)",
     "tests": "pytest + unittest; E2E live con skip su pause.flag",
-    "DOCS": "todo.md, IMPLEMENTED.md, AGENT.md, specifiche",
+    "DOCS": "IMPLEMENTED.md, ARCHITECTURE.md, OPERATIONS.md, report e specifiche",
     "scripts": "sync.sh (push manuale) + setup/",
     "tools": "travasa_todo.py, repo_map.py, capture usbmon",
 }
@@ -181,7 +181,7 @@ def render(days: float, as_json: bool) -> str:
     if not hot:
         out.append("  (nessuno)")
     out.append("")
-    out.append("_Comandi rapidi: vedi DOCS/AGENT.md → Shell Commands._")
+    out.append("_Comandi rapidi: vedi AGENT.md → Shell Commands._")
     return "\n".join(out) + "\n"
 
 

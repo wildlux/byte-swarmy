@@ -59,3 +59,30 @@ def test_symlink_state_dichiarato():
     # il symlink è per-install e gitignored: se c'è, deve puntare a data/state
     if state.is_symlink():
         assert state.readlink().as_posix() == "data/state"
+
+
+ARCHITECTURE = ROOT / "DOCS" / "ARCHITECTURE.md"
+OPERATIONS = ROOT / "DOCS" / "OPERATIONS.md"
+
+
+def test_agent_md_entro_budget():
+    """AGENT.md è il system prompt dei modelli piccoli: max ~3.000 caratteri."""
+    size = len(AGENT.read_text(encoding="utf-8"))
+    assert size <= 3200, (
+        f"AGENT.md troppo lungo: {size} caratteri (budget ~3000). "
+        "Sposta il contenuto esteso in DOCS/."
+    )
+
+
+def test_agent_md_code_fence_bilanciati_e_senza_eof_stray():
+    text = AGENT.read_text(encoding="utf-8")
+    assert text.count("```") % 2 == 0, "code fence non bilanciati in AGENT.md"
+    assert not any(line.strip() == "EOF" for line in text.splitlines()), \
+        "EOF stray in AGENT.md (artefatto di heredoc)"
+
+
+def test_docs_estese_esistono_e_sono_linkate():
+    agent = AGENT.read_text(encoding="utf-8")
+    for doc in (ARCHITECTURE, OPERATIONS):
+        assert doc.exists(), f"documento mancante: {doc.relative_to(ROOT)}"
+        assert doc.name in agent, f"{doc.name} non è linkato da AGENT.md"
