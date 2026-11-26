@@ -32,6 +32,7 @@ from CORE.task_dispatcher import TaskDispatcher
 from CORE.tools import ToolSet
 from CORE.memory import AgentMemory
 from CORE.ollama_client import ModelClient
+from CORE.llm_tuner import TimestralLLMTuner
 from CORE import feedback_corpus as feedback_corpus_module  # A2: triple fallimenti
 
 # New import for structured logging
@@ -320,6 +321,17 @@ class Orchestrator:
                 self.timestral.start()
             except Exception as e:
                 self.log.warning(f"Timestral failed: {e}")
+
+        # 🆕 TimestralLLMTuner: collega il tuning termico dei parametri LLM
+        # al ModelClient (prima era un attributo sempre None → disattivato).
+        try:
+            self.llm_tuner = TimestralLLMTuner(
+                timestral_manager=self.timestral, config=self.config)
+            self.models.llm_tuner = self.llm_tuner
+            self.log.info("[llm_tuner] integrato (action=%s)", self.llm_tuner.get_action())
+        except Exception as e:
+            self.log.warning(f"LLM tuner init failed: {e}")
+            self.llm_tuner = None
 
         # Gatekeeper termico: priorità CONFIG/actors.json (T2.2, pannello
         # Attori della GUI) > config.toml [thermal] > default work order T3

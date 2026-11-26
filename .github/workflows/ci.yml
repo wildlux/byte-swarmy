@@ -46,6 +46,7 @@ jobs:
             tests/test_watchdog.py \
             tests/test_docs_consistency.py \
             tests/test_repo_hygiene.py \
+            tests/test_llm_tuner_wiring.py \
             tests/test_backup_pre_write.py \
             tests/test_best_of.py \
             tests/test_validate_refs.py \
