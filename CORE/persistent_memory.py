@@ -212,23 +212,39 @@ def record_task_completed(task_id: str, title: str, result: str) -> None:
     save_memory(mem)
 
 
-def build_context_for_prompt() -> str:
+def build_context_for_prompt(task_title: str = "", task_description: str = "") -> str:
     """Costruisce una stringa di contesto da inserire nel prompt del worker.
 
     Include:
-    - File esistenti nel progetto
+    - File esistenti nel progetto (filtrati per rilevanza al task se possibile)
     - Errori comuni da evitare
     - Ultimi task completati
     """
     mem = load_memory()
     lines = []
 
-    # File esistenti
+    # File esistenti (retrieval-based: priorita' ai file rilevanti al task)
     existing = mem["project_context"]["existing_files"]
     if existing:
         lines.append("## FILE ESISTENTI NEL PROGETTO")
         lines.append("(NON ricreare questi file, usa patch_code per modificarli)")
-        for f in existing[-8:]:  # ultimi 8 (era 15)
+        task_text = (task_title + " " + task_description).lower()
+        task_tokens = set(task_text.split())
+        if task_tokens:
+            # Score per file: numero di token del task presenti nel path
+            scored = []
+            for f in existing:
+                f_low = f.lower()
+                score = sum(1 for t in task_tokens if t and t in f_low)
+                scored.append((score, f))
+            scored.sort(key=lambda x: (-x[0], x[1]))
+            # Prima i rilevanti (score>0), poi i recenti
+            relevant = [f for s, f in scored if s > 0]
+            others = [f for s, f in scored if s == 0]
+            chosen = (relevant + others)[:8]
+        else:
+            chosen = existing[-8:]
+        for f in chosen:
             lines.append(f"  - {f}")
         lines.append("")
 

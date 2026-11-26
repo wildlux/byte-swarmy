@@ -622,7 +622,15 @@ class Worker:
             })
 
 
-        context = self.memory.build_context(max_tokens=800)
+        # Token budget dinamico: ~25% del num_ctx del modello routato.
+        try:
+            _mcfg = (self.models.models_cfg.get(routed_key, {})
+                     if hasattr(self.models, "models_cfg") else {})
+            _nctx = int(_mcfg.get("num_ctx", 3072) or 3072)
+        except Exception:
+            _nctx = 3072
+        _ctx_budget = max(400, min(1200, _nctx // 4))
+        context = self.memory.build_context(max_tokens=_ctx_budget)
         prompt = self._build_initial_prompt(task, context, model_key=routed_key)
 
         wrote_file = False
@@ -1618,7 +1626,8 @@ class Worker:
         # 🆕 Carica contesto persistente
         persistent_context = ""
         try:
-            persistent_context = build_context_for_prompt()
+            persistent_context = build_context_for_prompt(
+                task.get("title", ""), task.get("description", ""))
         except Exception:
             pass
         # T22: comprime il contesto (con cache) — MAI task/rule/istruzioni
