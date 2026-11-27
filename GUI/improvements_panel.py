@@ -94,7 +94,7 @@ class ImprovementsPanel(QWidget):
         import sys
         import time
 
-        root = self._svg_path.parents[2]
+        root = Path(__file__).resolve().parent.parent
         script = root / "tools" / "gen_grafici.py"
         before = (self._svg_path.read_bytes()
                   if self._svg_path.exists() else b"")
