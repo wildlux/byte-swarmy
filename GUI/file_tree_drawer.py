@@ -203,15 +203,7 @@ class FileTreeDrawer(QFrame):
         self.sort_btn.clicked.connect(self._toggle_sort_order)
         self.sort_btn.hide()
 
-        # Sotto-titolo: path della cartella corrente (si aggiorna col tab)
-        self.path_label = QLabel("byte-swarmy/")
-        self.path_label.setObjectName("sidebar_path")
-        self.path_label.setStyleSheet(
-            "padding:0 16px 4px 16px; font-size:10px; "
-            "font-family:'JetBrains Mono','Consolas',monospace;"
-        )
-        self.path_label.setWordWrap(True)
-        lay.addWidget(self.path_label)
+        # path_label rimosso per semplificare l'header (nome progetto non necessario)
 
         # === File tree ===
         self.tree = CheckableTreeView()
@@ -436,7 +428,7 @@ class FileTreeDrawer(QFrame):
         base_name = os.path.basename(rel)
         if base_name.startswith("PR_"):
             base_name = base_name[3:]
-        self.path_label.setText(base_name)
+        # path_label rimosso: niente aggiornamento testo
         # Scrolla in cima
         self.tree.scrollToTop()
         # Ricarica i task della sidebar per questo progetto

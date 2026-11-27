@@ -111,7 +111,6 @@ class CenterArea(QWidget):
             "font-size:11px; font-weight:bold; "
             "padding:14px 4px 6px 4px; letter-spacing:1px;"
         )
-        self.plancia_section.add_widget(tools_label)
 
         # ── 5 strumenti di analisi come PlanciaCard cliccabili ─────────
         # Le 5 sezioni (già CollapsibleSection) sono ora rettangoli uniformi
@@ -158,7 +157,11 @@ class CenterArea(QWidget):
             self.open_panel, self.log_viewer, self.code_explorer, self.backup_logs,
             self.integrity_panel, self.security_panel
         )
-        self.plancia_section.add_widget(tools_container)
+        # Wrappa gli strumenti di analisi in una CollapsibleSection
+        # (arrotolabile: visibile solo quando serve).
+        self.tools_section = CollapsibleSection("🧰 Strumenti di analisi", icon="🧰")
+        self.tools_section.add_widget(tools_container)
+        self.plancia_section.add_widget(self.tools_section)
 
         main_lay.addWidget(self.plancia_section)
         main_lay.addWidget(self.chat_section)
