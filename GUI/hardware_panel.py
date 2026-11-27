@@ -106,17 +106,20 @@ class HardwarePanel(QWidget):
         btn_row.addStretch()
         outer.addLayout(btn_row)
 
-        # Navigazione rapida
-        nav_row = QHBoxLayout()
-        nav_row.setSpacing(8)
-        nav_label = QLabel("Vai a:")
-        nav_row.addWidget(nav_label)
-        self.nav_combo = QComboBox()
-        self.nav_combo.setMinimumWidth(220)
-        self.nav_combo.currentIndexChanged.connect(self._on_nav_changed)
-        nav_row.addWidget(self.nav_combo, stretch=1)
-        outer.addLayout(nav_row)
-
+        from PyQt6.QtWidgets import QTabWidget
+        tabs = QTabWidget()
+        tab1 = QWidget()
+        tab1_layout = QVBoxLayout(tab1)
+        tab1_layout.setSpacing(12)
+        tab1_layout.setContentsMargins(0, 0, 0, 0)
+        tab2 = QWidget()
+        tab2_layout = QVBoxLayout(tab2)
+        tab2_layout.setSpacing(12)
+        tab2_layout.setContentsMargins(0, 0, 0, 0)
+        tab3 = QWidget()
+        tab3_layout = QVBoxLayout(tab3)
+        tab3_layout.setSpacing(12)
+        tab3_layout.setContentsMargins(0, 0, 0, 0)
         # Box profilo hardware (stile QGroupBox dal tema)
         prof_box = QGroupBox("📊 Profilo hardware rilevato")
         prof_lay = QVBoxLayout(prof_box)
@@ -150,8 +153,7 @@ class HardwarePanel(QWidget):
             self.info_labels[key] = val
             prof_lay.addLayout(row)
 
-        outer.addWidget(prof_box)
-        self._sections.append(("Profilo", prof_box))
+        tab1_layout.addWidget(prof_box)
 
         # Box strategia suggerita (stile QGroupBox dal tema)
         strat_box = QGroupBox("🎯 Strategia auto-suggerita")
@@ -182,8 +184,7 @@ class HardwarePanel(QWidget):
         self.strat_params.setWordWrap(True)
         strat_lay.addWidget(self.strat_params)
 
-        outer.addWidget(strat_box)
-        self._sections.append(("Strategia", strat_box))
+        tab2_layout.addWidget(strat_box)
 
         # Riepilogo one-line
         self.summary_lbl = QLabel("—")
@@ -192,6 +193,7 @@ class HardwarePanel(QWidget):
         )
         _theme_prop(self.summary_lbl, "role", "muted")
         self.summary_lbl.setWordWrap(True)
+        outer.addWidget(tabs, stretch=1)
         outer.addWidget(self.summary_lbl)
 
         # Log rilevamento (usa lo spazio vuoto per testo utile)
@@ -207,12 +209,14 @@ class HardwarePanel(QWidget):
         self.hw_log.setPlaceholderText("Il log del rilevamento apparirà qui...")
         self.hw_log.setMaximumHeight(170)
         log_lay.addWidget(self.hw_log)
-        outer.addWidget(log_box, stretch=0)
-        self._sections.append(("Log", log_box))
+        tab3_layout.addWidget(log_box, stretch=0)
         outer.addStretch()
 
         for name, _w in self._sections:
             self.nav_combo.addItem(name)
+        tabs.addTab(tab1, "📊 Profilo")
+        tabs.addTab(tab2, "🎯 Strategia")
+        tabs.addTab(tab3, "📜 Log")
         scroll.setWidget(content)
 
         main_lay = QVBoxLayout(self)
