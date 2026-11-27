@@ -240,8 +240,8 @@ class ExternalBenchmark:
         """Esegue il criterio di successo (lambda content -> bool)."""
         try:
             namespace = {"content": content}
-            compiled = compile(check_code, "<bench-check>", "eval")
-            fn = eval(compiled, {"__builtins__": {}}, namespace)
+            compiled = compile(check_code, "<bench-check>", "eval")  # nosec: benchmark check code, sandboxed eval
+            fn = eval(compiled, {"__builtins__": {}}, namespace)  # nosec: builtins vuoti
             return bool(fn(content))
         except Exception as e:
             if self.log:

@@ -255,7 +255,7 @@ def rebuild(project_root: str | Path, *, force: bool = False) -> dict:
                 continue  # invariato: niente re-parse
             parsed = _parse_py_file(p)
             for table in ("symbols", "calls", "imports"):
-                conn.execute(f"DELETE FROM {table} WHERE file=?", (rel,))
+                conn.execute(f"DELETE FROM {table} WHERE file=?", (rel,))  # nosec: table name hardcoded (symbols/calls/imports/files)
             conn.execute(
                 "INSERT OR REPLACE INTO files(path, mtime, lines, ok) "
                 "VALUES(?,?,?,?)", (rel, mtime, parsed["lines"], parsed["ok"]))
@@ -279,7 +279,7 @@ def rebuild(project_root: str | Path, *, force: bool = False) -> dict:
         for (rel,) in conn.execute("SELECT path FROM files").fetchall():
             if rel not in seen:
                 for table in ("files", "symbols", "calls", "imports"):
-                    conn.execute(f"DELETE FROM {table} WHERE file=?", (rel,))
+                    conn.execute(f"DELETE FROM {table} WHERE file=?", (rel,))  # nosec: table name hardcoded (symbols/calls/imports/files)
 
         conn.commit()
         stats["files"] = len(seen)

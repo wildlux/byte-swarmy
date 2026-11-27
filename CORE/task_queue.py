@@ -254,7 +254,7 @@ class TaskQueue:
             status = "stuck" if attempts >= 10 else "retry"
             fail_col = "failure_reason" if status == "stuck" else "last_error"
 
-            conn.execute(
+            conn.execute(  # nosec: colonna dinamica validata
                 f"UPDATE tasks SET attempts = ?, status = ?, {fail_col} = ?, "
                 "first_try = 0 WHERE id = ?",  # nosec: colonna dinamica validata (fail_col ∈ {failure_reason,last_error})
                 (attempts, status, reason[:300], task_id)

@@ -66,4 +66,4 @@ jobs:
       - name: "Security scan (baseline: 7 errori)"
         run: |
           python tools/security_scan.py --json > /tmp/scan.json || true
-          python -c "import json; d=json.load(open('/tmp/scan.json')); errs=sum(1 for x in d if x.get('level') in ('error','ERROR')); print(f'security_scan: {errs} errori (baseline 7)'); raise SystemExit(1) if errs>7 else 0"
+          python -c "import json; d=json.load(open('/tmp/scan.json')); errs=sum(1 for x in d if x.get('level') in ('error','ERROR')); print(f'security_scan: {errs} errori (baseline 1)'); raise SystemExit(1) if errs>1 else 0"

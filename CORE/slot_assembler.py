@@ -245,7 +245,7 @@ def assemble_slots(base_source: str, slots: Sequence[Mapping]) -> str:
 
     assembled = "\n".join(out).rstrip("\n") + "\n"
     try:
-        compile(assembled, "<assembled>", "exec")
+        compile(assembled, "<assembled>", "exec")  # nosec: validazione sintassi del codice assemblato
     except SyntaxError as exc:
         raise AssemblerError(
             f"risultato non compilabile (riga {exc.lineno}): {exc.msg}"
