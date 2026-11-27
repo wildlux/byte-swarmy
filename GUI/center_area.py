@@ -9,7 +9,7 @@ from pathlib import Path
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QStackedWidget, QScrollArea,
-    QPushButton, QLabel, QSizePolicy,
+    QPushButton, QLabel, QSizePolicy, QGridLayout,
     QTextEdit,
 )
 from PyQt6.QtCore import Qt, QEvent
