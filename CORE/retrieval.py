@@ -18,10 +18,58 @@ from pathlib import Path
 from typing import Iterable
 
 
+# Stop words italiane + inglesi (comuni, a basso valore semantico).
+_STOP_WORDS = frozenset({
+    "il", "lo", "la", "i", "gli", "le", "un", "una", "uno", "di", "a",
+    "da", "in", "con", "su", "per", "tra", "fra", "e", "o", "ma", "se",
+    "che", "chi", "cui", "non", "piu", "come", "quando", "dove", "cosa",
+    "del", "della", "dei", "delle", "al", "alla", "ai", "alle", "dal",
+    "dalla", "nei", "nelle", "sul", "sulla", "questo", "questa", "questi",
+    "queste", "quello", "quella", "quelli", "quelle", "essere", "avere",
+    "fare", "dire", "andare", "potere", "volere", "dovere", "sapere",
+    "the", "a", "an", "and", "or", "but", "if", "then", "else", "when",
+    "at", "by", "for", "with", "about", "against", "between", "into",
+    "through", "during", "before", "after", "above", "below", "to", "from",
+    "up", "down", "in", "out", "on", "off", "over", "under", "again",
+    "further", "once", "here", "there", "all", "each", "few", "more",
+    "most", "other", "some", "such", "no", "nor", "not", "only", "own",
+    "same", "so", "than", "too", "very", "can", "will", "just", "should",
+    "now", "is", "are", "was", "were", "be", "been", "being", "have",
+    "has", "had", "do", "does", "did", "of", "it", "its", "this", "that",
+    "these", "those", "i", "me", "my", "we", "our", "you", "your", "he",
+    "him", "his", "she", "her", "they", "them", "their", "what", "which",
+    "who", "whom", "how", "why",
+})
+
+# Suffissi comuni da rimuovere (stemming leggero, italiano + inglese).
+_SUFFIXES = ("mente", "zione", "zioni", "mento", "menti", "ità", "ivo",
+             "iva", "ivi", "ive", "ato", "ata", "ati", "ate", "uto",
+             "uta", "uti", "ute", "ando", "endo", "tion", "sion", "ment",
+             "ness", "able", "ible", "ing", "ed", "es", "s", "er", "est")
+
+
+def _stem(tok: str) -> str:
+    """Stemming leggero: rimuove suffissi comuni se il risultato ha >=3 char."""
+    if len(tok) < 5:
+        return tok
+    for suf in _SUFFIXES:
+        if tok.endswith(suf) and len(tok) - len(suf) >= 3:
+            return tok[: -len(suf)]
+    return tok
+
+
 def tokenize(text: str) -> list[str]:
-    """Tokenizzazione semplice: lowercase, split su non-alfanumerico, len>=2."""
-    return [t for t in re.findall(r"[a-z0-9_]+", (text or "").lower())
-            if len(t) >= 2]
+    """Tokenizzazione migliorata: lowercase, split, stop words, stemming leggero."""
+    raw = [t for t in re.findall(r"[a-z0-9_]+", (text or "").lower())
+           if len(t) >= 2]
+    out = []
+    for t in raw:
+        if t in _STOP_WORDS:
+            continue
+        st = _stem(t)
+        if len(st) >= 2 and st not in _STOP_WORDS:
+            out.append(st)
+    return out
 
 
 @dataclass
