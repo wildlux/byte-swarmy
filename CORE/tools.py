@@ -103,6 +103,7 @@ TOOL_SIGNATURES = {
     "git_remote": "git_remote(action='list') -> str (add/remove disabilitati)",
     "run_test_suite": "run_test_suite() -> str: esegue i test del progetto",
     "list_tools": "list_tools() -> str: elenca i tool disponibili con le loro firme",
+    "run_macro": "run_macro(steps_json) -> str: esegue una pipeline di skill/tool/mcp in sequenza. steps_json: lista di dict {type, ...}.",
 }
 
 # Re-export storici: tests/test_reuse.py importa questi nomi da CORE.tools.
@@ -202,6 +203,7 @@ class ToolSet:
         self.project_root = Path(config["paths"]["project_root"]).resolve()
         self.worker = "worker"
         self.subagents = None  # registry iniettata dal Worker (CORE/subagent.py)
+        self.skill_executor = None  # iniettato dal Worker (CORE/skill_executor.py)
 
         sec = config.get("security", {})
         self.max_output = int(sec.get("max_output_chars", 10_000))
@@ -428,6 +430,7 @@ class ToolSet:
             "run_test_suite", "list_refs", "list_tools", "diary_llm", "retrieve_similar_task",
             "api_lookup", "spawn_subagent", "get_subagent_report",
             "list_subagents",
+            "run_macro",
         }
         try:
             from GUI.settings_store import get_usb_tools_enabled
@@ -1089,6 +1092,55 @@ class ToolSet:
     def list_tools(self) -> dict:
         """Firma dei tool per il system prompt dell'agente."""
         return dict(TOOL_SIGNATURES)
+
+    def run_macro(self, steps_json) -> str:
+        """Esegue una macro (pipeline skill/tool/mcp) in sequenza.
+
+        steps_json: lista di dict con chiave 'type' (skill/tool/mcp) e payload.
+        Ritorna un report testuale dei passi eseguiti.
+        """
+        import json as _json
+        try:
+            if isinstance(steps_json, str):
+                steps = _json.loads(steps_json)
+            else:
+                steps = list(steps_json)
+        except Exception as e:
+            return f"ERROR: steps_json non valido: {e}"
+        if not isinstance(steps, list) or not steps:
+            return "ERROR: steps deve essere una lista non vuota"
+
+        # tool_caller: chiama i tool di questo ToolSet
+        def _tool_caller(name, args):
+            method = getattr(self, name, None)
+            if not callable(method):
+                return f"ERROR: unknown tool '{name}'"
+            try:
+                return method(*args) if args else method()
+            except Exception as e:
+                return f"ERROR: {e}"
+
+        skill_exec = getattr(self, "skill_executor", None)
+        mcp_client = None
+        # mcp_client iniettato dal Worker se disponibile
+        mcp_client = getattr(self, "mcp_client", None)
+
+        try:
+            from CORE.macro import run_macro as _run
+            result = _run(
+                steps, task={"title": "macro", "description": ""},
+                skill_executor=skill_exec, tool_caller=_tool_caller,
+                mcp_client=mcp_client, stop_on_error=False)
+        except Exception as e:
+            return f"ERROR: macro fallita: {e}"
+
+        lines = [f"Macro: {len(result.steps)} passi, ok={result.ok}"]
+        for i, st in enumerate(result.steps, 1):
+            status = "OK" if st.ok else "FAIL"
+            out = (st.result or "")[:200]
+            lines.append(f"  {i}. [{st.type}] {status}: {out}")
+        lines.append(f"Output finale: {result.final_output[:300]}")
+        return "\n".join(lines)
 
     # ------------------------------------------------------------------
     # Internals

@@ -2107,6 +2107,8 @@ class Worker:
                 return self.tools.run_test_suite()
             elif name == "list_tools":
                 return json.dumps(self.tools.list_tools(), indent=1)
+            elif name == "run_macro":
+                return self.tools.run_macro(args[0] if args else "[]")
             elif name == "diary_llm":
                 return self.tools.diary_llm(args[0], args[1])
             elif name == "delete_file":

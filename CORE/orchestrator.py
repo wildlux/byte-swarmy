@@ -1182,6 +1182,12 @@ class Orchestrator:
                 except Exception as _e:
                     self.log.debug("[resilience] recover fallito: %s", _e)
                 self._state_recovered = True
+        # Inietta skill_executor e mcp_client nel ToolSet (per run_macro).
+        try:
+            self.tools.skill_executor = self.generic_planner  # best-effort
+            self.tools.mcp_client = getattr(self, "mcp_client", None)
+        except Exception:
+            pass
         return Worker(
             agent_id=agent_id,
             model_key=model_key,
