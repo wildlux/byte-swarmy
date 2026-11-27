@@ -99,128 +99,186 @@ def build_scheduler_page(get_project_path_callback):
     return TaskSchedulerPanel(get_project_path=get_project_path_callback)
 
 
-def build_plancia_cards(open_panel_callback):
-    """Costruisce la griglia di card della plancia (Code Task, Modelli, Config, CI/CD, Clean Code).
+PLANCIA_CATEGORIES = [
+    {
+        "key": "operativita",
+        "title": "Operatività & AI",
+        "icon": "🚀",
+        "expanded": True,
+        "subcategories": [
+            ("Pianificazione", [
+                ("coda", "📋 Code Task",
+                 "Schedula compiti a orari previsti: one-shot, ricorrenti o giornalieri",
+                 "Scheduler", "#f59e0b"),
+            ]),
+            ("Agenti", [
+                ("modelli", "🤖 Modelli → Attori",
+                 "Imposta i 3 attori: LLM, Decision Model e Timestral (soglie termiche)",
+                 "3 attori", "#2563eb"),
+            ]),
+            ("Capacità", [
+                ("skills", "🎓 Skill",
+                 "Le skill operative del sistema: ricerca, report, calcoli, SQL, "
+                 "diagrammi SVG — tutte mostrate nella Plancia",
+                 "Skills", "#db2777"),
+            ]),
+        ],
+    },
+    {
+        "key": "sviluppo",
+        "title": "Sviluppo & Qualità",
+        "icon": "🛠️",
+        "expanded": False,
+        "subcategories": [
+            ("Pipeline & test", [
+                ("cicd", "🔄 CI/CD",
+                 "Pipeline di integrazione e delivery: build, test, deploy automatici",
+                 "Pipeline", "#dc2626"),
+                ("test", "🧪 Test Suite",
+                 "Esegue la suite di test: runner per-file con timeout, esito salvato",
+                 "Tests", "#ea580c"),
+            ]),
+            ("Qualità del codice", [
+                ("clean_code", "✨ Clean & Architecture Code",
+                 "Verifica qualità codice: lint, complexity, duplicazione, architettura",
+                 "Quality", "#7c3aed"),
+                ("audit_project", "🔍 Audit Progetto",
+                 "Quality gate su un progetto target: porte esposte, tunnel, codice morto",
+                 "Gate", "#9333ea"),
+            ]),
+            ("Debito tecnico", [
+                ("debt_ledger", "🏛️ Registro del debito",
+                 "Coda di rifattorizzazioni e ottimizzazioni: stato, priorità e "
+                 "verifica anti-stantio (SQLite, pianificazione fredda)",
+                 "Debt", "#b45309"),
+            ]),
+        ],
+    },
+    {
+        "key": "analisi",
+        "title": "Analisi & Report",
+        "icon": "🔍",
+        "expanded": False,
+        "subcategories": [
+            ("Esplorazione", [
+                ("code_explorer", "🎮 Navigatore di codice",
+                 "Esplora classi, funzioni e variabili del progetto con grafo interattivo",
+                 "Explorer", "#0891b2"),
+            ]),
+            ("Cronologia", [
+                ("logs", "📜 Log — Diario di Bordo",
+                 "Cronologia eventi del sistema: info, debug, success ed errori",
+                 "Logs", "#ca8a04"),
+                ("backup_logs", "💾 Backup Code — Git Logs",
+                 "Log dei push su GitHub, GitLab e Git generici con stato pipeline CI",
+                 "Backup", "#475569"),
+            ]),
+            ("Report", [
+                ("miglioramenti", "📈 Miglioramenti",
+                 "Grafico dei miglioramenti implementati: audit, meccanismi di "
+                 "robustezza, crescita dei test",
+                 "Docs", "#059669"),
+            ]),
+        ],
+    },
+    {
+        "key": "sicurezza",
+        "title": "Sicurezza & Integrità",
+        "icon": "🛡️",
+        "expanded": False,
+        "subcategories": [
+            ("Hardening", [
+                ("security", "🛡️ Sicurezza & anti-manomissione",
+                 "Scansioni di sicurezza, rilevamento manomissioni e hardening",
+                 "Security", "#b91c1c"),
+            ]),
+            ("Verifiche", [
+                ("integrity", "🧪 Test di integrità",
+                 "Verifica checksum e integrità dei file critici del software",
+                 "Tests", "#0d9488"),
+            ]),
+        ],
+    },
+    {
+        "key": "sistema",
+        "title": "Hardware & Sistema",
+        "icon": "🖥️",
+        "expanded": False,
+        "subcategories": [
+            ("Hardware", [
+                ("hardware", "🖥️ Hardware & Modelli",
+                 "Rilevamento GPU/memoria: strategia auto-suggerita per Worker e modelli",
+                 "Hardware", "#0891b2"),
+                ("fan_control", "🌀 Ventole",
+                 "Controllo ventole notebook HP via nbfc + pkexec (MAX/AUTO/OFF) — "
+                 "prerequisito dei run LLM (limite termico 60°C)",
+                 "Fan", "#0ea5e9"),
+            ]),
+            ("Sistema", [
+                ("config", "⚙️ Configurazione",
+                 "Scegli la tua configurazione GUI, Git e lingua",
+                 "Settings", "#16a34a"),
+            ]),
+        ],
+    },
+]
 
-    Restituisce (cards_container_widget, cards_dict).
+
+def build_plancia_categories(open_panel_callback):
+    """Costruisce le categorie arrotolabili della Plancia di controllo.
+
+    Ogni categoria è una ``CollapsibleSection`` con eventuali sottocategorie;
+    le card restano cliccabili e aprono il pannello corrispondente.
+
+    Ritorna:
+        (sections, cards, card_categories)
+        - sections: dict category_key -> CollapsibleSection
+        - cards: dict panel_key -> PlanciaCard
+        - card_categories: dict panel_key -> category_key
     """
+    from GUI.collapsible_section import CollapsibleSection
     from GUI.control_center import PlanciaCard
 
-    cards_grid = QGridLayout()
-    cards_grid.setSpacing(12)
-    cards_grid.setContentsMargins(0, 0, 0, 0)
-    cards_grid.setColumnStretch(0, 1)
-    cards_grid.setColumnStretch(1, 1)
-    cards_grid.setColumnStretch(2, 1)
-    cards_grid.setRowStretch(0, 0)
-    cards_grid.setRowStretch(1, 0)
-
+    sections = {}
     cards = {}
-    card_configs = [
-        ("coda", "📋 Code Task",
-         "Schedula compiti a orari previsti: uno-shot, ricorrenti o giornalieri",
-         "Scheduler", "#f59e0b", 0, 0),
-        ("modelli", "🤖 Modelli → Attori",
-         "Imposta i 3 attori: LLM, Decision Model e Timestral (soglie termiche)",
-         "3 attori", "#2563eb", 0, 1),
-        ("config", "⚙️ Configurazione",
-         "Scegli la tua configurazione GUI, Git e lingua",
-         "Settings", "#16a34a", 0, 2),
-        ("cicd", "🔄 CI/CD",
-         "Pipeline di integrazione e delivery: build, test, deploy automatici",
-         "Pipeline", "#dc2626", 1, 0),
-        ("clean_code", "✨ Clean & Architecture Code",
-         "Verifica qualità codice: lint, complexity, duplicazione, architettura",
-         "Quality", "#7c3aed", 1, 1),
-        ("test", "🧪 Test Suite",
-         "Esegue la suite di test: runner per-file con timeout, esito salvato",
-         "Tests", "#ea580c", 1, 2),
-        ("skills", "🎓 Skill",
-         "Le skill operative del sistema: ricerca, report, calcoli, SQL, "
-         "diagrammi SVG — tutte mostrate nella Plancia",
-         "Skills", "#db2777", 2, 0),
-    ]
+    card_categories = {}
 
-    for key, title, subtitle, badge, badge_color, row, col in card_configs:
-        card = PlanciaCard(title, subtitle, badge=badge, badge_color=badge_color)
-        card.clicked.connect(lambda k=key: open_panel_callback(k))
-        cards[key] = card
-        cards_grid.addWidget(card, row, col)
+    for cat in PLANCIA_CATEGORIES:
+        section = CollapsibleSection(cat["title"], icon=cat["icon"])
 
-    cards_container = QWidget()
-    cards_container.setLayout(cards_grid)
-    cards_container.setSizePolicy(
-        QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-    )
-    return cards_container, cards
+        for sub_title, items in cat["subcategories"]:
+            sub_lbl = QLabel(sub_title.upper())
+            sub_lbl.setStyleSheet(
+                "font-size:10px; font-weight:bold; letter-spacing:1px; "
+                "padding:10px 2px 2px 2px; color:#64748b;"
+            )
+            section.add_widget(sub_lbl)
 
+            grid = QGridLayout()
+            grid.setSpacing(12)
+            grid.setContentsMargins(0, 0, 0, 0)
+            for col in range(3):
+                grid.setColumnStretch(col, 1)
 
-def build_tools_cards(open_panel_callback, log_viewer, code_explorer, backup_logs,
-                      integrity_panel, security_panel):
-    """Costruisce la griglia di card degli strumenti di analisi.
+            for idx, (key, title, subtitle, badge, color) in enumerate(items):
+                card = PlanciaCard(title, subtitle, badge=badge, badge_color=color)
+                card.clicked.connect(lambda k=key: open_panel_callback(k))
+                cards[key] = card
+                card_categories[key] = cat["key"]
+                grid.addWidget(card, idx // 3, idx % 3)
 
-    Restituisce (tools_container_widget, tools_cards_dict).
-    """
-    from GUI.control_center import PlanciaCard
+            container = QWidget()
+            container.setLayout(grid)
+            container.setSizePolicy(
+                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+            )
+            section.add_widget(container)
 
-    tools_grid = QGridLayout()
-    tools_grid.setSpacing(12)
-    tools_grid.setContentsMargins(0, 0, 0, 0)
-    tools_grid.setColumnStretch(0, 1)
-    tools_grid.setColumnStretch(1, 1)
-    tools_grid.setColumnStretch(2, 1)
-    tools_grid.setRowStretch(0, 0)
-    tools_grid.setRowStretch(1, 0)
-    tools_grid.setRowStretch(2, 0)
-    tools_grid.setRowStretch(3, 0)
+        if not cat.get("expanded", False):
+            section.set_expanded(False)
+        sections[cat["key"]] = section
 
-    tools_cards = {}
-    tool_card_configs = [
-        ("code_explorer", "🎮 Navigatore di codice",
-         "Esplora classi, funzioni e variabili del progetto con grafo interattivo",
-         "Explorer", "#0891b2", 0, 0),
-        ("backup_logs", "💾 Backup Code — Git Logs",
-         "Log dei push su GitHub, GitLab e Git generici con stato pipeline CI",
-         "Backup", "#475569", 0, 1),
-        ("logs", "📜 Log — Diario di Bordo",
-         "Cronologia eventi del sistema: info, debug, success ed errori",
-         "Logs", "#ca8a04", 0, 2),
-        ("integrity", "🧪 Test di integrità",
-         "Verifica checksum e integrità dei file critici del software",
-         "Tests", "#0d9488", 1, 0),
-        ("security", "🛡️ Sicurezza & anti-manomissione",
-         "Scansioni di sicurezza, rilevamento manomissioni e hardening",
-         "Security", "#b91c1c", 1, 1),
-        ("audit_project", "🔍 Audit Progetto",
-         "Quality gate su un progetto target: porte esposte, tunnel, codice morto",
-         "Gate", "#9333ea", 1, 2),
-        ("hardware", "🖥️ Hardware & Modelli",
-         "Rilevamento GPU/memoria: strategia auto-suggerita per Worker e modelli",
-         "Hardware", "#0891b2", 2, 0),
-        ("debt_ledger", "🏛️ Registro del debito",
-         "Coda di rifattorizzazioni e ottimizzazioni: stato, priorità e "
-         "verifica anti-stantio (SQLite, pianificazione fredda)",
-         "Debt", "#b45309", 2, 1),
-        # fan_control spostato in categoria "Hardware & Sistema" (vedi sotto)
-        ("miglioramenti", "📈 Miglioramenti",
-         "Grafico dei miglioramenti implementati: audit, meccanismi di "
-         "robustezza, crescita dei test",
-         "Docs", "#059669", 3, 0),
-    ]
-
-    for key, title, subtitle, badge, badge_color, row, col in tool_card_configs:
-        card = PlanciaCard(title, subtitle, badge=badge, badge_color=badge_color)
-        card.clicked.connect(lambda k=key: open_panel_callback(k))
-        tools_cards[key] = card
-        tools_grid.addWidget(card, row, col)
-
-    tools_container = QWidget()
-    tools_container.setLayout(tools_grid)
-    tools_container.setSizePolicy(
-        QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-    )
-    return tools_container, tools_cards
-
+    return sections, cards, card_categories
 
 __all__ = [
     "wrap_in_panel_page",
@@ -230,7 +288,7 @@ __all__ = [
     "build_config_page",
     "build_skills_page",
     "build_scheduler_page",
-    "build_plancia_cards",
-    "build_tools_cards",
+    "build_plancia_categories",
+    "PLANCIA_CATEGORIES",
 ]
 

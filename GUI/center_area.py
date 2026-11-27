@@ -21,7 +21,7 @@ from GUI.backup_code_logs import BackupCodeLogs
 from GUI.integrity_tests_panel import IntegrityTestsPanel
 from GUI.software_security_panel import SoftwareSecurityPanel
 from GUI.panels import (
-    wrap_in_panel_page, build_plancia_cards, build_tools_cards,
+    wrap_in_panel_page, build_plancia_categories,
     build_scheduler_page, build_actors_page, build_config_page,
     build_cicd_page, build_clean_code_page, build_skills_page,
 )
@@ -54,9 +54,9 @@ class CenterArea(QWidget):
         main_lay.setContentsMargins(16, 8, 16, 16)
         main_lay.setSpacing(12)
 
-        self.logs_section = CollapsibleSection("Log - Diario di Bordo", icon="📜")
+        # Il log viewer vive nel pannello dedicato "Log — Diario di Bordo"
+        # (categoria Analisi & Report), non in una sezione vuota in cima.
         self.log_viewer = CategorizedLogViewer()
-        self.logs_section.add_widget(self.log_viewer)
 
         self.chat_section = CollapsibleSection("Chat - Test modelli", icon="💬")
         from GUI.chat_panel import ChatPanel
@@ -65,9 +65,9 @@ class CenterArea(QWidget):
 
         self.plancia_section = CollapsibleSection("Plancia di controllo", icon="✈️")
 
-        # ── Barra di ricerca globale (filtra le 10 card) ─────────────
-        # Cerca per titolo, sottotitolo o badge di tutte le card (plancia +
-        # strumenti). Le card non matchanti vengono nascoste in tempo reale.
+        # ── Barra di ricerca globale (filtra le card per categoria) ───
+        # Cerca per titolo, sottotitolo o badge; le card non matchanti
+        # vengono nascoste e le categorie vuote collassate automaticamente.
         from PyQt6.QtWidgets import QLineEdit as _QLineEdit, QComboBox as _QComboBox
         self.global_search = _QLineEdit()
         self.global_search.setPlaceholderText(
@@ -82,9 +82,7 @@ class CenterArea(QWidget):
         # Filtro categorie accanto alla ricerca (evita il "▼ vuoto")
         self.search_category = _QComboBox()
         self.search_category.addItem("Tutte le categorie")
-        self.search_category.addItem("Plancia — task & coda")
-        self.search_category.addItem("Strumenti — analisi progetto")
-        self.search_category.setMinimumWidth(150)
+        self.search_category.setMinimumWidth(190)
         self.search_category.setToolTip("Filtra le card per categoria")
         self.search_category.setStyleSheet(
             "QComboBox { padding:4px 8px; border-radius:6px; font-size:11px; }"
@@ -96,95 +94,47 @@ class CenterArea(QWidget):
         # Nella riga del titolo "Plancia di controllo" (sempre visibile,
         # anche a sezione collassata) invece di occupare una riga intera.
         self.plancia_section.add_header_widget(
-            self.search_category, max_width=150, min_width=120, stretch=0)
+            self.search_category, max_width=230, min_width=190, stretch=0)
         self.plancia_section.add_header_widget(
             self.global_search, max_width=700, min_width=140, stretch=2)
 
-        cards_container, self.cards = build_plancia_cards(self.open_panel)
-        self.plancia_section.add_widget(cards_container)
-
-        # ── Separatore visivo tra le card (menù da cliccare) e gli strumenti
-        # di analisi. Serve a rendere chiaro che si tratta di due gruppi
-        # distinti ma coerenti nello stile.
-        tools_label = QLabel("🧰 Strumenti di analisi")
-        tools_label.setStyleSheet(
-            "font-size:11px; font-weight:bold; "
-            "padding:14px 4px 6px 4px; letter-spacing:1px;"
-        )
-
-        # ── 5 strumenti di analisi come PlanciaCard cliccabili ─────────
-        # Le 5 sezioni (già CollapsibleSection) sono ora rettangoli uniformi
-        # allo stesso stile delle 5 card sopra (Code Task, Modelli, ecc.):
-        # al click aprono il pannello corrispondente nel detail_stack,
-        # esattamente come CI/CD e Clean Code.
-        #
-        # Struttura:
-        #   1) 🎮 Navigatore di codice Interattivo (CodeExplorer)
-        #   2) 💾 Backup Code — Git Logs (BackupCodeLogs)
-        #   3) 📜 Log - Diario di Bordo (CategorizedLogViewer)
-        #   4) 🧪 Test di integrità del software (IntegrityTestsPanel)
-        #   5) 🛡️ Sicurezza del software & anti-manomissione (SoftwareSecurityPanel)
-        UNIFORM_CONTENT_HEIGHT = 220  # altezza minima del content (220px, Expanding verticale)
+        # ── Widget dei pannelli di analisi (istanziati una sola volta) ──
+        UNIFORM_CONTENT_HEIGHT = 220  # altezza minima del content
 
         def _force_content_size(widget):
-            """Altezza minima 220 + espansione verticale (T-R3).
-
-            Invece del triplo setFixedHeight(300) (che bloccava l'altezza
-            a 300 anche quando il contenitore aveva più spazio), usiamo
-            setMinimumHeight(220) + policy Expanding verticale: il widget
-            può crescere fino all'altezza disponibile, senza mai scendere
-            sotto 220. Impatto basso: i 5 widget vivono solo nelle pagine
-            di dettaglio dove wrap_in_panel_page rilascia l'altezza max.
-            """
+            """Altezza minima 220 + espansione verticale."""
             widget.setMinimumHeight(UNIFORM_CONTENT_HEIGHT)
             widget.setMaximumHeight(16777215)  # QWIDGETSIZE_MAX: no cap
             widget.setSizePolicy(QSizePolicy.Policy.Expanding,
                                 QSizePolicy.Policy.Expanding)
 
-        # ── Istanzia i 5 widget (verranno messi nel detail_stack) ──────
         self.code_explorer = CodeExplorer()
         _force_content_size(self.code_explorer)
         self.backup_logs = BackupCodeLogs()
         _force_content_size(self.backup_logs)
-        # log_viewer è già stato creato sopra (riga ~4106), lo riusiamo
+        # log_viewer è già stato creato sopra, lo riusiamo
         _force_content_size(self.log_viewer)
         self.integrity_panel = IntegrityTestsPanel()
         _force_content_size(self.integrity_panel)
         self.security_panel = SoftwareSecurityPanel()
         _force_content_size(self.security_panel)
 
-        tools_container, self.tools_cards = build_tools_cards(
-            self.open_panel, self.log_viewer, self.code_explorer, self.backup_logs,
-            self.integrity_panel, self.security_panel
-        )
-        # Wrappa gli strumenti di analisi in una CollapsibleSection
-        # (arrotolabile: visibile solo quando serve).
-        self.tools_section = CollapsibleSection("Strumenti di analisi", icon="🧰")
-        self.tools_section.add_widget(tools_container)
-        self.plancia_section.add_widget(self.tools_section)
+        # ── Categorie arrotolabili: ogni categoria contiene le sue
+        # sottocategorie e le card dei pannelli corrispondenti. ────────
+        (self.category_sections, self.cards,
+         self.card_categories) = build_plancia_categories(self.open_panel)
+        for section in self.category_sections.values():
+            self.plancia_section.add_widget(section)
 
-        # ── Categoria aggiuntiva: Hardware & Sistema (arrotolabile) ────
-        # Contiene la card "Ventole" (spostata da Strumenti di analisi).
-        from GUI.control_center import PlanciaCard
-        hw_grid = QGridLayout()
-        hw_grid.setSpacing(12)
-        hw_grid.setContentsMargins(0, 0, 0, 0)
-        hw_grid.setColumnStretch(0, 1)
-        hw_grid.setColumnStretch(1, 1)
-        hw_grid.setColumnStretch(2, 1)
-        fan_card = PlanciaCard(
-            "🌀 Ventole",
-            "Controllo ventole notebook HP via nbfc + pkexec (MAX/AUTO/OFF) — "
-            "prerequisito dei run LLM (limite termico 60°C)",
-            badge="Fan", badge_color="#0ea5e9")
-        fan_card.clicked.connect(lambda: self.open_panel("fan_control"))
-        hw_grid.addWidget(fan_card, 0, 0)
-        hw_container = QWidget()
-        hw_container.setLayout(hw_grid)
-        hw_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.hw_section = CollapsibleSection("Hardware & Sistema", icon="🖥️")
-        self.hw_section.add_widget(hw_container)
-        self.plancia_section.add_widget(self.hw_section)
+        # Compatibilità con test/vecchi riferimenti: le card "strumenti"
+        # sono ora distribuite nelle categorie.
+        self.tools_cards = {}
+
+        # Popola il filtro categorie con i titoli reali delle sezioni.
+        self.search_category.blockSignals(True)
+        for ckey, section in self.category_sections.items():
+            self.search_category.addItem(section.title_lbl.text(), ckey)
+        self.search_category.blockSignals(False)
 
         main_lay.addWidget(self.plancia_section)
         main_lay.addWidget(self.chat_section)
@@ -223,7 +173,7 @@ class CenterArea(QWidget):
         # Ognuno dei 5 widget istanziati sopra viene avvolto in una pagina
         # con header "← Indietro alla Plancia (Backspace)" + titolo, poi aggiunto al
         # detail_stack. La key deve combaciare con quella usata nelle
-        # PlanciaCard della tools_grid (vedi tool_card_configs sopra).
+        # PlanciaCard delle categorie (vedi PLANCIA_CATEGORIES in panels.py).
         self.panel_pages["code_explorer"] = wrap_in_panel_page(
             "🎮 Navigatore di codice Interattivo", self.code_explorer, self.back_to_main
         )
@@ -337,27 +287,57 @@ class CenterArea(QWidget):
                 self.panel_pages["coda"].refresh()
 
     def _on_global_search(self, text=None):
-        """Filtra le card (plancia + strumenti) in base al testo cercato.
+        """Filtra card e categorie in base a testo e categoria selezionata.
 
-        Può essere chiamato sia da QLineEdit.textChanged (str) sia da
-        QComboBox.currentIndexChanged (int): in quest'ultimo caso si usa il
-        testo corrente del campo ricerca.
+        - Testo vuoto + "Tutte le categorie": mostra tutte le sezioni.
+        - Categoria selezionata: mostra solo quella sezione (espansa).
+        - Testo: nasconde le card non corrispondenti e le categorie vuote;
+          espande automaticamente le categorie con almeno un match.
         """
+        if not hasattr(self, "cards"):
+            return
         if not isinstance(text, str):
             text = self.global_search.text() if hasattr(self, "global_search") else ""
         query = text.strip().lower()
-        category = self.search_category.currentText() if hasattr(self, "search_category") else "Tutte le categorie"
-        all_cards = list(self.cards.items()) + list(self.tools_cards.items())
-        for key, card in all_cards:
-            # Filtro per categoria selezionata
-            if category != "Tutte le categorie":
-                is_plancia = key in self.cards
-                is_plancia_cat = category == "Plancia — task & coda"
-                if is_plancia_cat != is_plancia:
-                    card.setVisible(False)
-                    continue
-            card.setVisible(True)
-        # Forza aggiornamento layout griglia per far sparire le card nascoste
+        cat_key = (self.search_category.currentData()
+                   if hasattr(self, "search_category") else None)
+
+        from PyQt6.QtWidgets import QLabel as _QLabel
+        matched_categories = set()
+
+        for key, card in self.cards.items():
+            card_cat = self.card_categories.get(key)
+            in_category = not cat_key or card_cat == cat_key
+            if not hasattr(card, "_search_orig_style"):
+                card._search_orig_style = card.styleSheet()
+            haystack = " ".join(
+                child.text().lower() for child in card.findChildren(_QLabel)
+            )
+            matches_query = not query or query in haystack
+            visible = in_category and matches_query
+            card.setVisible(visible)
+            if visible and card_cat:
+                matched_categories.add(card_cat)
+            if query and visible:
+                card.setStyleSheet(
+                    "QFrame#card { border: 2px solid #2563eb; border-radius: 8px; "
+                    "background: rgba(37,99,235,0.06); }"
+                )
+            else:
+                card.setStyleSheet(card._search_orig_style or "")
+
+        for ckey, section in self.category_sections.items():
+            if cat_key:
+                visible = ckey == cat_key
+            elif query:
+                visible = ckey in matched_categories
+            else:
+                visible = True
+            section.setVisible(visible)
+            if visible and (cat_key or query):
+                section.set_expanded(True)
+
+        # Forza aggiornamento layout per far sparire le card nascoste
         try:
             from PyQt6.QtWidgets import QApplication
             QApplication.processEvents()
@@ -365,50 +345,22 @@ class CenterArea(QWidget):
         except Exception:
             pass
 
-        for key, card in all_cards:
-            card.setVisible(True)
-            if not query:
-                if hasattr(card, "_search_orig_style"):
-                    card.setStyleSheet(card._search_orig_style)
-                else:
-                    card.setStyleSheet("")
-                continue
-            if not hasattr(card, "_search_orig_style"):
-                card._search_orig_style = card.styleSheet()
-            haystack_parts: list[str] = []
-            from PyQt6.QtWidgets import QLabel as _QLabel
-            for child in card.findChildren(_QLabel):
-                haystack_parts.append(child.text().lower())
-            haystack = " ".join(haystack_parts)
-            if query in haystack:
-                card.setStyleSheet(
-                    "QFrame#card { border: 2px solid #2563eb; border-radius: 8px; "
-                    "background: rgba(37,99,235,0.06); }"
-                )
-            else:
-                card.setStyleSheet(
-                    "QFrame#card { border: 1px solid #555; opacity: 0.65; }"
-                )
-
     def _on_global_search_enter(self):
         """Premi Invio nella ricerca globale: se c'è un solo match,
         apri direttamente quel pannello (menù specifico)."""
         query = self.global_search.text().strip().lower()
         if not query:
             return
-        all_cards = list(self.cards.items()) + list(self.tools_cards.items())
+        from PyQt6.QtWidgets import QLabel as _QLabel
         matches = []
-        for key, card in all_cards:
-            haystack_parts: list[str] = []
-            from PyQt6.QtWidgets import QLabel as _QLabel
-            for child in card.findChildren(_QLabel):
-                haystack_parts.append(child.text().lower())
-            haystack = " ".join(haystack_parts)
+        for key, card in self.cards.items():
+            haystack = " ".join(
+                child.text().lower() for child in card.findChildren(_QLabel)
+            )
             if query in haystack:
-                matches.append((key, card))
+                matches.append(key)
         if len(matches) == 1:
-            key, _card = matches[0]
-            self.open_panel(key)
+            self.open_panel(matches[0])
 
     def back_to_main(self):
         self.main_stack.setCurrentIndex(0)
