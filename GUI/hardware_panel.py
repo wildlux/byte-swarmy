@@ -16,7 +16,7 @@ from pathlib import Path
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
-    QGroupBox, QPlainTextEdit, QScrollArea,
+    QGroupBox, QPlainTextEdit, QScrollArea, QComboBox,
 )
 from PyQt6.QtCore import Qt
 
