@@ -332,3 +332,75 @@ def format_code_symbols(symbols: list[dict], max_chars: int = 800) -> str:
     if len(text) > max_chars:
         text = text[:max_chars] + "\n...[truncated]"
     return text
+
+
+def retrieve_code_symbols_hybrid(project_root, query: str, k: int = 5,
+                                model: str = "nomic-embed-text") -> list[dict]:
+    """Retrieval di simbodi codebase: embeddings se disponibili, altrimenti TF-IDF.
+
+    Zero RAM extra se il modello di embedding non e' installato (fallback).
+    """
+    # Recupera i simbodi candidati via code_map (come retrieve_code_symbols).
+    try:
+        from CORE import code_map as _cm
+    except Exception:
+        return retrieve_code_symbols(project_root, query, k) if False else []
+    try:
+        db = _cm.db_path(project_root)
+        if not db.exists():
+            _cm.rebuild(project_root)
+            db = _cm.db_path(project_root)
+        if not db.exists():
+            return []
+    except Exception:
+        return []
+
+    import sqlite3
+    try:
+        conn = sqlite3.connect(str(db))
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT file, kind, name, qualname, signature, doc, line FROM symbols"
+        ).fetchall()
+        conn.close()
+    except Exception:
+        return []
+
+    if not rows:
+        return []
+
+    items = []
+    for r in rows:
+        text = " ".join(filter(None, [r["name"], r["qualname"], r["signature"], r["doc"]]))
+        items.append((f"{r['file']}:{r['line']}", text, r))
+
+    # Prova hybrid (embeddings o TF-IDF)
+    try:
+        from CORE.embedding_retrieval import hybrid_retrieve
+        host = "http://localhost:11434"
+        res = hybrid_retrieve(query, [(iid, text) for iid, text, _ in items],
+                              model=model, host=host, k=k)
+    except Exception:
+        res = []
+
+    if not res:
+        # fallback diretto TF-IDF
+        return retrieve_code_symbols(project_root, query, k)
+
+    # Mappa id -> row
+    id2row = {iid: r for iid, _, r in items}
+    out = []
+    for iid, score, _ in res:
+        r = id2row.get(iid)
+        if r is None:
+            continue
+        out.append({
+            "file": r["file"],
+            "kind": r["kind"],
+            "name": r["name"],
+            "qualname": r["qualname"],
+            "signature": r["signature"],
+            "line": r["line"],
+            "score": score,
+        })
+    return out if out else retrieve_code_symbols(project_root, query, k)

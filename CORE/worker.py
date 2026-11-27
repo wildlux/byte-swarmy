@@ -1700,8 +1700,8 @@ class Worker:
         # Riduce il contesto (solo chunk pertinenti) → meno RAM/token.
         code_symbols_block = ""
         try:
-            from CORE.retrieval import retrieve_code_symbols, format_code_symbols
-            _syms = retrieve_code_symbols(
+            from CORE.retrieval import retrieve_code_symbols_hybrid, format_code_symbols
+            _syms = retrieve_code_symbols_hybrid(
                 "project", str(task.get("title", "")) + " " + str(task.get("description", "")),
                 k=5)
             code_symbols_block = format_code_symbols(_syms)
