@@ -173,6 +173,9 @@ class TestSuitePanel(QWidget):
         scroll.setStyleSheet(
             "QScrollArea { background:transparent; border:none; }")
 
+        self._scroll = scroll
+        self._sections = []
+
         content = QWidget()
         content.setObjectName("panelScrollContent")
         content.setStyleSheet(
@@ -226,6 +229,17 @@ class TestSuitePanel(QWidget):
         controls.addWidget(self.e2e_cb)
         outer.addLayout(controls)
 
+        # Navigazione rapida
+        nav_row = QHBoxLayout()
+        nav_row.setSpacing(8)
+        nav_label = QLabel("Vai a:")
+        nav_row.addWidget(nav_label)
+        self.nav_combo = QComboBox()
+        self.nav_combo.setMinimumWidth(220)
+        self.nav_combo.currentIndexChanged.connect(self._on_nav_changed)
+        nav_row.addWidget(self.nav_combo, stretch=1)
+        outer.addLayout(nav_row)
+
         # ─── Selezione categorie ──────────────────────────────────────
         cat_box = QGroupBox("📂 Categorie di test")
         cat_lay = QVBoxLayout(cat_box)
@@ -268,6 +282,7 @@ class TestSuitePanel(QWidget):
 
         cat_lay.addStretch()
         outer.addWidget(cat_box)
+        self._sections.append(("Categorie", cat_box))
 
         # Progresso
         self.progress = QProgressBar()
@@ -313,6 +328,7 @@ class TestSuitePanel(QWidget):
             self.summary_labels[key] = val
             s_lay.addLayout(row)
         outer.addWidget(self.summary_box)
+        self._sections.append(("Risultato", self.summary_box))
 
         # Risultati per file
         list_box = QGroupBox("📁 Risultati per file")
@@ -342,6 +358,7 @@ class TestSuitePanel(QWidget):
         self.detail.setMaximumHeight(200)
         d_lay.addWidget(self.detail)
         outer.addWidget(det_box)
+        self._sections.append(("Output", det_box))
 
         # Log esecuzione
         log_box = QGroupBox("📜 Log esecuzione")
@@ -357,8 +374,12 @@ class TestSuitePanel(QWidget):
         self.log.setMaximumHeight(150)
         g_lay.addWidget(self.log)
         outer.addWidget(log_box)
+        self._sections.append(("Log", log_box))
 
         outer.addStretch()
+        # Popola combo navigazione
+        for name, _w in self._sections:
+            self.nav_combo.addItem(name)
         scroll.setWidget(content)
 
         main_lay = QVBoxLayout(self)
@@ -632,6 +653,16 @@ class TestSuitePanel(QWidget):
     @staticmethod
     def _now() -> str:
         return time.strftime("%H:%M:%S")
+
+    def _on_nav_changed(self, idx: int) -> None:
+        """Scrolla alla sezione selezionata nel combo di navigazione rapida."""
+        if idx < 0 or idx >= len(self._sections):
+            return
+        _name, section = self._sections[idx]
+        try:
+            self._scroll.ensureWidgetVisible(section)
+        except Exception:
+            pass
 
     def _back_to_main(self):
         """Torna alla plancia di controllo (come hardware_panel)."""
