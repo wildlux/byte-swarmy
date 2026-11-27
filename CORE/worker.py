@@ -1591,10 +1591,23 @@ class Worker:
             # per invalidare quando i file cambiano.
             try:
                 from pathlib import Path as _P
-                _mtimes = tuple(sorted(
-                    (f.name, f.stat().st_mtime_ns)
-                    for f in _P("project").rglob("*") if f.is_file()
-                ))[:50] if _P("project").exists() else ()
+                # Cache invalidation per singolo file: solo i file menzionati
+                # nel contesto (righe "  - path") contribuiscono al key.
+                _mentioned = []
+                for _line in ctx.splitlines():
+                    _line = _line.strip()
+                    if _line.startswith("- "):
+                        _mentioned.append(_line[2:].strip())
+                _mtimes = []
+                for _rel in _mentioned:
+                    _fp = _P("project") / _rel
+                    try:
+                        _mtimes.append((_rel, _fp.stat().st_mtime_ns))
+                    except OSError:
+                        _mtimes.append((_rel, 0))
+                if not _mtimes and _P("project").exists():
+                    _mtimes = [("__all__", _P("project").stat().st_mtime_ns)]
+                _mtimes = tuple(sorted(_mtimes))
             except Exception:
                 _mtimes = ()
             key = (hashlib.sha1(ctx.encode("utf-8", "ignore")).hexdigest()[:16],
