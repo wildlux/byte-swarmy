@@ -100,6 +100,17 @@ class SettingsPanel(QWidget):
         _theme_prop(self.search_count, "role", "muted")
         outer.addWidget(self.search_count)
 
+        # Navigazione rapida: combo per saltare alla sezione desiderata
+        nav_row = QHBoxLayout()
+        nav_row.setSpacing(8)
+        nav_label = QLabel("Vai a:")
+        nav_row.addWidget(nav_label)
+        self.nav_combo = QComboBox()
+        self.nav_combo.setMinimumWidth(220)
+        self.nav_combo.currentIndexChanged.connect(self._on_nav_changed)
+        nav_row.addWidget(self.nav_combo, stretch=1)
+        outer.addLayout(nav_row)
+
         # Scroll area per il contenuto (in caso di molti remote)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -138,11 +149,17 @@ class SettingsPanel(QWidget):
         _add_section("pesi huggingface", self._build_weightspace_section())
         _add_section("etichette", self._build_labels_section())
 
+        # Popola il combo di navigazione rapida
+        for name, _w in self._sections:
+            self.nav_combo.addItem(name.title())
+
         # Le sezioni riempiono lo spazio disponibile (niente stretch finale
         # che lasciava area vuota): l'audit_output usa il posto in più.
 
         scroll.setWidget(content)
         outer.addWidget(scroll, stretch=1)
+        self._scroll = scroll
+        self._content = content
 
         # Stato iniziale: tutte le sezioni visibili
         self._update_search_count(len(self._sections), len(self._sections))
@@ -200,6 +217,16 @@ class SettingsPanel(QWidget):
             if word and word in haystack:
                 return True
         return False
+
+    def _on_nav_changed(self, idx: int) -> None:
+        """Scrolla alla sezione selezionata nel combo di navigazione rapida."""
+        if idx < 0 or idx >= len(self._sections):
+            return
+        _name, section = self._sections[idx]
+        try:
+            self._scroll.ensureWidgetVisible(section)
+        except Exception:
+            pass
 
     def _build_search_haystack(self, name: str, section: QGroupBox) -> str:
         """Costruisce l'indice testuale dinamico di una sezione."""
