@@ -159,9 +159,32 @@ class CenterArea(QWidget):
         )
         # Wrappa gli strumenti di analisi in una CollapsibleSection
         # (arrotolabile: visibile solo quando serve).
-        self.tools_section = CollapsibleSection("🧰 Strumenti di analisi", icon="🧰")
+        self.tools_section = CollapsibleSection("Strumenti di analisi", icon="🧰")
         self.tools_section.add_widget(tools_container)
         self.plancia_section.add_widget(self.tools_section)
+
+        # ── Categoria aggiuntiva: Hardware & Sistema (arrotolabile) ────
+        # Contiene la card "Ventole" (spostata da Strumenti di analisi).
+        from GUI.control_center import PlanciaCard
+        hw_grid = QGridLayout()
+        hw_grid.setSpacing(12)
+        hw_grid.setContentsMargins(0, 0, 0, 0)
+        hw_grid.setColumnStretch(0, 1)
+        hw_grid.setColumnStretch(1, 1)
+        hw_grid.setColumnStretch(2, 1)
+        fan_card = PlanciaCard(
+            "🌀 Ventole",
+            "Controllo ventole notebook HP via nbfc + pkexec (MAX/AUTO/OFF) — "
+            "prerequisito dei run LLM (limite termico 60°C)",
+            badge="Fan", badge_color="#0ea5e9")
+        fan_card.clicked.connect(lambda: self.open_panel("fan_control"))
+        hw_grid.addWidget(fan_card, 0, 0)
+        hw_container = QWidget()
+        hw_container.setLayout(hw_grid)
+        hw_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.hw_section = CollapsibleSection("Hardware & Sistema", icon="🖥️")
+        self.hw_section.add_widget(hw_container)
+        self.plancia_section.add_widget(self.hw_section)
 
         main_lay.addWidget(self.plancia_section)
         main_lay.addWidget(self.chat_section)

@@ -201,10 +201,7 @@ def build_tools_cards(open_panel_callback, log_viewer, code_explorer, backup_log
          "Coda di rifattorizzazioni e ottimizzazioni: stato, priorità e "
          "verifica anti-stantio (SQLite, pianificazione fredda)",
          "Debt", "#b45309", 2, 1),
-        ("fan_control", "🌀 Ventole",
-         "Controllo ventole notebook HP via nbfc + pkexec (MAX/AUTO/OFF) — "
-         "prerequisito dei run LLM (limite termico 60°C)",
-         "Fan", "#0ea5e9", 2, 2),
+        # fan_control spostato in categoria "Hardware & Sistema" (vedi sotto)
         ("miglioramenti", "📈 Miglioramenti",
          "Grafico dei miglioramenti implementati: audit, meccanismi di "
          "robustezza, crescita dei test",
