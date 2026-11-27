@@ -375,22 +375,6 @@ class ActorsPanel(QWidget):
         head.addStretch()
         outer.addLayout(head)
 
-        # Scroll area per il contenuto
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet("QScrollArea { background:transparent; border:none; }")
-
-        content = QWidget()
-        content.setObjectName("panelScrollContent")
-        # NB: stylesheet con SELETTORE (non declaration-only), altrimenti
-        # il "background: transparent" trasuda su tutti i figli e azzera
-        # i bottoni role="start"/"danger" del tema app-level.
-        content.setStyleSheet("QWidget#panelScrollContent { background: transparent; }")
-        lay = QVBoxLayout(content)
-        lay.setSpacing(12)
-        lay.setContentsMargins(0, 0, 0, 0)
-
         # Spiegazione iniziale (banner "info" dal tema)
         expl = QLabel(
             "Configura qui i 3 attori del sistema. Il <b>Timestral</b> "
@@ -400,24 +384,25 @@ class ActorsPanel(QWidget):
         )
         expl.setWordWrap(True)
         _theme_banner(expl, "info")
-        lay.addWidget(expl)
+        outer.addWidget(expl)
 
-        # Sezioni
-        lay.addWidget(self._build_llm_section())
-        lay.addWidget(self._build_models_direct_section())
-        lay.addWidget(self._build_decision_section())
-        lay.addWidget(self._build_timestral_section())
-        # Spostato dal "Log - Diario di Bordo": sezione Ollama status per
-        # verificare che Ollama sia installato e funzionante sul PC.
-        lay.addWidget(self._build_ollama_status_section())
-        # 🆕 Tutti gli altri modelli della conoscenza non installati (⬇)
-        lay.addWidget(self._build_missing_models_section())
+        # Tab widget per navigare le sezioni senza scroll infinito
+        from PyQt6.QtWidgets import QTabWidget
+        tabs = QTabWidget()
+        tabs.addTab(self._build_llm_section(), "🤖 LLM")
+        tabs.addTab(self._build_decision_section(), "🧠 Decision")
+        tabs.addTab(self._build_timestral_section(), "🌡️ Timestral")
+        tabs.addTab(self._build_models_direct_section(), "📦 Modelli diretti")
+        tabs.addTab(self._build_ollama_status_section(), "🩺 Ollama")
+        tabs.addTab(self._build_missing_models_section(), "⬇ Modelli mancanti")
+
+        outer.addWidget(tabs, stretch=1)
 
         # Pulsante Salva in fondo (primary/start dal tema)
         save_btn = QPushButton("💾 Salva configurazione attori")
         _theme_prop(save_btn, "role", "start")
         save_btn.clicked.connect(self._on_save)
-        lay.addWidget(save_btn)
+        outer.addWidget(save_btn)
 
         # Log configurazione (usa lo spazio vuoto per testo utile)
         self.actors_log = QPlainTextEdit()
@@ -429,10 +414,7 @@ class ActorsPanel(QWidget):
         self.actors_log.setPlaceholderText(
             "Log delle operazioni (salvataggio, refresh Ollama, …)…"
         )
-        lay.addWidget(self.actors_log, stretch=1)
-
-        scroll.setWidget(content)
-        outer.addWidget(scroll, stretch=1)
+        outer.addWidget(self.actors_log, stretch=1)
 
     def _build_llm_section(self) -> QGroupBox:
         box = QGroupBox("🤖 LLM — modello principale")
