@@ -150,9 +150,13 @@ ensure_env() {
         echo "    L'orchestratore potrebbe fallire."
         echo "    Per installare tutti i modelli: ./byte-swarm.sh setup"
         echo
-        read -p "Continuare comunque? (S/N) " -n 1 -r
-        echo
-        [[ $REPLY =~ ^[Nn]$ ]] || exit 1
+        if [ -t 0 ]; then
+            read -p "Continuare comunque? (S/N) " -n 1 -r
+            echo
+            [[ $REPLY =~ ^[Nn]$ ]] || exit 1
+        else
+            echo "Modalita' non interattiva: procedo comunque."
+        fi
     fi
 
     # Verifica modello pesante per worker_coder (GPU)
@@ -206,9 +210,13 @@ start_orchestrator() {
         echo "stdout/stderr watchdog:"
         tail -20 logs/watchdog.log 2>/dev/null || echo "(vuoto)"
         rm -f "$PID_FILE"
-        read -p "Vuoi continuare ad avviare la GUI comunque? (s/N) " -n 1 -r
-        echo
-        [[ $REPLY =~ ^[Ss]$ ]] || exit 1
+        if [ -t 0 ]; then
+            read -p "Vuoi continuare ad avviare la GUI comunque? (s/N) " -n 1 -r
+            echo
+            [[ $REPLY =~ ^[Ss]$ ]] || exit 1
+        else
+            echo "Modalita' non interattiva: procedo con la GUI comunque."
+        fi
     fi
 }
 
