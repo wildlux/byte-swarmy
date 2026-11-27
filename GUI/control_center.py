@@ -101,6 +101,7 @@ class ControlCenter(
         super().__init__()
         self.setWindowTitle("BYTE-SWARMY · Control Center")
         self.resize(1450, 900)
+        self.setMinimumSize(1100, 700)
         # Tema: legge da CONFIG/settings.json e carica il QSS completo.
         # I temi sono 10+ (nord, dracula, hacker, ...): non più binario
         # dark/light. Il QSS si applica live anche senza riavvio.
