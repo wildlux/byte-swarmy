@@ -571,6 +571,9 @@ class Worker:
                         str(task.get("title", "")),
                         str(task.get("description", "")),
                         ask_fn=_ask_fn)
+                    if getattr(_result, "cancelled", False):
+                        self.log.info("[clarifier] annullato dall'utente → task fermato")
+                        return "Task annullato dall'utente durante il chiarimento."
                     task = dict(task)
                     task["title"] = _result.enriched_title
                     task["description"] = _result.enriched_description

@@ -56,6 +56,7 @@ class ClarificationResult:
     is_clear: bool = True
     enriched_title: str = ""
     enriched_description: str = ""
+    cancelled: bool = False  # True se l'utente ha annullato il dialog
 
     def has_questions(self) -> bool:
         return len(self.questions) > 0
@@ -321,7 +322,14 @@ def clarify_loop(task_title: str, task_description: str = "",
         answer = ask_fn(format_questions(questions))
     except (EOFError, KeyboardInterrupt):
         return ClarificationResult(
-            questions=questions, is_clear=False,
+            questions=questions, is_clear=False, cancelled=True,
+            enriched_title=task_title,
+            enriched_description=task_description)
+
+    # Annullato dall'utente (dialog chiuso o risposta None/vuota)
+    if answer is None or str(answer).strip() == "":
+        return ClarificationResult(
+            questions=questions, is_clear=False, cancelled=True,
             enriched_title=task_title,
             enriched_description=task_description)
 
