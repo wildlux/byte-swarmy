@@ -650,9 +650,16 @@ class Worker:
         verification_retries = 0  # A1: retry dedicati a `not_tested`
         correction_reasons: list[str] = []  # A2: reason della triple
 
-        for step in range(self.MAX_STEPS):
+        # MAX_STEPS dinamico via tuner (se disponibile), altrimenti default.
+        try:
+            _tuner = getattr(self.models, "llm_tuner", None)
+            _max_steps = _tuner.get_max_steps() if _tuner is not None else self.MAX_STEPS
+        except Exception:
+            _max_steps = self.MAX_STEPS
+        _max_steps = max(2, min(12, int(_max_steps)))
+        for step in range(_max_steps):
             self.memory.heartbeat()
-            self.log.info(f"[{self.agent_id}] step {step+1}/{self.MAX_STEPS}")
+            self.log.info(f"[{self.agent_id}] step {step+1}/{_max_steps}")
 
             # T13: max_tokens adattivo — lo step 0 può contenere un
             # write_file con codice lungo (con 400 il JSON veniva
