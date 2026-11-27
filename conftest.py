@@ -10,4 +10,4 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-collect_ignore = ["tests/archiviati"]
+collect_ignore = ["tests/archiviati", "project"]
