@@ -120,7 +120,7 @@ mattoni.
 
 **Regola nuova derivata:** ogni benchmark nuovo DEVE spezzare la
 metrica per granularità (output-size, tipo di slot, asse del radar),
-mai solo aggregata. Messe in DOCS/BENCH.md alla prima eval.
+mai solo aggregata. Messe in RAG/DOCS/BENCH.md alla prima eval.
 
 ## Tempistiche di scrittura (stime oneste, 2026-11-18)
 

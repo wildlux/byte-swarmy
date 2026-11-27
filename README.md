@@ -47,10 +47,10 @@
 - [Limiti noti e troubleshooting](#limiti-noti-e-troubleshooting)
 - [Compatibilità, contribuire e licenza](#compatibilità-contribuire-e-licenza)
 
-📄 **Documenti chiave**: [`DOCS/MIGLIORAMENTI.md`](DOCS/MIGLIORAMENTI.md)
+📄 **Documenti chiave**: [`RAG/DOCS/MIGLIORAMENTI.md`](RAG/DOCS/MIGLIORAMENTI.md)
 (grafico + registro dei miglioramenti Cycle 70→86) ·
-[`DOCS/IMPLEMENTED.md`](DOCS/IMPLEMENTED.md) (log completo dei cicli) ·
-[`DOCS/BENCH.md`](DOCS/BENCH.md) (benchmark)
+[`RAG/DOCS/IMPLEMENTED.md`](RAG/DOCS/IMPLEMENTED.md) (log completo dei cicli) ·
+[`RAG/DOCS/BENCH.md`](RAG/DOCS/BENCH.md) (benchmark)
 
 ---
 
@@ -81,8 +81,8 @@ dopo un riavvio.
 | **Persistent Memory** | Memoria cross-task: file esistenti, errori comuni, task recenti, preferenze utente. | Il worker non ricrea file già esistenti, evita errori noti. |
 | **USB Analysis** | Tool di ispezione passiva del traffico USB via `usbmon`. | Reverse engineering hardware in modo sicuro e read-only. |
 | **Disk Quota** | Limite 500 MB su `project/` per prevenire saturazione disco. | Protezione contro attacchi di tipo `dd` o loop di scritture. |
-| **Subagent 1-livello** | `CORE/subagent.py`: figli con identità/memoria e ruoli modello esistenti, profondità ≤1, max 4, zero LLM in `spawn()`, cap wall-clock e gate termico. | Delega verificabile con report sempre leggibile; policy in `DOCS/SUBAGENTS.md`, 8 test offline. |
-| **Inventario regex** | `tests/test_regex_inventory.py`: scansione AST di registro e `re.*` in `CORE/`/`GUI/`/`tools/`, stampa con `pytest -q -s`. | 24 pattern + 130 usages, 0 invalidi/duplicati; report in `DOCS/REGEX_INVENTORY.md`. |
+| **Subagent 1-livello** | `CORE/subagent.py`: figli con identità/memoria e ruoli modello esistenti, profondità ≤1, max 4, zero LLM in `spawn()`, cap wall-clock e gate termico. | Delega verificabile con report sempre leggibile; policy in `RAG/DOCS/SUBAGENTS.md`, 8 test offline. |
+| **Inventario regex** | `tests/test_regex_inventory.py`: scansione AST di registro e `re.*` in `CORE/`/`GUI/`/`tools/`, stampa con `pytest -q -s`. | 24 pattern + 130 usages, 0 invalidi/duplicati; report in `RAG/DOCS/REGEX_INVENTORY.md`. |
 
 ### Principi di progettazione
 
@@ -178,7 +178,7 @@ Il 3B da solo vale poco. Ma il **sistema** (skill + gate + routing + correction 
 
 **Il valore vero è nel sistema, non nel modello.** E il sistema è onesto: non mente. `ok=true` solo se il codice gira E produce i marker attesi.
 
-**🎯 Goal dichiarato**: portare il **sistema** (modello + meccanismi) a livello **middle senior** — o quanto più vicino possibile. Criteri misurabili (≥70% task al primo tentativo, 0 allucinazioni API, **0 errori e 0 warning** — codice pulito ed elegante, i warning sono il termometro di eleganza e performance) e scala dei livelli: [`DOCS/MIGLIORAMENTI.md`](DOCS/MIGLIORAMENTI.md).
+**🎯 Goal dichiarato**: portare il **sistema** (modello + meccanismi) a livello **middle senior** — o quanto più vicino possibile. Criteri misurabili (≥70% task al primo tentativo, 0 allucinazioni API, **0 errori e 0 warning** — codice pulito ed elegante, i warning sono il termometro di eleganza e performance) e scala dei livelli: [`RAG/DOCS/MIGLIORAMENTI.md`](RAG/DOCS/MIGLIORAMENTI.md).
 
 ### Quanto lontano si può andare con questo approccio?
 
@@ -429,7 +429,7 @@ classification) on each model. Results saved to `state/model_benchmarks.json`.
 qwen2.5-coder:1.5b scored 100/100, avg 31.8 tok/s.
 
 **Reports policy**: every benchmark report and measurement lives in
-`DOCS/BENCH.md`; raw JSONs stay in `state/benchmarks/` (gitignored).
+`RAG/DOCS/BENCH.md`; raw JSONs stay in `state/benchmarks/` (gitignored).
 
 ### Recent Optimizations (Cycle 47 — "furbate")
 
@@ -454,7 +454,7 @@ Four post-benchmark optimizations were implemented and verified:
   (300-600s); the task then falls back to the lighter worker.
 
 The first real benchmark (pre-token-reduction vs. post-baseline, see
-`DOCS/BENCH.md`) confirmed: **-72% input tokens**, but the measurable win was
+`RAG/DOCS/BENCH.md`) confirmed: **-72% input tokens**, but the measurable win was
 correctness (0/2 → 2/2 artifacts), not wall time.
 
 ### Latest — Cycles 52–75
@@ -488,7 +488,7 @@ correctness (0/2 → 2/2 artifacts), not wall time.
   **Honest result**: naked model outperformed harness — first-try success
   50% (naked) vs 12.5% (harness); wall avg/task 14s vs 192s (harness 13.6x
   slower). Phase 0 exit criterion NOT met: net human time negative. Report in
-  `DOCS/BENCH.md`, raw JSONs in `state/benchmarks/`.
+  `RAG/DOCS/BENCH.md`, raw JSONs in `state/benchmarks/`.
 - **Targeted security fuzzing** (Cycle 60): new `tests/fuzz_security.py` with
   a deterministic (seed-fixed) custom fuzzer covering `validate_bash_command`
   (shell metacharacters, path traversal, out-of-allowlist commands),
@@ -529,7 +529,7 @@ correctness (0/2 → 2/2 artifacts), not wall time.
   --collect-only` (free, catches import/structure errors early), then ONLY
   the bodies — max ~300 generated tokens per stage. Implemented in
   `CORE/test_generator.py`; codified as a permanent rule in `todo.md` and
-  `DOCS/BENCH.md` for all future benchmarks (one task = one stage, with
+  `RAG/DOCS/BENCH.md` for all future benchmarks (one task = one stage, with
   `--cooldown 30 --thermal-limit 60`).
 
 ### Exception Hardening
@@ -841,8 +841,8 @@ Serve a confrontare i modelli su prompt reali senza toccare la pipeline.
 | **Modelli** | elenco decorato da `GUI/actors_panel.py` (📌 locale / 🌍 cloud / ⬇ scaricabile + capability + note d'uso) |
 | **Tools on/off** | checkbox sui tool di `CORE/tools.py`; le firme selezionate vengono iniettate nel system prompt |
 | **Skill on/off** | checkbox sulle skill di `.opencode/skill/`; il corpo (troncato) viene iniettato come contesto |
-| **Auto-skill** | attivo di default: le parole chiave nel prompt aggiungono da sole le skill pertinenti (max 4); altre keyword in `state/auto_skill_keywords.json` (esempio: `DOCS/auto_skill_keywords.example.json`) |
-| **Auto-tool** | attivo di default: le parole chiave aggiungono da sole le firme dei tool pertinenti (max 4); altre keyword in `state/auto_tool_keywords.json` (esempio: `DOCS/auto_tool_keywords.example.json`) |
+| **Auto-skill** | attivo di default: le parole chiave nel prompt aggiungono da sole le skill pertinenti (max 4); altre keyword in `state/auto_skill_keywords.json` (esempio: `RAG/DOCS/auto_skill_keywords.example.json`) |
+| **Auto-tool** | attivo di default: le parole chiave aggiungono da sole le firme dei tool pertinenti (max 4); altre keyword in `state/auto_tool_keywords.json` (esempio: `RAG/DOCS/auto_tool_keywords.example.json`) |
 | **Persistenza** | `state/chat_tools_skills.json` (gitignored) |
 | **Chiave API** | pulsante **🔑 Incolla chiave API** → dialog mascherato (`EchoMode.Password`) → `state/cloud_api.json` con permessi `0600`, fuori da git |
 | **Variabili d'ambiente** | `.env.example` elenca le chiavi supportate; copia in `.env` (gitignored) e carica con `set -a; source .env; set +a` (nessun dotenv automatico) |
@@ -935,7 +935,7 @@ sudo scripts/setup/hardening.sh --all       # utente byteswarmy + cgroup + firew
 ```
 
 Dettagli, modello di minaccia, rischi residui e rollback:
-**[DOCS/SECURITY.md](DOCS/SECURITY.md)**.
+**[RAG/DOCS/SECURITY.md](RAG/DOCS/SECURITY.md)**.
 
 Verifica della policy:
 
@@ -1027,7 +1027,7 @@ byte-swarmy/
 ├── project/                 # Codice prodotto dai worker (sandboxed, gitignored)
 ├── tools/                   # Tool operativi (repo_map, lint, security, eval)
 ├── scripts/                 # Setup, hardening, sync, migrazioni
-├── DOCS/                    # Architettura, operations, report, IMPLEMENTED
+├── RAG/DOCS/                    # Architettura, operations, report, IMPLEMENTED
 ├── SKILLS/                  # Skill Python/PyQt per i worker
 ├── main.py                  # CLI entry point
 ├── byte-swarm.sh            # CLI launcher (alias: bswarm)

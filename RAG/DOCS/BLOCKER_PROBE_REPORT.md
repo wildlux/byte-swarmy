@@ -42,7 +42,7 @@ Su questa macchina il daemon nbfc è stato avviato via pkexec, ma
 `Current Fan Speed` resta 0.00 anche con duty al 100% e non esiste
 alcun `fan*_input` in sysfs: il tachimetro non è leggibile via software.
 I RPM sono pero' dimostrati da misura fisica esterna attestata, registrata con provenienza, operatore e timestamp: il gate e' valido.
-Procedura operativa: `DOCS/RPM_MEASUREMENT_PROCEDURE.md`.
+Procedura operativa: `RAG/DOCS/RPM_MEASUREMENT_PROCEDURE.md`.
 
 ## Dettaglio credenziali (M4)
 

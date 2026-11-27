@@ -12,7 +12,7 @@
 > agenti/subagenti è una voce separata in `todo.md` (chiusa in Cycle 86).
 > Nessun run LLM, nessuna rete, nessun benchmark: dopo lo shutdown termico del
 > 2026-11-20 la ventola non è ancora verificata (≤60 °C, ventole al max).
-> Dettagli e gate: [`DOCS/IMPLEMENTED.md`](IMPLEMENTED.md) § Cycle 87.
+> Dettagli e gate: [`RAG/DOCS/IMPLEMENTED.md`](IMPLEMENTED.md) § Cycle 87.
 
 ## 1. Evidenze — cosa non funziona ancora nel loop
 
@@ -64,7 +64,7 @@
 | ID | Azione | Criterio di done | Tipo |
 |---|---|---|---|
 | C1 | Allineare le regole scritte al codice: `AGENT.md` MAX_STEPS 6→10, baseline security_scan unica, rimuovere paragrafo duplicato in `GUI/IMPLEMENTED.md:54`, dichiarare `state → data/state` | `git diff --check` + ricerca:.zero contraddizioni note | Offline |
-| C2 | Nuovo `tools/self_improvement_report.py`: conta triple per verdict, tasso correction, gate rossi, proposte skill, copertura retrieval; legge solo `state/`, scrive report in `DOCS/` | esecuzione offline con dati finti: tabella Markdown prodotta, zero LLM, exit 0 | Offline |
+| C2 | Nuovo `tools/self_improvement_report.py`: conta triple per verdict, tasso correction, gate rossi, proposte skill, copertura retrieval; legge solo `state/`, scrive report in `RAG/DOCS/` | esecuzione offline con dati finti: tabella Markdown prodotta, zero LLM, exit 0 | Offline |
 | C3 | A/B memoria/contesto, eval per-slot, sweep `num_ctx`, distillazione, giudice Timestral | **BLOCCATO TERMICAMENTE**: solo dopo verifica ventola, CPU/LLM ≤60 °C, ventole al max | LLM |
 
 ## 6. Gate di accettazione del piano
@@ -88,7 +88,7 @@
 
 ## 8. Regola di chiusura
 
-Ogni azione A1–C2, una volta eseguita, va registrata in `DOCS/IMPLEMENTED.md`
+Ogni azione A1–C2, una volta eseguita, va registrata in `RAG/DOCS/IMPLEMENTED.md`
 con Cycle number e spuntata in `todo.md`. Il piano resta aperto finché C3 non
 è sbloccato dalla verifica della ventola; la chiusura termica è un prerequisite
 fisico, non una decisione software.

@@ -1,6 +1,6 @@
-"""Pannello Plancia — grafico dei miglioramenti (DOCS/MIGLIORAMENTI.md).
+"""Pannello Plancia — grafico dei miglioramenti (RAG/DOCS/MIGLIORAMENTI.md).
 
-Mostra DOCS/grafici/miglioramenti.svg (generato deterministicamente da
+Mostra RAG/DOCS/grafici/miglioramenti.svg (generato deterministicamente da
 tools/gen_grafici.py) dentro un QScrollArea con QSvgWidget.
 
 🆕 Cycle 85e — regola di parità GUI: il pannello ha back_btn per tornare
@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import (
 class ImprovementsPanel(QWidget):
     """Grafico dei miglioramenti implementati (SVG vettoriale)."""
 
-    SVG_RELPATH = Path("DOCS") / "grafici" / "miglioramenti.svg"
+    SVG_RELPATH = Path("RAG") / "DOCS" / "grafici" / "miglioramenti.svg"
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -74,7 +74,7 @@ class ImprovementsPanel(QWidget):
         else:
             self._svg = None
             msg = QLabel(
-                "SVG non trovato: DOCS/grafici/miglioramenti.svg\n"
+                "SVG non trovato: RAG/DOCS/grafici/miglioramenti.svg\n"
                 "Premi 🔄 Rigenera (esegue tools/gen_grafici.py, zero LLM)")
             msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self._scroll.setWidget(msg)

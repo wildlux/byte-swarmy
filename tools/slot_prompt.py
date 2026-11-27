@@ -12,7 +12,7 @@ Nessun modello, rete o scrittura di progetto (solo `--out` opzionale).
 Uso:
     .venv/bin/python tools/slot_prompt.py --task "finestra con titolo"
     .venv/bin/python tools/slot_prompt.py --task "..." --json
-    .venv/bin/python tools/slot_prompt.py --task "..." --out DOCS/SLOT4_PROMPTS.md
+    .venv/bin/python tools/slot_prompt.py --task "..." --out RAG/DOCS/SLOT4_PROMPTS.md
 
 Il benchmark di SLOT-4 (3 task reali con pass@1) resta 🔒 termico: qui si
 blocca solo la struttura dei prompt, non si misura alcuna qualità del modello.

@@ -125,9 +125,9 @@ def main(argv: list[str]) -> int:
     positional = [a for a in argv if not a.startswith("-")]
     root = Path(positional[0] if positional else ".").resolve()
     # Risoluzione INDIPENDENTE dei due file: todo.md può stare in root o in
-    # DOCS/; IMPLEMENTED.md può stare in DOCS/ (posizione attuale) o in root
+    # RAG/DOCS/; IMPLEMENTED.md può stare in RAG/DOCS/ (posizione attuale) o in root
     # (backward compat). L'uno non deve dipendere dall'altra: nel nostro repo
-    # todo.md è in root e IMPLEMENTED.md è in DOCS/ — la vecchia logica
+    # todo.md è in root e IMPLEMENTED.md è in RAG/DOCS/ — la vecchia logica
     # legava impl alla posizione di todo e non trovava IMPLEMENTED.md.
     todo = root / "todo.md"
     if not todo.exists():

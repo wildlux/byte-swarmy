@@ -3,11 +3,11 @@
 """C2 — report misurabile del loop di auto-miglioramento.
 
 Legge SOLO `state/` (corpus, proposte skill, gate, override) e produce una
-tabella Markdown in `DOCS/`. Zero LLM, zero rete, zero GPU: è il quadro
+tabella Markdown in `RAG/DOCS/`. Zero LLM, zero rete, zero GPU: è il quadro
 deterministico che dice se il loop sta migliorando o solo girando.
 
 Uso:
-    .venv/bin/python tools/self_improvement_report.py            # scrive DOCS/
+    .venv/bin/python tools/self_improvement_report.py            # scrive RAG/DOCS/
     .venv/bin/python tools/self_improvement_report.py --json     # solo stdout
     .venv/bin/python tools/self_improvement_report.py \
         --state-dir /tmp/state-finto --out /tmp/report.md
@@ -27,7 +27,7 @@ if str(ROOT) not in sys.path:
 from CORE import feedback_corpus as fc  # noqa: E402
 
 DEFAULT_STATE = ROOT / "state"
-DEFAULT_OUT = ROOT / "DOCS" / "SELF_IMPROVEMENT_REPORT.md"
+DEFAULT_OUT = ROOT / "RAG" / "DOCS" / "SELF_IMPROVEMENT_REPORT.md"
 
 
 def _load_json(path: Path, default):
@@ -196,7 +196,7 @@ def main(argv=None) -> int:
     ap.add_argument("--state-dir", default=str(DEFAULT_STATE),
                     help="directory state da leggere (default: ./state)")
     ap.add_argument("--out", default=str(DEFAULT_OUT),
-                    help="file Markdown da scrivere (default: DOCS/)")
+                    help="file Markdown da scrivere (default: RAG/DOCS/)")
     ap.add_argument("--json", action="store_true",
                     help="stampa solo JSON, non scrive file")
     args = ap.parse_args(argv)

@@ -1,14 +1,14 @@
 # TODO — BYTE-SWARMY
 
 > **Flusso documentale**: il task nasce qui → si esegue → si registra in
-> `DOCS/IMPLEMENTED.md` (Cycle N) → si cancella da qui.
+> `RAG/DOCS/IMPLEMENTED.md` (Cycle N) → si cancella da qui.
 >
 > **Storia completa**: Fasi 1–9, M1–M10, P1–P15, suite T1–T10 e T11–T21,
 > routing, code map, clarifier, chiusura orchestratore — tutto travasato in
-> `DOCS/IMPLEMENTED.md` (Cycles 13–22). Report consolidato: `REPORT.md`.
+> `RAG/DOCS/IMPLEMENTED.md` (Cycles 13–22). Report consolidato: `REPORT.md`.
 
 Stato: **tutto il piano approvato è completato** (le 85 voci del vecchio
-todo sono registrate in `DOCS/IMPLEMENTED.md`). Da oggi (2026-11-18) il
+todo sono registrate in `RAG/DOCS/IMPLEMENTED.md`). Da oggi (2026-11-18) il
 todo è **ordinato per impatto**: prima ciò che sblocca la misura e chiude
 i gap più grandi del radar, poi il motore del miglioramento, poi i gap
 medi, infine sottofondi e igiene.
@@ -29,7 +29,7 @@ esegue direttamente il task.**
 
 Il chiarimento resta riservato ai soli casi in cui manca un dato oggettivo
 non deducibile dal repo (es. una chiave API). Ogni scelta autonoma viene
-registrata qui o in `DOCS/MIGLIORAMENTI.md`, mai demandata all'utente.
+registrata qui o in `RAG/DOCS/MIGLIORAMENTI.md`, mai demandata all'utente.
 
 ## 🗂️ Sessione 2026-11-22 — riordino cartelle e commenti (pianificata)
 
@@ -104,12 +104,12 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 |---|---|---|
 | 1 | Creare `tests/test_regex_inventory.py`: raccoglie le regex del software da `CORE/regex_controller.py` (`DEFAULT_PATTERNS`) e dai `re.compile(...)` / pattern usati da `re.search/findall` nei moduli `CORE/`, `GUI/`, `tools/` | [x] |
 | 2 | Gate deterministico: ogni pattern compila con `re.compile`, nessun pattern vuoto o duplicato; stampa l'inventario (file · nome/variabile · pattern · flag) con `pytest -s` così le regex sono **vedibili** | [x] |
-| 3 | Riportare conteggio e eventuali pattern sospetti (backtracking/ambigui) in `DOCS/`; aggiornare `todo.md` con l'esito | [x] |
+| 3 | Riportare conteggio e eventuali pattern sospetti (backtracking/ambigui) in `RAG/DOCS/`; aggiornare `todo.md` con l'esito | [x] |
 | 4 | Gate leggeri: `compileall`, `tools/lint_style.py`, test mirato, `git diff --check` | [x] |
 
 > Eseguito il 2026-11-22: 4 test offline verdi, 24 pattern nel registro, 130
 > usages, 148 file scansionati, 0 invalidi, 0 duplicati. Report:
-> [`DOCS/REGEX_INVENTORY.md`](DOCS/REGEX_INVENTORY.md). Nessuna regex riscritta
+> [`RAG/DOCS/REGEX_INVENTORY.md`](RAG/DOCS/REGEX_INVENTORY.md). Nessuna regex riscritta
 > dal test: eventuali correzioni restano una sessione separata e documentata.
 
 ## 🤖 Sessione 2026-11-22 — agenti e subagenti nel tool (pianificata)
@@ -131,19 +131,19 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 | 3 | Ciclo di vita in `CORE/worker.py`: il figlio gira con cap wall-clock (schema `max_run_sec` di `tools/swarm_refactor_session.py:124-128`), il report torna nel contesto del padre; timeout o blocco_termico = fail-open esplicito, mai `done` con figlio pendente | [x] |
 | 4 | Gate operativo: figlio = run LLM → ventole al max, ≤60 °C, rispetto di `state/pause.flag`; i test usano solo fake client, mai Ollama/cloud | [x] |
 | 5 | Test offline `tests/test_subagent.py`: spawn valido/invalido, depth cap, max figli, roundtrip del report, timeout/fail-open, rifiuto con `pause.flag`, zero chiamate LLM | [x] |
-| 6 | Docs: `README.md`, `DOCS/README_EN.md`, `DOCS/MIGLIORAMENTI.md` + policy in `DOCS/`; aggiornare `todo.md` con l'esito | [x] |
+| 6 | Docs: `README.md`, `RAG/DOCS/README_EN.md`, `RAG/DOCS/MIGLIORAMENTI.md` + policy in `RAG/DOCS/`; aggiornare `todo.md` con l'esito | [x] |
 | 7 | Gate leggeri: `compileall`, `tools/lint_style.py`, `tools/security_scan.py`, test mirato, `git diff --check` | [x] |
 
 > Eseguito il 2026-11-22: 8 test offline verdi (1,17 s), profondità ≤1 e max 4
 > figli rispettati, report sempre leggibile dal padre, zero LLM/rete nei test.
-> Policy: [`DOCS/SUBAGENTS.md`](DOCS/SUBAGENTS.md). **Fuori scope**: annidamento
+> Policy: [`RAG/DOCS/SUBAGENTS.md`](RAG/DOCS/SUBAGENTS.md). **Fuori scope**: annidamento
 > >1, parallelismo dei figli, nuovi ruoli modello, credenziali cloud.
 > Esecuzione live solo dopo la verifica della ventola (incidente termico
 > 2026-11-20).
 
 ## 📈 Sessione 2026-11-22 — piano auto-miglioramento (pianificata)
 
-> Piano completo: [`DOCS/PIANO_AUTO_MIGLIORAMENTO.md`](DOCS/PIANO_AUTO_MIGLIORAMENTO.md).
+> Piano completo: [`RAG/DOCS/PIANO_AUTO_MIGLIORAMENTO.md`](RAG/DOCS/PIANO_AUTO_MIGLIORAMENTO.md).
 > Interpretazione autonoma: rendere il loop di auto-miglioramento esistente
 > **verificabile e misurabile**, non aggiungere un secondo meccanismo di
 > apprendimento. Base: mappatura deterministica del codice (gate, worker,
@@ -175,10 +175,10 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 
 | ID | Task atomico | Criterio done | Stato |
 |---|---|---|---|
-| E1 | Refactoring mecc.: guard deterministico AST + behavioral diff per ogni patch | `tools/refactor_guard.py`: 8/8 refactoring atomici con API pubblica preservata, comportamento identico e zero errori di sintassi; report in `DOCS/` | [x] |
+| E1 | Refactoring mecc.: guard deterministico AST + behavioral diff per ogni patch | `tools/refactor_guard.py`: 8/8 refactoring atomici con API pubblica preservata, comportamento identico e zero errori di sintassi; report in `RAG/DOCS/` | [x] |
 | E2 | Fedeltà API: ref generati per librerie nuove + validazione simboli | `tools/gen_api_refs.py` + `validate_refs.py` + `api_lookup(strict=True)` su ≥2 librerie fuori cheat sheet; 0 simboli indefiniti in output eval | [x] |
 | E3 | Task GUI: 3 template PyQt6 curati + skill `py-gui-scaffold` | `GUI/refs/templates/` con finestra/layout/segnali/thread + test snapshot offscreen; collaudo con LLM resta 🔒 termico | [x] |
-| E4 | Memoria/contesto: preparare A/B 10 task con/senza contesto | Harness con retriever finto, task set congelato e soglia in `DOCS/BENCH.md`; esecuzione live resta 🔒 termico (C3) | [x] |
+| E4 | Memoria/contesto: preparare A/B 10 task con/senza contesto | Harness con retriever finto, task set congelato e soglia in `RAG/DOCS/BENCH.md`; esecuzione live resta 🔒 termico (C3) | [x] |
 | F1 | Aggiungere possibilità iOS/Android (scaffold offline) | 2 template (SwiftUI/Kotlin Compose) + skill `mobile-scaffold` + `tools/mobile_scaffold_check.py`; build con SDK e task live restano 🔒 termico | [x] |
 
 > Eseguito il 2026-11-22: A1–A4 chiusi in Cycle 87, 28 test mirati verdi,
@@ -187,20 +187,20 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 > + 22 regressioni; B3 in Cycle 90: 10 test guard + 26 regressioni;
 > C1 in Cycle 91: 4 test di coerenza docs; C2 in Cycle 92: 6 test report
 > + 6 subtest; D1 in Cycle 93: 6 test lint + snapshot
-> `DOCS/PROMPT_LINT_REPORT.md`; E1 in Cycle 96: 6 test guard + report
-> `DOCS/REFACTOR_GUARD_REPORT.md`, radar Refactoring 3/4 → 4/4; E2 in Cycle 97:
-> 8 test eval + report `DOCS/API_FIDELITY_REPORT.md`, 0 simboli indefiniti su
+> `RAG/DOCS/PROMPT_LINT_REPORT.md`; E1 in Cycle 96: 6 test guard + report
+> `RAG/DOCS/REFACTOR_GUARD_REPORT.md`, radar Refactoring 3/4 → 4/4; E2 in Cycle 97:
+> 8 test eval + report `RAG/DOCS/API_FIDELITY_REPORT.md`, 0 simboli indefiniti su
 > `json`/`csv`, radar Fedeltà API 3/4 → 4/4; E3 in Cycle 98: 4 template
 > PyQt6 + skill `py-gui-scaffold`, 7 test offscreen, radar Task GUI 1/4 → 2/4
 > (3/4 richiede task live 🔒 termico); E4 in Cycle 99: harness `tools/memory_ab.py`,
-> task set congelato `5e6051bfc33d`, soglie GO/NO-GO in `DOCS/BENCH.md`,
+> task set congelato `5e6051bfc33d`, soglie GO/NO-GO in `RAG/DOCS/BENCH.md`,
 > live 🔒 bloccato finché le ventole non sono verificate; Cycle 100: brutal
 > honesty — report deterministico `tools/brutal_honesty_report.py`, corrette
-> le frasi false in `DOCS/MIGLIORAMENTI.md` e le caveat in
-> `DOCS/SELF_IMPROVEMENT_REPORT.md`, radar invariato; Cycle 101: F1 aggiunge
+> le frasi false in `RAG/DOCS/MIGLIORAMENTI.md` e le caveat in
+> `RAG/DOCS/SELF_IMPROVEMENT_REPORT.md`, radar invariato; Cycle 101: F1 aggiunge
 > scaffold iOS/Android offline (2 template, skill, gate strutturale), nuovo
 > asse Mobile 2/4 con build/live 🔒 bloccati. Registro:
-> [`DOCS/IMPLEMENTED.md`](DOCS/IMPLEMENTED.md).
+> [`RAG/DOCS/IMPLEMENTED.md`](RAG/DOCS/IMPLEMENTED.md).
 > C3 resta 🔒 bloccato finché la ventola non è verificata (≤60 °C, ventole al max).
 
 ---
@@ -233,7 +233,7 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 |---|---|
 | Rilevamento anomalie/minacce con LLM | ❌ Assente e **non previsto ora**: il 3b non è un giudice attendibile |
 | Risposta automatica / quarantena / IDS | ❌ Assente |
-| seccomp / AppArmor / container | ❌ Assenti (`DOCS/SECURITY.md:281`) |
+| seccomp / AppArmor / container | ❌ Assenti (`RAG/DOCS/SECURITY.md:281`) |
 | Hardening utente dedicato | ⚠️ Non attivo: processo come `wildlux`, non `byteswarmy` |
 | `~/.git-credentials` | ⚠️ 0600 ma con credenziali in chiaro: se è il token esposto, rotazione ancora da fare |
 
@@ -252,7 +252,7 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 | Cancellare `~/.git-credentials` | [ ] ⛔ non fatto: altri 4 repo usano HTTPS GitHub; va **aggiornato** dopo la rotazione, non rimosso |
 | Attivare utente dedicato + firewall: `scripts/setup/hardening.sh --all` | [ ] 🔒 root: sudo non passwordless; diagnostica → utente `byteswarmy` e slice cgroup assenti. ✅ **Cycle 113**: corretto `PROJECT_DIR` (puntava a `scripts/setup/`, ora alla radice del repo) + 3 test read-only. Resta solo l'esecuzione come root |
 | Aggiornare i riferimenti a `./setup-hardening.sh` (script reale: `scripts/setup/hardening.sh`) | [x] — 17 occorrenze con `./` + 6 bare in 6 file |
-| Allineare `DOCS/MIGLIORAMENTI.md` al conteggio skill live (26 → 27) | [x] |
+| Allineare `RAG/DOCS/MIGLIORAMENTI.md` al conteggio skill live (26 → 27) | [x] |
 | Mantenere le difese deterministiche senza allargare l'allowlist | [x] |
 | Aggiungere un rilevatore AI-based | [ ] ⛔ non fare ora: troppo alto senza misure e gate termico |
 
@@ -261,9 +261,9 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 > rimossa perché usata da altri 4 repo. `gh` non è autenticato e sudo non è
 > passwordless: rotazione token e `--all` restano blocchi reali con rimedio
 > concreto (fare login GitHub e revocare il PAT; eseguire lo script come root).
-> Sistemate le incongruenze: path hardening corretto in `DOCS/SECURITY.md`,
-> `README.md`, `DOCS/README_EN.md`, `DOCS/SPECIFICATIONS.md` e
-> `DOCS/IMPLEMENTED.md`; conteggio auto-skill 26 → 27 in `DOCS/MIGLIORAMENTI.md`.
+> Sistemate le incongruenze: path hardening corretto in `RAG/DOCS/SECURITY.md`,
+> `README.md`, `RAG/DOCS/README_EN.md`, `RAG/DOCS/SPECIFICATIONS.md` e
+> `RAG/DOCS/IMPLEMENTED.md`; conteggio auto-skill 26 → 27 in `RAG/DOCS/MIGLIORAMENTI.md`.
 >
 > Esito: il sistema è ben difeso **contro** l'AI locale, ma non **usa**
 > l'AI locale per difendersi. Il passo successivo consigliato è chiudere
@@ -279,20 +279,20 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 
 | ID | Cosa manca | Stato | Voce di riferimento | Prossima azione |
 |---|---|---|---|---|
-| M1 | Zero Warning riaperto: 23 finding pyflakes, 2 `undefined name: Path` | [x] Cycle 102 | Robustezza #10 + `DOCS/BRUTAL_HONESTY_REPORT.md` | Portato a 0 lo scope attivo: import `Path` aggiunto, import morti rimossi, `worker` senza assegnazione |
+| M1 | Zero Warning riaperto: 23 finding pyflakes, 2 `undefined name: Path` | [x] Cycle 102 | Robustezza #10 + `RAG/DOCS/BRUTAL_HONESTY_REPORT.md` | Portato a 0 lo scope attivo: import `Path` aggiunto, import morti rimossi, `worker` senza assegnazione |
 | M2 | Suite completa non rieseguita dal 2026-11-19 | [x] Cycle 129 | Domani #1 + incidente 2026-11-20 | ✅ **Run #9** (`45058129636`, commit `f97ff8b`): `pytest tests/ -q --durations=0` **verde** su GitHub Actions (step 8 success), zero calore locale. Nessuna suite locale eseguita |
-| M3 | Verifica ventole (`fan_verified.json` attestato) | [x] Cycle 136/141 | C3 + incidente 2026-11-20 | Decisione utente 2026-11-22: **gate stretto mantenuto**. Tachimetro non leggibile (0.00 anche al 100%, nessun `fan*_input`): serve misura RPM esterna, non un valore inventato. ✅ Cycle 114: report sonde corretto (non suggerisce più di riavviare un nbfc già attivo). ✅ **Cycle 121**: aggiunto `--attest-rpm` con ricevuta auditabile (strumento/operatore/timestamp fresco, temperatura sempre live, nessun valore CLI diretto) + `DOCS/RPM_MEASUREMENT_PROCEDURE.md`. ✅ Cycle 122: `parse_nbfc_rpm` accetta solo RPM con unità esplicita — la percentuale di `Current Fan Speed` non può più aprire il gate. ✅ **Cycle 136**: script interattivo `./tools/attest_rpm.py` — un solo comando chiede i campi, scrive la ricevuta 0600, valida, rilegge la temperatura live e scrive il gate; 6 test offline. ✅ **Cycle 136**: misura fisica presa e attestata (2400 RPM, tachometro ottico, ricevuta 0600), gate `fan_verified.json` VALIDO. ✅ **Cycle 141**: il report del probe riporta M3 ✅ distinguendo RPM live (0, nessun sensore) da RPM attestati (2400). ✅ **Cycle 143**: con cooldown adattivo il run live è stato accettato (media 58.3 °C / picco 60.0 °C): M7 è misurato, con esito sotto soglia |
-| M4 | Token GitHub esposto da revocare | [x] Cycle 132 | Sessione sicurezza 2026-11-22 | ✅ **Chiuso**: CLI ufficiale `gh` 2.46.0 verificata (Cycle 131), `gh auth login --hostname github.com --web --scopes repo,read:org,gist` completato dall'utente. `gh auth status`: `wildlux`, token `gho_`, scope `gist/read:org/repo/workflow`, remote token-free. Vecchio token era già invalido, sostituito e rilevato nel keyring; nessun PAT `ghp_`/`github_pat_` residuo nel filesystem. La revoca lato server resta non verificabile via API (endpoint 404): il probe lo dichiara esplicitamente in `DOCS/BLOCKER_PROBE_REPORT.md` |
+| M3 | Verifica ventole (`fan_verified.json` attestato) | [x] Cycle 136/141 | C3 + incidente 2026-11-20 | Decisione utente 2026-11-22: **gate stretto mantenuto**. Tachimetro non leggibile (0.00 anche al 100%, nessun `fan*_input`): serve misura RPM esterna, non un valore inventato. ✅ Cycle 114: report sonde corretto (non suggerisce più di riavviare un nbfc già attivo). ✅ **Cycle 121**: aggiunto `--attest-rpm` con ricevuta auditabile (strumento/operatore/timestamp fresco, temperatura sempre live, nessun valore CLI diretto) + `RAG/DOCS/RPM_MEASUREMENT_PROCEDURE.md`. ✅ Cycle 122: `parse_nbfc_rpm` accetta solo RPM con unità esplicita — la percentuale di `Current Fan Speed` non può più aprire il gate. ✅ **Cycle 136**: script interattivo `./tools/attest_rpm.py` — un solo comando chiede i campi, scrive la ricevuta 0600, valida, rilegge la temperatura live e scrive il gate; 6 test offline. ✅ **Cycle 136**: misura fisica presa e attestata (2400 RPM, tachometro ottico, ricevuta 0600), gate `fan_verified.json` VALIDO. ✅ **Cycle 141**: il report del probe riporta M3 ✅ distinguendo RPM live (0, nessun sensore) da RPM attestati (2400). ✅ **Cycle 143**: con cooldown adattivo il run live è stato accettato (media 58.3 °C / picco 60.0 °C): M7 è misurato, con esito sotto soglia |
+| M4 | Token GitHub esposto da revocare | [x] Cycle 132 | Sessione sicurezza 2026-11-22 | ✅ **Chiuso**: CLI ufficiale `gh` 2.46.0 verificata (Cycle 131), `gh auth login --hostname github.com --web --scopes repo,read:org,gist` completato dall'utente. `gh auth status`: `wildlux`, token `gho_`, scope `gist/read:org/repo/workflow`, remote token-free. Vecchio token era già invalido, sostituito e rilevato nel keyring; nessun PAT `ghp_`/`github_pat_` residuo nel filesystem. La revoca lato server resta non verificabile via API (endpoint 404): il probe lo dichiara esplicitamente in `RAG/DOCS/BLOCKER_PROBE_REPORT.md` |
 | M5 | Utente dedicato + firewall | [x] Cycle 133 | Sessione sicurezza 2026-11-22 | ✅ **Chiuso** (autorizzazione root esplicita 2026-11-23): corretto `rsync` per escludere anche `data/state/` (evitando di copiare `cloud_api.json` nell'utente isolato) + test lock; `pkexec scripts/setup/hardening.sh --all` EXIT=0. Verificato: utente `byteswarmy` uid 1001 senza gruppi admin, home 0700, progetto copiato, slice `byteswarmy.slice` **active** (4G/200%/100 task), 2 regole iptables per uid 1001 (DROP + ACCEPT Ollama loopback), rete dell'utente reale intatta. ✅ Cycle 134: snapshot salvato in `/etc/iptables/rules.v4` (0644 root) con le 2 regole uid 1001 verificate; resta da attivare `iptables-persistent` per il ripristino automatico al boot |
 | M6 | Profiling CI: run #2 fallito al step 6 (`Profilazione completa`) | [x] Cycle 129 | `.github/workflows/profile.yml` | ✅ **Chiuso**: run #9 (`45058129636`) **successo** — step 7 collezione, step 8 profilazione completa e step 9 artifact tutti `success`. Storia: Cycle 112 diagnosi iniziale; Cycle 123 trigger `push`; Cycle 124/126 annotations pubbliche; Cycle 125 librerie Qt (`libEGL`); Cycle 127/128 corretti 14 failure ambientali (Python 3.14, remote HTTPS, hwmon assente, symlink `tasks`, timeout GUI). Nessun `gh`, auth o suite locale |
-| M7 | Middle misurato ma non raggiunto: Cycle 143 = 5/11 (45%) e GUI 1/3 (33%); Cycle 144 = 3/11 (27%) e GUI 0/3 (0%), regressione dopo isolamento+no-routing+ref; Cycle 145 = 3/11 (27%) e GUI 1/3 (33%), A/B ref API senza beneficio; Cycle 146 = 4/11 (36%) e GUI 1/3 (33%), A/B breaker read-only inconclusivo | [ ] misurato, sotto soglia | Radar E + C3 + SLOT-3/4 | Verdetto live accettato in `DOCS/BENCH.md`; servono task utente con ≥50% e GUI ≥50%; nessun asse alzato |
+| M7 | Middle misurato ma non raggiunto: Cycle 143 = 5/11 (45%) e GUI 1/3 (33%); Cycle 144 = 3/11 (27%) e GUI 0/3 (0%), regressione dopo isolamento+no-routing+ref; Cycle 145 = 3/11 (27%) e GUI 1/3 (33%), A/B ref API senza beneficio; Cycle 146 = 4/11 (36%) e GUI 1/3 (33%), A/B breaker read-only inconclusivo | [ ] misurato, sotto soglia | Radar E + C3 + SLOT-3/4 | Verdetto live accettato in `RAG/DOCS/BENCH.md`; servono task utente con ≥50% e GUI ≥50%; nessun asse alzato |
 | M8 | Rilevatore AI-based | [ ] ⛔ non fare ora | Sessione sicurezza 2026-11-22 | Nessuna azione: servono misure e gate termico |
 
 > Ordine: M3 sblocca M7; M4 e M5 sono indipendenti ma prioritari per i dati
 > reali; M1 chiuso offline al Cycle 102. M2 chiuso al Cycle 129: la suite
 > completa è passata su GitHub Actions (run #9), mai in locale — la regola
 > termica del 2026-11-20 resta invariata. Dal Cycle 103 lo
-> stato misurato dei blocchi è in `DOCS/BLOCKER_PROBE_REPORT.md`, rigenerato da
+> stato misurato dei blocchi è in `RAG/DOCS/BLOCKER_PROBE_REPORT.md`, rigenerato da
 > `tools/blocker_probe.py`: la sonda non inventa RPM e rifiuta di scrivere il
 > gate termico finché le misure reali non soddisfano i limiti.
 
@@ -312,7 +312,7 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 > alla volta** (planner deterministico → filler 3b → gate per-slot →
 > assembler deterministico → corpus → QLoRA). Piano completo e
 > tempistiche (~6-7 sessioni, MVP 2-3):
-> [`DOCS/ARCHITETTURA_SLOT.md`](DOCS/ARCHITETTURA_SLOT.md).
+> [`RAG/DOCS/ARCHITETTURA_SLOT.md`](RAG/DOCS/ARCHITETTURA_SLOT.md).
 >
 > **⭐ Regola Zero Warning (2026-11-18, richiesta esplicita)**: il goal
 > non è solo "0 errori" — è **0 errori E 0 warning**. I warning non
@@ -362,7 +362,7 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
       (GUI, architettura) e per slot hard: N=3 candidati in parallelo,
       il gate deterministico sceglie il migliore o rifiuta tutti.
       Criterio done: flag `best_of_n` in config + benchmark
-      costo/qualità (3x token vs primo colpo %) in DOCS/BENCH.md.
+      costo/qualità (3x token vs primo colpo %) in RAG/DOCS/BENCH.md.
       ✅ Flag e gate-giudice già presenti (`CONFIG/config.toml:237`
       `best_of_n = 1`, `CORE/best_of.py`, lock in `tests/test_config_gates.py`).
       🔒 Resta il benchmark costo/qualità: richiede run LLM, non eseguito.
@@ -370,12 +370,12 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
       il prompt (non il motore): uno slot per chiamata, refs solo
       dello slot, output piccolo. ⚠ Richiede run LLM (ventole al max,
       limite 60°C, sessione corta). Criterio done: 3 task reali
-      misurati con pass@1 per tipo di slot in DOCS/BENCH.md.
+      misurati con pass@1 per tipo di slot in RAG/DOCS/BENCH.md.
       > ✅ **Slice SLOT-4 fatta (Cycle 119)**: `tools/slot_prompt.py`
       > converte il `SlotPlan` deterministico in un prompt per slot,
       > con le sole refs dello slot corrente, l'anchor reale del
       > template e regole di output piccolo (≤40 righe). Fail-closed
-      > sui piani rifiutati, zero client LLM. `DOCS/SLOT4_PROMPTS.md`
+      > sui piani rifiutati, zero client LLM. `RAG/DOCS/SLOT4_PROMPTS.md`
       > generato dal tool + `tests/test_slot_prompt.py` (9 test).
       > 🔒 Restano i **3 task reali misurati** con pass@1 sotto gate
       > termico: nessun modello è stato chiamato, il benchmark non è
@@ -411,11 +411,11 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 7. [~] **[SLOT-5] Eval per-slot pass@1** — runner che misura il
       primo-colpo **per tipo di slot** (import/function/handler/widget)
       e per dimensione output: è il numero che dice se SLOT funziona.
-      Criterio done: tabella per-slot in DOCS/BENCH.md su ≥12 casi.
+      Criterio done: tabella per-slot in RAG/DOCS/BENCH.md su ≥12 casi.
       Dipende da: P1-1 (✅ Cycle 85i), Fase A.
       > ✅ **Slice SLOT-5 fatta (Cycle 117)**: `tools/eval_by_slot.py`
       > classifica gli 11 casi con marker per tipo di slot e dimensione
-      > output; `DOCS/SLOT5_EVAL_REPORT.md` + `tests/test_eval_by_slot.py`
+      > output; `RAG/DOCS/SLOT5_EVAL_REPORT.md` + `tests/test_eval_by_slot.py`
       > (9 test). Un file `--results` è accettato come LIVE solo con
       > `source: "live"` **e** evidenza `fan_rpm > 0`, `temp_c ≤ 60`:
       > surrogati rifiutati con exit 2. 🔒 Restano i 12+ casi reali con
@@ -443,7 +443,7 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 9. [ ] **[Fase D-16] Sweep num_ctx + flash-attention** — 2048/3072/
       4096 con `flash_attention_kv`: più contesto = meno dimenticanze
       (il bug requirements era conteso in parte per contesto corto).
-      Criterio done: tabella qualità/tempo in DOCS/BENCH.md, soglia
+      Criterio done: tabella qualità/tempo in RAG/DOCS/BENCH.md, soglia
       aggiornata se vince.
 10. [x] **[P2-5] Fedeltà API: refs ai moduli interni** — refs per
       orchestrator/ledger/scheduler (come toolset_api); script che
@@ -456,7 +456,7 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 12. [ ] **[P2-4] Memoria/contesto: misurare l'impatto reale** — l'import
       sistemato (C85) ha reso il contesto persistente funzionante per
       la prima volta; oggi è attivo ma non sappiamo se serve. Criterio
-      done: A/B 10 task con/senza contesto → verdetto in DOCS/BENCH.md
+      done: A/B 10 task con/senza contesto → verdetto in RAG/DOCS/BENCH.md
       (mantieni, riduci o dismetti).
 13. [x] **[Robustezza #1] Watchdog: backoff escalato + guardia
       crash-loop** — verificato (`SAFETY/watchdog.py:88-102`): riavvio
@@ -480,7 +480,7 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
       onesto se i warning Qt non sono sopprimibili.
       ⚠️ Cycle 100: pyflakes riaperto con 23 finding sul codice attivo
       (no `tests/archiviati`); Cycle 102: richiuso a 0 finding — vedi
-      `DOCS/BRUTAL_HONESTY_REPORT.md`.
+      `RAG/DOCS/BRUTAL_HONESTY_REPORT.md`.
 16. [x] **[Robustezza #7] security_scan.py in CI + verify_cycle** — lo
       scanner esiste (baseline storica 262 finding / 13 errori, di cui
       9 in GLM_SOLUZIONE_WEB; baseline UNICA aggiornata il 2026-11-22:
@@ -523,14 +523,14 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
 20. [~] **[Fase G] A/B automatico delle varianti prompt** — refs
       on/off, posizione REFS, formato PLAN: promosso solo chi vince
       misurato. Criterio done: `tools/eval_prompt_variants.py` + 1
-      esperimento chiuso con verdetto in DOCS/BENCH.md.
+      esperimento chiuso con verdetto in RAG/DOCS/BENCH.md.
       > ✅ **Slice Fase G fatta (Cycle 116)**: `tools/eval_prompt_variants.py`
       > confronta 4 varianti (baseline/refs_off/refs_first/plan_compact) sugli
       > 11 casi con expected_marker della eval suite; task set congelato
       > `182ae2a82284`, regola PROMOTE/REJECT/INCONCLUSIVE scritta prima del
       > live, gate termico e rifiuto del solver finto nel live.
       > `tests/test_prompt_variants.py` (9 test) e
-      > `DOCS/PROMPT_VARIANTS_REPORT.md`. 🔒 Resta l'esperimento reale:
+      > `RAG/DOCS/PROMPT_VARIANTS_REPORT.md`. 🔒 Resta l'esperimento reale:
       > serve solver LLM con ventole verificate; il dry-run **non promuove
       > nulla** ed è dichiarato simulazione.
 21. [~] **[Fase H] Timestral giudice di qualità (mai sovrano)** —
@@ -543,13 +543,13 @@ generare codice, Qt sempre offscreen con un solo `QApplication`.
       > + giudice `approve` resta FAIL; gate PASS + `reject` resta PASS),
       > blocca e segnala i tentativi di override, classifica accordo/
       > dissenso e rifiuta i pareri `source: "live"` senza `fan_rpm > 0`,
-      > `temp_c ≤ 60`. `DOCS/QUALITY_JUDGE_REPORT.md` + 21 test offline.
+      > `temp_c ≤ 60`. `RAG/DOCS/QUALITY_JUDGE_REPORT.md` + 21 test offline.
       > 🔒 Restano i **20 casi reali** con pareri live: il dry-run è
       > simulazione esplicita e non chiude la voce.
 22. [ ] **[P3-8] Modello più forte per le task GUI** — confronto
       qwen2.5-coder:7b/14b SOLO per il routing GUI (macchina fredda,
       ventole al max, sessione corta). Criterio done: tabella
-      comparativa 3b vs 7b su 3 task GUI identici in DOCS/BENCH.md.
+      comparativa 3b vs 7b su 3 task GUI identici in RAG/DOCS/BENCH.md.
 23. [x] **[P3-9] Leva termica cpupower** — cap di frequenza per run
       lunghi; richiede sudo, documentare in README (sezione termica).
 24. [x] **[P3-7] Decision tree v2 (residuo)** — 3-4 regole nuove
@@ -625,7 +625,7 @@ compute grezzo.
 > Nessuna di queste voci è stata eseguita: tutte restano 🔒 per la regola
 > termica del 2026-11-20. I riferimenti sotto sostituiscono la scadenza
 > "Domani" con lo stato reale; la diagnosi M6 è in
-> `DOCS/CI_PROFILE_DIAGNOSIS.md`.
+> `RAG/DOCS/CI_PROFILE_DIAGNOSIS.md`.
 
 1. [x] (M2/M6) Suite completa finale di regressione: `pytest --ignore=project
       -q -p no:cacheprovider --durations=0` → eseguita su GitHub Actions
@@ -661,7 +661,7 @@ compute grezzo.
       (0 warning). **Nessuna immagine costruita e nessun run**: resta il
       vincolo disco e la regola termica sulla suite completa.
 - [x] (fatto 2026-11-22) Comandi container documentati in
-      `DOCS/DOCKER_TESTS.md` (pytest mirato, lint, pyflakes, compileall),
+      `RAG/DOCS/DOCKER_TESTS.md` (pytest mirato, lint, pyflakes, compileall),
       con stato esplicito di ciò che è stato validato e ciò che non lo è.
 
 ---
@@ -788,7 +788,7 @@ regola termica (stadiale, `--cooldown 30 --thermal-limit 60`).
 2. [x] **Benchmark di validazione della corsia veloce (fast lane)** —
       ✅ **CHIUSO con verdetto onesto** (Cycle 66, decisione utente
       "stop definitivo"): fast lane NON validata → `enabled = false`
-      permanente. Motivi misurati in `DOCS/BENCH.md` §8: (1) il limite
+      permanente. Motivi misurati in `RAG/DOCS/BENCH.md` §8: (1) il limite
       60°C viene sforato nelle fasi (79-80°C) anche con `num_thread=2`
       — il turbo della i7-7700HQ compensa, pendenza 0,27-0,29°C/s
       invariata; l'unica leva reale è il cap di frequenza (sudo) o
@@ -868,7 +868,7 @@ non nel clone):
 - [x] **Lezione UEFI** + `VENTOLA/` (controllo ventole, prerequisito
       dei run LLM su questa macchina)
 - [x] Radiografia riusabile come metodo (312 cpp/180 h/164 py,
-      6 god-file, 123 marker — dati storici in DOCS/IMPLEMENTED.md)
+      6 god-file, 123 marker — dati storici in RAG/DOCS/IMPLEMENTED.md)
 
 ### Test agentico — programmino Qt/PyQt6 via swarm (Cycle 50)
 
@@ -1015,7 +1015,7 @@ nuove", ma migliori al sistema:
       **Risultato onesto**: modello nudo migliore del harness (50% vs 12.5% primo
       colpo; 14s vs 192s medio/task). Criterio di uscita Fase 0 NON raggiunto:
       tempo umano netto negativo → fermarsi e semplificare prima di aggiungere
-      feature. Report in `DOCS/BENCH.md`, JSON in `state/benchmarks/`.
+      feature. Report in `RAG/DOCS/BENCH.md`, JSON in `state/benchmarks/`.
       Test: `tests/test_external_benchmark.py` (11 test, mock senza Ollama).
 6. [x] **Fuzzing mirato sulla sicurezza**: ✅ **Cycle 60**: modulo
       `tests/fuzz_security.py` con generatore custom (seed fisso) che fuzza
@@ -1087,8 +1087,8 @@ T22 → T24 → T23 → T25 → T26 (ultimo, sforzo alto).
 
 
 ## Regola workflow (da Cycle 46b)
-- **Ogni report/misura va documentato in `DOCS/`** (es. `DOCS/BENCH.md`
-  per i bench, `DOCS/IMPLEMENTED.md` per i cicli); i JSON grezzi restano
+- **Ogni report/misura va documentato in `RAG/DOCS/`** (es. `RAG/DOCS/BENCH.md`
+  per i bench, `RAG/DOCS/IMPLEMENTED.md` per i cicli); i JSON grezzi restano
   in `state/benchmarks/` (gitignored). Nessun report solo in chat.
   Regola anche in `AGENT.md` §Regole (punto 6).
 

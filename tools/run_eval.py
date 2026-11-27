@@ -397,7 +397,7 @@ def _live_text(data: dict, out_path: Path) -> str:
                       "L'evidenza termica non è più valida: il reporter "
                       "rifiuterà questi risultati."]
     lines += ["", "Nessun verdetto Middle: serve il controllo dei task GUI "
-                  "e il verdetto in DOCS/BENCH.md."]
+                  "e il verdetto in RAG/DOCS/BENCH.md."]
     return "\n".join(lines)
 
 
@@ -431,7 +431,7 @@ def main(argv=None) -> int:
             gate = require_gate(args.fan_file)
         except GateError as exc:
             print(f"RIFIUTO: {exc}", file=sys.stderr)
-            print("Procedura: DOCS/RPM_MEASUREMENT_PROCEDURE.md",
+            print("Procedura: RAG/DOCS/RPM_MEASUREMENT_PROCEDURE.md",
                   file=sys.stderr)
             return 2
         data = run_live(cases, gate, build_default_worker_factory(args.model_key),

@@ -83,7 +83,7 @@ Comandi:
   orch              Solo orchestratore in background
   audit             Esegue l'audit mensile del software (report HTML+JSON in logs/audit/)
   lint              Lint: stile (lint_style) + sicurezza (security_scan) + igiene (git_hygiene)
-  map               Mappa dinamica del repo (tools/repo_map.py; vedi DOCS/AGENT.md)
+  map               Mappa dinamica del repo (tools/repo_map.py; vedi RAG/DOCS/AGENT.md)
   setup             Forza esecuzione setup.sh (check + install dipendenze)
   help              Mostra questo aiuto
 

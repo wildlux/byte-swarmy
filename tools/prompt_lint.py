@@ -16,7 +16,7 @@ Uso:
     .venv/bin/python tools/prompt_lint.py --family llama
     .venv/bin/python tools/prompt_lint.py --json
     .venv/bin/python tools/prompt_lint.py --prompt-file /tmp/p.txt
-    .venv/bin/python tools/prompt_lint.py --out DOCS/PROMPT_LINT_REPORT.md
+    .venv/bin/python tools/prompt_lint.py --out RAG/DOCS/PROMPT_LINT_REPORT.md
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-DEFAULT_OUT = ROOT / "DOCS" / "PROMPT_LINT_REPORT.md"
+DEFAULT_OUT = ROOT / "RAG" / "DOCS" / "PROMPT_LINT_REPORT.md"
 
 # Euristiche dichiarate, non verità assolute: servono a confrontare due prompt,
 # non a giudicare un modello.

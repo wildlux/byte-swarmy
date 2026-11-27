@@ -1,6 +1,6 @@
 """Test Cycle 64 — Corsia veloce (single-shot) nel Worker.
 
-La corsia veloce riusa il prompt del benchmark "naked" (DOCS/BENCH.md:
+La corsia veloce riusa il prompt del benchmark "naked" (RAG/DOCS/BENCH.md:
 50% primo colpo in ~14s contro 12.5% in ~192s del loop ReAct) per i task
 con UN solo file target. La scrittura passa da ToolSet.write_file, quindi
 AST scanner, safe path e runtime verifier restano attivi.

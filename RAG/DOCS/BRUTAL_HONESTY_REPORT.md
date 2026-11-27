@@ -2,7 +2,7 @@
 
 _Generato deterministicamente da `tools/brutal_honesty_report.py` — zero LLM, zero rete, zero GPU, zero timestamp._
 
-Scopo: dire cosa è **veramente verificabile** nei report e nei documenti di `DOCS/`. Quando un numero cambia, cambia questo file: non si scrive a mano un verdetto diverso dai dati.
+Scopo: dire cosa è **veramente verificabile** nei report e nei documenti di `RAG/DOCS/`. Quando un numero cambia, cambia questo file: non si scrive a mano un verdetto diverso dai dati.
 
 ## Verdetto sintetico
 
@@ -20,7 +20,7 @@ Scopo: dire cosa è **veramente verificabile** nei report e nei documenti di `DO
 
 | Controllo | Stato |
 |---|---|
-| Link al report da `DOCS/MIGLIORAMENTI.md` | ✅ |
+| Link al report da `RAG/DOCS/MIGLIORAMENTI.md` | ✅ |
 | Claim '0 warning ✅ raggiunto' rimosso | ✅ |
 | Claim 'fast lane attivo' rimosso | ✅ |
 | Meccanismi definiti 'documentati/implementati' | ✅ |

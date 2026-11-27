@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Genera DOCS/grafici/miglioramenti.svg — grafici deterministici (zero LLM).
+"""Genera RAG/DOCS/grafici/miglioramenti.svg — grafici deterministici (zero LLM).
 
-Dati hard-coded dalla storia del progetto (DOCS/IMPLEMENTED.md):
+Dati hard-coded dalla storia del progetto (RAG/DOCS/IMPLEMENTED.md):
   A. Difetti corretti nell'audit Cycle 85, per categoria
   B. Meccanismi di robustezza/anti-allucinazione attivi per versione (cumulativo)
   C. Crescita della suite di test (Cycle 75 vs Cycle 85)
@@ -10,7 +10,7 @@ Rigenera con:  .venv/bin/python tools/gen_grafici.py
 Deterministico: stesso input → stesso SVG byte-per-byte (nessun timestamp).
 
 Dal Cycle 94 ciclo e conteggio meccanismi NON sono più hard-coded: sono
-letti da DOCS/IMPLEMENTED.md e DOCS/MIGLIORAMENTI.md, così il pulsante
+letti da RAG/DOCS/IMPLEMENTED.md e RAG/DOCS/MIGLIORAMENTI.md, così il pulsante
 "🔄 Rigenera" nella GUI mostra davvero un cambiamento quando i documenti
 cambiano. I valori del radar restano giudizi espliciti (non derivabili).
 """
@@ -22,7 +22,7 @@ from xml.sax.saxutils import escape
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-OUT = ROOT / "DOCS" / "grafici" / "miglioramenti.svg"
+OUT = ROOT / "RAG" / "DOCS" / "grafici" / "miglioramenti.svg"
 SKILLS_DIR = ROOT / ".opencode" / "skill"
 
 
@@ -92,16 +92,16 @@ def missing_docstring_count() -> int:
 
 
 def latest_cycle() -> int:
-    """Cycle più alto registrato in DOCS/IMPLEMENTED.md (fail-open: 0)."""
-    text = (ROOT / "DOCS" / "IMPLEMENTED.md").read_text(encoding="utf-8")
+    """Cycle più alto registrato in RAG/DOCS/IMPLEMENTED.md (fail-open: 0)."""
+    text = (ROOT / "RAG" / "DOCS" / "IMPLEMENTED.md").read_text(encoding="utf-8")
     cycles = [int(n) for n in re.findall(
         r"(?im)^#{1,3}\s*Cycle\s+(\d+)", text)]
     return max(cycles) if cycles else 0
 
 
 def mechanism_count() -> int:
-    """Meccanismi attivi: tabella B + novità in DOCS/MIGLIORAMENTI.md."""
-    text = (ROOT / "DOCS" / "MIGLIORAMENTI.md").read_text(encoding="utf-8")
+    """Meccanismi attivi: tabella B + novità in RAG/DOCS/MIGLIORAMENTI.md."""
+    text = (ROOT / "RAG" / "DOCS" / "MIGLIORAMENTI.md").read_text(encoding="utf-8")
     try:
         section_b = text.split("## B. ", 1)[1].split("\n---\n", 1)[0]
         recent = text.split("### Novità 2026-11-22", 1)[1].split(
@@ -143,7 +143,7 @@ CHART_A = [
 
 # ── Dati Chart B: meccanismi cumulativi per versione ─────────────────
 # Storico fino a v0.3.31+; il punto finale è calcolato da mechanism_count()
-# (lista completa in DOCS/MIGLIORAMENTI.md).
+# (lista completa in RAG/DOCS/MIGLIORAMENTI.md).
 CHART_B = [
     ("v0.3.18", 1),   # 70: regola parita' GUI
     ("v0.3.20", 2),   # 72: runner v2 + fix keywords skill
@@ -463,7 +463,7 @@ def build_svg() -> str:
     sections.append(
         f'<text x="20" y="60" font-family="{FONT}" font-size="12" '
         f'fill="{C_GRAY}">Generato deterministicamente da '
-        f'tools/gen_grafici.py — dati: DOCS/IMPLEMENTED.md</text>')
+        f'tools/gen_grafici.py — dati: RAG/DOCS/IMPLEMENTED.md</text>')
 
     x0 = MARGIN_L
     x1 = W - MARGIN_R
@@ -482,7 +482,7 @@ def build_svg() -> str:
         "B. Meccanismi di robustezza e anti-allucinazione documentati "
         "(cumulativo)",
         f"Elenco completo dei {MECHANISMS} meccanismi documentati in "
-        "DOCS/MIGLIORAMENTI.md (non tutti attivi a runtime)",
+        "RAG/DOCS/MIGLIORAMENTI.md (non tutti attivi a runtime)",
         y_max=max(16, MECHANISMS))
     sections.append(s)
 
@@ -503,7 +503,7 @@ def build_svg() -> str:
         x0 + 60, x1, y,
         "D. Scala di seniorità del sistema — GOAL: almeno middle senior",
         "Il modello 3b non diventerà un senior; il SISTEMA (modello + "
-        "meccanismi) sì — criteri misurabili in DOCS/MIGLIORAMENTI.md")
+        "meccanismi) sì — criteri misurabili in RAG/DOCS/MIGLIORAMENTI.md")
     sections.append(s)
 
     y += 24

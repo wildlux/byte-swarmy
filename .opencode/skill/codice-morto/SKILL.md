@@ -53,4 +53,4 @@ finale resta umano.
 - Report con `file:riga`, tipo (funzione/classe/import) e conteggio candidati.
 - Nessuna modifica applicata dal tool: `find_dead_code` è **report-only**.
 - Dopo l'intervento: tabella con rimosso/conservato e gate superati.
-- Se il lavoro viene registrato, aggiorna `DOCS/MIGLIORAMENTI.md` e `todo.md`.
+- Se il lavoro viene registrato, aggiorna `RAG/DOCS/MIGLIORAMENTI.md` e `todo.md`.

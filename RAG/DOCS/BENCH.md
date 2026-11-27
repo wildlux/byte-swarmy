@@ -399,7 +399,7 @@ Le prime 2 sessioni (ext-01, ext-02) hanno evidenziato 2 problemi:
 | Firme confrontate via `inspect.signature` | 22 (8 + 14), 0 discrepanze |
 | Test | 8 offline, zero LLM/rete/GPU |
 
-Comando: `.venv/bin/python tools/api_fidelity_eval.py --out DOCS/API_FIDELITY_REPORT.md`
+Comando: `.venv/bin/python tools/api_fidelity_eval.py --out RAG/DOCS/API_FIDELITY_REPORT.md`
 (exit 0 = PASS). Nota: `strict=True` ora verifica le costanti reali come
 valori (`csv.QUOTE_MINIMAL`) senza accettare simboli inventati; i callabili
 con firma non introspettabile restano bloccati. Nessuna misura live: il
@@ -436,7 +436,7 @@ dell'asse Task GUI richiede un task reale con modello, non questo gate.
 | Esecuzione live | 🔒 bloccata: serve `data/state/fan_verified.json` con `fan_rpm > 0` e `temp_c <= 60` |
 
 Comando di preparazione: `.venv/bin/python tools/memory_ab.py --dry-run --out
-DOCS/MEMORY_AB_REPORT.md`. Le soglie sono state scritte **prima** di qualsiasi
+RAG/DOCS/MEMORY_AB_REPORT.md`. Le soglie sono state scritte **prima** di qualsiasi
 run live: il passaggio di Memoria/contesto da 3/4 a 4/4 richiede il verdetto
 reale sui 10 task, non il dry-run.
 
@@ -452,7 +452,7 @@ reale sui 10 task, non il dry-run.
 | Regola PROMOTE | tasso ≥ **0.60** e delta ≥ **0.20** rispetto a baseline |
 | Regola REJECT | delta ≤ 0 |
 | Esito dry-run | `refs_off` REJECT, `refs_first`/`plan_compact` INCONCLUSIVE — **simulazione, nessuna promozione** |
-| Report | `DOCS/PROMPT_VARIANTS_REPORT.md` (rigenerato dal tool, non scritto a mano) |
+| Report | `RAG/DOCS/PROMPT_VARIANTS_REPORT.md` (rigenerato dal tool, non scritto a mano) |
 | Esecuzione live | 🔒 bloccata: serve `fan_verified.json` (`fan_rpm > 0`, `temp_c ≤ 60`) e un solver reale passato dal chiamante |
 
 Il solver del dry-run assegna l'HINT per hash del `case_id`: serve solo a
@@ -471,7 +471,7 @@ prompt viene promosso finché non arriva un esperimento reale con gate termico.
 | Dimensioni | small 0-40, medium 41-120, large 121+ righe |
 | Accettazione risultati live | Richiede `source: "live"` **e** `fan_rpm > 0`, `temp_c ≤ 60`; altrimenti exit 2 |
 | Esito dry-run | tabelle per slot e per dimensione da hash del `case_id` — **simulazione, non misura** |
-| Report | `DOCS/SLOT5_EVAL_REPORT.md` (rigenerato dal tool) |
+| Report | `RAG/DOCS/SLOT5_EVAL_REPORT.md` (rigenerato dal tool) |
 | Criterio done | ✅ misurato il 2026-11-24: 11 casi con worker reale; ❌ soglia Middle non raggiunta |
 
 Il reporter rifiuta `case_id` sconosciuti/duplicati, `slot_kind` non ammessi e
@@ -507,7 +507,7 @@ dei test sono file sintetici e non entrano nel corpus versionato.
 | Output | Un prompt per chiamata: sole refs dello slot corrente, anchor reale del template, regole di output ≤40 righe |
 | Fail-closed | Piani rifiutati dal planner non generano prompt; indice slot fuori range → errore |
 | Onestà | Nessun client LLM; il report dichiara che il benchmark reale resta 🔒 termico |
-| Esempio | `DOCS/SLOT4_PROMPTS.md` (task "finestra con titolo", 2 slot) generato dal tool |
+| Esempio | `RAG/DOCS/SLOT4_PROMPTS.md` (task "finestra con titolo", 2 slot) generato dal tool |
 | Stato | `[~]`: struttura dei prompt verificata; 🔒 restano 3 task reali misurati con pass@1 |
 
 Il builder cambia **solo il prompt**, non il motore: ogni chiamata vede le ref
@@ -526,7 +526,7 @@ con ventole verificate.
 | Override | Richieste esplicite di override bloccate e segnalate, mai applicate |
 | Classificazioni | `not_consulted`, `judge_ignored_gate_fail`, `concur_pass`, `judge_dissent` |
 | Gate pareri live | `source: "live"` accettato solo con `fan_rpm > 0`, `temp_c ≤ 60`; altrimenti exit 2 |
-| Report | `DOCS/QUALITY_JUDGE_REPORT.md` (13 casi sintetici, dichiarati SIMULAZIONE) |
+| Report | `RAG/DOCS/QUALITY_JUDGE_REPORT.md` (13 casi sintetici, dichiarati SIMULAZIONE) |
 | Stato | `[~]`: invariante e report verificati; 🔒 restano 20 casi reali con pareri live |
 
 L'harness NON chiama il decision model: riceve pareri già prodotti esternamente
@@ -560,7 +560,7 @@ lockata da test parametrizzati su tutte le 6 combinazioni gate×giudice.
 | `small` (0-40 righe) | 5 | 11 | 0.45 |
 
 Le righe derivano da `tools/eval_by_slot.py --results ... --out
-DOCS/SLOT5_EVAL_REPORT.md`: non sono scritte a mano. I dettagli per caso
+RAG/DOCS/SLOT5_EVAL_REPORT.md`: non sono scritte a mano. I dettagli per caso
 (`marker_found`, `attempts`, `error`, righe) sono in
 `data/state/eval_live_results.json` (gitignored). Il Circuit breaker ha forzato
 il pivot in `eval-gui-02`, `eval-minimal-01` e altri casi: quei tentativi
@@ -581,7 +581,7 @@ misura. M7 resta aperto per insufficienza del risultato, non per mancata misura.
 | Gate | `fan_verified.json` VALIDO, 2400 RPM attestati; media 57.9 °C / picco 60.0 °C su 5 campioni |
 | Policy termica | media **e** picco ≤ 60 °C, invariata; 430 s di cooldown tra i casi (max 900 s, poll 10 s) |
 | Preflight | Primo avvio rifiutato a 62 °C; secondo tentativo partito solo dopo due campioni con picco ≤58 °C e modello idle |
-| Accettazione | `tools/eval_by_slot.py --results data/state/eval_live_results.json --out DOCS/SLOT5_EVAL_REPORT.md` → **EXIT 0**, Modalità **LIVE** |
+| Accettazione | `tools/eval_by_slot.py --results data/state/eval_live_results.json --out RAG/DOCS/SLOT5_EVAL_REPORT.md` → **EXIT 0**, Modalità **LIVE** |
 | Harness | `isolated_workspaces=True`, `isolated_memory=True`, `routing_disabled=True` |
 | Casi | 13 totali: 11 con `expected_marker` eseguiti, 2 gate/chiarimento esclusi; `aborted=false` |
 | Verdetto | ❌ **Middle NON raggiunto**: 3/11 complessivi (27%) e widget 0/3 (0%), entrambi < 50% |
@@ -607,9 +607,9 @@ asse del radar viene alzato; l'A/B live resta non eseguito e il prompt
 «apocalisse» non è stato adottato. M7 resta aperto per insufficienza del
 risultato, non per mancata misura.
 
-Il verdetto è rigenerato dalle source of truth: `DOCS/SLOT5_EVAL_REPORT.md`,
-`DOCS/BRUTAL_HONESTY_REPORT.md`, `DOCS/SELF_IMPROVEMENT_REPORT.md`,
-`DOCS/BLOCKER_PROBE_REPORT.md` e `DOCS/grafici/miglioramenti.svg`.
+Il verdetto è rigenerato dalle source of truth: `RAG/DOCS/SLOT5_EVAL_REPORT.md`,
+`RAG/DOCS/BRUTAL_HONESTY_REPORT.md`, `RAG/DOCS/SELF_IMPROVEMENT_REPORT.md`,
+`RAG/DOCS/BLOCKER_PROBE_REPORT.md` e `RAG/DOCS/grafici/miglioramenti.svg`.
 
 ---
 
@@ -620,7 +620,7 @@ Il verdetto è rigenerato dalle source of truth: `DOCS/SLOT5_EVAL_REPORT.md`,
 | Harness | Cycle 143 ripristinato: `project/` e `state/` condivisi, routing attivo, nessun `factory.harness` |
 | Leva A/B | Solo iniezione ref API: `orchestrator_api.md`, `ledger_api.md`, `task_queue.md` |
 | Gate | 2400 RPM attestati; media 57.7 °C / picco 60.0 °C, 350 s di cooldown, soglia invariata |
-| Accettazione | `eval_by_slot.py --results ... --out DOCS/SLOT5_EVAL_REPORT.md` → **EXIT 0**, Modalità **LIVE**, `aborted=false` |
+| Accettazione | `eval_by_slot.py --results ... --out RAG/DOCS/SLOT5_EVAL_REPORT.md` → **EXIT 0**, Modalità **LIVE**, `aborted=false` |
 | Verdetto | ❌ **Middle NON raggiunto**: 3/11 (27%) e widget 1/3 (33%) |
 
 | Tipo slot | Passati | Totale | pass@1 | vs 143 | vs 144 |
@@ -640,7 +640,7 @@ Il verdetto è rigenerato dalle source of truth: `DOCS/SLOT5_EVAL_REPORT.md`,
 |---|---|
 | Leva A/B | Tool read-only non bloccati permanentemente dopo 3 chiamate identiche; pivot obbligatorio e contatore ripartito; guardiano dei pivot e blocco duro delle scritture invariati |
 | Gate | 2400 RPM attestati; media 57.9 °C / picco 60.0 °C, 310 s di cooldown, soglia invariata |
-| Accettazione | `eval_by_slot.py --results ... --out DOCS/SLOT5_EVAL_REPORT.md` → **EXIT 0**, Modalità **LIVE**, `aborted=false` |
+| Accettazione | `eval_by_slot.py --results ... --out RAG/DOCS/SLOT5_EVAL_REPORT.md` → **EXIT 0**, Modalità **LIVE**, `aborted=false` |
 | Verdetto | ❌ **Middle NON raggiunto**: 4/11 (36%) e widget 1/3 (33%) |
 
 | Tipo slot | Passati | Totale | pass@1 | vs 143 | vs 145 |

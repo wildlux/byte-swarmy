@@ -1332,7 +1332,7 @@ class Worker:
         return f"ERROR: generazione diretta fallita: {res['error']}"
 
     # ── 🆕 Cycle 64: CORSAIA VELOCE (single-shot) ──────────────────────
-    # Il benchmark esterno (DOCS/BENCH.md) ha dimostrato che il prompt
+    # Il benchmark esterno (RAG/DOCS/BENCH.md) ha dimostrato che il prompt
     # "nudo" batte il loop ReAct: 50% primo colpo in ~14s contro 12.5% in
     # ~192s. La corsia veloce riusa ESATTAMENTE quel prompt per i task
     # con un solo file target, e delega la scrittura a ToolSet.write_file

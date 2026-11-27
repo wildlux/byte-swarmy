@@ -12,7 +12,7 @@ Uso:
     .venv/bin/python tools/eval_prompt_variants.py --dry-run
     .venv/bin/python tools/eval_prompt_variants.py --dry-run --json
     .venv/bin/python tools/eval_prompt_variants.py --dry-run \
-        --out DOCS/PROMPT_VARIANTS_REPORT.md
+        --out RAG/DOCS/PROMPT_VARIANTS_REPORT.md
 
 Regola di promozione (scritta PRIMA di qualsiasi run live):
     variant >= baseline + MIN_DELTA  E  variant >= MIN_RATE  -> PROMOTE

@@ -18,10 +18,10 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 AGENT = ROOT / "AGENT.md"
-SPEC = ROOT / "DOCS" / "SPECIFICATIONS.md"
+SPEC = ROOT / "RAG" / "DOCS" / "SPECIFICATIONS.md"
 VERIFY = ROOT / "tools" / "verify_cycle.sh"
 GUI_LOG = ROOT / "GUI" / "IMPLEMENTED.md"
-CANONICAL_LOG = ROOT / "DOCS" / "IMPLEMENTED.md"
+CANONICAL_LOG = ROOT / "RAG" / "DOCS" / "IMPLEMENTED.md"
 
 
 def test_max_steps_allineato_al_worker():
@@ -65,8 +65,8 @@ def test_symlink_state_dichiarato():
         assert state.readlink().as_posix() == "data/state"
 
 
-ARCHITECTURE = ROOT / "DOCS" / "ARCHITECTURE.md"
-OPERATIONS = ROOT / "DOCS" / "OPERATIONS.md"
+ARCHITECTURE = ROOT / "RAG" / "DOCS" / "ARCHITECTURE.md"
+OPERATIONS = ROOT / "RAG" / "DOCS" / "OPERATIONS.md"
 
 
 def test_agent_md_entro_budget():
@@ -74,7 +74,7 @@ def test_agent_md_entro_budget():
     size = len(AGENT.read_text(encoding="utf-8"))
     assert size <= 3200, (
         f"AGENT.md troppo lungo: {size} caratteri (budget ~3000). "
-        "Sposta il contenuto esteso in DOCS/."
+        "Sposta il contenuto esteso in RAG/DOCS/."
     )
 
 
@@ -107,7 +107,7 @@ def _conteggi_codice():
 def test_conteggi_tool_e_intent_allineati_al_codice():
     tools, intents, triggers = _conteggi_codice()
     readme = ROOT / "README.md"
-    readme_en = ROOT / "DOCS" / "README_EN.md"
+    readme_en = ROOT / "RAG" / "DOCS" / "README_EN.md"
 
     for doc in (readme, readme_en, ARCHITECTURE):
         text = doc.read_text(encoding="utf-8")
@@ -130,7 +130,7 @@ def test_conteggi_tool_e_intent_allineati_al_codice():
 
 def test_link_locali_nelle_doc_risolti():
     docs = [ROOT / "README.md", AGENT] + sorted(
-        (ROOT / "DOCS").glob("*.md"))
+        (ROOT / "RAG" / "DOCS").glob("*.md"))
     for doc in docs:
         text = doc.read_text(encoding="utf-8")
         for target in re.findall(r"\[[^\]]*\]\(([^)]+)\)", text):
@@ -146,7 +146,7 @@ def test_link_locali_nelle_doc_risolti():
 
 def test_markdown_non_schiacciato():
     docs = [ROOT / "README.md", AGENT] + sorted(
-        (ROOT / "DOCS").glob("*.md"))
+        (ROOT / "RAG" / "DOCS").glob("*.md"))
     for doc in docs:
         longest = max((len(line) for line in
                        doc.read_text(encoding="utf-8").splitlines()),

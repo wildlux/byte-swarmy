@@ -16,7 +16,7 @@ Uso:
     .venv/bin/python tools/eval_by_slot.py                 # simulazione
     .venv/bin/python tools/eval_by_slot.py --json
     .venv/bin/python tools/eval_by_slot.py --results evals/slot_results.json
-    .venv/bin/python tools/eval_by_slot.py --out DOCS/SLOT5_EVAL_REPORT.md
+    .venv/bin/python tools/eval_by_slot.py --out RAG/DOCS/SLOT5_EVAL_REPORT.md
 """
 from __future__ import annotations
 

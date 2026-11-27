@@ -8,14 +8,14 @@ Legge SOLO fonti locali verificabili:
 * `CONFIG/config.toml` (fast lane / best_of_n);
 * il corpus di feedback in `data/state` (triple, unici, first-try);
 * i contatori live di `tools/gen_grafici.py`;
-* le correzioni già applicate a `DOCS/MIGLIORAMENTI.md` e
-  `DOCS/SELF_IMPROVEMENT_REPORT.md`.
+* le correzioni già applicate a `RAG/DOCS/MIGLIORAMENTI.md` e
+  `RAG/DOCS/SELF_IMPROVEMENT_REPORT.md`.
 
 Nessun LLM, rete o GPU, nessun timestamp: stesso input → stesso Markdown.
 
 Uso:
     .venv/bin/python tools/brutal_honesty_report.py
-    .venv/bin/python tools/brutal_honesty_report.py --out DOCS/BRUTAL_HONESTY_REPORT.md
+    .venv/bin/python tools/brutal_honesty_report.py --out RAG/DOCS/BRUTAL_HONESTY_REPORT.md
     .venv/bin/python tools/brutal_honesty_report.py --json
 """
 from __future__ import annotations
@@ -38,7 +38,7 @@ from tools.self_improvement_report import (  # noqa: E402
 )
 
 SOURCE_DIRS = ("CORE", "GUI", "tools", "SAFETY", "tests")
-OUT = ROOT / "DOCS" / "BRUTAL_HONESTY_REPORT.md"
+OUT = ROOT / "RAG" / "DOCS" / "BRUTAL_HONESTY_REPORT.md"
 
 
 def pyflakes_snapshot() -> dict:
@@ -141,9 +141,9 @@ def retrieval_snapshot(state_dir=None) -> dict:
 
 def docs_snapshot() -> dict:
     """Le correzioni devono essere nel markdown, non solo nella chat."""
-    improvements = (ROOT / "DOCS" / "MIGLIORAMENTI.md").read_text(
+    improvements = (ROOT / "RAG" / "DOCS" / "MIGLIORAMENTI.md").read_text(
         encoding="utf-8")
-    self_report = (ROOT / "DOCS" / "SELF_IMPROVEMENT_REPORT.md").read_text(
+    self_report = (ROOT / "RAG" / "DOCS" / "SELF_IMPROVEMENT_REPORT.md").read_text(
         encoding="utf-8")
     return {
         "link_presente": "BRUTAL_HONESTY_REPORT.md" in improvements,
@@ -216,7 +216,7 @@ def collect_all(state_dir=None) -> dict:
 
 
 DOC_LABELS = {
-    "link_presente": "Link al report da `DOCS/MIGLIORAMENTI.md`",
+    "link_presente": "Link al report da `RAG/DOCS/MIGLIORAMENTI.md`",
     "zero_warning_falso_rimosso": "Claim '0 warning ✅ raggiunto' rimosso",
     "fast_lane_attivo_rimosso": "Claim 'fast lane attivo' rimosso",
     "meccanismi_documentati": "Meccanismi definiti 'documentati/implementati'",
@@ -321,7 +321,7 @@ def markdown(s: dict) -> str:
         "— zero LLM, zero rete, zero GPU, zero timestamp._",
         "",
         "Scopo: dire cosa è **veramente verificabile** nei report e nei "
-        "documenti di `DOCS/`. Quando un numero cambia, cambia questo file: "
+        "documenti di `RAG/DOCS/`. Quando un numero cambia, cambia questo file: "
         "non si scrive a mano un verdetto diverso dai dati.",
         "",
         "## Verdetto sintetico",

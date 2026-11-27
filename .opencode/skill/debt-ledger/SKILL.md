@@ -70,7 +70,7 @@ $D stats [--root ...]         # done · in_progress · open · stale
    - git diff (sano: solo le righe promesse)
    - git status del clone (nessun file hallucinato)
 4. $D done <id>            → item chiuso
-5. Docs: DOCS/IMPLEMENTED.md + todo.md + README versione
+5. Docs: RAG/DOCS/IMPLEMENTED.md + todo.md + README versione
 6. Commit + push byte-swarmy
 ```
 

@@ -21,7 +21,7 @@ Uso:
     .venv/bin/python tools/quality_judge.py                    # simulazione
     .venv/bin/python tools/quality_judge.py --json
     .venv/bin/python tools/quality_judge.py --results judge_results.json
-    .venv/bin/python tools/quality_judge.py --out DOCS/QUALITY_JUDGE_REPORT.md
+    .venv/bin/python tools/quality_judge.py --out RAG/DOCS/QUALITY_JUDGE_REPORT.md
 
 Criterio done Fase H: tool + report accordo gate↔giudice su 20 casi REALI.
 I 13 casi della eval suite qui sono solo struttura, non misura.

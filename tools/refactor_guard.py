@@ -18,7 +18,7 @@ Uso:
     .venv/bin/python tools/refactor_guard.py --before /tmp/a.py --after /tmp/b.py
     .venv/bin/python tools/refactor_guard.py --before a.py --after b.py --json
     .venv/bin/python tools/refactor_guard.py --before a.py --after b.py \
-        --inputs "1,2" --out DOCS/REFACTOR_GUARD_REPORT.md
+        --inputs "1,2" --out RAG/DOCS/REFACTOR_GUARD_REPORT.md
 """
 from __future__ import annotations
 

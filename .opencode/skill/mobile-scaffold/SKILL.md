@@ -26,7 +26,7 @@ applica**: è un gate Python e non introspetta Swift/Kotlin.
 
 - non aggiungere import o simboli fuori dai ref senza una nuova verifica;
 - eseguire `.venv/bin/python tools/mobile_scaffold_check.py`;
-- il report `DOCS/MOBILE_SCAFFOLD_REPORT.md` deve essere `PASS`.
+- il report `RAG/DOCS/MOBILE_SCAFFOLD_REPORT.md` deve essere `PASS`.
 
 ## 3. Limiti da dire sempre
 

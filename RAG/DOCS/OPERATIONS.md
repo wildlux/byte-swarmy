@@ -1,7 +1,7 @@
 # 🛠️ BYTE-SWARMY — Operations
 
 > Comandi operativi e protocolli di sessione. Le regole vincolanti per i
-> modelli piccoli restano in [`AGENT.md`](../AGENT.md); l'architettura estesa è
+> modelli piccoli restano in [`AGENT.md`](../../AGENT.md); l'architettura estesa è
 > in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ---
@@ -39,8 +39,8 @@ tail -f logs/byte-swarmy.log &                    # durante un run
 # ── Flusso documentale (todo → IMPLEMENTED) ─────────────────────
 .venv/bin/python tools/travasa_todo.py --dry-run  # preview
 .venv/bin/python tools/travasa_todo.py            # travaso (idempotente)
-# todo.md vive in root, IMPLEMENTED.md vive in DOCS/ (risoluzione
-# indipendente; backward-compat con entrambi i file in DOCS/ o in root).
+# todo.md vive in root, IMPLEMENTED.md vive in RAG/DOCS/ (risoluzione
+# indipendente; backward-compat con entrambi i file in RAG/DOCS/ o in root).
 
 # ── Ponte remoto pulsanti GUI (simulazione click da script) ─────
 .venv/bin/python tools/gui_remote.py list                   # inventario

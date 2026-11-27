@@ -8,11 +8,11 @@ Data e ora correnti: !`date '+%H:%M'`
 
 System prompt dei modelli locali (1.5B–4B, 2–3k token): max **~3.000
 caratteri**. Architettura, threat model, metriche e protocolli estesi vivono
-in `DOCS/`; qui solo regole vincolanti.
+in `RAG/DOCS/`; qui solo regole vincolanti.
 
-- Architettura: `DOCS/ARCHITECTURE.md` · Comandi: `DOCS/OPERATIONS.md`
-- Sicurezza: `DOCS/SECURITY.md` · Subagenti: `DOCS/SUBAGENTS.md`
-- Stato: `todo.md` · Storico: `DOCS/IMPLEMENTED.md` · Benchmark: `DOCS/BENCH.md`
+- Architettura: `RAG/DOCS/ARCHITECTURE.md` · Comandi: `RAG/DOCS/OPERATIONS.md`
+- Sicurezza: `RAG/DOCS/SECURITY.md` · Subagenti: `RAG/DOCS/SUBAGENTS.md`
+- Stato: `todo.md` · Storico: `RAG/DOCS/IMPLEMENTED.md` · Benchmark: `RAG/DOCS/BENCH.md`
 
 ## 🛡️ Regole vincolanti
 

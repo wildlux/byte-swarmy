@@ -65,7 +65,7 @@ I passi manuali qui sotto restano la via alternativa equivalente.
 2. **Misura i RPM** con lo strumento esterno. Annota il valore intero.
 3. **Subito dopo**, crea la ricevuta in `data/state/rpm_attestation.json`
    (gitignored, fuori dal tree versionato). Parti dal template
-   `DOCS/rpm_attestation.example.json` e sostituisci i campi:
+   `RAG/DOCS/rpm_attestation.example.json` e sostituisci i campi:
 
    ```json
    {
@@ -89,7 +89,7 @@ I passi manuali qui sotto restano la via alternativa equivalente.
 5. **Rigenera il report** con la nuova evidenza:
 
    ```bash
-   .venv/bin/python tools/blocker_probe.py --out DOCS/BLOCKER_PROBE_REPORT.md
+   .venv/bin/python tools/blocker_probe.py --out RAG/DOCS/BLOCKER_PROBE_REPORT.md
    ```
 
 ## Cosa valida il tool (nessun valore passato a mano)

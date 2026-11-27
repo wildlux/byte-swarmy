@@ -14,7 +14,7 @@ stesso testo.
 Uso:
     .venv/bin/python tools/api_fidelity_eval.py
     .venv/bin/python tools/api_fidelity_eval.py --json
-    .venv/bin/python tools/api_fidelity_eval.py --out DOCS/API_FIDELITY_REPORT.md
+    .venv/bin/python tools/api_fidelity_eval.py --out RAG/DOCS/API_FIDELITY_REPORT.md
 
 Exit: 0 se 0 simboli indefiniti e ref validi, 1 altrimenti.
 """

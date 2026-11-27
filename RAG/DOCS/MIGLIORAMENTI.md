@@ -46,10 +46,10 @@ verso il goal; il progresso è un numero, non un'impressione.
 
 ## 🧾 Brutal honesty — verifica dei report (Cycle 100)
 
-> Report deterministico: [`DOCS/BRUTAL_HONESTY_REPORT.md`](BRUTAL_HONESTY_REPORT.md).
-> Rigenera con `.venv/bin/python tools/brutal_honesty_report.py --out DOCS/BRUTAL_HONESTY_REPORT.md`.
-> Stato dei blocchi M2–M6 misurato da [`DOCS/BLOCKER_PROBE_REPORT.md`](BLOCKER_PROBE_REPORT.md),
-> rigenerabile con `.venv/bin/python tools/blocker_probe.py --out DOCS/BLOCKER_PROBE_REPORT.md`.
+> Report deterministico: [`RAG/DOCS/BRUTAL_HONESTY_REPORT.md`](BRUTAL_HONESTY_REPORT.md).
+> Rigenera con `.venv/bin/python tools/brutal_honesty_report.py --out RAG/DOCS/BRUTAL_HONESTY_REPORT.md`.
+> Stato dei blocchi M2–M6 misurato da [`RAG/DOCS/BLOCKER_PROBE_REPORT.md`](BLOCKER_PROBE_REPORT.md),
+> rigenerabile con `.venv/bin/python tools/blocker_probe.py --out RAG/DOCS/BLOCKER_PROBE_REPORT.md`.
 > Nessun LLM: i numeri vengono dal codice, dal TOML e dal corpus.
 
 | Voce | Correzione applicata |
@@ -205,8 +205,8 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 
 | Meccanismo | Dettaglio | Gate |
 |---|---|---|
-| Inventario regex | `tests/test_regex_inventory.py` scansiona con AST il registro (`DEFAULT_PATTERNS` + `LANG_HINTS`) e le chiamate `re.*` letterali in `CORE/`, `GUI/`, `tools/`: 24 pattern, 130 usages, 148 file, 0 invalidi/duplicati. Report: `DOCS/REGEX_INVENTORY.md` | 4 test verdi, `pytest -q -s` stampa tutto |
-| Subagent 1-livello | `CORE/subagent.py` + tool `spawn_subagent`/`get_subagent_report`/`list_subagents`: figli con `AgentMemory` e ruoli modello esistenti, profondità ≤1, max 4, zero LLM in `spawn()`, gate ≤60 °C/`pause.flag`, cap wall-clock. Policy: `DOCS/SUBAGENTS.md` | 8 test offline verdi, zero rete/LLM |
+| Inventario regex | `tests/test_regex_inventory.py` scansiona con AST il registro (`DEFAULT_PATTERNS` + `LANG_HINTS`) e le chiamate `re.*` letterali in `CORE/`, `GUI/`, `tools/`: 24 pattern, 130 usages, 148 file, 0 invalidi/duplicati. Report: `RAG/DOCS/REGEX_INVENTORY.md` | 4 test verdi, `pytest -q -s` stampa tutto |
+| Subagent 1-livello | `CORE/subagent.py` + tool `spawn_subagent`/`get_subagent_report`/`list_subagents`: figli con `AgentMemory` e ruoli modello esistenti, profondità ≤1, max 4, zero LLM in `spawn()`, gate ≤60 °C/`pause.flag`, cap wall-clock. Policy: `RAG/DOCS/SUBAGENTS.md` | 8 test offline verdi, zero rete/LLM |
 | Verità della verifica (A1) | `verification_status` esplicito: `not_tested` non vale `verified`; richiede `run_test_suite` o override tracciato; marker nel report, non nel result | 7 test (-integrazione), contratto `execute()` invariato |
 | Corpus verificabile (A2–A3) | `reason` popolato e troncato a 4000 char, `failed_definitively` nel corpus, curatore con `done` + `corrected` stratificati e `--only-done` | 11 test offline, dedup invariato |
 | Retrieval nel loop (A4) | `retrieve_similar_task` in mapping/prompt/allowlist/dispatch/auto-tool, chiamabile ma non automatico | 4 test con retriever finto |
@@ -214,13 +214,13 @@ in git (`state/` → `data/`, entrambe gitignored) e il dialog usa
 | Skill proposer con gate (B2) | Auto-approvazione dopo 3 successi SOLO se gate deterministico verde; gate rosso = bozza intatta + report in `failures.json` + CLI `--gate`; backup `.backup.md` e metadati su ogni approvazione | 14 test + 22 regressioni, zero LLM |
 | Override guard (B3) | `CORE/override_guard.py`: chiavi note, max 4 keyword, dedup accent-insensitive, null/duplicati/JSON rotti scartati con codice+report; collegato a entrambi i loader | 10 test + 4 subtest + 26 regressioni |
 | Coerenza docs (C1) | MAX_STEPS=10 e baseline security=7 unica in `AGENT.md`/`SPECIFICATIONS`/`verify_cycle.sh`; `GUI/IMPLEMENTED.md` ridotto a stub; symlink `state→data/state` dichiarato | 4 test di coerenza, zero codice runtime toccato |
-| Report self-improvement (C2) | `tools/self_improvement_report.py`: corpus/verdetti/first-try, gate skill, override invalidi, copertura retrieval; snapshot rigenerabile in `DOCS/SELF_IMPROVEMENT_REPORT.md` | 6 test + 6 subtest, zero LLM |
-| Prompt lint (D1) | `tools/prompt_lint.py`: misura struttura del prompt reale (regole, tool, frasi, lingua, 1 azione/turno, tono); snapshot `DOCS/PROMPT_LINT_REPORT.md`. Ipotesi: struttura sì, tono no | 6 test, zero LLM; A/B live resta 🔒 termico |
-| Refactor guard (E1) | `tools/refactor_guard.py`: AST + API pubblica invariata + behavioral diff (snapshot stdin→stdout); WARN se snapshot non conclusivo, FAIL su comportamento/sintassi/API | 8/8 casi atomici + 4 negativi, zero LLM; report `DOCS/REFACTOR_GUARD_REPORT.md` |
-| API fidelity eval (E2) | `tools/api_fidelity_eval.py`: AST → `api_lookup(strict=True)` (stesso gate del worker) + ref `json`/`csv` validati; `strict` accetta costanti reali come valori, blocca callabili non introspettabili e simboli inventati | 7/7 simboli verificati, 0 indefiniti, 22 firme; 8 test, zero LLM; report `DOCS/API_FIDELITY_REPORT.md` |
+| Report self-improvement (C2) | `tools/self_improvement_report.py`: corpus/verdetti/first-try, gate skill, override invalidi, copertura retrieval; snapshot rigenerabile in `RAG/DOCS/SELF_IMPROVEMENT_REPORT.md` | 6 test + 6 subtest, zero LLM |
+| Prompt lint (D1) | `tools/prompt_lint.py`: misura struttura del prompt reale (regole, tool, frasi, lingua, 1 azione/turno, tono); snapshot `RAG/DOCS/PROMPT_LINT_REPORT.md`. Ipotesi: struttura sì, tono no | 6 test, zero LLM; A/B live resta 🔒 termico |
+| Refactor guard (E1) | `tools/refactor_guard.py`: AST + API pubblica invariata + behavioral diff (snapshot stdin→stdout); WARN se snapshot non conclusivo, FAIL su comportamento/sintassi/API | 8/8 casi atomici + 4 negativi, zero LLM; report `RAG/DOCS/REFACTOR_GUARD_REPORT.md` |
+| API fidelity eval (E2) | `tools/api_fidelity_eval.py`: AST → `api_lookup(strict=True)` (stesso gate del worker) + ref `json`/`csv` validati; `strict` accetta costanti reali come valori, blocca callabili non introspettabili e simboli inventati | 7/7 simboli verificati, 0 indefiniti, 22 firme; 8 test, zero LLM; report `RAG/DOCS/API_FIDELITY_REPORT.md` |
 | Scaffolding GUI (E3) | `GUI/refs/templates/`: 4 template PyQt6 (finestra, layout, segnali, QThread con `DirectConnection` per `quit`); skill `py-gui-scaffold` + keyword auto; i simboli Qt si verificano con `api_lookup` non-strict (le classi C++ non hanno firma) | 7 test offscreen con snapshot struttura/segnali/thread; zero LLM; 3/4 resta 🔒 termico |
-| A/B memoria (E4) | `tools/memory_ab.py`: 10 task congelati (`5e6051bfc33d`), retriever/solver finti, due bracci con/senza contesto, soglie GO ≥0.60 e delta ≥0.20 fissate prima del live; gate termico `fan_rpm>0` e ≤60 °C | 8 test offline + report `DOCS/MEMORY_AB_REPORT.md`; il dry-run NON alza il radar, 4/4 richiede LLM live 🔒 termico |
-| Scaffold mobile (F1) | `GUI/refs/templates/mobile_ios.swift.tpl` + `mobile_android.kt.tpl`, ref statici `GUI/refs/mobile/`, skill `mobile-scaffold` + keyword auto, `tools/mobile_scaffold_check.py`; `api_lookup` non applicabile a Swift/Kotlin | 6 test offline + report `DOCS/MOBILE_SCAFFOLD_REPORT.md`; build NON verificata (SDK assenti), nuovo asse Mobile 2/4, 3/4 🔒 termico |
+| A/B memoria (E4) | `tools/memory_ab.py`: 10 task congelati (`5e6051bfc33d`), retriever/solver finti, due bracci con/senza contesto, soglie GO ≥0.60 e delta ≥0.20 fissate prima del live; gate termico `fan_rpm>0` e ≤60 °C | 8 test offline + report `RAG/DOCS/MEMORY_AB_REPORT.md`; il dry-run NON alza il radar, 4/4 richiede LLM live 🔒 termico |
+| Scaffold mobile (F1) | `GUI/refs/templates/mobile_ios.swift.tpl` + `mobile_android.kt.tpl`, ref statici `GUI/refs/mobile/`, skill `mobile-scaffold` + keyword auto, `tools/mobile_scaffold_check.py`; `api_lookup` non applicabile a Swift/Kotlin | 6 test offline + report `RAG/DOCS/MOBILE_SCAFFOLD_REPORT.md`; build NON verificata (SDK assenti), nuovo asse Mobile 2/4, 3/4 🔒 termico |
 
 ---
 

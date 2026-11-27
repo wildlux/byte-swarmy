@@ -1,6 +1,6 @@
 """CORE/slot_planner.py — planner deterministico a slot (SLOT-3 / P2-3).
 
-Step [1] dell'`DOCS/ARCHITETTURA_SLOT.md`: trasforma un task dichiarativo in
+Step [1] dell'`RAG/DOCS/ARCHITETTURA_SLOT.md`: trasforma un task dichiarativo in
 una lista PICCOLA di slot {file, anchor, tipo, refs proprie, test proprio}.
 Il modello 3b riempie un solo slot alla volta; qui NON si generate codice e
 NON si chiama alcun LLM: la scelta del template avviene per parole chiave,

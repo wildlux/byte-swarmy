@@ -111,7 +111,7 @@ This file tracks every significant feature, fix, and architectural change implem
   del repo (aree/ruoli, statistiche file, `.py` caldi via `--days`, stato
   git, dir runtime). 3 modalità: stdout / `--out state/repo_map.md` /
   `--json`. Registrato come `./byte-swarm.sh map` e in
-  `DOCS/AGENT.md → Shell Commands` (risparmio token a inizio sessione).
+  `RAG/DOCS/AGENT.md → Shell Commands` (risparmio token a inizio sessione).
 - [x] **AGENT.md — Shell Commands quick reference**: sezione comandi
   operativi più usati (test, runtime `byte-swarm.sh`, pausa/coda SQLite,
   log, flusso documentale, push manuale, GUI offscreen + regole tema
@@ -119,8 +119,8 @@ This file tracks every significant feature, fix, and architectural change implem
   conti hardcodati: 55 → "usa i comandi", suite attuale 247 pytest).
 - [x] **Fix `tools/travasa_todo.py`**: dopo la consolidation docs
   puntava ancora ai path root inesistenti (`todo.md`, `IMPLEMENTED.md`)
-  → flusso documentale rotto. Ora rileva `DOCS/todo.md` /
-  `DOCS/IMPLEMENTED.md` (backward-compat con la root). Dry-run OK.
+  → flusso documentale rotto. Ora rileva `RAG/DOCS/todo.md` /
+  `RAG/DOCS/IMPLEMENTED.md` (backward-compat con la root). Dry-run OK.
 - [x] **Sync tema widget — round 2**: `task_scheduler_panel.py` (12
   colori inline light-only → theme: banner warn, bottoni
   `role=start/danger`, QListWidget oggetto "schedlist"), `search_bar.py`
@@ -144,7 +144,7 @@ This file tracks every significant feature, fix, and architectural change implem
   `GUI/control_center.py` (fail-open).
 - [x] **Client `tools/gui_remote.py`**: subcommand `list` / `click` /
   `screenshot` (JSON o umano); `--raw` per scripting. Registrato in
-  `DOCS/AGENT.md → Shell Commands`.
+  `RAG/DOCS/AGENT.md → Shell Commands`.
 - [x] **Test `tests/test_remote_bridge.py`**: 7 test round-trip
   in-process (inventario, click id/testo/index, duplicati `#n`,
   disabilitati, screenshot, op sconosciute, json invalido, slug). Suite
@@ -169,7 +169,7 @@ This file tracks every significant feature, fix, and architectural change implem
   - `git_hygiene.py` — igiene repo (spazzatura non tracciata, file
     grandi, newline finale, trailing ws, .gitignore coverage, commit
     sospetti, branch senza upstream).
-  - Registrati in `DOCS/AGENT.md → Shell Commands` e come
+  - Registrati in `RAG/DOCS/AGENT.md → Shell Commands` e come
     `./byte-swarm.sh lint` (esegue i tre in sequenza).
   - Effetto collaterale: rimossi 3 duplicati root tracciati
     (`re_tools.py`, `test_re_tools.py`, `test_functional_swarm.py`,
@@ -457,7 +457,7 @@ This file tracks every significant feature, fix, and architectural change implem
   stesso modello e task): token input −72% (2516→668 ch system
   costante), artifact 0/2 → 2/2. Il confronto wall è confondato dal
   fatto che pre-T1 i task FALLIVANO (loop read_file senza output).
-  Numeri in `DOCS/IMPLEMENTED.md` Cycle 46b. ✅ Cycle 46b.
+  Numeri in `RAG/DOCS/IMPLEMENTED.md` Cycle 46b. ✅ Cycle 46b.
 
 - [x] **A. Warmup all'avvio + keep_alive da config** ✅ Cycle 47:
   orchestrator pre-carica `warmup_model` (thread background) +
@@ -478,21 +478,21 @@ This file tracks every significant feature, fix, and architectural change implem
 
 - [x] **Bench post-furbate** (auto dentro verify_all): wall −5,4% (74,59→70,53s),
   bench-create −9,6% (load cold nascosto dal warmup), token invariati.
-  Report in `DOCS/BENCH.md` Cycle 47b. ✅ Cycle 47b.
+  Report in `RAG/DOCS/BENCH.md` Cycle 47b. ✅ Cycle 47b.
 
 - [x] **E. Bench num_ctx A/B** ✅ Cycle 48: num_ctx 8192 → 4096 vs baseline;
   wall −4,7%, token invariati → **nessun win misurabile** oggi (prompt già
-  compatti); config ripristinata a 8192. Report in `DOCS/BENCH.md` Cycle 48.
+  compatti); config ripristinata a 8192. Report in `RAG/DOCS/BENCH.md` Cycle 48.
   ✅ Cycle 48.
 
 - [x] **Bench post-furbate** (auto dentro verify_all): wall −5,4% (74,59→70,53s),
   bench-create −9,6% (load cold nascosto dal warmup), token invariati.
-  Report in `DOCS/BENCH.md` Cycle 47b. ✅ Cycle 47b.
+  Report in `RAG/DOCS/BENCH.md` Cycle 47b. ✅ Cycle 47b.
 
 - [x] **D. Env Ollama KV cache q8_0 + flash attention** ✅ Cycle 49:
   `systemctl set-environment OLLAMA_KV_CACHE_TYPE=q8_0 OLLAMA_FLASH_ATTENTION=1`
   + restart; bench post: wall **−2,5%** (74,59 → 72,72s), bench-create **−13,6%**.
-  Report in `DOCS/BENCH.md` Cycle 49. ✅ Cycle 49.
+  Report in `RAG/DOCS/BENCH.md` Cycle 49. ✅ Cycle 49.
 
 ## 🔓 Open follow-ups
 UI redesign (menu hamburger, Live Activity in alto), MCP E2E testing, USB protocol parser, USB differential analysis, dedicated user `byteswarmy`, usbmon/tshark automation, unification of GUI→SQLite queue (FM14).
@@ -1199,7 +1199,7 @@ produce valore su task esterni e non progettati da noi.
   - Metriche per task: successo al primo colpo, successo dopo correction
     loop, falsi negativi del gate, errori di esecuzione, wall time.
   - Risultati JSON in `state/benchmarks/` (gitignored); report testuale in
-    `DOCS/BENCH.md` con metodologia riproducibile.
+    `RAG/DOCS/BENCH.md` con metodologia riproducibile.
   - Criterio di uscita Fase 0: se il tempo umano netto è negativo o nullo,
     fermarsi e semplificare; se positivo anche solo del 20%, si ha qualcosa
     su cui costruire.
@@ -1214,7 +1214,7 @@ produce valore su task esterni e non progettati da noi.
     il sistema richiede più supervisione del lavoro manuale. Raccomandazione:
     fermarsi e semplificare (o passare a un modello più capace per il worker)
     prima di aggiungere feature.
-  - Report testuale in `DOCS/BENCH.md`; JSON grezzi in
+  - Report testuale in `RAG/DOCS/BENCH.md`; JSON grezzi in
     `state/benchmarks/external_bench-20261115-164507.json`.
 - **Test**: `tests/test_external_benchmark.py` (11 test, mock senza Ollama:
   criterio di successo, naked task, harness first-try, harness correction
@@ -1377,7 +1377,7 @@ Regola permanente richiesta dall'utente: i test che chiamano l'LLM non
 devono surriscaldare il portatile. Mai generazioni monolitiche — stadi
 brevi con verifica tra uno e l'altro.
 
-- **La regola** (codificata in `todo.md` + `DOCS/BENCH.md`):
+- **La regola** (codificata in `todo.md` + `RAG/DOCS/BENCH.md`):
   1. scheletro (classe vuota / `test_*` con `pass`) → verifica host-side
      (~gratis: `py_compile` / `pytest --collect-only`, zero LLM);
   2. definizioni/corpi minimi → verifica;
@@ -1443,7 +1443,7 @@ benchmark completo non gira sotto 60°C su questo portatile.
 Richiesta utente: "scrivi un piano d'azione sui dati attuali e poi li
 aggiorniamo appena abbiamo gli altri dati".
 
-- **`DOCS/BENCH.md` § "PIANO D'AZIONE — Cycle 66"** (living doc):
+- **`RAG/DOCS/BENCH.md` § "PIANO D'AZIONE — Cycle 66"** (living doc):
   - §1 dati certi misurati: baseline Cycle 59 (naked 50%/14s vs harness
     12.5%/192s), fisica termica (0,3°C/s da freddo, 1°C/s da caldo,
     pausa 78→51 in 90s), hardware (7b non entra in 4GB, granite4 MoE
@@ -1513,7 +1513,7 @@ Mentre il driver girava (2/8 sessioni finite), i dati hanno mostrato:
 - ext-01 naked perso: max wait 900s scaduto (raffreddamento lento al
   mezzogiorno).
 
-**Verdetto** (`DOCS/BENCH.md` §8, con criteri pre-scritti del piano):
+**Verdetto** (`RAG/DOCS/BENCH.md` §8, con criteri pre-scritti del piano):
 `fast_lane.enabled = false` PERMANENTE finché non cambino le condizioni
 (cap di frequenza, altra macchina, giornata fresca). Regola
 "measure, don't add" rispettata fino in fondo: l'idea
@@ -1972,14 +1972,14 @@ i gate ora eseguono veri comandi sandbox invece di morire su NameError).
 ## 📈 Cycle 85e — Grafico miglioramenti + GOAL middle senior + pannello GUI (2026-11-18)
 
 - **Grafico deterministico** (`tools/gen_grafici.py` →
-  `DOCS/grafici/miglioramenti.svg`, zero LLM, validazione XML): 4 sezioni —
+  `RAG/DOCS/grafici/miglioramenti.svg`, zero LLM, validazione XML): 4 sezioni —
   (A) difetti audit per categoria, (B) meccanismi cumulativi 1→16,
   (C) crescita suite test, **(D) scala di seniorità con il GOAL**.
 - **GOAL dichiarato**: sistema (modello + meccanismi) a livello
   **middle senior** o quanto più vicino. Scala misurabile:
   Junior (3b nudo, 0/4 GUI) → Junior+ (v0.3.30, siamo qui) →
   Middle (≥50% primo colpo) → **Middle Senior (≥70% primo colpo,
-  GUI ≥75%, 0 allucinazioni API)**. In `DOCS/MIGLIORAMENTI.md` + README.
+  GUI ≥75%, 0 allucinazioni API)**. In `RAG/DOCS/MIGLIORAMENTI.md` + README.
 - **Pannello GUI** `GUI/improvements_panel.py`: SVG dentro QScrollArea
   con QSvgWidget, back_btn (parità), pulsante 🔄 Rigenera che esegue lo
   script deterministico. Card "📈 Miglioramenti" in Plancia (riga 3).
@@ -1998,7 +1998,7 @@ i gate ora eseguono veri comandi sandbox invece di morire su NameError).
   P2: scaffolding GUI deterministico, A/B contesto persistente,
   refs moduli interni, clarifier esteso; P3: decision tree v2,
   confronto 7b/14b per GUI, leva cpupower.
-- Tabella radar-per-asse in DOCS/MIGLIORAMENTI.md.
+- Tabella radar-per-asse in RAG/DOCS/MIGLIORAMENTI.md.
 
 ## 🚀 Cycle 85g — Programma "come i migliori" in todo.md (2026-11-18)
 
@@ -2184,9 +2184,9 @@ funzionare: il validatore scarta solo le voci non conformi.
 
 | Contraddizione | Correzione |
 |---|---|
-| `AGENT.md` e `DOCS/SPECIFICATIONS.md`: `MAX_STEPS = 6` | `MAX_STEPS = 10` (valore effettivo di `CORE/worker.py`); i profili `llm_tuner` possono ridurlo dinamicamente |
+| `AGENT.md` e `RAG/DOCS/SPECIFICATIONS.md`: `MAX_STEPS = 6` | `MAX_STEPS = 10` (valore effettivo di `CORE/worker.py`); i profili `llm_tuner` possono ridurlo dinamicamente |
 | Baseline security 15 / 7 / 13 in `verify_cycle.sh`, `todo.md`, `AGENT.md` | **Baseline unica 7 errori** (273 finding totali, misurata il 2026-11-22) dichiarata in `AGENT.md` regola 13 e usata da `verify_cycle.sh`; `todo.md` conserva il 13 solo come "baseline storica" |
-| `GUI/IMPLEMENTED.md` copia identica delle prime 107 righe di `DOCS/IMPLEMENTED.md` | Sostituito da uno stub di indirizzo: registro canonico = `DOCS/IMPLEMENTED.md`, nessun contenuto perso |
+| `GUI/IMPLEMENTED.md` copia identica delle prime 107 righe di `RAG/DOCS/IMPLEMENTED.md` | Sostituito da uno stub di indirizzo: registro canonico = `RAG/DOCS/IMPLEMENTED.md`, nessun contenuto perso |
 | `state → data/state` non dichiarato | `AGENT.md` regola 12: symlink per-install gitignored, artefatti runtime via `state/`, mai committare credenziali |
 
 Verifiche: `tests/test_docs_consistency.py` 4 test (valore `Worker.MAX_STEPS`,
@@ -2202,7 +2202,7 @@ modificato.
 | Modifica | Dettaglio |
 |---|---|
 | `tools/self_improvement_report.py` (nuovo) | `collect(state_dir)` legge solo `state/`: triple corpus + verdetti, first-try/correction rate, proposte skill per stato, gate verdi/rossi, override non conformi, copertura retrieval. Fail-open su file rotti. `markdown()` e `--json`; `--state-dir`/`--out` per test isolati |
-| `DOCS/SELF_IMPROVEMENT_REPORT.md` (generato) | Primo snapshot reale: 72 triple / 24 uniche / 20 task, first-try 0.958, correzioni 0.042, 2 proposte pending, 0 gate rossi, 0 override invalidi, copertura retrieval 100% |
+| `RAG/DOCS/SELF_IMPROVEMENT_REPORT.md` (generato) | Primo snapshot reale: 72 triple / 24 uniche / 20 task, first-try 0.958, correzioni 0.042, 2 proposte pending, 0 gate rossi, 0 override invalidi, copertura retrieval 100% |
 
 Verifiche: `tests/test_self_improvement_report.py` 6 test + 6 subtest con
 state finto in tmp (verdetti, first-try, copertura parziale, gate/proposte,
@@ -2217,7 +2217,7 @@ nuova euristica. Snapshot rigenerabile con un comando.
 | Modifica | Dettaglio |
 |---|---|
 | `tools/prompt_lint.py` (nuovo) | `analyze_prompt` misura caratteri/parole/frasi, media e max parole/frase, regole numerate, tool esposti, quota token non-inglesi (euristica dichiarata), presenza di "una azione per turno" + formato JSON, marcatori offensivi. `effective_prompt` riusa `Worker._build_system` su un probe: zero LLM, zero thread. `--family`, `--prompt-file`, `--json`, `--out` |
-| `DOCS/PROMPT_LINT_REPORT.md` (generato) | Snapshot reale family `compact`: 1302 char / 187 parole, 7 regole, 13 tool, 3.6 parole/frase (max 11), 2.7% non-inglese (commenti `# righe`, `# se dubbi`), 0 marcatori offensivi, status `OK` |
+| `RAG/DOCS/PROMPT_LINT_REPORT.md` (generato) | Snapshot reale family `compact`: 1302 char / 187 parole, 7 regole, 13 tool, 3.6 parole/frase (max 11), 2.7% non-inglese (commenti `# righe`, `# se dubbi`), 0 marcatori offensivi, status `OK` |
 
 Verifiche: `tests/test_prompt_lint.py` 6 test: prompt reale compatto/llama/
 deepseek, prompt cattivo (`FAIL` con tono offensivo e nessuna azione), prompt
@@ -2235,12 +2235,12 @@ delle risposte.
 | Modifica | Dettaglio |
 |---|---|
 | `tools/gen_grafici.py` | Asse **Memoria / contesto** 2/4 → 3/4 (A2–A3 triple con `reason`, A4 retrieval chiamabile, C2 report con copertura 100%); etichette Cycle 86 → 93 e legenda "oggi (Cycle 93)" |
-| `DOCS/grafici/miglioramenti.svg` | Rigenerato deterministico (sha256 stabile su due run): poligono blu aggiornato, conteggi dinamici tool 32 → 36 |
-| `DOCS/MIGLIORAMENTI.md` | Tabella radar per asse e intestazione allineate; rimossa riga obsoleta "D1 pianificato" |
+| `RAG/DOCS/grafici/miglioramenti.svg` | Rigenerato deterministico (sha256 stabile su due run): poligono blu aggiornato, conteggi dinamici tool 32 → 36 |
+| `RAG/DOCS/MIGLIORAMENTI.md` | Tabella radar per asse e intestazione allineate; rimossa riga obsoleta "D1 pianificato" |
 
 Verifiche: `tests/test_improvements_panel.py` 4 test offscreen, SVG valido;
 `git diff --check` OK. Nessun LLM. Il residuo non-inglese del prompt e gli
-assi invariati restano misurati in `DOCS/PROMPT_LINT_REPORT.md` e nella
+assi invariati restano misurati in `RAG/DOCS/PROMPT_LINT_REPORT.md` e nella
 tabella radar.
 
 ---
@@ -2249,9 +2249,9 @@ tabella radar.
 
 | Modifica | Dettaglio |
 |---|---|
-| `tools/gen_grafici.py` | `latest_cycle()` legge l'ultimo `## Cycle N` da `DOCS/IMPLEMENTED.md`; `mechanism_count()` conta le righe della tabella B + novità in `DOCS/MIGLIORAMENTI.md` (37). Titolo, legenda radar e punto finale di Chart B sono calcolati, non scritti a mano; `y_max` adattato |
+| `tools/gen_grafici.py` | `latest_cycle()` legge l'ultimo `## Cycle N` da `RAG/DOCS/IMPLEMENTED.md`; `mechanism_count()` conta le righe della tabella B + novità in `RAG/DOCS/MIGLIORAMENTI.md` (37). Titolo, legenda radar e punto finale di Chart B sono calcolati, non scritti a mano; `y_max` adattato |
 | `GUI/improvements_panel.py` | Dopo il click lo status mostra `✅ SVG aggiornato` oppure `✅ SVG identico (nessun dato cambiato)`, con orario e byte scritti; errori di exit/timeout visibili invece di essere inghiottiti |
-| `DOCS/grafici/miglioramenti.svg` | Rigenerato: Cycle 70 → 95, 37 meccanismi, legenda "oggi (Cycle 95)" |
+| `RAG/DOCS/grafici/miglioramenti.svg` | Rigenerato: Cycle 70 → 95, 37 meccanismi, legenda "oggi (Cycle 95)" |
 
 Causa del sintomo segnalato: il pulsante **partiva davvero** (mtime cambiava,
 exit 0), ma i dati erano hard-coded e lo status veniva sovrascritto dal solo
@@ -2261,7 +2261,7 @@ cambio nei documenti produce un SVG diverso e il pulsante lo dichiara.
 Verifiche: `tests/test_improvements_panel.py` 6 test offscreen (click con
 subprocess mockato: identico/errore) + `tests/test_gen_grafici_data.py`
 3 test (valori derivati, presenti nell'SVG, determinismo). Riproduzione
-reale: `prima: DOCS/grafici/miglioramenti.svg (940×1911)` →
+reale: `prima: RAG/DOCS/grafici/miglioramenti.svg (940×1911)` →
 `dopo: ✅ SVG identico (nessun dato cambiato) · 13:37:58 · 21228 byte`.
 
 ---
@@ -2272,8 +2272,8 @@ reale: `prima: DOCS/grafici/miglioramenti.svg (940×1911)` →
 |---|---|
 | `tools/refactor_guard.py` (nuovo) | `check_refactor(before, after)` verifica AST, API pubblica di primo livello (nomi/argomenti; annotazioni e default ignorati) e equivalenza comportamentale tramite `behavioral_diff.snapshot`/`verify` sugli stessi input stdin. `FAIL` su sintassi/API/comportamento, `WARN` se snapshot non conclusivo (fail-open), `OK` se tutto preservato. CLI `--inputs`, `--json`, `--out` |
 | `tests/test_refactor_guard.py` (nuovo) | 8 trasformazioni atomiche (type hints, docstring, helper privato, rename locali, f-string, costante, stdout esplicito, `__all__`) + 4 negativi (comportamento, API rimossa, sintassi, file mancante) + snapshot non conclusivo + report |
-| `DOCS/REFACTOR_GUARD_REPORT.md` (generato) | Esercizio reale su `bench_target/utils.py` con type hints (ext-01): `OK`, API invariata, output identico |
-| Radar | **Refactoring mecc. 3/4 → 4/4** in `tools/gen_grafici.py` e `DOCS/MIGLIORAMENTI.md`; 38 meccanismi |
+| `RAG/DOCS/REFACTOR_GUARD_REPORT.md` (generato) | Esercizio reale su `bench_target/utils.py` con type hints (ext-01): `OK`, API invariata, output identico |
+| Radar | **Refactoring mecc. 3/4 → 4/4** in `tools/gen_grafici.py` e `RAG/DOCS/MIGLIORAMENTI.md`; 38 meccanismi |
 
 Verifiche: 6 test + exercise reale, zero LLM/rete. Il guard NON applica patch:
 prende due file già scritti e certifica l'equivalenza. È il numero che
@@ -2290,7 +2290,7 @@ permette di alzare l'asse del refactoring senza fidarsi di un giudizio.
 | `CORE/tools.py` | `api_lookup(strict=True)` accetta le costanti reali come valori verificati via `getattr` (es. `csv.QUOTE_MINIMAL`): restano bloccati simboli assenti e callabili con firma non introspettabile |
 | `tools/api_fidelity_eval.py` (nuovo) | AST → usi `modulo.simbolo` → `api_lookup(strict=True)` + validazione ref; `--json`/`--out`, exit 0 solo con 0 indefiniti e ref validi |
 | `tests/test_api_fidelity_eval.py` (nuovo) | 8 test: casi reali, ref validi, determinismo del generatore, simbolo inventato, sintassi invalida, ref assente, costante strict, report riproducibile |
-| `DOCS/API_FIDELITY_REPORT.md`, `DOCS/BENCH.md` | Verdetto PASS: 7/7 simboli verificati, 0 indefiniti, 22 firme; report deterministico e metrics nel bench |
+| `RAG/DOCS/API_FIDELITY_REPORT.md`, `RAG/DOCS/BENCH.md` | Verdetto PASS: 7/7 simboli verificati, 0 indefiniti, 22 firme; report deterministico e metrics nel bench |
 | Radar | **Fedeltà API 3/4 → 4/4**; 39 meccanismi; grafico Cycle 97 |
 
 Verifiche: 24 test offline (eval + gate refs + validazione), zero LLM/rete/GPU;
@@ -2307,7 +2307,7 @@ delle risposte del modello.
 | `.opencode/skill/py-gui-scaffold/SKILL.md` (nuovo) | Policy: scegli template, verifica i simboli Qt con `api_lookup` **non-strict** (le classi C++ non hanno firma), incrocia `GUI/refs/pyqt6.md`, gate offscreen obbligatorio, nessun `app.exec()` nei test |
 | `CORE/auto_skill.py` | Keyword `pyqt6`, `finestra qt`, `crea gui`, `layout qt`, `segnali qt`, `qthread`, `widget qt`, `scaffolding gui` per attivazione automatica della skill |
 | `tests/test_gui_templates.py` (nuovo) | 7 test offscreen: compilazione/SLOT/timestamp, snapshot finestra e layout, segnali collegati, thread terminato senza Qt abort, gate simboli Qt, skill + keyword registrati |
-| `DOCS/BENCH.md` | Metrica E3: 4 template, 4 snapshot, 7 test; task GUI live non misurato (🔒 termico) |
+| `RAG/DOCS/BENCH.md` | Metrica E3: 4 template, 4 snapshot, 7 test; task GUI live non misurato (🔒 termico) |
 | Radar | **Task GUI 1/4 → 2/4**; 40 meccanismi; grafico Cycle 98 |
 
 Verifiche: 11 test (nuovi + parità skill), zero LLM/rete/GPU. Il livello 3/4
@@ -2322,7 +2322,7 @@ finché le ventole non sono verificate (≤60 °C).
 |---|---|
 | `tools/memory_ab.py` (nuovo) | 10 task congelati (id `5e6051bfc33d`), `FakeRetriever`/`fake_solver` deterministici, due bracci con/senza contesto, `verdict()` con soglie GO ≥0.60 e delta ≥0.20 (arrotondato a 4 decimali), gate termico che richiede `data/state/fan_verified.json` con `fan_rpm>0` e `temp_c<=60` per il live. Nessun client LLM importato |
 | `tests/test_memory_ab.py` (nuovo) | 8 test: task set congelato, soglie, dry-run, retriever finto, gate termico (dry-run OK / live bloccato / valori validi), report deterministico e dichiarazione "non reale", assenza di import LLM |
-| `DOCS/MEMORY_AB_REPORT.md`, `DOCS/BENCH.md` | Snapshot del solo dry-run (0.80 vs 0.00, simulato) e parametri/soglie del bench prima del live |
+| `RAG/DOCS/MEMORY_AB_REPORT.md`, `RAG/DOCS/BENCH.md` | Snapshot del solo dry-run (0.80 vs 0.00, simulato) e parametri/soglie del bench prima del live |
 | Radar | Memoria/contesto resta **3/4**: la preparazione non è impatto misurato; 41 meccanismi; grafico Cycle 99 |
 
 Verifiche: 8 test offline, zero LLM/rete/GPU. Il verdetto reale resta 🔒
@@ -2336,9 +2336,9 @@ task con modello. Nessun numero del dry-run viene usato per alzare il radar.
 | Modifica | Dettaglio |
 |---|---|
 | `tools/brutal_honesty_report.py` (nuovo) | Report deterministico zero LLM: `pyflakes` sul codice attivo (no `tests/archiviati`), `CONFIG/config.toml` (`fast_lane.enabled`, `best_of_n`), corpus feedback (totali/unici/first-try/provenienza), contatori live di `gen_grafici`, e verifica che le correzioni siano nel markdown. Nessun timestamp |
-| `DOCS/BRUTAL_HONESTY_REPORT.md` (nuovo) | Verdetto sintetico: Zero Warning FAIL con conteggio reale, fast lane disabilitata, first-try su fixture interne, copertura retrieval come definizione ristretta, 41 meccanismi documentati non tutti attivi, numeri skill/tool aggiornati |
-| `tools/self_improvement_report.py` | Aggiunte due caveat generate: il tasso primo colpo è su **fixture interne** non task utente; la copertura retrieval non misura la qualità. Report `DOCS/SELF_IMPROVEMENT_REPORT.md` rigenerato |
-| `DOCS/MIGLIORAMENTI.md` | Rimosse le frasi false “0 pyflakes ✅ raggiunto”, “best-of-N attivo (fast lane)” e “41 meccanismi attivi”; aggiunta sezione `🧾 Brutal honesty` con link al report; numeri auto-skill/auto-tool 23/30 → 26/36; Goal Middle Senior dichiarato **non raggiunto** |
+| `RAG/DOCS/BRUTAL_HONESTY_REPORT.md` (nuovo) | Verdetto sintetico: Zero Warning FAIL con conteggio reale, fast lane disabilitata, first-try su fixture interne, copertura retrieval come definizione ristretta, 41 meccanismi documentati non tutti attivi, numeri skill/tool aggiornati |
+| `tools/self_improvement_report.py` | Aggiunte due caveat generate: il tasso primo colpo è su **fixture interne** non task utente; la copertura retrieval non misura la qualità. Report `RAG/DOCS/SELF_IMPROVEMENT_REPORT.md` rigenerato |
+| `RAG/DOCS/MIGLIORAMENTI.md` | Rimosse le frasi false “0 pyflakes ✅ raggiunto”, “best-of-N attivo (fast lane)” e “41 meccanismi attivi”; aggiunta sezione `🧾 Brutal honesty` con link al report; numeri auto-skill/auto-tool 23/30 → 26/36; Goal Middle Senior dichiarato **non raggiunto** |
 | `tools/gen_grafici.py` | Caption chart B: “meccanismi documentati … (non tutti attivi a runtime)” |
 | Radar | **Nessun asse toccato**: i valori restano giudizi espliciti. 41 meccanismi documentati; grafico Cycle 100 |
 
@@ -2359,9 +2359,9 @@ offline e non tocchiamo il livello Middle (che resta non misurato).
 |---|---|
 | `GUI/refs/templates/mobile_ios.swift.tpl` + `mobile_android.kt.tpl` (nuovi) | Schermate minime SwiftUI (`ContentView`, `@State`) e Kotlin/Jetpack Compose (`MainActivity`, `@Composable`), con soli marker `# SLOT:` da sostituire |
 | `GUI/refs/mobile/swiftui.md` + `android_compose.md` (nuovi) | Ref statici: simboli ammessi e regole per il modello 3b. `api_lookup(strict=True)` **non si applica** (gate Python, non introspetta Swift/Kotlin) |
-| `tools/mobile_scaffold_check.py` (nuovo) | Gate deterministico: marker, import, costrutti, copertura ref, assenza timestamp; rileva simboli inventati. Scrive `DOCS/MOBILE_SCAFFOLD_REPORT.md`, `--json` per l'uso nei gate |
+| `tools/mobile_scaffold_check.py` (nuovo) | Gate deterministico: marker, import, costrutti, copertura ref, assenza timestamp; rileva simboli inventati. Scrive `RAG/DOCS/MOBILE_SCAFFOLD_REPORT.md`, `--json` per l'uso nei gate |
 | `.opencode/skill/mobile-scaffold/SKILL.md` (nuovo) + `CORE/auto_skill.py` | Skill con keyword IT/EN (`swiftui`, `kotlin`, `jetpack compose`, `app ios`, `app android`, …) e rilevamento automatico nei prompt |
-| `DOCS/MIGLIORAMENTI.md` | Nuova riga radar **Mobile iOS/Android 2/4**, sezione brute honesty aggiornata, 41 → 42 meccanismi documentati, Cycle 101 |
+| `RAG/DOCS/MIGLIORAMENTI.md` | Nuova riga radar **Mobile iOS/Android 2/4**, sezione brute honesty aggiornata, 41 → 42 meccanismi documentati, Cycle 101 |
 | `tools/gen_grafici.py` | Radar a 9 assi: aggiunto Mobile a 2/4; **nessun asse esistente alzato** |
 | `tools/brutal_honesty_report.py` | Nota esplicita: Cycle 101 aggiunge Mobile come scaffold offline, non build verificata |
 
@@ -2382,8 +2382,8 @@ GPU, emulatore o `app.exec()`.
 | `CORE/cloud_client.py` | `_headers()` chiama `provider_info(provider)` senza assegnazione inutilizzata: la validazione `KeyError` resta, il finding sparisce |
 | `CORE/labels.py`, `GUI/file_tree_drawer.py`, `GUI/task_scheduler_panel.py`, `GUI/skills_panel.py`, `GUI/settings_panel.py` | Rimossi 19 import morti (Qt widget, `Optional`, `update_task_labels`, `list_skills_with_status` duplicato). Nessun comportamento cambiato |
 | `tests/test_subagent.py` | `Worker(...)` chiamato senza assegnare `worker`: preservato l'effetto collaterale (registry iniettato) che il test verifica |
-| `DOCS/BRUTAL_HONESTY_REPORT.md` | Rigenerato: `Zero Warning (pyflakes)` passa da ❌ FAIL (23) a ✅ PASS (0). Nessun verdetto scritto a mano |
-| `DOCS/MIGLIORAMENTI.md`, `todo.md` | Storia onesta aggiornata: 474 → 0 (Cycle 85), riaperto a 23 (Cycle 100), richiuso a 0 (Cycle 102) |
+| `RAG/DOCS/BRUTAL_HONESTY_REPORT.md` | Rigenerato: `Zero Warning (pyflakes)` passa da ❌ FAIL (23) a ✅ PASS (0). Nessun verdetto scritto a mano |
+| `RAG/DOCS/MIGLIORAMENTI.md`, `todo.md` | Storia onesta aggiornata: 474 → 0 (Cycle 85), riaperto a 23 (Cycle 100), richiuso a 0 (Cycle 102) |
 
 Verifiche: `pyflakes` 0 su `CORE GUI tools SAFETY tests` (esclusi `tests/archiviati`),
 `compileall` OK, `lint_style` 0 errori (warning baseline pre-esistenti),
@@ -2399,8 +2399,8 @@ dalla regola termica del 2026-11-20.
 |---|---|
 | `tools/blocker_probe.py` (nuovo) | Sonda deterministica di sola lettura per M2–M6: coretemp da sysfs, RPM da `nbfc status`, PWM grezzo, `hardening.sh --check`, integrità di `gh` (shebang incluso), remote token-free, permessi 0600, presenza del workflow CI. Nessuna rete/API/LLM. `--write-fan` rilegge le misure e **rifiuta** la scrittura se `fan_rpm <= 0` o `temp_c > 60`; non esiste un'opzione per passare i numeri a mano |
 | `tests/test_blocker_probe.py` (nuovo) | 10 test: parser RPM/temperature, gate falso senza RPM o sopra soglia, rifiuto di scrittura, provenienza obbligatoria, permessi 0600, mascheratura token, rilevamento shebang rotto, determinismo del report |
-| `DOCS/BLOCKER_PROBE_REPORT.md` (nuovo) | Snapshot generato: CPU 65.0 °C, RPM 0, nbfc `inactive`, gh con interprete shebang assente, utente/slice hardening assenti, remote token-free. Tutti gli ID M2–M6 restano 🔒 |
-| `DOCS/MIGLIORAMENTI.md`, `todo.md` | Link al nuovo report e aggiornamento delle evidenze reali. **Nessun asse del radar toccato** |
+| `RAG/DOCS/BLOCKER_PROBE_REPORT.md` (nuovo) | Snapshot generato: CPU 65.0 °C, RPM 0, nbfc `inactive`, gh con interprete shebang assente, utente/slice hardening assenti, remote token-free. Tutti gli ID M2–M6 restano 🔒 |
+| `RAG/DOCS/MIGLIORAMENTI.md`, `todo.md` | Link al nuovo report e aggiornamento delle evidenze reali. **Nessun asse del radar toccato** |
 
 Verifiche: 10 test mirati verdi, `compileall` OK, `pyflakes` 0,
 `lint_style` 0 errori, `git diff --check` pulito. Verificato anche il comportamento
@@ -2421,7 +2421,7 @@ quindi la regola del 2026-11-20 resta applicata senza eccezioni.
 | M5 — evidenza polkit | `pkexec id` restituisce `uid=0(root)` senza password (utente nel gruppo `sudo`): rilevante per la review di hardening, non risolto qui |
 
 Verifiche: 13 test mirati verdi, `pyflakes` 0, `compileall` OK.
-`DOCS/BLOCKER_PROBE_REPORT.md` rigenerato con duty, stato unità e nota sul
+`RAG/DOCS/BLOCKER_PROBE_REPORT.md` rigenerato con duty, stato unità e nota sul
 tachimetro. **Nessun asse del radar toccato**, nessuna suite completa locale,
 nessun `fan_verified.json` scritto. **Decisione esplicita dell'utente
 (2026-11-22): mantenere il gate stretto `fan_rpm > 0`**: nessun duty cycle o
@@ -2509,7 +2509,7 @@ già documentato, non introducono ottimizzazioni stimate.
 | `Dockerfile` (nuovo) | `python:3.11-slim` (allineato a CI), `QT_QPA_PLATFORM=offscreen`, `pause.flag` creato al build: nessun LLM e nessun e2e live dentro il container |
 | `docker-compose.yml` (nuovo) | Servizio `tests` con build locale, immagine `byteswarmy-tests:local`, comando pytest prefissato `-p no:cacheprovider` |
 | `.dockerignore` (nuovo) | Esclude `.venv`, `.git`, `state/`, `data/state/`, `logs/`, `project/` e cache: contesto di build piccolo e riproducibile |
-| `DOCS/DOCKER_TESTS.md` (nuovo) | Comandi per pytest mirato, lint, pyflakes e compileall, più distinzione esplicita travalidazione sintattica, build ed esecuzione |
+| `RAG/DOCS/DOCKER_TESTS.md` (nuovo) | Comandi per pytest mirato, lint, pyflakes e compileall, più distinzione esplicita travalidazione sintattica, build ed esecuzione |
 | `todo.md` | Chiuse entrambe le voci “Test isolati — avvio separato” con lo stato reale |
 
 Verifiche: `docker compose config -q` ✅, `docker buildx build --check .` →
@@ -2536,7 +2536,7 @@ struttura già presente, non simulano risultati di modello.
 
 | Modifica | Dettaglio |
 |---|---|
-| `DOCS/CI_PROFILE_DIAGNOSIS.md` (nuovo) | Evidenza da GitHub Actions REST API pubblica: run #2 `44838701460` su `e3f90be`, step 6 `Profilazione completa` fallito in 3 s (23:42:26→29), artifact 1227 byte; log e artifact richiedono auth (`401`/`403`) e **non sono stati letti**. Ipotesi errore di collezione, dichiarata come ipotesi. Mitigazioni `f35f9dd`/`b3ec027` e verifica locale `--collect-only` EXIT=0 (1094 test in 1,71 s) |
+| `RAG/DOCS/CI_PROFILE_DIAGNOSIS.md` (nuovo) | Evidenza da GitHub Actions REST API pubblica: run #2 `44838701460` su `e3f90be`, step 6 `Profilazione completa` fallito in 3 s (23:42:26→29), artifact 1227 byte; log e artifact richiedono auth (`401`/`403`) e **non sono stati letti**. Ipotesi errore di collezione, dichiarata come ipotesi. Mitigazioni `f35f9dd`/`b3ec027` e verifica locale `--collect-only` EXIT=0 (1094 test in 1,71 s) |
 | `tests/test_ci_profile_workflow.py` (nuovo) | 5 test offline: workflow manuale con Python 3.11, pausa e2e, step diagnostico `--collect-only`, profilazione con `--durations=0` e `QT_QPA_PLATFORM=offscreen`, upload di `pytest_profile.log` + `collect.log` con `if: always()` |
 | `todo.md` | M6 portato a `[~]`: diagnosi e strumenti fatti; trigger su GitHub Actions resta 🔒 (CLI ufficiale + auth) |
 
@@ -2566,7 +2566,7 @@ slice o regole firewall, e non è stato usato `pkexec`.
 |---|---|
 | `tools/blocker_probe.py` | La riga M3 del report suggeriva "avviare nbfc con pkexec", ma il daemon è **già attivo** (duty 50%, `Current Fan Speed 0.00`): l'azione era fuorviante. Ora indica "misurare RPM con strumento esterno (nbfc già attivo non basta), poi `--write-fan`". Il corpo del report già documentava la decisione del 2026-11-22 |
 | `tests/test_blocker_probe.py` | Lock: il report contiene la nuova azione e **non** contiene più il vecchio suggerimento |
-| `DOCS/BLOCKER_PROBE_REPORT.md` | Rigenerato dalla fonte (CPU 67,0 °C, RPM 0, nbfc attivo) |
+| `RAG/DOCS/BLOCKER_PROBE_REPORT.md` | Rigenerato dalla fonte (CPU 67,0 °C, RPM 0, nbfc attivo) |
 
 Verifiche: 13 test mirati verdi, `pyflakes` 0. **Nessun gate indebolito**: il
 report continua a rifiutare RPM surrogati e il file `fan_verified.json` resta
@@ -2578,7 +2578,7 @@ assente.
 
 | Modifica | Dettaglio |
 |---|---|
-| `todo.md` | Le 5 voci del piano datato 2026-11-20 non sono più etichettate "(Domani)": ora riportano 🔒, il riferimento M/C3 e il blocco effettivo (trigger CI, gate termico, GPU). Aggiunto rimando a `DOCS/CI_PROFILE_DIAGNOSIS.md`. Nessuna voce chiusa o scoperta: solo rimozione di una scadenza ormai falsa |
+| `todo.md` | Le 5 voci del piano datato 2026-11-20 non sono più etichettate "(Domani)": ora riportano 🔒, il riferimento M/C3 e il blocco effettivo (trigger CI, gate termico, GPU). Aggiunto rimando a `RAG/DOCS/CI_PROFILE_DIAGNOSIS.md`. Nessuna voce chiusa o scoperta: solo rimozione di una scadenza ormai falsa |
 
 Verifiche: nessun codice toccato; `git diff --check` e report deterministico
 rigenerato. **Nessuna attività LLM, CI o termica avviata.**
@@ -2591,8 +2591,8 @@ rigenerato. **Nessuna attività LLM, CI o termica avviata.**
 |---|---|
 | `tools/eval_prompt_variants.py` (nuovo) | Confronta 4 varianti di prompt (`baseline`, `refs_off`, `refs_first`, `plan_compact`) sugli 11 casi con `expected_marker` di `evals/cases.json`. Task set congelato `182ae2a82284`. Regola scritta prima del live: PROMOTE se tasso ≥0.60 e delta ≥0.20, REJECT se delta ≤0, altrimenti INCONCLUSIVE. Gate termico (`fan_rpm > 0`, `temp_c ≤ 60`) e rifiuto esplicito del solver finto nel live: `--live` non è ancora eseguibile dal CLI |
 | `tests/test_prompt_variants.py` (nuovo) | 9 test offline: task set e impronta, determinismo dei prompt, tutte le diramazioni della soglia, dry-run senza PROMOTE, gate termico con tre casi (RPM 0, 75 °C, 50 °C), richiesta di solver reale, report che dichiara SIMULAZIONE, assenza di client LLM |
-| `DOCS/PROMPT_VARIANTS_REPORT.md` (nuovo) | Generato dal tool: baseline 0.09, `refs_off` 0.00 (REJECT), `refs_first` 0.27 e `plan_compact` 0.45 (INCONCLUSIVE). Nessuna promozione autorizzata |
-| `DOCS/BENCH.md`, `todo.md` | Sezione Fase G con parametri e stato; Fase G portata a `[~]` |
+| `RAG/DOCS/PROMPT_VARIANTS_REPORT.md` (nuovo) | Generato dal tool: baseline 0.09, `refs_off` 0.00 (REJECT), `refs_first` 0.27 e `plan_compact` 0.45 (INCONCLUSIVE). Nessuna promozione autorizzata |
+| `RAG/DOCS/BENCH.md`, `todo.md` | Sezione Fase G con parametri e stato; Fase G portata a `[~]` |
 
 Verifiche: 9 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning.
 **Nessun LLM, rete o GPU**: il solver è finto per costruzione e il report
@@ -2606,8 +2606,8 @@ dichiara che il risultato non è un esperimento reale.
 |---|---|
 | `tools/eval_by_slot.py` (nuovo) | Classifica gli 11 casi con `expected_marker` in 7 tipi di slot e 3 fasce di dimensione output; genera la tabella pass@1. `--results` accetta un file solo con `source: "live"` e thermal `fan_rpm > 0`, `temp_c ≤ 60`: altrimenti exit 2. Rifiuta case_id sconosciuti/duplicati e slot_kind non ammessi. Dry-run con risultati sintetici etichettati SIMULAZIONE |
 | `tests/test_eval_by_slot.py` (nuovo) | 9 test offline: classificazione, bucket, aggregazione, determinismo, rifiuto di 4 surrogate termiche, validazione record, CLI JSON e blocco live, onestà del report, assenza di client LLM |
-| `DOCS/SLOT5_EVAL_REPORT.md` (nuovo) | Generato dal tool: 11 casi, tabelle per slot e dimensione, dichiarazione esplicita che non è una misura e non chiude SLOT-5 |
-| `DOCS/BENCH.md`, `todo.md` | Sezione SLOT-5 e stato `[~]`; restano 12+ casi reali da misurare |
+| `RAG/DOCS/SLOT5_EVAL_REPORT.md` (nuovo) | Generato dal tool: 11 casi, tabelle per slot e dimensione, dichiarazione esplicita che non è una misura e non chiude SLOT-5 |
+| `RAG/DOCS/BENCH.md`, `todo.md` | Sezione SLOT-5 e stato `[~]`; restano 12+ casi reali da misurare |
 
 Verifiche: 9 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning.
 **Nessun LLM, rete o GPU**: il live richiede evidenza termica verificata e un
@@ -2621,7 +2621,7 @@ file di risultati esterno, non generato qui.
 |---|---|
 | `tools/distill_task.py` (nuovo) | Riceve una soluzione prodotta esternamente e la accetta solo se passa 6 gate offline: file leggibile, ≤200 righe, AST valido, pyflakes 0, security_scan 0 errori (copia temporanea gitignored in `data/state/tmp`, rimossa in `finally`), `expected_marker` del caso eval presente. `--commit` richiede inoltre `fan_verified.json` valido, `--model` dichiarato e dedup via `fc.Triple.dedup_key()`; scrive una tripla `done` con `ts=0.0`. Il tool NON esegue alcun modello |
 | `tests/test_distill_task.py` (nuovo) | 10 test offline: caso eval e marker, gate verde senza scrittura, 5 gate rotti (sintassi/pyflakes/security/marker/dimensione), file vuoto, modello obbligatorio, commit bloccato senza termico, scrittura + deduplicazione, report sintetico, CLI JSON/exit code, assenza di client LLM e residui temporanei |
-| `DOCS/BENCH.md`, `todo.md` | Sezione Fase E con gate e conteggio esempi reali (0); Fase E portata a `[~]` |
+| `RAG/DOCS/BENCH.md`, `todo.md` | Sezione Fase E con gate e conteggio esempi reali (0); Fase E portata a `[~]` |
 
 Verifiche: 10 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning.
 **Nessun LLM, rete o GPU**: le soluzioni usate nei test sono sintetiche e il
@@ -2636,12 +2636,12 @@ la voce.
 |---|---|
 | `tools/slot_prompt.py` (nuovo) | Converte un `SlotPlan` (da `CORE/slot_planner.py`) in un prompt per chiamata: sole refs dello slot corrente, anchor reale del template, regole di output ≤40 righe. Fail-closed su piani rifiutati e indici fuori range; nessun client LLM/rete/scrittura di progetto (solo `--out`). CLI con `--json` e `--out` |
 | `tests/test_slot_prompt.py` (nuovo) | 9 test offline: un prompt per slot con refs isolate, anchor e regole output, rifiuto piano rifiutato, indice fuori range, determinismo e report, dichiarazione benchmark bloccato, CLI JSON/rifiuto/scrittura, assenza client LLM |
-| `DOCS/SLOT4_PROMPTS.md` (nuovo) | Generato dal tool per "finestra con titolo" (2 slot) |
-| `DOCS/BENCH.md`, `todo.md` | Sezione SLOT-4 con stato `[~]`; restano 3 task reali da misurare |
+| `RAG/DOCS/SLOT4_PROMPTS.md` (nuovo) | Generato dal tool per "finestra con titolo" (2 slot) |
+| `RAG/DOCS/BENCH.md`, `todo.md` | Sezione SLOT-4 con stato `[~]`; restano 3 task reali da misurare |
 
 Nota CI (M6): il log HTML pubblico del job `44838701460` conferma solo
 `exit code 2` (collezione/interruzione), senza testo di errore. Nessun log
-privato letto: la diagnosi in `DOCS/CI_PROFILE_DIAGNOSIS.md` resta invariata.
+privato letto: la diagnosi in `RAG/DOCS/CI_PROFILE_DIAGNOSIS.md` resta invariata.
 
 Verifiche: 9 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning.
 **Nessun LLM, rete o GPU**: i prompt sono generati dal piano deterministico;
@@ -2655,8 +2655,8 @@ il benchmark con 3 task reali resta 🔒 termico.
 |---|---|
 | `tools/quality_judge.py` (nuovo) | Riceve pareri di un giudice esterno e applica l'invariante `final == gate_pass` sempre: gate FAIL + `approve` resta FAIL, gate PASS + `reject` resta PASS (solo dissenso loggato). Override espliciti bloccati e segnalati. Classificazione accordo/dissenso (`not_consulted`, `judge_ignored_gate_fail`, `concur_pass`, `judge_dissent`), report con tasso accordo, verifica runtime dell'invariante. Pareri `source: "live"` accettati solo con `fan_rpm > 0`, `temp_c <= 60`; altrimenti exit 2. Nessun client LLM |
 | `tests/test_quality_judge.py` (nuovo) | 21 test offline: non-sovranità parametrizzata su 6 combinazioni gate×giudice, classificazione accordo, override bloccati, verdetto sconosciuto, gate termico (incluso casi `"1800"`/`"x"`), record non validi, live con evidenza, determinismo/onestà del report, CLI JSON/blocco live, assenza client LLM |
-| `DOCS/QUALITY_JUDGE_REPORT.md` (nuovo) | Generato dal tool: 13 casi sintetici (7 consultati, 4 concordi, 2 override bloccati), dichiarato SIMULAZIONE |
-| `DOCS/BENCH.md`, `todo.md` | Sezione Fase H con stato `[~]`; restano 20 casi reali da misurare |
+| `RAG/DOCS/QUALITY_JUDGE_REPORT.md` (nuovo) | Generato dal tool: 13 casi sintetici (7 consultati, 4 concordi, 2 override bloccati), dichiarato SIMULAZIONE |
+| `RAG/DOCS/BENCH.md`, `todo.md` | Sezione Fase H con stato `[~]`; restano 20 casi reali da misurare |
 
 Verifiche: 21 test mirati verdi, `pyflakes` 0, `lint_style` 0 errori/0 warning.
 **Nessun LLM, rete o GPU**: i pareri sono sintetici e il report lo dichiara;
@@ -2670,9 +2670,9 @@ servono 20 casi reali con pareri live per chiudere la voce.
 |---|---|
 | `tools/blocker_probe.py` | Nuovo `--attest-rpm <ricevuta.json>`: registra una misura RPM esterna solo con ricevuta contenente `fan_rpm`, `instrument`, `method`, `operator`, `measured_at`. Valida range fisico 300–6000, freschezza ≤30 min, nessuna data futura (skew 2 min), path fuori dal tree versionato (o in `data/state/`). La temperatura è **sempre** riletta live da sysfs; il duty è solo contesto (`fan_duty_pct_context_only`) e non entra nel gate. Provenienza esplicita nel file scritto. Nessuna opzione `--rpm`: valori CLI diretti impossibili. `write_fan_verification`/`read_stored_fan` risolvono `FAN_FILE` a runtime (corretto default congelato che rischiava di scrivere il gate reale da un test). `main()` refattorizzato in `_handle_fan_write()` |
 | `tests/test_rpm_attestation.py` (nuovo) | 16 test offline: campi obbligatori, RPM fuori range/non numerico/bool, misura stale/futura/date malformata, timestamp naive come UTC, path dentro repo rifiutato, JSON invalido, temperatura live anche con RPM attestati, duty non usato come prova, provenienza e permessi del gate, CLI happy-path/rifiuti/mutua esclusività, assenza di `--rpm`, regressione del default runtime |
-| `DOCS/RPM_MEASUREMENT_PROCEDURE.md` (nuovo) | Procedura operativa con evidenza hardware reale (HP Pavilion 15-cb0xx, profilo nbfc `HP Pavilion 17 Notebook PC` discrepante, Current Fan Speed 0.00, nessun `fan*_input`, ~64 °C), passi per la misura con tachometro e comandi di registrazione/verifica |
-| `DOCS/rpm_attestation.example.json` (nuovo) | Template compilabile della ricevuta |
-| `todo.md`, `DOCS/BLOCKER_PROBE_REPORT.md` | M3 aggiornato con il nuovo canale; report rigenerato dal tool |
+| `RAG/DOCS/RPM_MEASUREMENT_PROCEDURE.md` (nuovo) | Procedura operativa con evidenza hardware reale (HP Pavilion 15-cb0xx, profilo nbfc `HP Pavilion 17 Notebook PC` discrepante, Current Fan Speed 0.00, nessun `fan*_input`, ~64 °C), passi per la misura con tachometro e comandi di registrazione/verifica |
+| `RAG/DOCS/rpm_attestation.example.json` (nuovo) | Template compilabile della ricevuta |
+| `todo.md`, `RAG/DOCS/BLOCKER_PROBE_REPORT.md` | M3 aggiornato con il nuovo canale; report rigenerato dal tool |
 
 Verifiche: 36 test mirati verdi (`test_rpm_attestation.py` + `test_blocker_probe.py`),
 `pyflakes` 0, lint 0 errori/0 warning sui file nuovi; W006 pre-esistente su
@@ -2689,7 +2689,7 @@ finto nel file reale: rimosso immediatamente e verificato con `--check-fan`.
 |---|---|
 | `tools/blocker_probe.py` | `parse_nbfc_rpm()` accetta **solo** valori con unità esplicita (`3200 RPM`, decimali inclusi): rimosso il fallback che interpretava `Current Fan Speed : 50.00` come 50 RPM. Nuovo `parse_nbfc_speed_pct()` espone la percentuale nbfc come contesto (`speed_pct`), mai come giri. `nbfc_probe()`/`fan_snapshot()` propagano il valore; `rpm_source` è `null` senza RPM espliciti. Report: nuova riga "Current Fan Speed (nbfc, %)" etichettata **percentuale, non RPM** |
 | `tests/test_blocker_probe.py` | 3 test nuovi/aggiornati: `3200.00` senza unità → 0 RPM, percentuale 50% → 0 RPM mentre `parse_nbfc_speed_pct` → 50.0, RPM con/senza decimali, gate bloccato anche con nbfc al 87% e duty 100% |
-| `DOCS/RPM_MEASUREMENT_PROCEDURE.md`, `todo.md` | Nota sul parser fail-closed; M3 aggiornato |
+| `RAG/DOCS/RPM_MEASUREMENT_PROCEDURE.md`, `todo.md` | Nota sul parser fail-closed; M3 aggiornato |
 
 Motivazione: il gate stretto della decisione 2026-11-22 vieta i surrogati.
 Un numero senza unità non è una misura di giri: accettarlo avrebbe potuto
@@ -2736,7 +2736,7 @@ Verifiche: 7 test mirati verdi, YAML valido (`trigger: ['push', 'workflow_dispat
 |---|---|
 | `.github/workflows/profile.yml` | Nuovo step `Librerie di sistema per Qt headless (libEGL)` prima di `pip install`: `sudo apt-get update` + `libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0 libdbus-1-3 libfontconfig1` |
 | `tests/test_ci_profile_workflow.py` | Test `test_librerie_qt_headless_installate_sul_runner`: verifica pacchetto `libegl1`, installazione `--no-install-recommends` e ordinamento prima della diagnostica |
-| `DOCS/CI_PROFILE_DIAGNOSIS.md` | Corretta l'affermazione "log pubblico" (in realtà 403/401) e aggiunta la tabella con run #3/#4 e le 11 annotations pubbliche |
+| `RAG/DOCS/CI_PROFILE_DIAGNOSIS.md` | Corretta l'affermazione "log pubblico" (in realtà 403/401) e aggiunta la tabella con run #3/#4 e le 11 annotations pubbliche |
 
 Il run #4 (`45046337143`, commit `576b0e7`) ha fallito di nuovo allo step 6, ma
 le annotations hanno dato il verdetto esatto:
@@ -2767,7 +2767,7 @@ pulito. Nessuna suite locale, LLM, GPU o misura inventata.
 |---|---|
 | `.github/workflows/profile.yml` | Lo step `Profilazione completa` emette `::error title=pytest_exit::EXIT=$code`, fino a 20 righe `FAILED ` e le ultime 20 righe di `pytest_profile.log` come annotations pubbliche, leggibili via API senza auth |
 | `tests/test_ci_profile_workflow.py` | Test `test_fallimento_suite_esposto_in_annotations_pubbliche` blocca hook, grep dei `FAILED` e conservazione di `exit $code` |
-| `DOCS/CI_PROFILE_DIAGNOSIS.md` | Verdetto run #5/#6 e passaggio a monitor HTML pubblico |
+| `RAG/DOCS/CI_PROFILE_DIAGNOSIS.md` | Verdetto run #5/#6 e passaggio a monitor HTML pubblico |
 
 I run #5 (`b47482a`) e #6 (`a78a24c`) mostrano **collezione success**: il fix
 `libEGL` del Cycle 125 ha eliminato l'errore di import. La suite completa è
@@ -2815,7 +2815,7 @@ riconducibili a differenze tra ambiente locale e runner hosted:
 | `tests/test_repo_hygiene.py` | `test_tasks_gitkeep_exists` verifica `tasks/.gitkeep` oppure `data/tasks/.gitkeep` (symlink non tracciato su CI) |
 | `tests/test_user_workflow.py` | `setUp` di `TestToolbarToggle` risincronizza l'icona dopo la rimozione di `pause.flag` |
 | `tests/test_clarifier_gui_bridge.py` | Polling del bridge da 0,01 s a 0,05 s per evitare fail-open su runner carichi |
-| `DOCS/CI_PROFILE_DIAGNOSIS.md` | Verdetto run #8 e cause verificate |
+| `RAG/DOCS/CI_PROFILE_DIAGNOSIS.md` | Verdetto run #8 e cause verificate |
 
 Verifica: 4 test mirati verdi (`4 passed in 9.76s`), `pyflakes` 0,
 `git diff --check` pulito. Nessuna suite completa locale, LLM, GPU o misura
@@ -2829,7 +2829,7 @@ inventata.
 |---|---|
 | Run #9 `45058129636` (commit `f97ff8b`) | **SUCCESS** — step 7 collezione, step 8 `pytest tests/ -q --durations=0`, step 9 artifact tutti `success` |
 | `todo.md` | M2 e M6 portati a `[x] Cycle 129`; aggiornata la nota sulla regola termica e il punto 1 del piano "Domani" |
-| `DOCS/CI_PROFILE_DIAGNOSIS.md` | Tabella finale dei run da #2 a #9 con esiti e cause |
+| `RAG/DOCS/CI_PROFILE_DIAGNOSIS.md` | Tabella finale dei run da #2 a #9 con esiti e cause |
 
 La diagnosi del profiling CI, iniziata al Cycle 112, si chiude con il run #9.
 La suite completa non viene rieseguita in locale: la regola termica del
@@ -2850,7 +2850,7 @@ Nessun LLM, GPU o dato ventola fabbricato.
 | `tools/blocker_probe.py --check-fan` | `fan_verified.json: NON VALIDO` |
 | Test attestazione RPM | 38 passed |
 
-`DOCS/RPM_MEASUREMENT_PROCEDURE.md` aggiornata con l'evidenza: non esiste
+`RAG/DOCS/RPM_MEASUREMENT_PROCEDURE.md` aggiornata con l'evidenza: non esiste
 alcuna sorgente RPM leggibile, quindi il tachometro esterno resta l'unico
 canale ammesso. Nessun valore inventato, nessun surrogato da duty-cycle,
 nessuna suite locale, LLM o GPU.
@@ -2880,7 +2880,7 @@ il dato oggettivo mancante, non deducibile dal repo.
 | Login | `gh auth login --hostname github.com --web --scopes repo,read:org,gist` eseguito dall'utente nel browser |
 | Verifica | `gh auth status` → `wildlux`, token `gho_`, scope `gist`, `read:org`, `repo`, `workflow`; `gh api user` → `wildlux` |
 | Rotazione | Il token invalido in `hosts.yml` è stato sostituito nel keyring; `.git-credentials` contiene solo il token OAuth corrente (nessun `ghp_`/`github_pat_` residuo) |
-| Report | `DOCS/BLOCKER_PROBE_REPORT.md` rigenerato: M4 ✅. `tools/blocker_probe.py`: azione successiva M4 resa dinamica (non più "installare la CLI" quando già autenticato) |
+| Report | `RAG/DOCS/BLOCKER_PROBE_REPORT.md` rigenerato: M4 ✅. `tools/blocker_probe.py`: azione successiva M4 resa dinamica (non più "installare la CLI" quando già autenticato) |
 | `todo.md` | M4 portato a `[x] Cycle 132` |
 
 **Limite dichiarato**: la revoca lato GitHub non è verificabile via API con il
@@ -2915,7 +2915,7 @@ o un `iptables-save` esplicito. Non è stato installato nulla di aggiuntivo.
 |---|---|
 | Snapshot | `pkexec mkdir -p /etc/iptables` + `iptables-save > /etc/iptables/rules.v4` (0644 root); le 2 regole per uid 1001 (ACCEPT Ollama + DROP) sono state riverificate nel file |
 | Probe | `hardening_probe()` espone `rules_saved`; la tabella M5 mostra `regole salvate ✅` e l'azione successiva distingue il caso con/senza snapshot |
-| Report | `DOCS/BLOCKER_PROBE_REPORT.md` rigenerato: M5 ✅ con snapshot |
+| Report | `RAG/DOCS/BLOCKER_PROBE_REPORT.md` rigenerato: M5 ✅ con snapshot |
 | `todo.md` | M5 aggiornato con lo stato dello snapshot |
 
 Nessun pacchetto installato: il ripristino automatico al boot richiede
@@ -2948,7 +2948,7 @@ Nessuna suite completa locale, nessun LLM, GPU o benchmark eseguiti.
 | `tools/attest_rpm.py` | Nuovo script eseguibile: chiede RPM + strumento + metodo + operatore + note al terminale, costruisce la ricevuta con `measured_at` UTC generato al momento, la scrive in `data/state/rpm_attestation.json` (0600, gitignored) e delega tutta la validazione a `blocker_probe.load_rpm_attestation`. Poi `attested_rpm_snapshot` (temperatura **live**) e `write_fan_verification`: il gate viene scritto solo con RPM > 0 e 0 < T ≤ 60 °C |
 | Sicurezza | Nessun RPM passabile da CLI: l'unico ingresso è l'input dell'operatore. Loop su valore non numerico/fuori range 300–6000; campo obbligatorio vuoto → annullo senza file scritti. Nessun import CORE/LLM nel modulo |
 | Comando | `cd /home/wildlux/Desktop/byte-swarmy && ./tools/attest_rpm.py` — stampa `Gate VALIDO` e il successivo `tools/run_eval.py --live` |
-| Documentazione | `DOCS/RPM_MEASUREMENT_PROCEDURE.md` aggiornata con la via rapida; il flusso manuale resta come alternativa equivalente |
+| Documentazione | `RAG/DOCS/RPM_MEASUREMENT_PROCEDURE.md` aggiornata con la via rapida; il flusso manuale resta come alternativa equivalente |
 | Test | `tests/test_attest_rpm.py` (6 test): deterministicità ricevuta, validazione input, permessi 0600, gate valido, rifiuto sopra 60 °C, rifiuto RPM fuori range, flusso "un solo comando". Con blocker/RPM/run_eval: **52 passed** |
 
 **Limite dichiarato**: la misura fisica non è stata presa. Lo script è pronto
@@ -2991,7 +2991,7 @@ bloccato).
 | `tools/run_eval.py` | Nuovo `sample_thermal()`: 5 campioni a 0,2 s → `temp_c` (media), `temp_max_c` (picco), `temp_samples`, `temp_policy=media_con_picco_le_60`. `thermal_ok()` richiede media **e** picco in `(0, 60]`. `require_gate()` e il controllo prima di ogni caso usano la nuova policy; `run_live()` registra media e picco nell'evidenza |
 | Risultati parziali | Su interruzione, `thermal.temp_c` viene impostato al **picco** (non alla media): `eval_by_slot.py` continua a rifiutare i run interrotti con exit 2 — nessun surrogato accettato |
 | Test | `tests/test_run_eval_live.py` aggiornato e ampliato: media 52,8 °C con picco 68 °C → gate chiuso; media 54 °C con picco 56 °C → gate aperto; interruzione con picco 61 °C → reporter rifiuta. Con attest/blocker/eval: **46 passed**. `pyflakes`, `compileall`, `git diff --check` puliti |
-| Documentazione | `DOCS/RPM_MEASUREMENT_PROCEDURE.md` descrive la policy termica del run live |
+| Documentazione | `RAG/DOCS/RPM_MEASUREMENT_PROCEDURE.md` descrive la policy termica del run live |
 
 I tentativi precedenti restano **non misurati**: tre run interrotti per calore,
 ultimo con 1 caso GUI fallito (`max steps reached`) e reporter exit 2. Nessun
@@ -3020,7 +3020,7 @@ verdetto Middle è stato scritto.
 |---|---|
 | Difetto | `tools/blocker_probe.py` marcava M3 🔒 guardando solo i RPM live (0 su questo modello), anche con `fan_verified.json` valido: il report diceva `fan_verified.json salvato ✅` e M3 🔒 nello stesso documento |
 | Fix | La riga M3 usa `gate.verified OR fan_stored.valid`; l'evidenza distingue `RPM live 0 (nessun sensore)` da `gate attestato 2400 RPM del …`. Il paragrafo termico dichiara la misura fisica esterna come prova dei giri solo quando la ricevuta è valida. Aggiunta riga `RPM attestati (gate)` nel dettaglio |
-| Report rigenerato | `DOCS/BLOCKER_PROBE_REPORT.md`: `| M3 ventole | ✅ |` con azione `tools/run_eval.py --live` con CPU ≤60 °C |
+| Report rigenerato | `RAG/DOCS/BLOCKER_PROBE_REPORT.md`: `| M3 ventole | ✅ |` con azione `tools/run_eval.py --live` con CPU ≤60 °C |
 | Roadmap | `todo.md`: M3 `[x] Cycle 136/141`; M7 rietichettato `🔒 calore sotto carico (M3 chiuso)` |
 | Test | `tests/test_blocker_probe.py` aggiornato per entrambi gli stati del gate: **55 passed** (blocker + RPM + run_eval + attest) |
 
@@ -3038,7 +3038,7 @@ interrotti a 67 °C sotto inferenza. Nessun verdetto Middle scritto.
 | Motivo | Nel run live `eval-gui-01` il breaker scattava su `analyze` e poi il worker finiva in `max steps reached without completion`: passi e calore sprecati senza diagnosi |
 | **3) Debt ledger** | Chiusi #1 (pausa `cooldown_s` tra fast lane e naked già implementata in `CORE/external_benchmark.py:486-494`, Cycle 69) e #2/#3 (duplicati stale). **Non applicata** la deduplica proposta da #2/#3: `_max_temp()` usa `_cpu_temp_now()` che esclude B0D4, mentre `_thermal_pause()` legge tutte le zone termiche — deduplicare reintrodurrebbe l'incidente UEFI thermal lock. `stats`: 6 done, coda vuota |
 | Test / gate | **77 passed**, 17 subtests (`test_run_eval_live.py`, `test_usability_hardcore.py`, `test_blocker_probe.py`, `test_eval_by_slot.py`, `test_eval_suite.py`). `pyflakes`, `compileall`, `git diff --check` puliti. Nessuna suite completa locale, nessun LLM/GPU |
-| Documentazione | `DOCS/RPM_MEASUREMENT_PROCEDURE.md` descrive la pausa di raffreddamento |
+| Documentazione | `RAG/DOCS/RPM_MEASUREMENT_PROCEDURE.md` descrive la pausa di raffreddamento |
 
 Le ottimizzazioni 4 (sweep `num_ctx`) e 5 (`model_unload_idle`) restano
 **non eseguite**: richiedono inferenza o misure GPU, vietate dal gate termico.
@@ -3054,7 +3054,7 @@ M7 resta **non misurato**: nessun verdetto Middle scritto.
 | Accettazione | `tools/eval_by_slot.py --results data/state/eval_live_results.json` → **EXIT 0**, Modalità **LIVE** (prima misura accettata); i run parziali/surriscaldati restano rifiutati con exit 2 |
 | Misura | 5/11 pass@1 (45%); per slot: `function` 4/5, `widget` 1/3, `class` 0/1, `statement` 0/2. Nessun asse del radar alzato |
 | Verdetto | ❌ **Middle NON raggiunto**: complessivi 45% < 50% e GUI 33% < 50%. M7 resta aperto per risultato insufficiente, non per mancata misura |
-| Source of truth | `tools/brutal_honesty_report.py` legge ora il risultato live accettato (con rifiuto di `aborted`/surrogati); `tools/self_improvement_report.py` non dice più "GUI live non misurato". Report rigenerati: `DOCS/BRUTAL_HONESTY_REPORT.md`, `DOCS/SELF_IMPROVEMENT_REPORT.md`, `DOCS/SLOT5_EVAL_REPORT.md`, `DOCS/BLOCKER_PROBE_REPORT.md`, `DOCS/grafici/miglioramenti.svg` |
+| Source of truth | `tools/brutal_honesty_report.py` legge ora il risultato live accettato (con rifiuto di `aborted`/surrogati); `tools/self_improvement_report.py` non dice più "GUI live non misurato". Report rigenerati: `RAG/DOCS/BRUTAL_HONESTY_REPORT.md`, `RAG/DOCS/SELF_IMPROVEMENT_REPORT.md`, `RAG/DOCS/SLOT5_EVAL_REPORT.md`, `RAG/DOCS/BLOCKER_PROBE_REPORT.md`, `RAG/DOCS/grafici/miglioramenti.svg` |
 | Test / gate | **64 passed**, 23 subtests su honesty/run_eval/usability/self-improvement. `pyflakes`, `compileall`, `git diff --check` puliti. Nessuna suite completa locale, nessun LLM/GPU extra |
 | Roadmap | `todo.md`: M7 `misurato, sotto soglia`; M8 resta `⛔ non fare ora` |
 

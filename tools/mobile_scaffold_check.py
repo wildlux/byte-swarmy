@@ -13,7 +13,7 @@ NON compila Swift/Kotlin: le toolchain non sono presenti e il live resta
 
 Uso:
     .venv/bin/python tools/mobile_scaffold_check.py
-    .venv/bin/python tools/mobile_scaffold_check.py --out DOCS/MOBILE_SCAFFOLD_REPORT.md
+    .venv/bin/python tools/mobile_scaffold_check.py --out RAG/DOCS/MOBILE_SCAFFOLD_REPORT.md
     .venv/bin/python tools/mobile_scaffold_check.py --json
 """
 from __future__ import annotations
@@ -25,7 +25,7 @@ import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "DOCS" / "MOBILE_SCAFFOLD_REPORT.md"
+OUT = ROOT / "RAG" / "DOCS" / "MOBILE_SCAFFOLD_REPORT.md"
 TEMPLATES = ROOT / "GUI" / "refs" / "templates"
 MOBILE_REFS = ROOT / "GUI" / "refs" / "mobile"
 

@@ -1,6 +1,6 @@
 """CORE/slot_gate.py — gate deterministico per UN frammento (slot).
 
-SLOT-1 dell'architettura a slot (`DOCS/ARCHITETTURA_SLOT.md`): il 3b non
+SLOT-1 dell'architettura a slot (`RAG/DOCS/ARCHITETTURA_SLOT.md`): il 3b non
 scrive file interi, riempie slot piccoli. Questo gate verifica il
 frammento PRIMA dell'assembly:
 

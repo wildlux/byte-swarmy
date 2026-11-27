@@ -96,7 +96,7 @@ def test_ricevuta_dentro_repo_rifiutata(tmp_path):
     assert bp._attestation_path_ok(
         ROOT / "data" / "state" / "ok.json") is True
     assert bp._attestation_path_ok(ROOT / "ok.json") is False
-    assert bp._attestation_path_ok(ROOT / "DOCS" / "ok.json") is False
+    assert bp._attestation_path_ok(ROOT / "RAG" / "DOCS" / "ok.json") is False
     bad = ROOT / "rpm_attestation_in_tree.json"
     try:
         bad.write_text("{}", encoding="utf-8")

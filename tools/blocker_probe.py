@@ -21,7 +21,7 @@ quella dei sensori. Nessun valore può essere passato come argomento CLI.
 
 Uso:
     .venv/bin/python tools/blocker_probe.py
-    .venv/bin/python tools/blocker_probe.py --out DOCS/BLOCKER_PROBE_REPORT.md
+    .venv/bin/python tools/blocker_probe.py --out RAG/DOCS/BLOCKER_PROBE_REPORT.md
     .venv/bin/python tools/blocker_probe.py --json
     .venv/bin/python tools/blocker_probe.py --check-fan   # gate 0/1
     .venv/bin/python tools/blocker_probe.py --write-fan   # solo se misure OK
@@ -572,7 +572,7 @@ def markdown(result: dict) -> str:
          "`fan_rpm > 0` NON e' dimostrabile con i sensori disponibili: il gate"
          " resta chiuso **per decisione esplicita del 2026-11-22** (gate stretto"
          " mantenuto): nessun duty cycle o altra misura sostituisce i RPM."),
-        "Procedura operativa: `DOCS/RPM_MEASUREMENT_PROCEDURE.md`.",
+        "Procedura operativa: `RAG/DOCS/RPM_MEASUREMENT_PROCEDURE.md`.",
         "",
         "## Dettaglio credenziali (M4)",
         "",

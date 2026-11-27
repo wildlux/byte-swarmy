@@ -10,7 +10,7 @@ dopo la verifica delle ventole (file `data/state/fan_verified.json` con
 
 Uso:
     .venv/bin/python tools/memory_ab.py --dry-run
-    .venv/bin/python tools/memory_ab.py --dry-run --out DOCS/MEMORY_AB_REPORT.md
+    .venv/bin/python tools/memory_ab.py --dry-run --out RAG/DOCS/MEMORY_AB_REPORT.md
     .venv/bin/python tools/memory_ab.py --json
 
 Soglia GO/NO-GO dichiarata (PRIMA di qualsiasi run live):

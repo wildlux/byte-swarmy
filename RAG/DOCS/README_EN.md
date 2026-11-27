@@ -109,8 +109,8 @@ reboot.
 | **Safety valve** | Auto-pause for RAM, disk, CPU/GPU temperature; clean shutdown on SIGTERM. |
 | **Token streaming** | Model tokens appear in real time in the Live Activity Panel (300 ms). |
 | **Model rotation** | Only one model in VRAM at a time; explicit load/unload. |
-| **One-level subagents** | `CORE/subagent.py`: children with own identity/memory and existing model roles, depth ≤1, max 4, no LLM in `spawn()`, wall-clock cap and thermal gate. Policy in `DOCS/SUBAGENTS.md`, 8 offline tests. |
-| **Regex inventory** | `tests/test_regex_inventory.py`: AST scan of registry and `re.*` calls in `CORE/`/`GUI/`/`tools/`, printable with `pytest -q -s`. 24 patterns + 130 usages, 0 invalid/duplicates; report in `DOCS/REGEX_INVENTORY.md`. |
+| **One-level subagents** | `CORE/subagent.py`: children with own identity/memory and existing model roles, depth ≤1, max 4, no LLM in `spawn()`, wall-clock cap and thermal gate. Policy in `RAG/DOCS/SUBAGENTS.md`, 8 offline tests. |
+| **Regex inventory** | `tests/test_regex_inventory.py`: AST scan of registry and `re.*` calls in `CORE/`/`GUI/`/`tools/`, printable with `pytest -q -s`. 24 patterns + 130 usages, 0 invalid/duplicates; report in `RAG/DOCS/REGEX_INVENTORY.md`. |
 
 ---
 
@@ -714,7 +714,7 @@ byte-swarmy/
 ├── project/                 # Worker output (sandboxed, gitignored)
 ├── tools/                   # Operational tools (repo_map, lint, security, eval)
 ├── scripts/                 # Setup, hardening, sync, migrations
-├── DOCS/                    # Architecture, operations, reports, IMPLEMENTED
+├── RAG/DOCS/                    # Architecture, operations, reports, IMPLEMENTED
 ├── SKILLS/                  # Python/PyQt skills for workers
 ├── main.py                  # CLI entry point
 ├── byte-swarm.sh            # CLI launcher (alias: bswarm)
@@ -869,7 +869,7 @@ For changes touching security, also update `SECURITY.md` and the
 
 ## License
 
-Released under the MIT license. See [LICENSE](../LICENSE).
+Released under the MIT license. See [LICENSE](../../LICENSE).
 
 ---
 

@@ -17,7 +17,7 @@ Metriche misurate (una per task, sia per harness che per naked):
     clock del sistema)
 
 I risultati grezzi vengono salvati in state/benchmarks/ (JSON, gitignored).
-Il report testuale va in DOCS/BENCH.md (questa è la sede dei report).
+Il report testuale va in RAG/DOCS/BENCH.md (questa è la sede dei report).
 
 L'esecuzione richiede Ollama raggiungibile; se non disponibile, il modulo
 gira in modalità "dry-run" (solo struttura, nessuna chiamata LLM) ed e'
@@ -688,7 +688,7 @@ class ExternalBenchmark:
 
     # ------------------------------------------------------------------
     def generate_report(self) -> str:
-        """Genera il report testuale per DOCS/BENCH.md."""
+        """Genera il report testuale per RAG/DOCS/BENCH.md."""
         s = self.results.get("summary", {})
         h = s.get("harness", {})
         n = s.get("naked", {})
@@ -870,7 +870,7 @@ def main() -> int:
     parser.add_argument("--config", default="CONFIG/config.toml",
                         help="Percorso del config TOML")
     parser.add_argument("--save-report", action="store_true",
-                        help="Aggiunge il report a DOCS/BENCH.md")
+                        help="Aggiunge il report a RAG/DOCS/BENCH.md")
     parser.add_argument("--model", default=None,
                         help="Model key da testare (es. worker_coder, worker_coder_big). "
                              "Se omesso, confronta worker_coder (3b) vs worker_coder_big (4b).")
@@ -975,7 +975,7 @@ def main() -> int:
 
         if args.save_report:
             report = eb.generate_report()
-            bench_md = ROOT / "DOCS" / "BENCH.md"
+            bench_md = ROOT / "RAG" / "DOCS" / "BENCH.md"
             with open(bench_md, "a", encoding="utf-8") as f:
                 f.write(f"\n\n--- Modello: {model_key} ---\n")
                 f.write(report)

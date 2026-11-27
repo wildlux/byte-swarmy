@@ -1,7 +1,7 @@
 # 🧠 BYTE-SWARMY — Architettura
 
 > Documento esteso per umani e manutentori. Le **regole operative** che i
-> modelli piccoli (1.5B–4B) devono vedere restano in [`AGENT.md`](../AGENT.md);
+> modelli piccoli (1.5B–4B) devono vedere restano in [`AGENT.md`](../../AGENT.md);
 > qui vivono architettura, memoria, tool, threat model, metriche, lifecycle e
 > prompt engineering. Comandi e protocolli operativi: [`OPERATIONS.md`](OPERATIONS.md).
 
