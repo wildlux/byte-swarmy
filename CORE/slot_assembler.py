@@ -276,3 +276,29 @@ def assemble_to_file(base_path: str | Path, slots: Sequence[Mapping],
         tmp.unlink(missing_ok=True)
         raise AssemblerError(f"scrittura fallita: {exc}") from exc
     return dest
+
+
+def _cli() -> int:
+    import argparse, json, sys
+    p = argparse.ArgumentParser(prog="python -m CORE.slot_assembler")
+    p.add_argument("base", help="File base (scheletro).")
+    p.add_argument("--slots", required=True, help="JSON file con lista slot.")
+    p.add_argument("--out", default=None, help="File di output (default: sovrascrive base).")
+    args = p.parse_args()
+    try:
+        slots = json.loads(Path(args.slots).read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"slots non validi: {e}")
+        return 2
+    try:
+        dest = assemble_to_file(args.base, slots, out_path=args.out)
+        print(f"OK: {dest}")
+        return 0
+    except Exception as e:
+        print(f"ERRORE: {e}")
+        return 1
+
+
+if __name__ == "__main__":
+    from pathlib import Path
+    raise SystemExit(_cli())
