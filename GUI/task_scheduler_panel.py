@@ -124,6 +124,9 @@ class TaskSchedulerPanel(QWidget):
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setStyleSheet("QScrollArea { background:transparent; border:none; }")
 
+        self._scroll = scroll
+        self._sections = []
+
         content = QWidget()
         content.setObjectName("panelScrollContent")
         # NB: stylesheet con SELETTORE (non declaration-only), altrimenti
@@ -146,6 +149,16 @@ class TaskSchedulerPanel(QWidget):
         lay.addWidget(expl)
 
         # Form per aggiungere un task
+        nav_row = QHBoxLayout()
+        nav_row.setSpacing(8)
+        nav_label = QLabel("Vai a:")
+        nav_row.addWidget(nav_label)
+        self.nav_combo = QComboBox()
+        self.nav_combo.setMinimumWidth(220)
+        self.nav_combo.currentIndexChanged.connect(self._on_nav_changed)
+        nav_row.addWidget(self.nav_combo, stretch=1)
+        outer.addLayout(nav_row)
+
         form_box = QGroupBox("➕ Nuovo task schedulato")
         form = QFormLayout(form_box)
         form.setSpacing(8)
@@ -315,6 +328,8 @@ class TaskSchedulerPanel(QWidget):
         approval_lay.addLayout(btn_row)
         lay.addWidget(approval_box)
 
+        for name, _w in self._sections:
+            self.nav_combo.addItem(name)
         scroll.setWidget(content)
         outer.addWidget(scroll, stretch=1)
 
@@ -696,6 +711,15 @@ class TaskSchedulerPanel(QWidget):
         """Ricrea la lista task per il progetto corrente.
         Chiamata quando si apre il pannello o cambia progetto."""
         self._refresh_list()
+
+    def _on_nav_changed(self, idx: int) -> None:
+        if idx < 0 or idx >= len(self._sections):
+            return
+        _name, section = self._sections[idx]
+        try:
+            self._scroll.ensureWidgetVisible(section)
+        except Exception:
+            pass
 
     def _back_to_main(self):
         parent = self.parent()
