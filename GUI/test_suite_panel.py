@@ -24,7 +24,7 @@ from typing import Optional
 
 from PyQt6.QtCore import QProcess, QProcessEnvironment, Qt, QTimer
 from PyQt6.QtWidgets import (
-    QCheckBox, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QListWidget,
+    QCheckBox, QComboBox, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QListWidget,
     QListWidgetItem, QPlainTextEdit, QProgressBar, QPushButton, QScrollArea,
     QVBoxLayout, QWidget, QFrame,
 )
