@@ -62,6 +62,9 @@ class HardwarePanel(QWidget):
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setStyleSheet("QScrollArea { background:transparent; border:none; }")
 
+        self._scroll = scroll
+        self._sections = []
+
         content = QWidget()
         content.setObjectName("panelScrollContent")
         content.setStyleSheet("QWidget#panelScrollContent { background: transparent; }")
@@ -103,6 +106,17 @@ class HardwarePanel(QWidget):
         btn_row.addStretch()
         outer.addLayout(btn_row)
 
+        # Navigazione rapida
+        nav_row = QHBoxLayout()
+        nav_row.setSpacing(8)
+        nav_label = QLabel("Vai a:")
+        nav_row.addWidget(nav_label)
+        self.nav_combo = QComboBox()
+        self.nav_combo.setMinimumWidth(220)
+        self.nav_combo.currentIndexChanged.connect(self._on_nav_changed)
+        nav_row.addWidget(self.nav_combo, stretch=1)
+        outer.addLayout(nav_row)
+
         # Box profilo hardware (stile QGroupBox dal tema)
         prof_box = QGroupBox("📊 Profilo hardware rilevato")
         prof_lay = QVBoxLayout(prof_box)
@@ -137,6 +151,7 @@ class HardwarePanel(QWidget):
             prof_lay.addLayout(row)
 
         outer.addWidget(prof_box)
+        self._sections.append(("Profilo", prof_box))
 
         # Box strategia suggerita (stile QGroupBox dal tema)
         strat_box = QGroupBox("🎯 Strategia auto-suggerita")
@@ -168,6 +183,7 @@ class HardwarePanel(QWidget):
         strat_lay.addWidget(self.strat_params)
 
         outer.addWidget(strat_box)
+        self._sections.append(("Strategia", strat_box))
 
         # Riepilogo one-line
         self.summary_lbl = QLabel("—")
@@ -192,8 +208,11 @@ class HardwarePanel(QWidget):
         self.hw_log.setMaximumHeight(170)
         log_lay.addWidget(self.hw_log)
         outer.addWidget(log_box, stretch=0)
+        self._sections.append(("Log", log_box))
         outer.addStretch()
 
+        for name, _w in self._sections:
+            self.nav_combo.addItem(name)
         scroll.setWidget(content)
 
         main_lay = QVBoxLayout(self)
@@ -341,6 +360,16 @@ class HardwarePanel(QWidget):
                 )
             except Exception:
                 pass
+
+    def _on_nav_changed(self, idx: int) -> None:
+        """Scrolla alla sezione selezionata nel combo di navigazione rapida."""
+        if idx < 0 or idx >= len(self._sections):
+            return
+        _name, section = self._sections[idx]
+        try:
+            self._scroll.ensureWidgetVisible(section)
+        except Exception:
+            pass
 
     def _back_to_main(self):
         """Torna alla plancia di controllo."""
