@@ -1,23 +1,13 @@
-"""Fixture condivise per la suite — Qt sempre offscreen, un solo QApplication.
+"""Conftest root — robustezza della collection pytest.
 
-Il platform viene impostato in fase di import di ``conftest.py``, quindi prima
-che i moduli di test importino PyQt6. Elimina i ``QApplication`` duplicati a
-livello modulo (causa di abort in ``test_theme_sync.py``).
+- Ignora tests/archiviati/ (esperimenti storici; un file lì dentro è
+  troncato su disco e romperebbe l'exit code dell'intera run).
+- Garantisce che la root del repo sia in sys.path anche quando pytest
+  viene invocato da fuori (pytest /abs/path/byte-swarmy/tests).
 """
+import sys
+from pathlib import Path
 
-from __future__ import annotations
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import os
-
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-
-import pytest  # noqa: E402
-
-
-@pytest.fixture(scope="session", autouse=True)
-def qapp():
-    """QApplication singleton, riutilizzato da tutti i test GUI."""
-    from PyQt6.QtWidgets import QApplication
-
-    app = QApplication.instance() or QApplication([])
-    yield app
+collect_ignore = ["tests/archiviati", "project"]
