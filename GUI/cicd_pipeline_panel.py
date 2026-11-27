@@ -83,17 +83,16 @@ class CICDPipelinePanel(QWidget):
         _set_banner(expl, "warn")
         lay.addWidget(expl)
 
-        # Navigazione rapida
-        nav_row = QHBoxLayout()
-        nav_row.setSpacing(8)
-        nav_label = QLabel("Vai a:")
-        nav_row.addWidget(nav_label)
-        self.nav_combo = QComboBox()
-        self.nav_combo.setMinimumWidth(220)
-        self.nav_combo.currentIndexChanged.connect(self._on_nav_changed)
-        nav_row.addWidget(self.nav_combo, stretch=1)
-        outer.addLayout(nav_row)
-
+        from PyQt6.QtWidgets import QTabWidget
+        tabs = QTabWidget()
+        tab1 = QWidget()
+        tab1_layout = QVBoxLayout(tab1)
+        tab1_layout.setSpacing(12)
+        tab1_layout.setContentsMargins(0, 0, 0, 0)
+        tab2 = QWidget()
+        tab2_layout = QVBoxLayout(tab2)
+        tab2_layout.setSpacing(12)
+        tab2_layout.setContentsMargins(0, 0, 0, 0)
         # Stages: 3 card con stato
         stages_box = QGroupBox("📋 Stage della pipeline")
         stages_box.setStyleSheet(self._group_style())
@@ -154,8 +153,9 @@ class CICDPipelinePanel(QWidget):
         lay.addWidget(log_box)
         self._sections.append(("Log", log_box))
 
-        for name, _w in self._sections:
-            self.nav_combo.addItem(name)
+        tabs.addTab(tab1, "📋 Stage")
+        tabs.addTab(tab2, "📜 Log")
+        lay.addWidget(tabs, stretch=1)
         scroll.setWidget(content)
         outer.addWidget(scroll, stretch=1)
 
