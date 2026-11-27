@@ -13,8 +13,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
-from pathlib import Path
 from typing import Optional
 
 # Formato: nome (lowercase) -> dict con categoria, descrizione, uso, ram_gb, tags

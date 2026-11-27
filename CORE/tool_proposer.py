@@ -18,11 +18,9 @@ import ast
 import json
 import py_compile
 import shutil
-import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 PROPOSALS_DIR = ROOT / "state" / "tool_proposals"

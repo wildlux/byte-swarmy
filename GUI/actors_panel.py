@@ -19,9 +19,9 @@ import re
 from typing import Dict
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QComboBox, QSpinBox, QDoubleSpinBox, QGroupBox,
-    QFormLayout, QScrollArea, QCheckBox, QMessageBox,
+    QFormLayout, QCheckBox, QMessageBox,
     QPlainTextEdit,
 )
 

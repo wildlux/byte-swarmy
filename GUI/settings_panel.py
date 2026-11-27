@@ -16,7 +16,7 @@ from typing import Optional
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
-    QComboBox, QLineEdit, QMessageBox, QScrollArea,
+    QComboBox, QLineEdit, QMessageBox,
     QGroupBox, QFormLayout, QPlainTextEdit,
     QProgressBar,
 )

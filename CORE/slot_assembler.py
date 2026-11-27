@@ -279,7 +279,7 @@ def assemble_to_file(base_path: str | Path, slots: Sequence[Mapping],
 
 
 def _cli() -> int:
-    import argparse, json, sys
+    import argparse, json
     p = argparse.ArgumentParser(prog="python -m CORE.slot_assembler")
     p.add_argument("base", help="File base (scheletro).")
     p.add_argument("--slots", required=True, help="JSON file con lista slot.")
@@ -300,5 +300,4 @@ def _cli() -> int:
 
 
 if __name__ == "__main__":
-    from pathlib import Path
     raise SystemExit(_cli())
