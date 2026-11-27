@@ -242,6 +242,36 @@ def approve(proposal_id: str) -> bool:
     return True
 
 
+def record_tool_usage(tool_name: str, success: bool) -> Optional[str]:
+    """Traccia l'uso di un tool generato. Dopo 3 successi senza fallimenti,
+    prova l'auto-approvazione (gate verde). Ritorna l'id approvato o None.
+    Fail-open."""
+    try:
+        reg = _load_registry()
+        # Traccia usage in registry
+        info = reg.get(tool_name)
+        if info is None:
+            return None
+        usage = info.setdefault("usage", {"success": 0, "fail": 0})
+        if success:
+            usage["success"] = usage.get("success", 0) + 1
+        else:
+            usage["fail"] = usage.get("fail", 0) + 1
+        _save_registry(reg)
+
+        # Auto-approvazione dopo 3 successi senza fallimenti
+        if usage.get("success", 0) >= 3 and usage.get("fail", 0) == 0:
+            if info.get("status") == "pending":
+                report = gate(tool_name)
+                if report.ok:
+                    ok = approve(tool_name)
+                    if ok:
+                        return tool_name
+        return None
+    except Exception:
+        return None
+
+
 def reject(proposal_id: str) -> bool:
     _ensure_dirs()
     reg = _load_registry()
