@@ -2,7 +2,7 @@
 ollama_metrics.py — Helper per leggere metriche Ollama dalla GUI.
 
 Fonti:
-- state/last_metrics.json (scritto da ollama_client.py dopo ogni call)
+- state/last_metrics.json (scritto da CORE/ollama_client.py dopo ogni call)
 - /api/ps di Ollama (modelli caricati con size_vram)
 """
 from __future__ import annotations
