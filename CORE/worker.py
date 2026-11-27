@@ -1696,11 +1696,24 @@ class Worker:
         # hijackano il prompt). Max 2 ref, ciascuno troncato a 600 char.
         refs_block = self._build_refs_block(task)
 
+        # 🆕 Retrieval di codice: simboli rilevanti al task dal code_map.
+        # Riduce il contesto (solo chunk pertinenti) → meno RAM/token.
+        code_symbols_block = ""
+        try:
+            from CORE.retrieval import retrieve_code_symbols, format_code_symbols
+            _syms = retrieve_code_symbols(
+                "project", str(task.get("title", "")) + " " + str(task.get("description", "")),
+                k=5)
+            code_symbols_block = format_code_symbols(_syms)
+        except Exception:
+            code_symbols_block = ""
+
         _raw = (
             f"TASK: {task.get('title', '')} | DESC: {task.get('description', '')} | "
             f"STATE: {self._project_state()} | CTX: {persistent_context} | "
             f"RULES: {Planner.WORKER_CONSTRAINTS} | SKILL: {skill_block}\n"
             f"REFS (API di riferimento — usale, non inventare):\n{refs_block}\n"
+            f"{code_symbols_block}\n"
             "PLAN: 1.write_file 2.read/lint verify 3.done=true\n"
             f"{correction_block}"
             "First step (JSON only):"

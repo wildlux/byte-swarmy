@@ -231,3 +231,104 @@ def build_from_corpus(state_dir) -> TaskRetriever:
         uniq.append((tid, text, sol))
     uniq.reverse()
     return build_from_pairs(uniq)
+
+
+def retrieve_code_symbols(project_root, query: str, k: int = 5) -> list[dict]:
+    """Retrieval leggero di simboli del codebase rilevanti al task.
+
+    Usa code_map.db (SQLite) + TF-IDF stdlib. Zero RAM extra, zero modelli.
+    Ritorna lista di dict: {file, kind, name, qualname, signature, line, score}.
+    """
+    try:
+        from CORE import code_map as _cm
+    except Exception:
+        return []
+    try:
+        db = _cm.db_path(project_root)
+        if not db.exists():
+            _cm.rebuild(project_root)
+            db = _cm.db_path(project_root)
+        if not db.exists():
+            return []
+    except Exception:
+        return []
+
+    import sqlite3
+    try:
+        conn = sqlite3.connect(str(db))
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT file, kind, name, qualname, signature, doc, line FROM symbols"
+        ).fetchall()
+        conn.close()
+    except Exception:
+        return []
+
+    if not rows:
+        return []
+
+    q_tokens = tokenize(query)
+    if not q_tokens:
+        return []
+
+    # TF-IDF leggero sui simboli
+    docs = []
+    for r in rows:
+        text = " ".join(filter(None, [r["name"], r["qualname"], r["signature"], r["doc"]]))
+        toks = tokenize(text)
+        docs.append((r, toks))
+
+    # IDF
+    n = len(docs)
+    df = {}
+    for _, toks in docs:
+        for t in set(toks):
+            df[t] = df.get(t, 0) + 1
+    idf = {t: (math.log((1 + n) / (1 + dfc)) + 1.0) for t, dfc in df.items()}
+
+    def vec(tokens):
+        tf = {}
+        for t in tokens:
+            tf[t] = tf.get(t, 0) + 1
+        total = len(tokens) or 1
+        return {t: (c / total) * idf.get(t, 1.0) for t, c in tf.items()}
+
+    q_vec = vec(q_tokens)
+    q_norm = math.sqrt(sum(v * v for v in q_vec.values())) or 1.0
+
+    scored = []
+    for r, toks in docs:
+        d_vec = vec(toks)
+        d_norm = math.sqrt(sum(v * v for v in d_vec.values())) or 1.0
+        dot = sum(q_vec.get(t, 0.0) * d_vec.get(t, 0.0) for t in q_vec)
+        score = dot / (q_norm * d_norm)
+        if score > 0:
+            scored.append((score, r))
+
+    scored.sort(key=lambda x: -x[0])
+    out = []
+    for score, r in scored[:k]:
+        out.append({
+            "file": r["file"],
+            "kind": r["kind"],
+            "name": r["name"],
+            "qualname": r["qualname"],
+            "signature": r["signature"],
+            "line": r["line"],
+            "score": round(score, 4),
+        })
+    return out
+
+
+def format_code_symbols(symbols: list[dict], max_chars: int = 800) -> str:
+    """Formatta i simboli recuperati per il prompt."""
+    if not symbols:
+        return ""
+    lines = ["## SIMBOLI RILEVANTI (retrieval)", "(usa questi, non reinventare)"]
+    for s in symbols:
+        sig = s.get("signature", "") or ""
+        lines.append(f"  - {s['file']}:{s['line']} {s['kind']} {s['name']} {sig}")
+    text = "\n".join(lines)
+    if len(text) > max_chars:
+        text = text[:max_chars] + "\n...[truncated]"
+    return text
