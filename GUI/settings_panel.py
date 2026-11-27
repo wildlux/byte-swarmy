@@ -100,66 +100,53 @@ class SettingsPanel(QWidget):
         _theme_prop(self.search_count, "role", "muted")
         outer.addWidget(self.search_count)
 
-        # Navigazione rapida: combo per saltare alla sezione desiderata
-        nav_row = QHBoxLayout()
-        nav_row.setSpacing(8)
-        nav_label = QLabel("Vai a:")
-        nav_row.addWidget(nav_label)
-        self.nav_combo = QComboBox()
-        self.nav_combo.setMinimumWidth(220)
-        self.nav_combo.currentIndexChanged.connect(self._on_nav_changed)
-        nav_row.addWidget(self.nav_combo, stretch=1)
-        outer.addLayout(nav_row)
+        # Tab widget per navigare le sezioni (schede)
+        from PyQt6.QtWidgets import QTabWidget
+        tabs = QTabWidget()
 
-        # Scroll area per il contenuto (in caso di molti remote)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet("QScrollArea { background:transparent; border:none; }")
-
-        content = QWidget()
-        content.setObjectName("panelScrollContent")
-        # NB: stylesheet con SELETTORE (non declaration-only), altrimenti
-        # il "background: transparent" trasuda su tutti i figli e azzera
-        # i bottoni role="start"/"danger" del tema app-level.
-        content.setStyleSheet("QWidget#panelScrollContent { background: transparent; }")
-        lay = QVBoxLayout(content)
-        lay.setSpacing(12)
-        lay.setContentsMargins(0, 0, 0, 0)
-
-        # ── Sezioni impostazioni ──────────────────────────────────────
-        # Ogni sezione viene registrata in self._sections per consentire
-        # il filtraggio tramite la barra di ricerca.
-        self._sections: list[tuple[str, QGroupBox]] = []
-
-        def _add_section(name: str, widget: QGroupBox):
-            lay.addWidget(widget)
-            self._sections.append((name, widget))
-
+        # Tab 1: Aspetto
+        tab1 = QWidget()
+        lay1 = QVBoxLayout(tab1)
+        lay1.setSpacing(12)
+        lay1.setContentsMargins(0, 0, 0, 0)
         self.theme_section = ThemeSection(self._on_theme_changed)
         self.language_section = LanguageSection(self._on_lang_changed)
+        lay1.addWidget(self.theme_section)
+        lay1.addWidget(self.language_section)
+        self._sections = [("tema", self.theme_section), ("lingua", self.language_section)]
+        tabs.addTab(tab1, "🎨 Aspetto")
+
+        # Tab 2: Sistema
+        tab2 = QWidget()
+        lay2 = QVBoxLayout(tab2)
+        lay2.setSpacing(12)
+        lay2.setContentsMargins(0, 0, 0, 0)
         self.debug_section = DebugSection(self._on_gui_debug_changed)
         self.hardware_section = HardwareSection(self._on_hw_changed)
-        _add_section("tema", self.theme_section)
-        _add_section("lingua", self.language_section)
-        _add_section("debug", self.debug_section)
-        _add_section("hardware", self.hardware_section)
-        _add_section("git", self._build_git_section())
-        _add_section("audit", self._build_audit_section())
-        _add_section("pesi huggingface", self._build_weightspace_section())
-        _add_section("etichette", self._build_labels_section())
+        git_section = self._build_git_section()
+        lay2.addWidget(self.debug_section)
+        lay2.addWidget(self.hardware_section)
+        lay2.addWidget(git_section)
+        self._sections += [("debug", self.debug_section), ("hardware", self.hardware_section),
+                           ("git", git_section)]
+        tabs.addTab(tab2, "⚙️ Sistema")
 
-        # Popola il combo di navigazione rapida
-        for name, _w in self._sections:
-            self.nav_combo.addItem(name.title())
+        # Tab 3: Avanzate
+        tab3 = QWidget()
+        lay3 = QVBoxLayout(tab3)
+        lay3.setSpacing(12)
+        lay3.setContentsMargins(0, 0, 0, 0)
+        audit_section = self._build_audit_section()
+        weightspace_section = self._build_weightspace_section()
+        labels_section = self._build_labels_section()
+        lay3.addWidget(audit_section)
+        lay3.addWidget(weightspace_section)
+        lay3.addWidget(labels_section)
+        self._sections += [("audit", audit_section), ("pesi huggingface", weightspace_section),
+                           ("etichette", labels_section)]
+        tabs.addTab(tab3, "🔧 Avanzate")
 
-        # Le sezioni riempiono lo spazio disponibile (niente stretch finale
-        # che lasciava area vuota): l'audit_output usa il posto in più.
-
-        scroll.setWidget(content)
-        outer.addWidget(scroll, stretch=1)
-        self._scroll = scroll
-        self._content = content
+        outer.addWidget(tabs, stretch=1)
 
         # Stato iniziale: tutte le sezioni visibili
         self._update_search_count(len(self._sections), len(self._sections))
