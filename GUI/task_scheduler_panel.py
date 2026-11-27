@@ -148,16 +148,20 @@ class TaskSchedulerPanel(QWidget):
         _theme_banner(expl, "warn")
         lay.addWidget(expl)
 
-        # Form per aggiungere un task
-        nav_row = QHBoxLayout()
-        nav_row.setSpacing(8)
-        nav_label = QLabel("Vai a:")
-        nav_row.addWidget(nav_label)
-        self.nav_combo = QComboBox()
-        self.nav_combo.setMinimumWidth(220)
-        self.nav_combo.currentIndexChanged.connect(self._on_nav_changed)
-        nav_row.addWidget(self.nav_combo, stretch=1)
-        outer.addLayout(nav_row)
+        from PyQt6.QtWidgets import QTabWidget
+        tabs = QTabWidget()
+        tab1 = QWidget()
+        tab1_layout = QVBoxLayout(tab1)
+        tab1_layout.setSpacing(12)
+        tab1_layout.setContentsMargins(0, 0, 0, 0)
+        tab2 = QWidget()
+        tab2_layout = QVBoxLayout(tab2)
+        tab2_layout.setSpacing(12)
+        tab2_layout.setContentsMargins(0, 0, 0, 0)
+        tab3 = QWidget()
+        tab3_layout = QVBoxLayout(tab3)
+        tab3_layout.setSpacing(12)
+        tab3_layout.setContentsMargins(0, 0, 0, 0)
 
         form_box = QGroupBox("➕ Nuovo task schedulato")
         form = QFormLayout(form_box)
@@ -328,8 +332,10 @@ class TaskSchedulerPanel(QWidget):
         approval_lay.addLayout(btn_row)
         lay.addWidget(approval_box)
 
-        for name, _w in self._sections:
-            self.nav_combo.addItem(name)
+        tabs.addTab(tab1, "➕ Nuovo")
+        tabs.addTab(tab2, "📋 Coda")
+        tabs.addTab(tab3, "🔒 Approvazioni")
+        outer.addWidget(tabs, stretch=1)
         scroll.setWidget(content)
         outer.addWidget(scroll, stretch=1)
 
