@@ -1708,6 +1708,24 @@ class Worker:
                 "project", str(task.get("title", "")) + " " + str(task.get("description", "")),
                 k=5)
             code_symbols_block = format_code_symbols(_syms)
+            # Retrieval profondo: aggiungi il contenuto dei top-2 file rilevanti.
+            try:
+                from pathlib import Path as _P
+                _seen_files = set()
+                _file_chunks = []
+                for _s in _syms[:2]:
+                    _f = _s.get("file", "")
+                    if _f in _seen_files:
+                        continue
+                    _seen_files.add(_f)
+                    _fp = _P("project") / _f
+                    if _fp.exists() and _fp.is_file():
+                        _content = _fp.read_text(encoding="utf-8", errors="replace")[:400]
+                        _file_chunks.append(f"--- {_f} (excerpt) ---\n{_content}")
+                if _file_chunks:
+                    code_symbols_block += "\n" + "\n".join(_file_chunks)
+            except Exception:
+                pass
         except Exception:
             code_symbols_block = ""
 
